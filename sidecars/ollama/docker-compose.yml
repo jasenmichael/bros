@@ -1,0 +1,14 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ${BROS_HOST_DATA_DIR}/ollama:/root/.ollama
+      # Same host path as app so symlink imports resolve inside Ollama
+      - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:ro
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

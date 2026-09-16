@@ -1,0 +1,11 @@
+{
+  "name": "@bros/docs",
+  "private": true,
+  "type": "module",
+  "main": "./nuxt.config.ts",
+  "dependencies": {
+    "@bros/theme": "workspace:*",
+    "nuxt": "^4.5.0",
+    "pathe": "^2.0.3"
+  }
+}

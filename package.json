@@ -1,0 +1,17 @@
+{
+  "name": "bros",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @bros/app dev",
+    "build": "pnpm --filter @bros/app build",
+    "preview": "pnpm --filter @bros/app preview",
+    "docs:dev": "pnpm --filter @bros/website dev",
+    "docs:generate": "pnpm --filter @bros/website generate",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @bros/app test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,38 @@
+:root {
+  --bros-bg: #0f1419;
+  --bros-surface: #1a222c;
+  --bros-border: #2a3544;
+  --bros-text: #e8eef5;
+  --bros-muted: #8b9bb0;
+  --bros-accent: #3d9cf0;
+  --bros-accent-2: #2dd4bf;
+  --bros-danger: #f07178;
+  --bros-ok: #7fd962;
+  --bros-font-display: 'Segoe UI', 'IBM Plex Sans', system-ui, sans-serif;
+  --bros-font-body: 'Segoe UI', 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: radial-gradient(1200px 600px at 10% -10%, #1a2a3d 0%, var(--bros-bg) 55%);
+  color: var(--bros-text);
+  font-family: var(--bros-font-body);
+}
+
+.bros-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.bros-main {
+  padding: 1.5rem 2rem;
+}
+
+@media (max-width: 800px) {
+  .bros-shell {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,4 @@
+packages:
+  - 'src/app'
+  - 'src/website'
+  - 'src/layers/*'

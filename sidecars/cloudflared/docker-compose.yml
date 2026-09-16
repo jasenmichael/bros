@@ -1,0 +1,16 @@
+services:
+  cloudflared:
+    # Real cloudflared binary image is distroless and exits without a tunnel.
+    # Lifecycle placeholder until tunnel UX; swap command/image then.
+    image: alpine:3.20
+    command: ["sleep", "infinity"]
+    labels:
+      bros.sidecar: cloudflared
+      bros.image.intended: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

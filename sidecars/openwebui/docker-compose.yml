@@ -1,0 +1,19 @@
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    environment:
+      WEBUI_AUTH: "false"
+      OLLAMA_BASE_URL: http://ollama:11434
+      # Public URL for callbacks; browser hits published host port
+      WEBUI_URL: http://localhost:3080
+    ports:
+      - "${BROS_OPENWEBUI_PORT:-3080}:8080"
+    volumes:
+      - ${BROS_HOST_DATA_DIR}/openwebui:/app/backend/data
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

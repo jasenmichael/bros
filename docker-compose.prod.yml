@@ -1,0 +1,9 @@
+services:
+  bros:
+    build:
+      context: .
+      target: production
+    image: bros:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production

@@ -1,0 +1,9 @@
+id: cloudflared
+slug: cloudflared
+name: cloudflared
+description: Cloudflare tunnel binary sidecar (tunnel UX later). Lifecycle only for now.
+
+interfaces:
+  - type: cli
+    service: cloudflared
+    command: cloudflared

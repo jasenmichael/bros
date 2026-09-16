@@ -1,0 +1,9 @@
+id: opencode
+slug: opencode
+name: OpenCode
+description: CLI coding agent (anomalyco/opencode). No web UI — lifecycle + network for later agent use.
+
+interfaces:
+  - type: cli
+    service: opencode
+    command: opencode

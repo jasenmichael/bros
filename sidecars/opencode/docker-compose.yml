@@ -1,0 +1,15 @@
+services:
+  opencode:
+    # Lifecycle placeholder — swap to anomalyco/opencode image when agent UX lands.
+    image: alpine:3.20
+    command: ["sleep", "infinity"]
+    working_dir: /workspace
+    volumes:
+      - ${BROS_HOST_DATA_DIR}/opencode:/workspace
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

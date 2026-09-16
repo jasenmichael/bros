@@ -1,0 +1,55 @@
+services:
+  bros:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    image: bros:dev
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/app
+      - ${BROS_HOST_DATA_DIR:-./data}:/data
+      # Host path for bind (set by ./bros); inside container scan uses /host-home
+      - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
+      - bros-node-modules:/app/node_modules
+      - bros-app-modules:/app/src/app/node_modules
+      - bros-docs-layer-modules:/app/src/layers/docs/node_modules
+      - bros-theme-modules:/app/src/layers/theme/node_modules
+      - bros-website-modules:/app/src/website/node_modules
+    environment:
+      BROS_WORKING_DIR: /app
+      BROS_DATA_DIR: /data
+      BROS_SIDECARS_DIR: /app/sidecars
+      BROS_NETWORK: bros
+      BROS_DIR: ${BROS_DIR:-}
+      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:-}
+      BROS_HOST_HOME: /host-home
+      BROS_HOST_HOME_BIND: ${BROS_HOST_HOME_BIND:-${HOME}}
+      BROS_OLLAMA_MODELS_DIR: /data/ollama/models
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: "3055"
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: "3055"
+    # group_add stays in base compose only (merged lists concatenate).
+    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
+    # Repo bind-mounted at /app; entrypoint installs then runs command.
+    entrypoint: ["/bin/sh", "/app/docker/dev-entrypoint.sh"]
+    command:
+      - pnpm
+      - --filter
+      - "@bros/app"
+      - dev
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "3055"
+
+volumes:
+  bros-node-modules:
+  bros-app-modules:
+  bros-docs-layer-modules:
+  bros-theme-modules:
+  bros-website-modules:

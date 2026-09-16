@@ -1,0 +1,493 @@
+#!/usr/bin/env bash
+# Bros CLI — start/stop/status/update via Docker Compose.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+cd "$REPO_ROOT"
+
+VERSION="0.1.0"
+if [[ -f "$REPO_ROOT/package.json" ]]; then
+  _pkg_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$REPO_ROOT/package.json" | head -1)"
+  [[ -n "${_pkg_ver:-}" ]] && VERSION="$_pkg_ver"
+fi
+[[ -f "$REPO_ROOT/VERSION" ]] && VERSION="$(tr -d '[:space:]' <"$REPO_ROOT/VERSION")"
+
+# Defaults: prod compose files, interactive (foreground) up
+DEV=0
+DAEMON=0
+CONFIG_PATH=""
+COMMAND=""
+
+usage() {
+  cat <<EOF
+Bros $VERSION — local AI control plane (Docker Compose)
+
+Usage:
+  bros [-h|--help] [-v|--version]
+  bros [options]                 Default: start
+  bros <command> [options]
+
+Default action (no command): start (build + up)
+
+Commands:
+  start              Same as default (optional explicit alias)
+  stop               Stop Bros core + all bros-sc-* sidecars (data dirs kept)
+  status             Show compose ps and health check
+  restart            Stop then start (same flags)
+  check              Check for git/image updates; prompt to update if any
+  update             Pull images and rebuild (alias: upgrade)
+
+Options:
+  --dev              Dev compose: docker-compose.yml + docker-compose.dev.yml
+                     Always interactive (foreground). -D/--daemon ignored with a warning.
+                     (default without --dev: base + docker-compose.prod.yml)
+  -D, --daemon       Background: docker compose up --build -d (prod only; ignored with --dev)
+  -i, --interactive  Foreground (default): up --build; Ctrl+C / SIGTERM runs compose down
+  -c, --config PATH  Bootstrap YAML; sets BROS_CONFIG (mounted into container)
+  -h, --help         Show this help
+  -v, --version      Show version
+
+Env:
+  BROS_DIR           Checkout dir (repo) or ~/.bros (installed). Override allowed.
+  BROS_HOST_DATA_DIR Persistent binds; default \$BROS_DIR/data
+
+Examples:
+  ./bros --dev
+  ./bros -D
+  ./bros -c ./bros.yml
+  ./bros status --dev
+  ./bros check --dev
+  ./bros update --dev
+  ./bros upgrade --dev
+EOF
+}
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+preflight() {
+  if ! command -v docker >/dev/null 2>&1; then
+    die "Docker is not installed or not on PATH. Install Docker: https://docs.docker.com/get-docker/"
+  fi
+  if ! docker info >/dev/null 2>&1; then
+    die "Docker daemon is not reachable. Start Docker and retry (tried: docker info)."
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    die "Docker Compose plugin missing. Need 'docker compose' (v2 plugin), not only 'docker-compose'."
+  fi
+  # Host path for /host-home binds (sidecars started from inside the app inherit this)
+  export BROS_HOST_HOME_BIND="${BROS_HOST_HOME_BIND:-${HOME}}"
+  # App container must write bind-mounted files as the host user (not root).
+  export BROS_HOST_UID="$(id -u)"
+  export BROS_HOST_GID="$(id -g)"
+  # docker.sock is typically root:docker (660). Join that group instead of running as root.
+  _docker_gid="$(getent group docker 2>/dev/null | cut -d: -f3 || true)"
+  if [[ -n "${_docker_gid}" ]]; then
+    export BROS_DOCKER_GID="${_docker_gid}"
+  else
+    export BROS_DOCKER_GID=0
+    echo "warning: no docker group; BROS_DOCKER_GID=0 so the app can still use /var/run/docker.sock" >&2
+  fi
+  resolve_bros_dir
+  ensure_host_data_dir
+}
+
+# Repo checkout (compose + sidecars next to this script) vs installed (~/.bros).
+resolve_bros_dir() {
+  if [[ -z "${BROS_DIR:-}" ]]; then
+    if [[ -f "$SCRIPT_DIR/docker-compose.yml" && -d "$SCRIPT_DIR/sidecars" ]]; then
+      BROS_DIR="$SCRIPT_DIR"
+    else
+      BROS_DIR="${HOME}/.bros"
+    fi
+  fi
+  export BROS_DIR
+  export BROS_HOST_DATA_DIR="${BROS_HOST_DATA_DIR:-${BROS_DIR}/data}"
+}
+
+dir_is_empty() {
+  local d="$1"
+  [[ -d "$d" ]] || return 0
+  [[ -z "$(ls -A "$d" 2>/dev/null)" ]]
+}
+
+volume_exists() {
+  docker volume inspect "$1" >/dev/null 2>&1
+}
+
+# One-shot: first existing named volume → dest. Keep old volumes.
+# empty_check: "empty" (dir has no files) or a relative marker (skip if dest/marker exists).
+try_copy_volumes() {
+  local dest="$1"
+  local empty_check="$2"
+  shift 2
+  mkdir -p "$dest"
+  if [[ "$empty_check" == "empty" ]]; then
+    dir_is_empty "$dest" || return 0
+  elif [[ -e "$dest/$empty_check" ]]; then
+    return 0
+  fi
+  local vol
+  for vol in "$@"; do
+    volume_exists "$vol" || continue
+    echo "Copying Docker volume $vol → $dest (one-shot)…"
+    docker run --rm \
+      -v "${vol}:/from:ro" \
+      -v "${dest}:/to" \
+      alpine:3.20 \
+      sh -c "cp -a /from/. /to/ && chown -R ${BROS_HOST_UID}:${BROS_HOST_GID} /to" \
+      || die "failed to copy volume $vol to $dest"
+    return 0
+  done
+}
+
+ensure_host_data_dir() {
+  mkdir -p \
+    "$BROS_HOST_DATA_DIR" \
+    "$BROS_HOST_DATA_DIR/ollama" \
+    "$BROS_HOST_DATA_DIR/openwebui" \
+    "$BROS_HOST_DATA_DIR/opencode" \
+    "$BROS_HOST_DATA_DIR/sidecars" \
+    "$BROS_HOST_DATA_DIR/logs"
+  # Compose project prefix: bros_bros-data, bros-sc-openwebui_openwebui-data, …
+  try_copy_volumes "$BROS_HOST_DATA_DIR" "bros.sqlite" "bros-data" "bros_bros-data"
+  try_copy_volumes "$BROS_HOST_DATA_DIR/ollama" "empty" "bros-ollama-data"
+  try_copy_volumes "$BROS_HOST_DATA_DIR/openwebui" "empty" "openwebui-data" "bros-sc-openwebui_openwebui-data"
+  try_copy_volumes "$BROS_HOST_DATA_DIR/opencode" "empty" "opencode-data" "bros-sc-opencode_opencode-data"
+}
+
+compose_files() {
+  if [[ "$DEV" -eq 1 ]]; then
+    echo "-f docker-compose.yml -f docker-compose.dev.yml"
+  else
+    echo "-f docker-compose.yml -f docker-compose.prod.yml"
+  fi
+}
+
+# Run docker compose with selected files; remaining args passed through.
+compose() {
+  # shellcheck disable=SC2046
+  docker compose $(compose_files) "$@"
+}
+
+# Core sidecars live under ./sidecars/<id>/ with compose project bros-sc-<id>.
+SIDECARS_DIR="$REPO_ROOT/sidecars"
+
+# Tear down one compose project by name (ignore missing).
+compose_project_down() {
+  local project="$1"
+  local file="${2:-}"
+  if [[ -n "$file" && -f "$file" ]]; then
+    docker compose -p "$project" -f "$file" down --timeout 10 --remove-orphans >/dev/null 2>&1 || true
+  else
+    docker compose -p "$project" down --timeout 10 --remove-orphans >/dev/null 2>&1 || true
+  fi
+}
+
+# Stop all Bros sidecar projects (bros-sc-*) discovered under sidecars/.
+stop_bros_sidecars() {
+  local dir id
+  if [[ -d "$SIDECARS_DIR" ]]; then
+    for dir in "$SIDECARS_DIR"/*/; do
+      [[ -f "${dir}docker-compose.yml" ]] || continue
+      id="$(basename "$dir")"
+      compose_project_down "bros-sc-${id}" "${dir}docker-compose.yml"
+    done
+  fi
+  # Catch any leftover bros-sc-* containers (custom data_dir sidecars, stale names).
+  local leftover
+  leftover="$(docker ps -aq --filter 'name=bros-sc-' 2>/dev/null || true)"
+  if [[ -n "$leftover" ]]; then
+    # shellcheck disable=SC2086
+    docker stop $leftover >/dev/null 2>&1 || true
+    # shellcheck disable=SC2086
+    docker rm $leftover >/dev/null 2>&1 || true
+  fi
+}
+
+# One-shot cleanup of pre-rename forgebox-sc-* stacks so they never run beside bros-sc-*.
+cleanup_legacy_sidecar_projects() {
+  local dir id leftover
+  if [[ -d "$SIDECARS_DIR" ]]; then
+    for dir in "$SIDECARS_DIR"/*/; do
+      [[ -f "${dir}docker-compose.yml" ]] || continue
+      id="$(basename "$dir")"
+      compose_project_down "forgebox-sc-${id}" "${dir}docker-compose.yml"
+    done
+  fi
+  leftover="$(docker ps -aq --filter 'name=forgebox-sc-' 2>/dev/null || true)"
+  if [[ -n "$leftover" ]]; then
+    echo "Removing legacy forgebox-sc-* containers…"
+    # shellcheck disable=SC2086
+    docker stop $leftover >/dev/null 2>&1 || true
+    # shellcheck disable=SC2086
+    docker rm $leftover >/dev/null 2>&1 || true
+  fi
+}
+
+stop_full_stack() {
+  echo "Stopping sidecars (bros-sc-*)…"
+  stop_bros_sidecars
+  cleanup_legacy_sidecar_projects
+  echo "Stopping Bros core…"
+  compose down || true
+}
+
+apply_config_env() {
+  if [[ -z "$CONFIG_PATH" ]]; then
+    unset BROS_CONFIG BROS_CONFIG_HOST 2>/dev/null || true
+    return 0
+  fi
+  local abs
+  if [[ "$CONFIG_PATH" = /* ]]; then
+    abs="$CONFIG_PATH"
+  else
+    abs="$(cd "$(dirname "$CONFIG_PATH")" && pwd)/$(basename "$CONFIG_PATH")"
+  fi
+  [[ -f "$abs" ]] || die "config file not found: $CONFIG_PATH"
+  export BROS_CONFIG_HOST="$abs"
+  # Path inside container (compose mounts host file at /app/bros.yml)
+  export BROS_CONFIG="/app/bros.yml"
+}
+
+# Interactive start: on SIGINT/SIGTERM, tear down core + sidecars (no orphan stack).
+on_interactive_signal() {
+  echo "" >&2
+  echo "Stopping Bros (full stack)…" >&2
+  trap - INT TERM
+  if [[ -n "${COMPOSE_UP_PID:-}" ]]; then
+    kill -INT "$COMPOSE_UP_PID" 2>/dev/null || true
+    wait "$COMPOSE_UP_PID" 2>/dev/null || true
+    unset COMPOSE_UP_PID
+  fi
+  stop_full_stack
+  exit 130
+}
+
+cmd_start() {
+  apply_config_env
+  # Never run forgebox-era sidecars beside bros-sc-*.
+  cleanup_legacy_sidecar_projects
+  local mode
+  mode="$([[ "$DEV" -eq 1 ]] && echo dev || echo prod)"
+  if [[ "$DAEMON" -eq 1 ]]; then
+    echo "Bros start ($mode, daemon)…"
+    compose up --build -d
+    return
+  fi
+
+  echo "Bros start ($mode, interactive)…"
+  echo "Ctrl+C stops the full stack (core + sidecars)."
+  # Background + wait so this shell's INT/TERM trap always runs (same --dev compose files).
+  trap on_interactive_signal INT TERM
+  compose up --build &
+  COMPOSE_UP_PID=$!
+  set +e
+  wait "$COMPOSE_UP_PID"
+  local rc=$?
+  set -e
+  unset COMPOSE_UP_PID
+  trap - INT TERM
+  # Signal path usually exits via trap (130). If wait saw 130/143 without trap, still down.
+  if [[ $rc -eq 130 || $rc -eq 143 ]]; then
+    echo "Stopping Bros (full stack)…" >&2
+    stop_full_stack
+    exit "$rc"
+  fi
+  return "$rc"
+}
+
+cmd_stop() {
+  echo "Bros stop (core + sidecars)…"
+  stop_full_stack
+}
+
+cmd_status() {
+  compose ps
+  local port="${BROS_PORT:-3055}"
+  echo
+  if curl -sf --max-time 3 "http://127.0.0.1:${port}/api/health" >/dev/null 2>&1; then
+    echo "Health: ok (http://127.0.0.1:${port}/api/health)"
+  else
+    echo "Health: unreachable (http://127.0.0.1:${port}/api/health)"
+  fi
+}
+
+cmd_restart() {
+  cmd_stop
+  cmd_start
+}
+
+# Exit 0 if updates available, 1 if none.
+detect_updates() {
+  local found=0
+
+  echo "== Git =="
+  if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 \
+    && git -C "$REPO_ROOT" remote get-url origin >/dev/null 2>&1; then
+    if git -C "$REPO_ROOT" fetch --quiet origin 2>/dev/null; then
+      local behind=0
+      if git -C "$REPO_ROOT" rev-parse '@{u}' >/dev/null 2>&1; then
+        behind="$(git -C "$REPO_ROOT" rev-list --count 'HEAD..@{u}' 2>/dev/null || echo 0)"
+      else
+        local ref=""
+        for cand in origin/HEAD origin/main origin/master; do
+          if git -C "$REPO_ROOT" rev-parse "$cand" >/dev/null 2>&1; then
+            ref="$cand"
+            break
+          fi
+        done
+        [[ -n "$ref" ]] && behind="$(git -C "$REPO_ROOT" rev-list --count "HEAD..$ref" 2>/dev/null || echo 0)"
+      fi
+      if [[ "${behind:-0}" -gt 0 ]]; then
+        echo "Behind remote by $behind commit(s)."
+        found=1
+      else
+        echo "Up to date with remote (or no tracking branch)."
+      fi
+    else
+      echo "Could not fetch remote. Skipped."
+    fi
+  else
+    echo "No git remote (or not a repo). Skipped."
+  fi
+
+  echo
+  echo "== Images =="
+  local pull_out pull_rc
+  set +e
+  pull_out="$(compose pull --dry-run 2>&1)"
+  pull_rc=$?
+  set -e
+  if [[ $pull_rc -eq 0 ]]; then
+    if echo "$pull_out" | grep -qiE ' Pulled|would pull|Downloading|download'; then
+      echo "Image updates available (compose pull --dry-run)."
+      echo "$pull_out" | tail -n 15
+      found=1
+    else
+      echo "Images look current (compose pull --dry-run)."
+    fi
+  else
+    echo "compose pull --dry-run unavailable; local images:"
+    compose images 2>/dev/null || true
+    echo "(update still pulls + rebuilds)"
+  fi
+
+  echo
+  echo "== Compose / Dockerfile =="
+  if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    local dirty
+    dirty="$(git -C "$REPO_ROOT" status --porcelain -- docker-compose.yml docker-compose.dev.yml docker-compose.prod.yml Dockerfile 2>/dev/null || true)"
+    if [[ -n "$dirty" ]]; then
+      echo "Local uncommitted compose/Dockerfile changes:"
+      echo "$dirty"
+      found=1
+    else
+      echo "Clean."
+    fi
+  fi
+
+  [[ "$found" -eq 1 ]]
+}
+
+cmd_check() {
+  apply_config_env
+  local rc=1
+  set +e
+  detect_updates
+  rc=$?
+  set -e
+  if [[ $rc -eq 0 ]]; then
+    echo
+    if [[ ! -t 0 ]]; then
+      echo "Updates available. Non-interactive stdin — not prompting. Run: ./bros update$([[ "$DEV" -eq 1 ]] && echo ' --dev')"
+      return 0
+    fi
+    read -r -p "Updates available. Run update now? [y/N] " ans || true
+    case "${ans:-}" in
+      y|Y|yes|YES) cmd_update ;;
+      *) echo "Skipped. Run: ./bros update$([[ "$DEV" -eq 1 ]] && echo ' --dev')" ;;
+    esac
+  else
+    echo
+    echo "No actionable updates detected."
+  fi
+}
+
+cmd_update() {
+  apply_config_env
+  echo "Bros update: pull images + rebuild…"
+  compose pull || true
+  compose build --pull
+  local flags=""
+  [[ "$DEV" -eq 1 ]] && flags+=" --dev"
+  [[ "$DAEMON" -eq 1 ]] && flags+=" -D"
+  echo "Images pulled/rebuilt. Restart to run new images:"
+  echo "  ./bros restart${flags}"
+}
+
+# --- parse args ---
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -v|--version)
+      echo "bros $VERSION"
+      exit 0
+      ;;
+    --dev)
+      DEV=1
+      shift
+      ;;
+    -D|--daemon)
+      DAEMON=1
+      shift
+      ;;
+    -i|--interactive)
+      DAEMON=0
+      shift
+      ;;
+    -c|--config)
+      [[ $# -ge 2 ]] || die "--config requires a PATH"
+      CONFIG_PATH="$2"
+      shift 2
+      ;;
+    start|stop|status|restart|check|update|upgrade)
+      [[ -z "$COMMAND" ]] || die "only one command allowed (got '$COMMAND' and '$1')"
+      COMMAND="$1"
+      shift
+      ;;
+    -*)
+      die "unknown option: $1 (try --help)"
+      ;;
+    *)
+      die "unknown argument: $1 (try --help)"
+      ;;
+  esac
+done
+
+[[ -n "$COMMAND" ]] || COMMAND="start"
+[[ "$COMMAND" == "upgrade" ]] && COMMAND="update"
+
+# Dev is always foreground; -D/--daemon has no effect with --dev.
+if [[ "$DEV" -eq 1 && "$DAEMON" -eq 1 ]]; then
+  echo "warning: --daemon (-D) ignored with --dev (dev always interactive)" >&2
+  DAEMON=0
+fi
+
+preflight
+
+case "$COMMAND" in
+  start)   cmd_start ;;
+  stop)    cmd_stop ;;
+  status)  cmd_status ;;
+  restart) cmd_restart ;;
+  check)   cmd_check ;;
+  update)  cmd_update ;;
+  *)       die "unknown command: $COMMAND" ;;
+esac

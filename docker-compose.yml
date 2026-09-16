@@ -1,0 +1,48 @@
+services:
+  bros:
+    build:
+      context: .
+      target: production
+      dockerfile: Dockerfile
+    image: bros:latest
+    container_name: bros
+    ports:
+      - "${BROS_PORT:-3055}:3055"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${BROS_HOST_DATA_DIR:-./data}:/data
+      # Host path for bind (set by ./bros); inside container scan uses /host-home
+      - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
+      - ./sidecars:/app/sidecars:ro
+      - ${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml:ro
+    environment:
+      BROS_WORKING_DIR: /app
+      BROS_DATA_DIR: /data
+      BROS_SIDECARS_DIR: /app/sidecars
+      BROS_NETWORK: bros
+      BROS_CONFIG: ${BROS_CONFIG:-}
+      BROS_DIR: ${BROS_DIR:-}
+      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:-}
+      BROS_HOST_HOME: /host-home
+      BROS_HOST_HOME_BIND: ${BROS_HOST_HOME_BIND:-${HOME}}
+      BROS_OLLAMA_MODELS_DIR: /data/ollama/models
+      HOST: 0.0.0.0
+      PORT: "3055"
+      NITRO_HOST: 0.0.0.0
+      NITRO_PORT: "3055"
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: "3055"
+    networks:
+      - bros
+    restart: unless-stopped
+    # Host UID/GID so bind-mount writes (.nuxt, caches) are not root-owned on the host.
+    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
+    # Sock is 660 root:docker on this host — docker group GID, not root group 0.
+    group_add:
+      - "${BROS_DOCKER_GID:-0}"
+
+networks:
+  bros:
+    name: bros
+    driver: bridge
+

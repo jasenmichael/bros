@@ -1,0 +1,14 @@
+id: ollama
+slug: ollama
+name: Ollama
+description: Local model runtime (API on the Bros network).
+
+interfaces:
+  - type: api
+    service: ollama
+    targetPort: 11434
+    basePath: /api
+  - type: openai
+    service: ollama
+    targetPort: 11434
+    basePath: /v1

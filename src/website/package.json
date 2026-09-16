@@ -1,0 +1,14 @@
+{
+  "name": "@bros/website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --port 3056",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview --port 3056"
+  },
+  "dependencies": {
+    "@bros/docs": "workspace:*",
+    "nuxt": "^4.5.0"
+  }
+}

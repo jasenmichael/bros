@@ -1,0 +1,28 @@
+node_modules
+.nuxt
+.output
+.data
+dist
+data
+.pnpm-store
+*.sqlite
+*.sqlite-journal
+.env
+.env.*
+!.env.example
+src/website/.output
+src/website/dist
+src/website/.data
+src/website/.nuxt
+src/app/.nuxt
+src/app/.output
+# leftover root-owned caches after layout move (delete manually: sudo rm -rf app)
+/app/
+**/.DS_Store
+*.log
+.turbo
+coverage
+graphify-out
+
+# Node compile cache (often root-owned from Docker)
+**/node-compile-cache/

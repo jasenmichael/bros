@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+:root {
+  --bros-bg: #0f1419;
+  --bros-surface: #1a2332;
+  --bros-accent: #3d9cf0;
+  --bros-accent-2: #2dd4bf;
+  --bros-text: #e8eef5;
+  --bros-muted: #8b9cb3;
+  --bros-border: #2a3548;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(61, 156, 240, 0.18), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(45, 212, 191, 0.08), transparent 50%),
+    var(--bros-bg);
+  color: #e8eef7;
+}

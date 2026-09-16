@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+.nuxt
+**/.nuxt
+.output
+**/.output
+.data
+data
+.pnpm-store
+.git
+graphify-out
+*.sqlite
+*.sqlite-journal
+.env
+.env.*
+*.log
