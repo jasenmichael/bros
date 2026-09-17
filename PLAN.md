@@ -2,14 +2,14 @@
 
 ## Status
 
-Implementation through M6 complete. Product brand is Bros (sidecars stay sidecars). See [PROGRESS.md](./PROGRESS.md).
+Implementation through M6 complete. Host tunnel, passkey session auth, and no-path-proxy sidecars are on `main`. No M7 — leftover work is unplanned follow-ups, not a numbered milestone. See [PROGRESS.md](./PROGRESS.md).
 
 ## Milestones
 
 1. **M0** — pnpm monorepo, theme + docs layers, app shell on :3055
 2. **M1** — bootstrap config, SQLite, passcode
-3. **M2** — sidecar engine + path proxy + Sidecars page
-4. **M3** — core sidecars: ollama, opencode, openwebui (tunnel later moved to host cloudflared)
+3. **M2** — sidecar engine + Sidecars page (`hostPort` Open/Pin; no path proxy)
+4. **M3** — core sidecars: ollama, opencode, openwebui (tunnel is host `cloudflared`, not a sidecar)
 5. **M4** — Models page
 6. **M5** — Chat streaming + history
 7. **M6** — docs content, compose prod/dev, root docs
@@ -18,8 +18,15 @@ Implementation through M6 complete. Product brand is Bros (sidecars stay sidecar
 
 `theme` → `docs` → `app` (dashboard overrides `/`); `website` for Pages.
 
-## Follow-ups (manual)
+## Follow-ups (unplanned)
 
+Not a milestone. Pick when needed:
+
+- CI: add test + typecheck jobs (Pages workflow only today)
+- Tests: chat stream coverage; e2e beyond `/api/health`
+- Chat: stop hardcoding cloud model ids (`gpt-4o`, `claude-3-5-sonnet-latest`); pick from provider config
+- Custom sidecars: drop-in `$dataDir/sidecars` works; no add/upload UI
+- Settings: paths + passkey only
 - No auto-migrate of pre-rename Docker volumes
 - Named `bros-data` / `bros-ollama-data` / sidecar volumes: `./bros` one-shot copies into `$BROS_DIR/data` when dest empty; old volumes left in place
 - Docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; generate + `pnpm --filter @bros/website preview`

@@ -1,8 +1,8 @@
 # Bros progress
 
-## Current: M6 complete + rename to Bros
+## Current: M0–M6 on `main` (no M7)
 
-Product brand is **Bros**. Sidecars remain sidecars (routes, APIs, `sidecar.yml`, `sidecars/`).
+Product brand is **Bros**. Sidecars remain sidecars (routes, APIs, `sidecar.yml`, `sidecars/`). Host `cloudflared` tunnel, passkey sessions, and no path proxy landed on `main` (`d4bf952`). Remaining gaps are unplanned follow-ups in [PLAN.md](./PLAN.md), not a numbered milestone.
 
 Docs markdown in **`docs/`**. App extends `@bros/docs` and **overrides `/` with the dashboard**. Static site: `src/website` (`pnpm docs:generate`) → https://jasenmichael.github.io/bros/
 
@@ -41,5 +41,5 @@ pnpm --filter @bros/website preview
 |-----------|--------|
 | M0–M6 | done |
 | Rename → Bros | done |
-
-**MILESTONE COMPLETE: M0–M6**
+| Host tunnel + auth + no path proxy | done (`main`) |
+| M7 | skipped — follow-ups only |
