@@ -78,7 +78,10 @@ Default action (no command) is start. Explicit start still works as an alias.
 --dev always interactive (-D/--daemon ignored). Interactive Ctrl+C stops containers.
 
 If ./bros is missing, fall back to:
-  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+  docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+Rebuild when Dockerfile/compose change:
+  ./bros update --dev
 
 Stop / status (explicit commands):
   ./bros stop --dev

@@ -20,6 +20,12 @@ const interfaceSchema = z.object({
   if ((val.type === 'webui' || val.type === 'api' || val.type === 'openai') && !val.targetPort) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'targetPort required', path: ['targetPort'] })
   }
+  if (val.type === 'webui' && !val.hostPort) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'webui requires hostPort (no path proxy)', path: ['hostPort'] })
+  }
+  if (val.hostPort === 3000 || val.hostPort === 8080) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hostPort must not be 3000 or 8080', path: ['hostPort'] })
+  }
 })
 
 const sidecarMetaSchema = z.object({
@@ -29,6 +35,10 @@ const sidecarMetaSchema = z.object({
   description: z.string().optional().default(''),
   interfaces: z.array(interfaceSchema).default([]),
 })
+
+export function parseSidecarMeta(raw: unknown) {
+  return sidecarMetaSchema.parse(raw)
+}
 
 export type SidecarInterface = z.infer<typeof interfaceSchema>
 export type SidecarMeta = z.infer<typeof sidecarMetaSchema> & {
@@ -40,7 +50,7 @@ export type SidecarMeta = z.infer<typeof sidecarMetaSchema> & {
 
 export const RESERVED_SLUGS = new Set([
   'api', 'chat', 'models', 'sidecars', 'settings', 'docs',
-  'login', 'setup', '_nuxt', 'favicon.ico',
+  'login', 'setup', 'status', '_nuxt', 'favicon.ico',
 ])
 
 function readSidecarDir(dir: string, source: 'core' | 'custom'): SidecarMeta | null {
@@ -135,28 +145,6 @@ export function discoverSidecars(): { sidecars: SidecarMeta[]; errors: string[] 
 
 export function getSidecar(id: string): SidecarMeta | undefined {
   return discoverSidecars().sidecars.find((s) => s.id === id)
-}
-
-export function resolveWebUiTargets() {
-  const out: Array<{ slug: string; service: string; port: number; sidecarId: string; hostPort?: number }> = []
-  const used = new Set<string>()
-  for (const s of discoverSidecars().sidecars) {
-    if (s.error) continue
-    const webuis = s.interfaces.filter((i) => i.type === 'webui')
-    webuis.forEach((iface, idx) => {
-      let slug = iface.slug || (webuis.length === 1 ? s.packageSlug : `${s.packageSlug}-${idx + 1}`)
-      if (used.has(slug)) slug = `${slug}-${idx + 1}`
-      used.add(slug)
-      out.push({
-        slug,
-        service: iface.service!,
-        port: iface.targetPort!,
-        sidecarId: s.id,
-        hostPort: iface.hostPort,
-      })
-    })
-  }
-  return out
 }
 
 export function projectName(id: string) {

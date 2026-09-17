@@ -7,26 +7,41 @@ withDefaults(defineProps<{
   brandTo: '/',
 })
 
-const open = useState('bros-nav-panel-open', () => true)
+const { open, isDesktop, hydrate, toggleDesktop, toggleMobile } = useNavDock()
 
-function toggle() {
-  open.value = !open.value
-}
+onMounted(() => {
+  hydrate()
+})
+
+const showDesktopToggle = computed(() => isDesktop.value && !open.value)
+const showBrand = computed(() => !isDesktop.value || !open.value)
+const showHamburger = computed(() => !isDesktop.value)
 </script>
 
 <template>
   <header class="bros-nav-bar">
     <button
+      v-if="showHamburger"
+      type="button"
+      class="bros-nav-bar__btn"
+      aria-controls="bros-nav-panel"
+      aria-label="Open navigation"
+      @click="toggleMobile"
+    >
+      <UIcon name="i-lucide-menu" class="size-4" />
+    </button>
+    <button
+      v-else-if="showDesktopToggle"
       type="button"
       class="bros-nav-bar__btn"
       :aria-expanded="open"
       aria-controls="bros-nav-panel"
-      :aria-label="open ? 'Close navigation panel' : 'Open navigation panel'"
-      @click="toggle"
+      aria-label="Open navigation dock"
+      @click="toggleDesktop"
     >
-      <UIcon :name="open ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left'" class="size-4" />
+      <UIcon name="i-lucide-panel-left" class="size-4" />
     </button>
-    <NuxtLink :to="brandTo" class="bros-nav-bar__brand">
+    <NuxtLink v-if="showBrand" :to="brandTo" class="bros-nav-bar__brand">
       {{ brand }}
     </NuxtLink>
   </header>

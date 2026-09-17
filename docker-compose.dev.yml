@@ -33,6 +33,8 @@ services:
       PORT: "3055"
       NUXT_HOST: 0.0.0.0
       NUXT_PORT: "3055"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # group_add stays in base compose only (merged lists concatenate).
     user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
     # Repo bind-mounted at /app; entrypoint installs then runs command.

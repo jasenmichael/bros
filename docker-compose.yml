@@ -32,6 +32,8 @@ services:
       NITRO_PORT: "3055"
       NUXT_HOST: 0.0.0.0
       NUXT_PORT: "3055"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - bros
     restart: unless-stopped

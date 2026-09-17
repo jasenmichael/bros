@@ -33,21 +33,24 @@ async function logout() {
 </script>
 
 <template>
-  <BrosPageShell title="Settings" description="Bootstrap paths (read-only) and passcode.">
+  <BrosPageShell title="Settings" description="Bootstrap paths (read-only) and passkey (writes data/passkey).">
     <div class="max-w-xl space-y-6">
       <div class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-4 text-sm">
         <div class="text-[var(--bros-muted)]">working_dir</div>
         <div class="font-mono text-white">{{ data?.workingDir }}</div>
         <div class="mt-3 text-[var(--bros-muted)]">data_dir</div>
         <div class="font-mono text-white">{{ data?.dataDir }}</div>
+        <div class="mt-3 text-[var(--bros-muted)]">passkey file</div>
+        <div class="font-mono text-white">{{ data?.dataDir ? `${data.dataDir}/passkey` : '…/passkey' }}</div>
       </div>
 
       <form class="space-y-3" @submit.prevent="changePasscode">
-        <h2 class="text-lg font-medium text-white">Passcode</h2>
-        <UInput v-model="passcode" type="password" placeholder="New passcode" />
+        <h2 class="text-lg font-medium text-white">Passkey</h2>
+        <p class="text-sm text-[var(--bros-muted)]">Updates <span class="font-mono">data/passkey</span> (source of truth for login).</p>
+        <UInput v-model="passcode" type="password" placeholder="New passkey" />
         <UInput v-model="confirm" type="password" placeholder="Confirm" />
         <p v-if="msg" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
-        <UButton type="submit" :loading="pending">Update passcode</UButton>
+        <UButton type="submit" :loading="pending">Update passkey</UButton>
       </form>
 
       <UButton color="neutral" variant="outline" @click="logout">Log out</UButton>

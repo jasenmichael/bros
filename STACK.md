@@ -14,9 +14,10 @@
 | Tests | Vitest + `@nuxt/test-utils` |
 | DB | SQLite + Drizzle (`bros.sqlite`) |
 | Docker | dockerode + Compose CLI in image |
-| Proxy | httpxy |
 | Host port | 3055 (app), 3056 (docs site `pnpm docs:dev`) |
+| Sidecar host ports | Ollama 11434, OpenCode 4096, Open WebUI 3080 (container 8080). Never 3000 or 8080. |
 | Env prefix | `BROS_*` |
+| Host tunnel | `cloudflared` on the host. `public_url` in `bros.yml` starts a named tunnel + DNS route; otherwise a quick tunnel. `./bros` runs a helper that writes `$BROS_DIR/data/tunnel`. |
 | Network / data | `bros` / host `$BROS_DIR/data` binds (`$BROS_HOST_DATA_DIR`) |
 
 ## Layout
@@ -40,6 +41,8 @@ theme → docs layer → app (overrides index)
 ## Compose
 
 - `docker-compose.yml` + `docker-compose.dev.yml` / `docker-compose.prod.yml`
+- Dev start (`./bros --dev`): `compose up` without `--build`. Builds only if `bros:dev` is missing. Daily source edits use the bind-mount. Rebuild/pull: `./bros update --dev`.
+- Prod start: `compose up --build` (source is baked into `bros:latest`).
 - Dev image (`Dockerfile` target `development`): toolchain only — no source `COPY`; bind-mount `./:/app`, then `pnpm install` + `pnpm --filter @bros/app dev`
 - Sidecars **not** in main Compose; managed via Docker socket
 - Persistent data is host binds under `$BROS_DIR/data` (repo `./data`, installed `~/.bros/data`), not named `bros-data` / `bros-ollama-data` volumes. Dev `node_modules` volumes stay named caches.

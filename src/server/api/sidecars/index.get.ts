@@ -1,16 +1,29 @@
 import { discoverSidecars } from '../../utils/sidecars'
-import { getProjectStatus, getSidecarSetting } from '../../utils/docker'
+import { projectHasContainers, sidecarRuntime } from '../../utils/docker'
+import { viaTunnelFromEvent } from '../../utils/viaTunnel'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
   const { sidecars, errors } = discoverSidecars()
   const items = await Promise.all(sidecars.map(async (s) => {
-    const settings = getSidecarSetting(s.id)
-    const status = s.error ? { project: `bros-sc-${s.id}`, running: false, services: [] } : await getProjectStatus(s)
+    const runtime = await sidecarRuntime(s)
+    let hasContainer = false
+    try {
+      hasContainer = await projectHasContainers(s.id)
+    } catch {
+      hasContainer = runtime.status.running
+    }
     return {
       ...s,
-      settings,
-      status,
+      settings: runtime.settings,
+      status: runtime.status,
+      hostPort: runtime.hostPort,
+      hostMode: runtime.settings.hostMode,
+      effectiveMode: runtime.effectiveMode,
+      hostManaged: runtime.hostManaged,
+      portOccupied: runtime.portOccupied,
+      warning: runtime.warning,
+      hasContainer,
     }
   }))
-  return { sidecars: items, errors }
+  return { sidecars: items, errors, viaTunnel: viaTunnelFromEvent(event) }
 })

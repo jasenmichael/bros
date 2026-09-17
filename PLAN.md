@@ -9,7 +9,7 @@ Implementation through M6 complete. Product brand is Bros (sidecars stay sidecar
 1. **M0** — pnpm monorepo, theme + docs layers, app shell on :3055
 2. **M1** — bootstrap config, SQLite, passcode
 3. **M2** — sidecar engine + path proxy + Sidecars page
-4. **M3** — core sidecars: ollama, opencode, openwebui, cloudflared
+4. **M3** — core sidecars: ollama, opencode, openwebui (tunnel later moved to host cloudflared)
 5. **M4** — Models page
 6. **M5** — Chat streaming + history
 7. **M6** — docs content, compose prod/dev, root docs
@@ -37,4 +37,9 @@ Persistent sidecar + app state is `$BROS_DIR/data` on the host (`./data` in a ch
 ## Lifecycle (`./bros`)
 
 - `./bros start` / `./bros --dev`: remove legacy `forgebox-sc-*` containers before up; app autostart uses project `bros-sc-<id>` only
+- `./bros --dev` start: `compose up` (no `--build`; first run still builds if `bros:dev` is missing). Rebuild: `./bros update --dev`. Prod start stays `compose up --build`.
 - `./bros stop` and interactive Ctrl+C: stop all `bros-sc-*` sidecars, then core compose down (no orphan sidecar stacks)
+
+## Host tunnel
+
+`cloudflared` runs on the host. `./bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_DIR/data/tunnel`. `public_url` in `bros.yml` is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. `--dev` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.

@@ -4,8 +4,12 @@ const navItems = [
   { label: 'Chat', to: '/chat', icon: 'i-lucide-message-square' },
   { label: 'Models', to: '/models', icon: 'i-lucide-cpu' },
   { label: 'Sidecars', to: '/sidecars', icon: 'i-lucide-container' },
-  { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
+  { label: 'Status', to: '/status', icon: 'i-lucide-activity' },
+]
+
+const bottomItems = [
   { label: 'Docs', to: '/docs', icon: 'i-lucide-book-open' },
+  { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
 ]
 
 const { pinnedItems } = usePinnedNav()
@@ -13,7 +17,14 @@ const { pinnedItems } = usePinnedNav()
 
 <template>
   <div class="bros-app-frame">
-    <BrosAppNav brand="Bros" brand-to="/" :items="navItems" :pinned-items="pinnedItems" show-pinned />
+    <BrosAppNav
+      brand="Bros"
+      brand-to="/"
+      :items="navItems"
+      :bottom-items="bottomItems"
+      :pinned-items="pinnedItems"
+      show-pinned
+    />
     <div class="bros-app-frame__main">
       <BrosNavBar brand="Bros" brand-to="/" />
       <NuxtPage />

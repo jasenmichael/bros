@@ -1,4 +1,4 @@
-import { createSession, hasPasscode, setPasscode, SESSION_COOKIE } from '../../utils/auth'
+import { createSession, hasPasscode, setPasscode, SESSION_COOKIE, sessionCookieOptionsForEvent } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
   if (hasPasscode()) {
@@ -8,11 +8,6 @@ export default defineEventHandler(async (event) => {
   if (!body?.passcode) throw createError({ statusCode: 400, statusMessage: 'passcode required' })
   setPasscode(body.passcode)
   const token = createSession()
-  setCookie(event, SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 14,
-  })
+  setCookie(event, SESSION_COOKIE, token, sessionCookieOptionsForEvent(event))
   return { ok: true }
 })

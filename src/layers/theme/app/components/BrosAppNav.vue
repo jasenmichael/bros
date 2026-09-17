@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
   brand?: string
   brandTo?: string
   items?: NavItem[]
+  bottomItems?: NavItem[]
   pinnedItems?: NavItem[]
   showPinned?: boolean
 }>(), {
@@ -18,42 +19,127 @@ const props = withDefaults(defineProps<{
   items: () => [
     { label: 'Docs', to: '/docs', icon: 'i-lucide-book-open' },
   ],
+  bottomItems: () => [],
   pinnedItems: () => [],
   showPinned: false,
 })
 
-/** Docked nav panel open state (persists across routes). Default open. */
-const open = useState('bros-nav-panel-open', () => true)
+const {
+  iconMode,
+  isDesktop,
+  panelVisible,
+  dockWidth,
+  hydrate,
+  persist,
+  closeDesktop,
+  toggleIconMode,
+  applyResizeDelta,
+  closeMobile,
+} = useNavDock()
 
-function close() {
-  open.value = false
+const route = useRoute()
+onMounted(() => {
+  hydrate()
+  const mq = window.matchMedia('(min-width: 1024px)')
+  const onMq = () => {
+    isDesktop.value = mq.matches
+    if (mq.matches) closeMobile()
+  }
+  mq.addEventListener('change', onMq)
+  onMq()
+})
+
+watch(() => route.fullPath, () => {
+  if (!isDesktop.value) closeMobile()
+})
+
+const resizing = ref(false)
+let resizeStartX = 0
+let resizeStartW = 0
+
+function onResizeStart(ev: PointerEvent) {
+  if (!isDesktop.value) return
+  ev.stopPropagation()
+  resizing.value = true
+  resizeStartX = ev.clientX
+  resizeStartW = dockWidth.value
+  ;(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId)
+}
+
+function onPointerMove(ev: PointerEvent) {
+  if (!resizing.value) return
+  applyResizeDelta(resizeStartW, ev.clientX - resizeStartX)
+}
+
+function onPointerUp() {
+  if (resizing.value) persist()
+  resizing.value = false
+}
+
+const dockStyle = computed(() => {
+  if (!isDesktop.value) return undefined
+  return { width: `${dockWidth.value}px` }
+})
+
+function linkTitle(item: NavItem) {
+  return iconMode.value ? item.label : undefined
 }
 </script>
 
 <template>
+  <div
+    v-if="!isDesktop && panelVisible"
+    class="bros-nav-backdrop"
+    @click="closeMobile"
+  />
   <aside
+    v-show="panelVisible"
     id="bros-nav-panel"
     class="bros-nav-panel"
-    :class="{ 'bros-nav-panel--open': open }"
-    :aria-hidden="!open"
+    :class="{
+      'bros-nav-panel--desktop': isDesktop,
+      'bros-nav-panel--mobile': !isDesktop,
+      'bros-nav-panel--icon': iconMode && isDesktop,
+    }"
+    :style="dockStyle"
+    :aria-hidden="!panelVisible"
+    @pointermove="onPointerMove"
+    @pointerup="onPointerUp"
+    @pointercancel="onPointerUp"
   >
     <div class="bros-nav-panel__inner">
       <div class="bros-nav-panel__head">
-        <NuxtLink :to="brandTo" class="bros-nav-panel__brand">
-          {{ brand }}
-        </NuxtLink>
-        <button
-          type="button"
-          class="bros-nav-panel__icon-btn"
-          aria-label="Close navigation panel"
-          @click="close"
+        <NuxtLink
+          :to="brandTo"
+          class="bros-nav-panel__brand"
+          :title="brand"
         >
-          <UIcon name="i-lucide-panel-left-close" class="size-4" />
-        </button>
+          <span v-if="iconMode && isDesktop">B</span>
+          <span v-else>{{ brand }}</span>
+        </NuxtLink>
+        <div class="bros-nav-panel__head-actions">
+          <button
+            v-if="isDesktop"
+            type="button"
+            class="bros-nav-panel__icon-btn"
+            :aria-label="iconMode ? 'Show labels' : 'Icon mode'"
+            :title="iconMode ? 'Show labels' : 'Icon mode'"
+            @click="toggleIconMode"
+          >
+            <UIcon :name="iconMode ? 'i-lucide-panel-left' : 'i-lucide-square'" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="bros-nav-panel__icon-btn"
+            :aria-label="isDesktop ? 'Close navigation dock' : 'Close navigation'"
+            @click="isDesktop ? closeDesktop() : closeMobile()"
+          >
+            <UIcon :name="isDesktop ? 'i-lucide-panel-left-close' : 'i-lucide-x'" class="size-4" />
+          </button>
+        </div>
       </div>
 
       <nav class="bros-nav-panel__nav" aria-label="Primary">
-        <p class="bros-nav-panel__label">App</p>
         <NuxtLink
           v-for="item in props.items"
           :key="item.to"
@@ -61,13 +147,19 @@ function close() {
           :target="item.external ? '_blank' : undefined"
           class="bros-nav-panel__link"
           active-class="bros-nav-panel__link--active"
+          :title="linkTitle(item)"
         >
           <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
-          <span>{{ item.label }}</span>
+          <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
         </NuxtLink>
 
         <template v-if="props.showPinned">
-          <p class="bros-nav-panel__label bros-nav-panel__label--spaced">Pinned</p>
+          <div
+            v-if="props.pinnedItems.length || !(iconMode && isDesktop)"
+            class="bros-nav-panel__divider"
+            role="separator"
+            aria-label="Pinned"
+          />
           <a
             v-for="item in props.pinnedItems"
             :key="item.to"
@@ -75,46 +167,97 @@ function close() {
             :target="item.external ? '_blank' : undefined"
             rel="noopener"
             class="bros-nav-panel__link"
+            :title="item.label"
           >
             <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
-            <span>{{ item.label }}</span>
+            <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
           </a>
-          <p v-if="!props.pinnedItems.length" class="bros-nav-panel__hint">
+          <p v-if="!props.pinnedItems.length && !(iconMode && isDesktop)" class="bros-nav-panel__hint">
             Pin a sidecar web UI from Sidecars to show it here.
           </p>
         </template>
+
+        <div v-if="props.bottomItems.length" class="bros-nav-panel__bottom">
+          <div class="bros-nav-panel__divider" />
+          <NuxtLink
+            v-for="item in props.bottomItems"
+            :key="item.to"
+            :to="item.to"
+            :target="item.external ? '_blank' : undefined"
+            class="bros-nav-panel__link"
+            active-class="bros-nav-panel__link--active"
+            :title="linkTitle(item)"
+          >
+            <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
+            <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
+          </NuxtLink>
+        </div>
       </nav>
+
+      <a
+        href="https://github.com/jasenmichael/bros"
+        target="_blank"
+        rel="noopener"
+        class="bros-nav-panel__footer"
+        title="GitHub"
+      >
+        <UIcon name="i-lucide-github" class="size-4 shrink-0" />
+        <span v-if="!(iconMode && isDesktop)">GitHub</span>
+      </a>
     </div>
+    <button
+      v-if="isDesktop"
+      type="button"
+      class="bros-nav-panel__resize"
+      aria-label="Resize navigation dock"
+      @pointerdown="onResizeStart"
+    />
   </aside>
 </template>
 
 <style scoped>
+.bros-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.5);
+}
+
 .bros-nav-panel {
+  overflow: hidden;
+  background: #121820;
+  color: #e8eef5;
+  border: 1px solid #2a3544;
+}
+
+.bros-nav-panel--desktop {
   position: sticky;
   top: 0;
   z-index: 30;
   align-self: flex-start;
-  height: 100vh;
-  width: 0;
   flex-shrink: 0;
-  overflow: hidden;
-  background: #121820;
-  border-right: 1px solid transparent;
-  transition: width 0.2s ease, border-color 0.2s ease;
+  height: 100vh;
+  border: 0;
+  border-right: 1px solid #2a3544;
 }
 
-.bros-nav-panel--open {
+.bros-nav-panel--mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
   width: 16rem;
-  border-right-color: #2a3544;
+  height: 100vh;
+  border-radius: 0;
+  border-right: 1px solid #2a3544;
 }
 
 .bros-nav-panel__inner {
   display: flex;
   height: 100%;
-  width: 16rem;
+  width: 100%;
   flex-direction: column;
   background: #121820;
-  color: #e8eef5;
 }
 
 .bros-nav-panel__head {
@@ -124,7 +267,13 @@ function close() {
   gap: 0.5rem;
   border-bottom: 1px solid #2a3544;
   background: #0e141c;
-  padding: 0.85rem 0.75rem 0.85rem 1rem;
+  padding: 0.75rem 0.65rem;
+}
+
+.bros-nav-panel__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .bros-nav-panel__brand {
@@ -133,6 +282,11 @@ function close() {
   letter-spacing: -0.02em;
   color: #ffffff;
   text-decoration: none;
+}
+
+.bros-nav-panel--icon .bros-nav-panel__brand {
+  width: 1.5rem;
+  text-align: center;
 }
 
 .bros-nav-panel__brand:hover {
@@ -158,23 +312,11 @@ function close() {
 }
 
 .bros-nav-panel__nav {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   overflow-y: auto;
-  padding: 0.75rem 0.5rem 1rem;
-}
-
-.bros-nav-panel__label {
-  margin: 0 0 0.35rem;
-  padding: 0 0.65rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #8b9bb0;
-}
-
-.bros-nav-panel__label--spaced {
-  margin-top: 1.25rem;
+  padding: 0.75rem 0.5rem 0.5rem;
 }
 
 .bros-nav-panel__link {
@@ -187,6 +329,11 @@ function close() {
   color: #c5d0dc;
   text-decoration: none;
   font-size: 0.925rem;
+}
+
+.bros-nav-panel--icon .bros-nav-panel__link {
+  justify-content: center;
+  padding: 0.55rem 0.35rem;
 }
 
 .bros-nav-panel__link:hover {
@@ -206,5 +353,53 @@ function close() {
   font-size: 0.75rem;
   line-height: 1.35;
   color: #8b9bb0;
+}
+
+.bros-nav-panel__bottom {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.bros-nav-panel__divider {
+  height: 1px;
+  margin: 0.35rem 0.5rem 0.65rem;
+  background: #2a3544;
+}
+
+.bros-nav-panel__footer {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-top: 1px solid #2a3544;
+  padding: 0.75rem 1rem;
+  color: #8b9bb0;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.bros-nav-panel--icon .bros-nav-panel__footer {
+  justify-content: center;
+  padding: 0.75rem 0.35rem;
+}
+
+.bros-nav-panel__footer:hover {
+  color: #ffffff;
+}
+
+.bros-nav-panel__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 6px;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.bros-nav-panel__resize:hover {
+  background: rgba(61, 156, 240, 0.35);
 }
 </style>

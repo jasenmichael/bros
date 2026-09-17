@@ -1,0 +1,75 @@
+import { createConnection } from 'node:net'
+
+export type HostMode = 'auto' | 'sidecar' | 'host'
+
+export const HOST_MODES: HostMode[] = ['auto', 'sidecar', 'host']
+
+export function isHostMode(v: unknown): v is HostMode {
+  return v === 'auto' || v === 'sidecar' || v === 'host'
+}
+
+/** Host as seen from the Bros container (Linux Docker needs host-gateway). */
+export function dockerHostName(): string {
+  return process.env.BROS_HOST_GATEWAY || 'host.docker.internal'
+}
+
+export function probeTcp(host: string, port: number, timeoutMs = 400): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host, port })
+    const done = (ok: boolean) => {
+      socket.removeAllListeners()
+      socket.destroy()
+      resolve(ok)
+    }
+    socket.setTimeout(timeoutMs)
+    socket.once('connect', () => done(true))
+    socket.once('timeout', () => done(false))
+    socket.once('error', () => done(false))
+  })
+}
+
+export async function probeHostPort(port: number): Promise<boolean> {
+  const hosts = Array.from(new Set([
+    dockerHostName(),
+    'host.docker.internal',
+    '172.17.0.1',
+  ]))
+  for (const host of hosts) {
+    if (await probeTcp(host, port)) return true
+  }
+  return false
+}
+
+export function firstHostPort(interfaces: Array<{ hostPort?: number }>): number | undefined {
+  return interfaces.map((i) => i.hostPort).find((p) => typeof p === 'number' && p > 0)
+}
+
+export function hostUiUrl(hostPort: number): string {
+  return `http://127.0.0.1:${hostPort}/`
+}
+
+export type HostRuntime = {
+  effectiveMode: 'sidecar' | 'host'
+  skipStart: boolean
+  warnPortTaken: boolean
+  hostManaged: boolean
+}
+
+/** Decide start/skip from stored preference + live probe. */
+export function resolveHostRuntime(input: {
+  hostMode: HostMode
+  portOccupied: boolean
+  ours: boolean
+}): HostRuntime {
+  const foreign = input.portOccupied && !input.ours
+  if (input.hostMode === 'host') {
+    return { effectiveMode: 'host', skipStart: true, warnPortTaken: foreign, hostManaged: true }
+  }
+  if (input.hostMode === 'sidecar') {
+    return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: foreign, hostManaged: foreign }
+  }
+  if (foreign) {
+    return { effectiveMode: 'host', skipStart: true, warnPortTaken: false, hostManaged: true }
+  }
+  return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: false, hostManaged: false }
+}

@@ -46,6 +46,15 @@ const SMI_ARGS = ['--query-gpu=name,memory.total', '--format=csv,noheader,nounit
  * Detect NVIDIA GPU. Tries host `nvidia-smi`, then Docker `--gpus all` via ollama image
  * (Bros runs in a container without GPU devices mounted).
  */
+let gpuCache: { at: number; value: GpuInfo } | null = null
+
+export async function detectGpuCached(ttlMs = 30_000): Promise<GpuInfo> {
+  if (gpuCache && Date.now() - gpuCache.at < ttlMs) return gpuCache.value
+  const value = await detectGpu()
+  gpuCache = { at: Date.now(), value }
+  return value
+}
+
 export async function detectGpu(): Promise<GpuInfo> {
   const local = await runOnce('nvidia-smi', SMI_ARGS, 5_000)
   if (local.code === 0 && local.stdout.trim()) return parseSmi(local.stdout)

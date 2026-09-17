@@ -28,7 +28,7 @@ Usage:
   bros [options]                 Default: start
   bros <command> [options]
 
-Default action (no command): start (build + up)
+Default action (no command): start (up; prod also --build)
 
 Commands:
   start              Same as default (optional explicit alias)
@@ -41,9 +41,12 @@ Commands:
 Options:
   --dev              Dev compose: docker-compose.yml + docker-compose.dev.yml
                      Always interactive (foreground). -D/--daemon ignored with a warning.
+                     compose up (builds only if bros:dev is missing).
+                     Rebuild: ./bros update --dev
                      (default without --dev: base + docker-compose.prod.yml)
   -D, --daemon       Background: docker compose up --build -d (prod only; ignored with --dev)
-  -i, --interactive  Foreground (default): up --build; Ctrl+C / SIGTERM runs compose down
+  -i, --interactive  Foreground (default). Dev: up. Prod: up --build.
+                     Ctrl+C / SIGTERM runs compose down
   -c, --config PATH  Bootstrap YAML; sets BROS_CONFIG (mounted into container)
   -h, --help         Show this help
   -v, --version      Show version
@@ -51,6 +54,7 @@ Options:
 Env:
   BROS_DIR           Checkout dir (repo) or ~/.bros (installed). Override allowed.
   BROS_HOST_DATA_DIR Persistent binds; default \$BROS_DIR/data
+  BROS_PORT          App host port (default 3055); tunnel helper targets this
 
 Examples:
   ./bros --dev
@@ -67,6 +71,10 @@ die() {
   echo "error: $*" >&2
   exit 1
 }
+
+# Host tunnel helper (not a sidecar). Sourced functions live in scripts/.
+# shellcheck source=scripts/bros-tunnel.sh
+. "$REPO_ROOT/scripts/bros-tunnel.sh"
 
 preflight() {
   if ! command -v docker >/dev/null 2>&1; then
@@ -93,6 +101,7 @@ preflight() {
   fi
   resolve_bros_dir
   ensure_host_data_dir
+  export BROS_PORT="${BROS_PORT:-3055}"
 }
 
 # Repo checkout (compose + sidecars next to this script) vs installed (~/.bros).
@@ -148,10 +157,14 @@ ensure_host_data_dir() {
   mkdir -p \
     "$BROS_HOST_DATA_DIR" \
     "$BROS_HOST_DATA_DIR/ollama" \
+    "$BROS_HOST_DATA_DIR/ollama-config" \
     "$BROS_HOST_DATA_DIR/openwebui" \
     "$BROS_HOST_DATA_DIR/opencode" \
+    "$BROS_HOST_DATA_DIR/opencode-config" \
+    "$BROS_HOST_DATA_DIR/opencode-share" \
     "$BROS_HOST_DATA_DIR/sidecars" \
-    "$BROS_HOST_DATA_DIR/logs"
+    "$BROS_HOST_DATA_DIR/logs" \
+    "$BROS_HOST_DATA_DIR/tunnel"
   # Compose project prefix: bros_bros-data, bros-sc-openwebui_openwebui-data, …
   try_copy_volumes "$BROS_HOST_DATA_DIR" "bros.sqlite" "bros-data" "bros_bros-data"
   try_copy_volumes "$BROS_HOST_DATA_DIR/ollama" "empty" "bros-ollama-data"
@@ -171,6 +184,17 @@ compose_files() {
 compose() {
   # shellcheck disable=SC2046
   docker compose $(compose_files) "$@"
+}
+
+# Dev start skips --build (bind-mount; compose builds only if bros:dev is missing).
+# Prod always --build so the baked image stays current.
+# Explicit rebuild/pull: ./bros update --dev
+compose_up() {
+  if [[ "$DEV" -eq 1 ]]; then
+    compose up "$@"
+  else
+    compose up --build "$@"
+  fi
 }
 
 # Core sidecars live under ./sidecars/<id>/ with compose project bros-sc-<id>.
@@ -229,6 +253,9 @@ cleanup_legacy_sidecar_projects() {
 }
 
 stop_full_stack() {
+  echo "Stopping host tunnel helper…"
+  bros_tunnel_stop_helper
+  bros_tunnel_cleanup_sidecar
   echo "Stopping sidecars (bros-sc-*)…"
   stop_bros_sidecars
   cleanup_legacy_sidecar_projects
@@ -271,11 +298,13 @@ cmd_start() {
   apply_config_env
   # Never run forgebox-era sidecars beside bros-sc-*.
   cleanup_legacy_sidecar_projects
+  bros_tunnel_cleanup_sidecar
+  bros_tunnel_startup
   local mode
   mode="$([[ "$DEV" -eq 1 ]] && echo dev || echo prod)"
   if [[ "$DAEMON" -eq 1 ]]; then
     echo "Bros start ($mode, daemon)…"
-    compose up --build -d
+    compose_up -d
     return
   fi
 
@@ -283,7 +312,7 @@ cmd_start() {
   echo "Ctrl+C stops the full stack (core + sidecars)."
   # Background + wait so this shell's INT/TERM trap always runs (same --dev compose files).
   trap on_interactive_signal INT TERM
-  compose up --build &
+  compose_up &
   COMPOSE_UP_PID=$!
   set +e
   wait "$COMPOSE_UP_PID"

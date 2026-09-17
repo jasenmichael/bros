@@ -13,15 +13,16 @@ Clones [jasenmichael/bros](https://github.com/jasenmichael/bros) into `~/.bros` 
 ## Quick start
 
 ```bash
-./bros --dev          # foreground, hot reload
+./bros --dev          # foreground, hot reload (no image rebuild if bros:dev exists)
 ./bros -D             # production daemon
 ./bros stop           # stop core + sidecars (add --dev if you started with --dev)
 ./bros status
+./bros update --dev   # pull + rebuild when Dockerfile/compose change
 ```
 
 Default action (no command) is **start**. Open http://127.0.0.1:3055
 
-Host needs Docker only — no host Node for the app.
+Host needs Docker only — no host Node for the app. Optional host `cloudflared` (install + `cloudflared login`). Set `public_url` in `bros.yml` to start a named tunnel for that hostname.
 
 ## Data directory
 

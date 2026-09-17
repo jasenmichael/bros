@@ -1,4 +1,4 @@
-import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret } from '../utils/auth'
+import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret, ensurePasskey } from '../utils/auth'
 import { ensureDefaultProviders } from '../utils/providers'
 import { getDb } from '../utils/db'
 import { autostartSidecars } from '../utils/docker'
@@ -10,6 +10,7 @@ function bootstrapOnce() {
   if (bootstrapped) return
   getDb()
   ensureAppSecret()
+  ensurePasskey()
   ensureDefaultProviders()
   bootstrapped = true
 }
@@ -42,6 +43,7 @@ export default defineEventHandler(async (event) => {
     || path.startsWith('/models')
     || path.startsWith('/sidecars')
     || path.startsWith('/settings')
+    || path.startsWith('/status')
 
   // In-app docs readable after unlock; allow without auth for local docs browsing
   if (path.startsWith('/docs')) return

@@ -1,11 +1,15 @@
 services:
   opencode:
-    # Lifecycle placeholder — swap to anomalyco/opencode image when agent UX lands.
-    image: alpine:3.20
-    command: ["sleep", "infinity"]
+    image: ghcr.io/anomalyco/opencode
+    # ENTRYPOINT is opencode; web UI must stay in foreground for container lifetime.
+    command: ["web", "--hostname", "0.0.0.0", "--port", "4096"]
     working_dir: /workspace
+    ports:
+      - "${BROS_OPENCODE_PORT:-4096}:4096"
     volumes:
       - ${BROS_HOST_DATA_DIR}/opencode:/workspace
+      - ${BROS_HOST_DATA_DIR}/opencode-config:/root/.config/opencode
+      - ${BROS_HOST_DATA_DIR}/opencode-share:/root/.local/share/opencode
     restart: unless-stopped
     networks:
       - bros

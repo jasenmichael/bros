@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { brosDevCssSplitPlugin, installBrosDevCssSplit } from './vite/devCssSplit'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -47,8 +48,22 @@ export default defineNuxtConfig({
       traceInclude: [betterSqlite3Entry()],
     },
   },
+  hooks: {
+    'vite:serverCreated'(server) {
+      if (process.env.NODE_ENV === 'production') return
+      installBrosDevCssSplit(server)
+    },
+  },
   vite: {
+    plugins: [brosDevCssSplitPlugin()],
     server: {
+      // Dev via Cloudflare tunnel / public_url host (Vite 6+ blocks unknown Host by default).
+      allowedHosts: true,
+      headers: {
+        'Cache-Control': 'no-store, no-transform',
+        'CDN-Cache-Control': 'no-store',
+        'Cloudflare-CDN-Cache-Control': 'no-store',
+      },
       watch: {
         usePolling: true,
       },

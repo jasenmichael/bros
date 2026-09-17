@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import Docker from 'dockerode'
 import { eq } from 'drizzle-orm'
 import { getDb, sidecarSettings } from './db'
+import { firstHostPort, isHostMode, probeHostPort, resolveHostRuntime, type HostMode } from './hostProbe'
 import { getSidecar, projectName, type SidecarMeta } from './sidecars'
 
 const NETWORK = process.env.BROS_NETWORK || 'bros'
@@ -41,6 +42,40 @@ async function ensureNetwork() {
   }
 }
 
+export async function pingDocker(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await getDocker().ping()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+export async function publishedPortOwner(hostPort: number): Promise<{ project?: string; containerName?: string } | null> {
+  const d = getDocker()
+  const containers = await d.listContainers({ all: true })
+  for (const c of containers) {
+    for (const p of c.Ports || []) {
+      if (p.PublicPort === hostPort) {
+        return {
+          project: c.Labels?.['com.docker.compose.project'],
+          containerName: (c.Names || [])[0],
+        }
+      }
+    }
+  }
+  return null
+}
+
+export async function projectHasContainers(id: string): Promise<boolean> {
+  const d = getDocker()
+  const containers = await d.listContainers({
+    all: true,
+    filters: { label: [`com.docker.compose.project=${projectName(id)}`] },
+  })
+  return containers.length > 0
+}
+
 export async function getProjectStatus(sidecar: SidecarMeta) {
   const name = projectName(sidecar.id)
   const result = await run('docker', ['compose', '-p', name, 'ps', '--format', 'json'], sidecar.dir)
@@ -60,10 +95,53 @@ export async function getProjectStatus(sidecar: SidecarMeta) {
   return { project: name, running, services }
 }
 
+export async function sidecarRuntime(sidecar: SidecarMeta) {
+  const settings = getSidecarSetting(sidecar.id)
+  const status = sidecar.error
+    ? { project: projectName(sidecar.id), running: false, services: [] as Array<{ name: string; state: string }> }
+    : await getProjectStatus(sidecar)
+  const hostPort = firstHostPort(sidecar.interfaces)
+  let portOccupied = false
+  let ours = status.running
+  if (typeof hostPort === 'number') {
+    portOccupied = await probeHostPort(hostPort)
+    try {
+      const owner = await publishedPortOwner(hostPort)
+      if (owner?.project === projectName(sidecar.id)) ours = true
+    } catch {
+      // docker inspect failed — fall back to compose status
+    }
+  }
+  const runtime = resolveHostRuntime({
+    hostMode: settings.hostMode,
+    portOccupied,
+    ours,
+  })
+  const warning = runtime.warnPortTaken && hostPort
+    ? `Port ${hostPort} is in use by something other than ${projectName(sidecar.id)}.`
+    : runtime.hostManaged && portOccupied && !ours && hostPort
+      ? `Host-managed: something on port ${hostPort} is not ${projectName(sidecar.id)}.`
+      : undefined
+  return { settings, status, hostPort, portOccupied, ours, warning, ...runtime }
+}
+
 export async function startSidecar(id: string) {
   const sidecar = getSidecar(id)
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
   if (sidecar.error) throw createError({ statusCode: 400, statusMessage: sidecar.error })
+  const probed = await sidecarRuntime(sidecar)
+  if (probed.skipStart) {
+    return {
+      ...probed.status,
+      hostMode: probed.settings.hostMode,
+      effectiveMode: probed.effectiveMode,
+      hostManaged: probed.hostManaged,
+      skipped: true,
+      warning: probed.settings.hostMode === 'host'
+        ? `Skipped compose up: host mode.`
+        : `Skipped compose up: host-managed (port ${probed.hostPort} answered by something other than ${projectName(id)}).`,
+    }
+  }
   await ensureNetwork()
   const name = projectName(id)
   const composeArgs = ['compose', '-p', name, '-f', join(sidecar.dir, 'docker-compose.yml')]
@@ -95,7 +173,13 @@ export async function startSidecar(id: string) {
     sidecar.dir,
   )
   if (up.code !== 0) {
-    throw createError({ statusCode: 500, statusMessage: up.stderr || up.stdout || 'Failed to start sidecar' })
+    const taken = probed.warnPortTaken && probed.hostPort
+      ? ` Port ${probed.hostPort} is already in use.`
+      : ''
+    throw createError({
+      statusCode: 500,
+      statusMessage: `${up.stderr || up.stdout || 'Failed to start sidecar'}${taken}`,
+    })
   }
   // attach containers to shared network with Compose service aliases for DNS
   const d = getDocker()
@@ -125,7 +209,36 @@ export async function startSidecar(id: string) {
       }
     }
   }
-  return getProjectStatus(sidecar)
+  const status = await getProjectStatus(sidecar)
+  return {
+    ...status,
+    hostMode: probed.settings.hostMode,
+    effectiveMode: probed.effectiveMode,
+    hostManaged: probed.hostManaged,
+    skipped: false,
+    warning: probed.warnPortTaken
+      ? `Started sidecar while port ${probed.hostPort} was already in use.`
+      : undefined,
+  }
+}
+
+export async function sidecarLogs(id: string, tail = 200) {
+  const sidecar = getSidecar(id)
+  if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
+  const name = projectName(id)
+  const capped = Math.min(Math.max(tail, 1), 2000)
+  const res = await run(
+    'docker',
+    ['compose', '-p', name, '-f', join(sidecar.dir, 'docker-compose.yml'), 'logs', '--no-color', '--tail', String(capped)],
+    sidecar.dir,
+    30_000,
+  )
+  return {
+    id,
+    project: name,
+    logs: (res.stdout || res.stderr || '').trim(),
+    error: res.code !== 0 ? (res.stderr || res.stdout || 'Failed to read logs') : undefined,
+  }
 }
 
 export async function stopSidecar(id: string) {
@@ -154,15 +267,17 @@ export function getSidecarSetting(id: string) {
   return {
     autostart: row?.autostart ?? false,
     navPinned: row?.navPinned ?? false,
+    hostMode: (isHostMode(row?.hostMode) ? row.hostMode : 'auto') as HostMode,
   }
 }
 
-export function setSidecarSetting(id: string, patch: { autostart?: boolean; navPinned?: boolean }) {
+export function setSidecarSetting(id: string, patch: { autostart?: boolean; navPinned?: boolean; hostMode?: HostMode }) {
   const current = getSidecarSetting(id)
   const next = {
     sidecarId: id,
     autostart: patch.autostart ?? current.autostart,
     navPinned: patch.navPinned ?? current.navPinned,
+    hostMode: patch.hostMode && isHostMode(patch.hostMode) ? patch.hostMode : current.hostMode,
   }
   const db = getDb()
   const existing = db.select().from(sidecarSettings).where(eq(sidecarSettings.sidecarId, id)).get()

@@ -5,7 +5,7 @@ description: Run Bros with Docker only.
 
 # Getting started
 
-Bros runs entirely through Docker. The host only needs Docker and Docker Compose.
+Bros runs entirely through Docker. The host needs Docker and Docker Compose. Optional: host `cloudflared` (install + `cloudflared login`). Set `public_url` in `bros.yml` to start a named tunnel for that hostname; otherwise `./bros` may prompt, and the Dashboard Tunnel card starts a quick tunnel.
 
 The root `./bros` CLI defaults to **start** when no command is passed. Explicit `start` still works as an optional alias — prefer the forms below.
 
@@ -25,7 +25,9 @@ A repo checkout (CLI next to `docker-compose.yml` + `sidecars/`) uses that direc
 ./bros --dev
 ```
 
-Same as `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`.
+Same as `docker compose -f docker-compose.yml -f docker-compose.dev.yml up`.
+
+First start builds `bros:dev` if it is missing. Later starts skip rebuild (the repo is bind-mounted). After Dockerfile or compose changes, rebuild with `./bros update --dev`.
 
 Dev container bind-mounts the repo at `/app` (toolchain image only — no source baked in). On start it runs `pnpm install`, then `pnpm --filter @bros/app dev`.
 
@@ -38,7 +40,9 @@ Stop / status still use explicit commands:
 ./bros status --dev
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055).
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055). The Cloudflare tunnel hostname works in `--dev` too (Vite client JS must load; otherwise Unlock does nothing).
+
+Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOST_DATA_DIR/passkey`. Change it in Settings (updates that file).
 
 ## Production
 

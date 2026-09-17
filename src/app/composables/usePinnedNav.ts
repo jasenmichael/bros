@@ -19,13 +19,13 @@ type SidecarNavRow = {
  */
 export function usePinnedNav() {
   const route = useRoute()
-  const reqUrl = useRequestURL()
   const skip = computed(() => route.path === '/login' || route.path === '/setup')
 
   const { data, refresh, pending, error } = useFetch<{ sidecars: SidecarNavRow[] }>('/api/sidecars', {
     key: 'bros-sidecars-nav',
     lazy: true,
     server: false,
+    immediate: false,
     watch: false,
     default: () => ({ sidecars: [] }),
   })
@@ -44,15 +44,11 @@ export function usePinnedNav() {
     const out: PinnedNavItem[] = []
     for (const s of rows) {
       if (!s.settings?.navPinned) continue
-      const webuis = (s.interfaces || []).filter((i) => i.type === 'webui')
+      const webuis = (s.interfaces || []).filter((i) => i.type === 'webui' && i.hostPort)
       for (const iface of webuis) {
-        const slug = iface.slug || s.packageSlug
-        const to = iface.hostPort
-          ? `${reqUrl.protocol}//${reqUrl.hostname}:${iface.hostPort}/`
-          : `/${slug}/`
         out.push({
           label: s.name,
-          to,
+          to: `http://127.0.0.1:${iface.hostPort}/`,
           icon: 'i-lucide-external-link',
           external: true,
         })

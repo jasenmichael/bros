@@ -20,6 +20,7 @@ export const sidecarSettings = sqliteTable('sidecar_settings', {
   sidecarId: text('sidecar_id').primaryKey(),
   autostart: integer('autostart', { mode: 'boolean' }).notNull().default(false),
   navPinned: integer('nav_pinned', { mode: 'boolean' }).notNull().default(false),
+  hostMode: text('host_mode').notNull().default('auto'),
 })
 
 export const providers = sqliteTable('providers', {
@@ -57,6 +58,7 @@ export function getDb() {
   mkdirSync(dataDir, { recursive: true })
   mkdirSync(join(dataDir, 'sidecars'), { recursive: true })
   mkdirSync(join(dataDir, 'logs'), { recursive: true })
+  mkdirSync(join(dataDir, 'tunnel'), { recursive: true })
   const dbPath = join(dataDir, 'bros.sqlite')
   _sqlite = new Database(dbPath)
   _sqlite.pragma('journal_mode = WAL')
@@ -90,7 +92,8 @@ function migrate(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS sidecar_settings (
       sidecar_id TEXT PRIMARY KEY,
       autostart INTEGER NOT NULL DEFAULT 0,
-      nav_pinned INTEGER NOT NULL DEFAULT 0
+      nav_pinned INTEGER NOT NULL DEFAULT 0,
+      host_mode TEXT NOT NULL DEFAULT 'auto'
     );
     CREATE TABLE IF NOT EXISTS providers (
       id TEXT PRIMARY KEY,
@@ -116,4 +119,8 @@ function migrate(sqlite: Database.Database) {
       created_at INTEGER NOT NULL
     );
   `)
+  const cols = sqlite.prepare('PRAGMA table_info(sidecar_settings)').all() as Array<{ name: string }>
+  if (!cols.some((c) => c.name === 'host_mode')) {
+    sqlite.exec(`ALTER TABLE sidecar_settings ADD COLUMN host_mode TEXT NOT NULL DEFAULT 'auto'`)
+  }
 }

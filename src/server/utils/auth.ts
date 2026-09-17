@@ -1,13 +1,60 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { getRequestHeader, getRequestProtocol, type H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
+import { join } from 'pathe'
+import { loadBootstrapConfig } from './config'
 import { getDb, meta, sessions } from './db'
+import { viaTunnelFromEvent } from './viaTunnel'
 
-const PASSCODE_KEY = 'passcode_hash'
 const SECRET_KEY = 'app_secret'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14
+export const SESSION_COOKIE_MAX_AGE = SESSION_TTL_MS / 1000
+/** Plaintext passkey filename under dataDir — source of truth for login. */
+export const PASSKEY_FILENAME = 'passkey'
 
-function hashPasscode(passcode: string, salt: string): string {
-  return scryptSync(passcode, salt, 64).toString('hex')
+let printedPasskeyOnce = false
+
+export function passkeyPath(): string {
+  return join(loadBootstrapConfig().dataDir, PASSKEY_FILENAME)
+}
+
+export function readPasskey(): string | null {
+  const path = passkeyPath()
+  if (!existsSync(path)) return null
+  const value = readFileSync(path, 'utf8').trim()
+  return value.length ? value : null
+}
+
+function writePasskeyFile(passcode: string) {
+  const { dataDir } = loadBootstrapConfig()
+  mkdirSync(dataDir, { recursive: true })
+  writeFileSync(passkeyPath(), `${passcode}\n`, { encoding: 'utf8', mode: 0o600 })
+}
+
+/**
+ * Ensure `{dataDir}/passkey` exists (generate if missing) and print once.
+ * Call at Nitro boot and on first request bootstrap.
+ */
+export function ensurePasskey(): string {
+  let key = readPasskey()
+  let created = false
+  if (!key) {
+    key = randomBytes(9).toString('base64url')
+    writePasskeyFile(key)
+    created = true
+  }
+  if (!printedPasskeyOnce) {
+    printedPasskeyOnce = true
+    console.log(`[bros] passkey${created ? ' (new)' : ''}: ${key}`)
+    console.log(`[bros] passkey file: ${passkeyPath()}`)
+  }
+  return key
+}
+
+/** Test helper — allow another ensurePasskey() log. */
+export function resetPasskeyPrintForTests() {
+  printedPasskeyOnce = false
 }
 
 export function ensureAppSecret(): string {
@@ -20,32 +67,23 @@ export function ensureAppSecret(): string {
 }
 
 export function hasPasscode(): boolean {
-  const db = getDb()
-  return Boolean(db.select().from(meta).where(eq(meta.key, PASSCODE_KEY)).get())
+  return Boolean(readPasskey())
 }
 
 export function setPasscode(passcode: string) {
-  if (passcode.length < 4) throw createError({ statusCode: 400, statusMessage: 'Passcode too short' })
-  const salt = randomBytes(16).toString('hex')
-  const hash = `${salt}:${hashPasscode(passcode, salt)}`
-  const db = getDb()
-  const existing = db.select().from(meta).where(eq(meta.key, PASSCODE_KEY)).get()
-  if (existing) {
-    db.update(meta).set({ value: hash }).where(eq(meta.key, PASSCODE_KEY)).run()
-  } else {
-    db.insert(meta).values({ key: PASSCODE_KEY, value: hash }).run()
-  }
+  const trimmed = passcode.trim()
+  if (trimmed.length < 4) throw createError({ statusCode: 400, statusMessage: 'Passcode too short' })
+  writePasskeyFile(trimmed)
 }
 
 export function verifyPasscode(passcode: string): boolean {
-  const db = getDb()
-  const row = db.select().from(meta).where(eq(meta.key, PASSCODE_KEY)).get()
-  if (!row) return false
-  const [salt, expected] = row.value.split(':')
-  if (!salt || !expected) return false
-  const actual = hashPasscode(passcode, salt)
+  const expected = readPasskey()
+  if (!expected) return false
+  const a = Buffer.from(passcode.trim(), 'utf8')
+  const b = Buffer.from(expected, 'utf8')
+  if (a.length !== b.length) return false
   try {
-    return timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(expected, 'hex'))
+    return timingSafeEqual(a, b)
   } catch {
     return false
   }
@@ -99,3 +137,37 @@ export function decryptSecret(enc: string): string {
 }
 
 export const SESSION_COOKIE = 'bros_session'
+
+/** True when the browser saw HTTPS — including CF tunnel to local HTTP. */
+export function requestIsHttps(input: {
+  protocol?: string | null
+  forwardedProto?: string | null
+  cfVisitor?: string | null
+  viaTunnel?: boolean
+}): boolean {
+  const proto = (input.protocol || '').toLowerCase().replace(/:$/, '')
+  if (proto === 'https') return true
+  const forwarded = (input.forwardedProto || '').split(',')[0]?.trim().toLowerCase()
+  if (forwarded === 'https') return true
+  if ((input.cfVisitor || '').toLowerCase().includes('https')) return true
+  return Boolean(input.viaTunnel)
+}
+
+export function sessionCookieOptions(secure: boolean) {
+  return {
+    httpOnly: true as const,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: SESSION_COOKIE_MAX_AGE,
+    secure,
+  }
+}
+
+export function sessionCookieOptionsForEvent(event: H3Event) {
+  return sessionCookieOptions(requestIsHttps({
+    protocol: getRequestProtocol(event),
+    forwardedProto: getRequestHeader(event, 'x-forwarded-proto'),
+    cfVisitor: getRequestHeader(event, 'cf-visitor'),
+    viaTunnel: viaTunnelFromEvent(event),
+  }))
+}

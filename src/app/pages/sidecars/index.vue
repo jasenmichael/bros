@@ -16,35 +16,30 @@ type SidecarRow = {
     hostPort?: number
     basePath?: string
   }>
-  settings: { autostart: boolean; navPinned: boolean }
+  settings: { autostart: boolean; navPinned: boolean; hostMode?: 'auto' | 'sidecar' | 'host' }
   status: { running: boolean; services: Array<{ name: string; state: string }> }
+  hostPort?: number
+  hostMode?: 'auto' | 'sidecar' | 'host'
+  effectiveMode?: 'sidecar' | 'host'
+  hostManaged?: boolean
+  warning?: string
+  hasContainer?: boolean
 }
 
-const { data, refresh, pending } = await useFetch<{ sidecars: SidecarRow[]; errors: string[] }>('/api/sidecars')
+const { data, refresh, pending } = await useFetch<{ sidecars: SidecarRow[]; errors: string[]; viaTunnel?: boolean }>('/api/sidecars')
 const busy = ref<string | null>(null)
-const reqUrl = useRequestURL()
 const copiedUrl = ref('')
+const actionNote = ref('')
 
 function webuiLinks(s: SidecarRow) {
   return s.interfaces
-    .filter((i) => i.type === 'webui')
-    .map((i) => {
-      const slug = i.slug || s.packageSlug
-      if (i.hostPort) {
-        return {
-          label: s.name,
-          to: `${reqUrl.protocol}//${reqUrl.hostname}:${i.hostPort}/`,
-          external: true,
-          hostPort: i.hostPort,
-        }
-      }
-      return {
-        label: s.name,
-        to: `/${slug}/`,
-        external: true,
-        hostPort: undefined as number | undefined,
-      }
-    })
+    .filter((i) => i.type === 'webui' && i.hostPort)
+    .map((i) => ({
+      label: s.name,
+      to: `http://127.0.0.1:${i.hostPort}/`,
+      external: true,
+      hostPort: i.hostPort!,
+    }))
 }
 
 /** OpenAI-compatible base URLs for tools that speak /v1 (or sidecar basePath). */
@@ -56,7 +51,7 @@ function openaiEndpoints(s: SidecarRow) {
       const hostPort = i.hostPort
         || s.interfaces.find((w) => w.type === 'webui' && w.service === i.service && w.hostPort)?.hostPort
       const url = hostPort
-        ? `${reqUrl.protocol}//${reqUrl.hostname}:${hostPort}${basePath}`
+        ? `http://127.0.0.1:${hostPort}${basePath}`
         : `http://${i.service}:${i.targetPort}${basePath}`
       return { url, network: hostPort ? 'host' as const : 'bros' as const }
     })
@@ -77,7 +72,8 @@ async function copyUrl(url: string) {
 async function act(id: string, action: 'start' | 'stop' | 'restart') {
   busy.value = id
   try {
-    await $fetch(`/api/sidecars/${id}/${action}`, { method: 'POST' })
+    const res = await $fetch<{ warning?: string }>(`/api/sidecars/${id}/${action}`, { method: 'POST' })
+    actionNote.value = res?.warning || ''
     await refresh()
   } finally {
     busy.value = null
@@ -86,7 +82,13 @@ async function act(id: string, action: 'start' | 'stop' | 'restart') {
 
 const { refreshPinnedNav } = usePinnedNav()
 
-async function patchSettings(id: string, body: { autostart?: boolean; navPinned?: boolean }) {
+const hostModes = [
+  { label: 'Auto', value: 'auto' },
+  { label: 'Sidecar', value: 'sidecar' },
+  { label: 'Host', value: 'host' },
+]
+
+async function patchSettings(id: string, body: { autostart?: boolean; navPinned?: boolean; hostMode?: 'auto' | 'sidecar' | 'host' }) {
   busy.value = id
   try {
     await $fetch(`/api/sidecars/${id}/settings`, { method: 'PATCH', body })
@@ -102,6 +104,9 @@ async function patchSettings(id: string, body: { autostart?: boolean; navPinned?
   <BrosPageShell title="Sidecars" description="Managed Compose projects outside the core stack.">
     <div v-if="data?.errors?.length" class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
       <p v-for="(err, i) in data.errors" :key="i">{{ err }}</p>
+    </div>
+    <div v-if="actionNote" class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+      {{ actionNote }}
     </div>
 
     <div v-if="pending" class="text-[var(--bros-muted)]">Loading…</div>
@@ -129,7 +134,10 @@ async function patchSettings(id: string, body: { autostart?: boolean; navPinned?
         </div>
 
         <p v-if="s.error" class="mt-3 text-sm text-red-400">{{ s.error }}</p>
-
+        <p v-else-if="s.warning" class="mt-3 text-sm text-amber-300">{{ s.warning }}</p>
+        <p v-if="s.hostManaged" class="mt-2 text-xs text-[var(--bros-muted)]">
+          Host-managed ({{ s.hostMode || 'auto' }}{{ s.effectiveMode && s.effectiveMode !== s.hostMode ? `, effective ${s.effectiveMode}` : '' }}).
+        </p>
         <div class="mt-4 flex flex-wrap gap-2">
           <UButton
             size="sm"
@@ -165,8 +173,15 @@ async function patchSettings(id: string, body: { autostart?: boolean; navPinned?
             :to="link.to"
             :target="link.external ? '_blank' : undefined"
           >
-            Open {{ link.label }}{{ link.hostPort ? ` (:${link.hostPort})` : '' }}
+            Open {{ link.label }} (:{{ link.hostPort }})
           </UButton>
+          <UButton
+            v-if="s.hasContainer"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            :to="`/sidecars/${s.id}/logs`"
+          >Logs</UButton>
         </div>
 
         <div v-if="openaiEndpoints(s).length" class="mt-4 space-y-2">
@@ -214,6 +229,17 @@ async function patchSettings(id: string, body: { autostart?: boolean; navPinned?
               @update:model-value="(v: boolean) => patchSettings(s.id, { navPinned: v })"
             />
             Pin in nav
+          </label>
+          <label class="flex items-center gap-2 text-[var(--bros-muted)]">
+            Mode
+            <select
+              class="rounded-md border border-[var(--bros-border)] bg-[#0e141c] px-2 py-1 text-sm text-white"
+              :value="s.settings.hostMode || 'auto'"
+              :disabled="busy === s.id"
+              @change="(e: Event) => patchSettings(s.id, { hostMode: (e.target as HTMLSelectElement).value as 'auto' | 'sidecar' | 'host' })"
+            >
+              <option v-for="opt in hostModes" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
           </label>
         </div>
       </article>
