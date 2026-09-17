@@ -8,7 +8,13 @@ export const OLLAMA_SIDECAR_PUBLISH = 11435
 export const OLLAMA_HOST_SCAN_PORTS = [11434, 11436, 22000] as const
 export const OLLAMA_BROS_PROJECT = projectName('ollama')
 
-export type OllamaChatSource = 'host' | 'sidecar' | 'external'
+export type OllamaChatSource = 'host' | 'sidecar'
+
+/** Persist only host | sidecar. Legacy `external` rows resolve like unset mode. */
+export function normalizeOllamaMode(mode?: string | null): OllamaChatSource | undefined {
+  if (mode === 'host' || mode === 'sidecar') return mode
+  return undefined
+}
 
 export type HostOllamaHit = {
   port: number | null
@@ -123,18 +129,16 @@ export async function resolveOllamaChat(mode?: string | null): Promise<{
   host: { port: number; version: string } | null
   hostError: string | null
 }> {
+  const persisted = normalizeOllamaMode(mode)
   const hostHit = await findHostOllama()
   const host = hostHit.port != null && hostHit.version
     ? { port: hostHit.port, version: hostHit.version }
     : null
 
-  if (mode === 'external') {
-    return { source: 'external', baseUrl: '', host, hostError: hostHit.error }
-  }
-  if (mode === 'sidecar') {
+  if (persisted === 'sidecar') {
     return { source: 'sidecar', baseUrl: OLLAMA_SIDECAR_DNS, host, hostError: hostHit.error }
   }
-  if (mode === 'host') {
+  if (persisted === 'host') {
     if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port), host, hostError: hostHit.error }
     return {
       source: 'host',

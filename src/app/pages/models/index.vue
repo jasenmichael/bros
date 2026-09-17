@@ -18,7 +18,7 @@ const { data, refresh, pending } = await useFetch<{
   ollamaModels: OllamaModel[]
   ollamaError: string | null
   ollamaBaseUrl?: string
-  ollamaSource?: 'host' | 'sidecar' | 'external'
+  ollamaSource?: 'host' | 'sidecar'
   hostOllama?: { port: number; version: string } | null
   hostOllamaError?: string | null
   sidecarPublish?: number
@@ -26,7 +26,6 @@ const { data, refresh, pending } = await useFetch<{
 }>('/api/models')
 
 const pullName = ref<string | { label: string; value: string } | undefined>('')
-const externalUrl = ref('')
 const busy = ref(false)
 const err = ref('')
 const useGpu = ref(false)
@@ -149,10 +148,6 @@ const selectedTooBig = computed(() => {
   return hit ? !fitsDisk(hit.sizeBytes) : false
 })
 
-watchEffect(() => {
-  if (data.value?.ollamaBaseUrl) externalUrl.value = data.value.ollamaBaseUrl
-})
-
 const ollama = computed(() => data.value?.providers.find((p) => p.id === 'ollama'))
 const paid = computed(() => data.value?.providers.filter((p) => p.id !== 'ollama') || [])
 const gpu = computed(() => libraryData.value?.gpu)
@@ -172,11 +167,11 @@ const providerForm = reactive({
 
 const ollamaMode = computed(() => {
   const mode = ollama.value?.config?.mode as string | undefined
-  if (mode === 'host' || mode === 'sidecar' || mode === 'external') return mode
+  if (mode === 'host' || mode === 'sidecar') return mode
   return data.value?.ollamaSource || 'sidecar'
 })
 
-async function setOllamaMode(mode: 'host' | 'sidecar' | 'external') {
+async function setOllamaMode(mode: 'host' | 'sidecar') {
   busy.value = true
   err.value = ''
   try {
@@ -191,34 +186,13 @@ async function setOllamaMode(mode: 'host' | 'sidecar' | 'external') {
         kind: 'ollama',
         baseUrl: mode === 'sidecar'
           ? (data.value?.sidecarDns || 'http://ollama:11434')
-          : mode === 'host'
-            ? hostUrl
-            : (externalUrl.value || hostUrl),
+          : hostUrl,
         config: { ...(ollama.value?.config || {}), mode },
       },
     })
     await refresh()
   } catch (e: unknown) {
     err.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Update failed'
-  } finally {
-    busy.value = false
-  }
-}
-
-async function saveExternalUrl() {
-  busy.value = true
-  try {
-    await $fetch('/api/models/providers', {
-      method: 'POST',
-      body: {
-        id: 'ollama',
-        name: 'Ollama',
-        kind: 'ollama',
-        baseUrl: externalUrl.value,
-        config: { ...(ollama.value?.config || {}), mode: 'external' },
-      },
-    })
-    await refresh()
   } finally {
     busy.value = false
   }
@@ -388,9 +362,6 @@ async function removeProvider(id: string) {
         <UButton size="sm" :variant="ollamaMode === 'sidecar' ? 'solid' : 'outline'" @click="setOllamaMode('sidecar')">
           Sidecar DNS
         </UButton>
-        <UButton size="sm" :variant="ollamaMode === 'external' ? 'solid' : 'outline'" color="neutral" @click="setOllamaMode('external')">
-          External URL
-        </UButton>
       </div>
       <p class="text-xs text-[var(--bros-muted)]">
         <span v-if="data?.hostOllama">Host Ollama v{{ data.hostOllama.version }} on :{{ data.hostOllama.port }}.</span>
@@ -401,10 +372,6 @@ async function removeProvider(id: string) {
       <p v-if="ollamaMode === 'host'" class="text-xs text-amber-200">
         Pull and Chat write to the host Ollama disk, not $BROS_DIR/data/ollama.
       </p>
-      <div v-if="ollamaMode === 'external'" class="flex max-w-xl gap-2">
-        <UInput v-model="externalUrl" placeholder="http://host.docker.internal:11434" class="flex-1" />
-        <UButton :loading="busy" @click="saveExternalUrl">Save URL</UButton>
-      </div>
 
       <div
         v-if="gpu?.available"

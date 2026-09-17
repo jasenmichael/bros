@@ -74,7 +74,7 @@ When `public_url` is set (or the Dashboard card is on), startup checks:
 
 Missing binary: the wizard offers a **user-local** install to `~/.local/bin` (no sudo). A system package/binary install (`dpkg` / `rpm` / `/usr/local/bin`) is optional and asks you to approve sudo. Native Windows uses the elevated PowerShell snippet in this section, or WSL.
 
-Then run `cloudflared login` in the browser. With `public_url` set, the helper creates/runs a **named** tunnel (`bros`) and `cloudflared tunnel route dns` for that hostname. If the logged-in account does not own the zone, start fails and the error is written to `status.json` (Dashboard + Status). When `public_url` is unset, the card starts a quick tunnel to `http://127.0.0.1:<BROS_PORT>` (default **3055**).
+Then run `cloudflared login` in the browser. With `public_url` set, the helper creates/runs a **named** tunnel (`bros`) with `cloudflared tunnel route dns <id> <hostname>` (CNAME to `<id>.cfargotunnel.com`) and `cloudflared tunnel --config $BROS_DIR/data/tunnel/config.yml run bros` (`protocol: http2` and `edge-ip-version: 4` in that YAML; override `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`). Already-exists is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Dashboard shows the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json` (Dashboard + Status). When `public_url` is unset, the card starts a quick tunnel to `http://127.0.0.1:<BROS_PORT>` (default **3055**).
 
 Windows (elevated PowerShell):
 

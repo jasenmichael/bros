@@ -28,6 +28,8 @@ describe('Models page', () => {
     expect(wrapper.text()).toContain('Ollama')
     expect(wrapper.text()).toContain('Host')
     expect(wrapper.text()).toContain('Sidecar DNS')
+    expect(wrapper.text()).not.toContain('External URL')
+    expect(wrapper.text()).not.toContain('Save URL')
     expect(wrapper.text()).toContain('Pull')
     expect(wrapper.text()).toContain('user/name:tag')
   })

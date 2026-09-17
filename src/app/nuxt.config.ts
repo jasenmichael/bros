@@ -21,6 +21,7 @@ export default defineNuxtConfig({
   // Vue app package root; Nitro lives in sibling src/server
   srcDir: '.',
   serverDir: '../server',
+  devtools: false,
   dir: {
     public: 'public',
   },

@@ -142,4 +142,396 @@ exit 0
       child.kill('SIGTERM')
     }
   })
+
+  it('write_status keeps QUIC errors while the pid is alive', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-status-quic-'))
+    const tunnelDir = join(root, 'tunnel')
+    mkdirSync(tunnelDir, { recursive: true })
+    const out = bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       echo $$ > "${tunnelDir}/cloudflared.pid"
+       cat > "${tunnelDir}/logs.txt" <<'LOG'
+2026-09-17T19:00:00Z INF Registered tunnel connection protocol=quic connIndex=0
+2026-09-17T19:00:10Z WRN failed to accept QUIC stream: timeout: no recent network activity
+2026-09-17T19:00:10Z ERR failed to serve tunnel connection error="accept stream listener encountered a failure while serving"
+LOG
+       write_status
+       cat "${tunnelDir}/status.json"`,
+      { BROS_TUNNEL_DIR: tunnelDir, BROS_PORT: '3055', HOME: root, PATH: '/usr/bin:/bin' },
+    )
+    const parsed = JSON.parse(out.slice(out.indexOf('{'))) as { running: boolean; error: string | null }
+    expect(parsed.running).toBe(true)
+    expect(parsed.error).toMatch(/failed to (accept QUIC stream|serve tunnel connection)/)
+  })
+
+  it('write_status clears runtime error after a later register', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-status-ok-'))
+    const tunnelDir = join(root, 'tunnel')
+    mkdirSync(tunnelDir, { recursive: true })
+    const out = bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       echo $$ > "${tunnelDir}/cloudflared.pid"
+       cat > "${tunnelDir}/logs.txt" <<'LOG'
+2026-09-17T19:00:10Z ERR failed to accept QUIC stream: timeout: no recent network activity
+2026-09-17T19:00:20Z INF Registered tunnel connection protocol=http2 connIndex=0
+LOG
+       write_status
+       cat "${tunnelDir}/status.json"`,
+      { BROS_TUNNEL_DIR: tunnelDir, BROS_PORT: '3055', HOME: root, PATH: '/usr/bin:/bin' },
+    )
+    const parsed = JSON.parse(out.slice(out.indexOf('{'))) as { running: boolean; error: string | null }
+    expect(parsed.running).toBe(true)
+    expect(parsed.error).toBeNull()
+  })
+
+  it('named run passes --protocol http2 by default', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-proto-http2-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.example.com\n')
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+echo "\$@" >> "${root}/cf.args"
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  echo "INF Added CNAME bros.example.com which will route to this tunnel"
+  exit 0
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  echo RAN >> "${root}/cf.run"
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       start_cf || true`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+      },
+    )
+    const args = readFileSync(join(root, 'cf.args'), 'utf8')
+    expect(args).toMatch(/--config /)
+    expect(args).toMatch(/ run bros(?:\s|$)/)
+    expect(readFileSync(join(tunnelDir, 'config.yml'), 'utf8')).toMatch(/^protocol: http2$/m)
+    expect(readFileSync(join(tunnelDir, 'config.yml'), 'utf8')).toMatch(/^edge-ip-version: "4"$/m)
+    expect(readFileSync(join(tunnelDir, 'config.yml'), 'utf8')).toMatch(/hostname: bros\.example\.com/)
+    expect(readFileSync(join(tunnelDir, 'config.yml'), 'utf8')).toMatch(/service: http_status:404/)
+    expect(existsSync(join(root, 'cf.run'))).toBe(true)
+  })
+
+  it('BROS_TUNNEL_PROTOCOL=quic overrides the default', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-proto-quic-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.example.com\n')
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+echo "\$@" >> "${root}/cf.args"
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  echo "INF Added CNAME bros.example.com which will route to this tunnel"
+  exit 0
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       start_cf || true`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+        BROS_TUNNEL_PROTOCOL: 'quic',
+      },
+    )
+    expect(readFileSync(join(root, 'cf.args'), 'utf8')).toMatch(/ run bros(?:\s|$)/)
+    expect(readFileSync(join(tunnelDir, 'config.yml'), 'utf8')).toMatch(/^protocol: quic$/m)
+  })
+
+  it('route dns timeout still starts the named tunnel', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-route-timeout-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.example.com\n')
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  sleep 8
+  echo "INF Added CNAME bros.example.com which will route to this tunnel"
+  exit 0
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  echo RAN >> "${root}/cf.run"
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       start_cf || true
+       if [[ -f "${root}/cf.run" ]]; then echo DID_RUN; else echo NO_RUN; fi`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+        BROS_TUNNEL_ROUTE_TIMEOUT: '1',
+      },
+    )
+    expect(existsSync(join(root, 'cf.run'))).toBe(true)
+    expect(readFileSync(join(tunnelDir, 'error'), 'utf8')).toMatch(/cloudflared tunnel route dns timed out/)
+    expect(readFileSync(join(tunnelDir, 'error'), 'utf8')).toMatch(/cfargotunnel\.com/)
+    expect(readFileSync(join(tunnelDir, 'error'), 'utf8')).not.toMatch(/PUT .*\/routes/)
+  })
+
+  it('route dns REST timeout still starts and does not use the PUT URL as the only error', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-route-rest-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.jasenmichael.com\n')
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+echo "\$@" >> "${root}/cf.args"
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"b880bc39-b98f-41e2-a776-fc581b353768","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  echo 'ERR REST request failed: Put "https://api.cloudflare.com/client/v4/zones/a2ceecc34b908eeabe5bd2b4c5dcb068/tunnels/b880bc39-b98f-41e2-a776-fc581b353768/routes": http2: timeout awaiting response headers'
+  exit 1
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  echo RAN >> "${root}/cf.run"
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'b880bc39-b98f-41e2-a776-fc581b353768.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    const out = bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       start_cf || true
+       if [[ -f "${root}/cf.run" ]]; then echo DID_RUN; else echo NO_RUN; fi
+       cat "${tunnelDir}/error"`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+      },
+    )
+    expect(out).toContain('DID_RUN')
+    expect(out).toMatch(/cloudflared tunnel route dns timed out/)
+    expect(out).toMatch(/b880bc39-b98f-41e2-a776-fc581b353768\.cfargotunnel\.com/)
+    expect(out).toMatch(/cloudflared tunnel route dns bros bros\.jasenmichael\.com/)
+    expect(out).not.toMatch(/Failed to route .* REST request failed/)
+    expect(readFileSync(join(root, 'cf.args'), 'utf8')).toMatch(/tunnel route dns bros bros\.jasenmichael\.com/)
+    expect(readFileSync(join(tunnelDir, 'route_warned'), 'utf8').trim()).toBe('bros.jasenmichael.com')
+  })
+
+  it('route dns already exists is success', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-route-exists-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.example.com\n')
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+echo "\$@" >> "${root}/cf.args"
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  echo "A CNAME record already exists for that hostname"
+  exit 1
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  echo RAN >> "${root}/cf.run"
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       start_cf || true`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+      },
+    )
+    expect(existsSync(join(root, 'cf.run'))).toBe(true)
+    expect(existsSync(join(tunnelDir, 'error'))).toBe(false)
+    expect(readFileSync(join(tunnelDir, 'routed'), 'utf8').trim()).toBe('bros.example.com')
+  })
+
+  it('always runs official route dns even when routed marker matches', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-route-skip-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.example.com\n')
+    writeFileSync(join(tunnelDir, 'routed'), 'bros.example.com\n')
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+echo "\$@" >> "${root}/cf.args"
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  echo "INF bros.example.com is already configured to route to your tunnel"
+  echo ROUTED >> "${root}/cf.route"
+  exit 0
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  echo RAN >> "${root}/cf.run"
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       start_cf || true`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+      },
+    )
+    expect(existsSync(join(root, 'cf.run'))).toBe(true)
+    expect(existsSync(join(root, 'cf.route'))).toBe(true)
+    expect(readFileSync(join(root, 'cf.args'), 'utf8')).toMatch(/tunnel route dns bros bros\.example\.com/)
+  })
+
+  it('maybe_autostart retries a stale REST route error', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-route-retry-'))
+    const tunnelDir = join(root, 'tunnel')
+    const binDir = join(root, 'bin')
+    mkdirSync(tunnelDir, { recursive: true })
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'public_url'), 'https://bros.jasenmichael.com\n')
+    writeFileSync(join(tunnelDir, 'enabled'), '1\n')
+    writeFileSync(
+      join(tunnelDir, 'error'),
+      'Failed to route bros.jasenmichael.com to named tunnel: REST request failed: Put "https://api.cloudflare.com/client/v4/zones/a2ceecc34b908eeabe5bd2b4c5dcb068/tunnels/b880bc39-b98f-41e2-a776-fc581b353768/routes": http2: timeout awaiting response headers\n',
+    )
+    const fake = join(binDir, 'cloudflared')
+    writeFileSync(fake, `#!/usr/bin/env bash
+if [[ "\$1" == "tunnel" && "\$2" == "list" ]]; then
+  printf '%s\\n' '[{"id":"b880bc39-b98f-41e2-a776-fc581b353768","name":"bros"}]'
+  exit 0
+fi
+if [[ "\$1" == "tunnel" && "\$2" == "route" ]]; then
+  echo 'ERR REST request failed: Put "https://api.cloudflare.com/client/v4/zones/abc/tunnels/b880bc39-b98f-41e2-a776-fc581b353768/routes": http2: timeout awaiting response headers'
+  exit 1
+fi
+if [[ "\$*" == *run* || "\$*" == *--config* ]]; then
+  echo RAN >> "${root}/cf.run"
+  sleep 30
+fi
+exit 0
+`)
+    chmodSync(fake, 0o755)
+    mkdirSync(join(root, '.cloudflared'), { recursive: true })
+    writeFileSync(join(root, '.cloudflared', 'b880bc39-b98f-41e2-a776-fc581b353768.json'), '{}')
+    writeFileSync(join(root, '.cloudflared', 'cert.pem'), 'x')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       maybe_autostart`,
+      {
+        BROS_TUNNEL_DIR: tunnelDir,
+        BROS_PORT: '3055',
+        HOME: root,
+        PATH: `${binDir}:/usr/bin:/bin`,
+      },
+    )
+    expect(existsSync(join(root, 'cf.run'))).toBe(true)
+    expect(readFileSync(join(tunnelDir, 'error'), 'utf8')).toMatch(/cloudflared tunnel route dns timed out/)
+    expect(readFileSync(join(tunnelDir, 'error'), 'utf8')).not.toMatch(/^Failed to route /)
+  })
+
+  it('write_status keeps a route dns warning while the pid is alive', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-status-dns-'))
+    const tunnelDir = join(root, 'tunnel')
+    mkdirSync(tunnelDir, { recursive: true })
+    writeFileSync(
+      join(tunnelDir, 'error'),
+      'cloudflared tunnel route dns timed out. Named tunnel will still run. Confirm CNAME bros.example.com → id.cfargotunnel.com, or retry: cloudflared tunnel route dns id bros.example.com\n',
+    )
+    writeFileSync(join(tunnelDir, 'logs.txt'), 'INF Registered tunnel connection protocol=http2\n')
+    const out = bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       echo $$ > "${tunnelDir}/cloudflared.pid"
+       write_status
+       cat "${tunnelDir}/status.json"`,
+      { BROS_TUNNEL_DIR: tunnelDir, BROS_PORT: '3055', HOME: root, PATH: '/usr/bin:/bin' },
+    )
+    const parsed = JSON.parse(out.slice(out.indexOf('{'))) as { running: boolean; error: string | null }
+    expect(parsed.running).toBe(true)
+    expect(parsed.error).toMatch(/cloudflared tunnel route dns timed out/)
+  })
 })

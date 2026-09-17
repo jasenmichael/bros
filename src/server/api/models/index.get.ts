@@ -12,9 +12,7 @@ export default defineEventHandler(async () => {
   const ollama = providers.find((p) => p.id === 'ollama')
   const mode = ollama?.config?.mode as string | undefined
   const chat = await resolveOllamaChat(mode)
-  const baseUrl = mode === 'external' && ollama?.baseUrl
-    ? ollama.baseUrl
-    : await ollamaBaseUrlFromProvider()
+  const baseUrl = await ollamaBaseUrlFromProvider()
   let ollamaModels: Awaited<ReturnType<typeof listOllamaModels>> = []
   let ollamaError: string | null = null
   try {
@@ -27,7 +25,7 @@ export default defineEventHandler(async () => {
     ollamaModels,
     ollamaError,
     ollamaBaseUrl: baseUrl,
-    ollamaSource: mode === 'external' ? 'external' : chat.source,
+    ollamaSource: chat.source,
     hostOllama: chat.host,
     hostOllamaError: chat.hostError,
     sidecarPublish: OLLAMA_SIDECAR_PUBLISH,

@@ -66,6 +66,40 @@ export function isCloudflareZoneOwnershipError(routeOutput: string, requestedHos
   return !namedTunnelRouteOwned(requestedHost, routeOutput)
 }
 
+const RUNTIME_FAIL_RE = /failed to accept QUIC stream|failed to run the datagram handler|failed to serve tunnel connection|timeout: no recent network activity|accept stream listener encountered a failure|Failed to dial a quic connection|failed to dial to edge with quic/i
+const REGISTERED_RE = /Registered tunnel connection/i
+const SHUTDOWN_RE = /Initiating graceful shutdown/i
+const SHUTDOWN_REST_RE = /REST request failed|timeout awaiting response headers/i
+
+function stripCloudflaredLogPrefix(line: string): string {
+  const stripped = line.replace(/^\S+\s+(INF|ERR|WRN|DEBUG)\s+/i, '').trim()
+  return stripped || line.trim()
+}
+
+/** Last connection error after the most recent successful register, or null if healthy/recovered. */
+export function parseTunnelRuntimeError(logText: string): string | null {
+  const lines = logText.replace(/\n$/, '').split(/\r?\n/).slice(-80)
+  let lastRegister = -1
+  let lastError = -1
+  let errorLine = ''
+  let shuttingDown = false
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (SHUTDOWN_RE.test(line)) shuttingDown = true
+    if (REGISTERED_RE.test(line)) {
+      lastRegister = i
+      shuttingDown = false
+    }
+    if (shuttingDown && SHUTDOWN_REST_RE.test(line)) continue
+    if (RUNTIME_FAIL_RE.test(line)) {
+      lastError = i
+      errorLine = stripCloudflaredLogPrefix(line)
+    }
+  }
+  if (lastError > lastRegister && errorLine) return errorLine
+  return null
+}
+
 export function parseQuickTunnelHostname(logText: string): string | null {
   const matches = logText.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/gi)
   if (!matches?.length) return null
@@ -100,12 +134,18 @@ export function readTunnelStatus(dataDir: string, now = Date.now()): TunnelStatu
       ? raw.publicUrl.trim()
       : null
     const updatedAt = typeof raw.updatedAt === 'number' ? raw.updatedAt : null
+    const fileError = typeof raw.error === 'string' && raw.error.trim() ? raw.error : null
+    const running = Boolean(raw.running)
+    const logsFile = join(tunnelDir(dataDir), 'logs.txt')
+    const runtimeError = running && existsSync(logsFile)
+      ? parseTunnelRuntimeError(readFileSync(logsFile, 'utf8'))
+      : null
     return {
-      running: Boolean(raw.running),
+      running,
       pid: typeof raw.pid === 'number' ? raw.pid : null,
       hostname,
       publicUrl,
-      error: typeof raw.error === 'string' && raw.error.trim() ? raw.error : null,
+      error: runtimeError || fileError,
       installed: Boolean(raw.installed),
       loggedIn: Boolean(raw.loggedIn),
       helper: Boolean(raw.helper),

@@ -446,6 +446,9 @@ bros_tunnel_start_helper() {
     BROS_TUNNEL_DIR="$(bros_tunnel_dir)" \
     BROS_PORT="${BROS_PORT:-3055}" \
     BROS_PUBLIC_URL="${BROS_PUBLIC_URL:-}" \
+    BROS_TUNNEL_PROTOCOL="${BROS_TUNNEL_PROTOCOL:-}" \
+    BROS_TUNNEL_EDGE_IP_VERSION="${BROS_TUNNEL_EDGE_IP_VERSION:-}" \
+    BROS_TUNNEL_ROUTE_TIMEOUT="${BROS_TUNNEL_ROUTE_TIMEOUT:-}" \
     bash "$script" \
     >>"$(bros_tunnel_dir)/helper.log" 2>&1 &
   echo $! >"$(bros_tunnel_helper_pidfile)"

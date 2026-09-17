@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useSeoMeta({ title: 'Chat' })
+import { useChatRecents } from '../../composables/useChatRecents'
 
 type Msg = { id: string; role: string; content: string; modelId?: string | null }
 
@@ -20,11 +20,15 @@ const modelId = ref('ollama/llama3.2')
 const lastPersistedModel = ref<string | null>(null)
 const pendingSource = ref<'host' | 'sidecar' | null>(null)
 const pageTitle = ref('Chat')
+const loadingThread = ref(false)
+const threadEnd = ref<HTMLElement | null>(null)
+
+useSeoMeta({ title: () => pageTitle.value })
 
 const { data: modelsData, refresh: refreshModels } = await useFetch<{
   ollamaModels: Array<{ id: string }>
   providers: Array<{ id: string; kind: string; config?: Record<string, unknown> }>
-  ollamaSource?: 'host' | 'sidecar' | 'external'
+  ollamaSource?: 'host' | 'sidecar'
   hostOllama?: { port: number; version: string } | null
   sidecarPublish?: number
 }>('/api/models')
@@ -33,7 +37,7 @@ const ollama = computed(() => modelsData.value?.providers.find((p) => p.id === '
 const chatSource = computed(() => {
   if (pendingSource.value) return pendingSource.value
   const mode = ollama.value?.config?.mode as string | undefined
-  if (mode === 'host' || mode === 'sidecar' || mode === 'external') return mode
+  if (mode === 'host' || mode === 'sidecar') return mode
   return modelsData.value?.ollamaSource || 'sidecar'
 })
 
@@ -122,12 +126,38 @@ function resetEmpty() {
   streamingModelId.value = ''
   pageTitle.value = 'Chat'
   lastPersistedModel.value = null
+  loadingThread.value = false
 }
 
+const isThread = computed(() =>
+  Boolean(convoId.value) || messages.value.length > 0 || Boolean(streaming.value) || loadingThread.value,
+)
+
 watch(convoId, (id) => {
-  if (id) void loadConversation(id)
-  else resetEmpty()
+  if (id) {
+    loadingThread.value = true
+    void loadConversation(id).finally(() => {
+      loadingThread.value = false
+    })
+  } else {
+    resetEmpty()
+  }
 }, { immediate: true })
+
+function scrollThread() {
+  threadEnd.value?.scrollIntoView({ block: 'end' })
+}
+
+watch([messages, streaming], () => {
+  if (!isThread.value) return
+  nextTick(scrollThread)
+})
+
+function onComposerKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey) return
+  event.preventDefault()
+  void send()
+}
 
 async function send() {
   if (!input.value.trim()) return
@@ -177,13 +207,48 @@ async function send() {
 </script>
 
 <template>
-  <BrosPageShell :title="pageTitle" description="Bros Chat — streaming against configured models.">
-    <div class="flex min-h-[60vh] flex-col rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/50">
-      <div class="border-b border-[var(--bros-border)] p-3 space-y-2">
-        <div v-if="modelsData?.hostOllama" class="flex flex-wrap gap-2">
+  <div
+    class="bros-chat"
+    :class="isThread ? 'bros-chat--thread' : 'bros-chat--empty'"
+  >
+    <div v-if="!isThread" class="bros-chat__hero">
+      <h1 class="bros-chat__greet">What should we run?</h1>
+    </div>
+
+    <div v-else class="bros-chat__thread" aria-live="polite">
+      <div
+        v-for="m in messages"
+        :key="m.id"
+        class="bros-chat__turn"
+        :class="m.role === 'user' ? 'bros-chat__turn--user' : 'bros-chat__turn--assistant'"
+      >
+        <p
+          v-if="m.role === 'assistant'"
+          class="bros-chat__meta"
+        >
+          ASSISTANT<span v-if="m.modelId"> · {{ m.modelId }}</span>
+        </p>
+        <div class="bros-chat__bubble" :class="m.role === 'user' ? 'bros-chat__bubble--user' : 'bros-chat__bubble--assistant'">
+          <BrosChatMarkdown :text="m.content" />
+        </div>
+      </div>
+      <div v-if="streaming" class="bros-chat__turn bros-chat__turn--assistant">
+        <p class="bros-chat__meta">
+          ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
+        </p>
+        <div class="bros-chat__bubble bros-chat__bubble--assistant">
+          <BrosChatMarkdown :text="streaming" />
+        </div>
+      </div>
+      <div ref="threadEnd" />
+    </div>
+
+    <div class="bros-chat__dock">
+      <div class="bros-chat__tools">
+        <div v-if="modelsData?.hostOllama" class="bros-chat__sources">
           <UButton
             size="xs"
-            :variant="chatSource === 'host' ? 'solid' : 'outline'"
+            :variant="chatSource === 'host' ? 'solid' : 'ghost'"
             :color="chatSource === 'host' ? 'primary' : 'neutral'"
             @click="setChatSource('host')"
           >
@@ -191,38 +256,173 @@ async function send() {
           </UButton>
           <UButton
             size="xs"
-            :variant="chatSource === 'sidecar' ? 'solid' : 'outline'"
+            :variant="chatSource === 'sidecar' ? 'solid' : 'ghost'"
             :color="chatSource === 'sidecar' ? 'primary' : 'neutral'"
             @click="setChatSource('sidecar')"
           >
             Sidecar :{{ modelsData.sidecarPublish || 11435 }}
           </UButton>
         </div>
-        <p v-if="chatSource === 'host'" class="text-xs text-amber-200">
-          Chat and pull write to the host Ollama disk, not $BROS_DIR/data/ollama.
-        </p>
-        <USelect v-model="modelId" :items="modelOptions" />
+        <USelect v-model="modelId" :items="modelOptions" size="xs" class="bros-chat__model" />
       </div>
-      <div class="flex-1 space-y-3 overflow-y-auto p-4">
-        <div v-for="m in messages" :key="m.id" class="rounded-lg px-3 py-2 text-sm" :class="m.role === 'user' ? 'bg-white/10 text-white' : 'bg-black/20 text-slate-200'">
-          <div class="mb-1 text-xs tracking-wide text-[var(--bros-muted)]">
-            <span class="uppercase">{{ m.role }}</span>
-            <span v-if="m.role === 'assistant' && m.modelId"> · {{ m.modelId }}</span>
-          </div>
-          <div class="whitespace-pre-wrap">{{ m.content }}</div>
-        </div>
-        <div v-if="streaming" class="rounded-lg bg-black/20 px-3 py-2 text-sm text-slate-200">
-          <div class="mb-1 text-xs tracking-wide text-[var(--bros-muted)]">
-            <span class="uppercase">assistant</span>
-            <span v-if="streamingModelId"> · {{ streamingModelId }}</span>
-          </div>
-          <div class="whitespace-pre-wrap">{{ streaming }}</div>
-        </div>
-      </div>
-      <form class="flex gap-2 border-t border-[var(--bros-border)] p-3" @submit.prevent="send">
-        <UInput v-model="input" class="flex-1" placeholder="Message…" :disabled="busy" />
-        <UButton type="submit" :loading="busy">Send</UButton>
+      <p v-if="chatSource === 'host'" class="bros-chat__host-note">
+        Chat and pull write to the host Ollama disk, not $BROS_DIR/data/ollama.
+      </p>
+      <form class="bros-chat__composer" @submit.prevent="send">
+        <UTextarea
+          v-model="input"
+          class="bros-chat__input"
+          placeholder="Message…"
+          :disabled="busy"
+          :rows="1"
+          :maxrows="8"
+          autoresize
+          variant="none"
+          :ui="{ base: 'resize-none bg-transparent ring-0' }"
+          @keydown="onComposerKeydown"
+        />
+        <UButton
+          type="submit"
+          :loading="busy"
+          :disabled="busy || !input.trim()"
+          icon="i-lucide-arrow-up"
+          aria-label="Send"
+          class="bros-chat__send"
+        />
       </form>
     </div>
-  </BrosPageShell>
+  </div>
 </template>
+
+<style scoped>
+.bros-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 3rem);
+}
+
+.bros-chat--empty {
+  align-items: center;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.bros-chat--thread {
+  min-height: calc(100dvh - 3rem);
+  height: calc(100dvh - 3rem);
+}
+
+.bros-chat__hero {
+  width: min(48rem, 100%);
+  text-align: center;
+}
+
+.bros-chat__greet {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  color: #f2f6fb;
+}
+
+.bros-chat__thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.25rem 0.5rem;
+}
+
+.bros-chat__turn {
+  width: min(48rem, 100%);
+  margin: 0 auto 1.15rem;
+}
+
+.bros-chat__turn--user {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bros-chat__meta {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  color: var(--bros-muted);
+}
+
+.bros-chat__bubble {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.bros-chat__bubble--user {
+  max-width: min(36rem, 85%);
+  padding: 0.7rem 1rem;
+  border-radius: 1.25rem 1.25rem 0.4rem 1.25rem;
+  background: color-mix(in srgb, var(--bros-accent) 18%, var(--bros-surface));
+  color: var(--bros-text);
+}
+
+.bros-chat__bubble--assistant {
+  color: var(--bros-text);
+}
+
+.bros-chat__dock {
+  width: min(48rem, 100%);
+  margin: 0 auto;
+  padding: 0.5rem 1.25rem 1.25rem;
+  flex-shrink: 0;
+}
+
+.bros-chat--empty .bros-chat__dock {
+  width: min(42rem, 100%);
+}
+
+.bros-chat__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.bros-chat__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.bros-chat__model {
+  min-width: 10rem;
+  max-width: 16rem;
+}
+
+.bros-chat__host-note {
+  margin: 0 0 0.5rem;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #fde68a;
+}
+
+.bros-chat__composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.55rem;
+  padding: 0.45rem 0.45rem 0.45rem 1rem;
+  border: 1px solid var(--bros-border);
+  border-radius: 1.6rem;
+  background: color-mix(in srgb, var(--bros-surface) 88%, #0a1016);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bros-accent) 8%, transparent);
+}
+
+.bros-chat__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bros-chat__send {
+  border-radius: 999px;
+}
+</style>

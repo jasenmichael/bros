@@ -48,6 +48,63 @@ cf_pid() {
 
 NAMED_TUNNEL_NAME="${BROS_TUNNEL_NAME:-bros}"
 
+tunnel_protocol() {
+  local p
+  p="$(printf '%s' "${BROS_TUNNEL_PROTOCOL:-http2}" | tr '[:upper:]' '[:lower:]')"
+  case "$p" in
+    auto|quic|http2) printf '%s' "$p" ;;
+    *) printf '%s' 'http2' ;;
+  esac
+}
+
+# Docs default is 4; still pass it so http2 does not land on IPv6 edge IPs.
+tunnel_edge_ip_version() {
+  local v
+  v="$(printf '%s' "${BROS_TUNNEL_EDGE_IP_VERSION:-4}" | tr '[:upper:]' '[:lower:]')"
+  case "$v" in
+    auto|4|6) printf '%s' "$v" ;;
+    *) printf '%s' '4' ;;
+  esac
+}
+
+route_dns_timeout_secs() {
+  local n="${BROS_TUNNEL_ROUTE_TIMEOUT:-20}"
+  case "$n" in
+    ''|*[!0-9]*) n=20 ;;
+  esac
+  if [[ "$n" -lt 1 ]]; then n=1; fi
+  if [[ "$n" -gt 120 ]]; then n=120; fi
+  printf '%s' "$n"
+}
+
+# Last cloudflared connection error after the most recent successful register.
+recent_runtime_error() {
+  local logs="${DIR}/logs.txt" msg
+  [[ -f "$logs" ]] || return 1
+  msg="$(tail -n 80 "$logs" | awk '
+    BEGIN { last_reg = 0; last_err = 0; err = ""; shutting = 0 }
+    /Initiating graceful shutdown/ { shutting = 1 }
+    /Registered tunnel connection/ { last_reg = NR; shutting = 0 }
+    shutting && /REST request failed|timeout awaiting response headers/ { next }
+    /failed to accept QUIC stream|failed to run the datagram handler|failed to serve tunnel connection|timeout: no recent network activity|accept stream listener encountered a failure|Failed to dial a quic connection|failed to dial to edge with quic/ {
+      last_err = NR
+      err = $0
+    }
+    END {
+      if (last_err > last_reg && err != "") print err
+    }
+  ')"
+  [[ -n "$msg" ]] || return 1
+  if [[ "$msg" == *" ERR "* ]]; then
+    msg="${msg#* ERR }"
+  elif [[ "$msg" == *" WRN "* ]]; then
+    msg="${msg#* WRN }"
+  elif [[ "$msg" == *" INF "* ]]; then
+    msg="${msg#* INF }"
+  fi
+  printf '%s' "$msg"
+}
+
 read_public_url() {
   local public_url=""
   if [[ -n "${BROS_PUBLIC_URL:-}" ]]; then
@@ -123,7 +180,9 @@ ensure_named_tunnel_id() {
 }
 
 write_named_config() {
-  local id="$1" host="$2" cred
+  local id="$1" host="$2" cred proto edge
+  proto="$(tunnel_protocol)"
+  edge="$(tunnel_edge_ip_version)"
   cred="${HOME}/.cloudflared/${id}.json"
   if [[ ! -f "$cred" ]]; then
     echo "Missing credentials file ${cred} after tunnel create." >"${DIR}/error"
@@ -132,6 +191,8 @@ write_named_config() {
   cat >"${DIR}/config.yml" <<EOF
 tunnel: ${id}
 credentials-file: ${cred}
+protocol: ${proto}
+edge-ip-version: "${edge}"
 ingress:
   - hostname: ${host}
     service: ${TARGET}
@@ -139,26 +200,67 @@ ingress:
 EOF
 }
 
+is_route_api_timeout() {
+  printf '%s' "$1" | grep -qiE 'REST request failed|timeout awaiting response headers|/tunnels/.*/routes'
+}
+
+is_dns_route_warning() {
+  printf '%s' "$1" | grep -qiE 'tunnel route dns|cfargotunnel\.com|DNS route|Failed to route|REST request failed|/tunnels/.*/routes|timeout awaiting response headers'
+}
+
+read_route_marker() {
+  local f="$1"
+  [[ -f "$f" ]] || return 1
+  tr -d '[:space:]' <"$f"
+}
+
+write_route_timeout_warning() {
+  local host="$1" id="$2"
+  echo "cloudflared tunnel route dns timed out. Named tunnel will still run. Confirm CNAME ${host} → ${id}.cfargotunnel.com, or retry: cloudflared tunnel route dns ${NAMED_TUNNEL_NAME} ${host}" >"${DIR}/error"
+}
+
+mark_hostname() {
+  printf '%s\n' "$1" >"$2"
+}
+
 route_named_hostname() {
-  local bin="$1" host="$2" out
-  out="$("$bin" tunnel route dns "$NAMED_TUNNEL_NAME" "$host" 2>&1)" || true
+  local bin="$1" host="$2" id="$3" out rc=0 secs target
+  target="$NAMED_TUNNEL_NAME"
+  secs="$(route_dns_timeout_secs)"
+  # Docs: cloudflared tunnel route dns <NAME> <hostname>
+  if command -v timeout >/dev/null 2>&1; then
+    out="$(timeout "$secs" "$bin" tunnel route dns "$target" "$host" 2>&1)" || rc=$?
+  else
+    out="$("$bin" tunnel route dns "$target" "$host" 2>&1)" || rc=$?
+  fi
   printf '%s\n' "$out" >>"${DIR}/logs.txt"
+  if [[ "$rc" -eq 124 ]] || is_route_api_timeout "$out"; then
+    echo "cloudflared tunnel route dns timed out talking to the Cloudflare API; starting named tunnel anyway." >>"${DIR}/logs.txt"
+    write_route_timeout_warning "$host" "$id"
+    mark_hostname "$host" "${DIR}/route_warned"
+    return 0
+  fi
   if is_zone_ownership_failure "$out" "$host"; then
     echo "Cloudflare account (cloudflared login) does not own the DNS zone for ${host}. Log in to the account that owns that domain, or change public_url." >"${DIR}/error"
     return 1
   fi
-  if printf '%s' "$out" | grep -qiE 'Added CNAME|already exists|already routed|CNAME already|record already'; then
+  if printf '%s' "$out" | grep -qiE 'Added CNAME|already exists|already routed|already configured|CNAME already|record already'; then
+    mark_hostname "$host" "${DIR}/routed"
+    rm -f "${DIR}/route_warned"
+    rm -f "${DIR}/error"
     return 0
   fi
   if printf '%s' "$out" | grep -qiE 'error|failed|ERR '; then
-    echo "Failed to route ${host} to named tunnel: ${out}" >"${DIR}/error"
+    echo "cloudflared tunnel route dns failed for ${host}: ${out}" >"${DIR}/error"
     return 1
   fi
+  mark_hostname "$host" "${DIR}/routed"
+  rm -f "${DIR}/route_warned"
   return 0
 }
 
 start_named() {
-  local bin="$1" host id
+  local bin="$1" host id proto edge
   host="$(hostname_from_url "$(read_public_url)")"
   if [[ -z "$host" ]]; then
     echo "public_url is set but has no hostname." >"${DIR}/error"
@@ -166,11 +268,14 @@ start_named() {
   fi
   id="$(ensure_named_tunnel_id "$bin")" || return 1
   write_named_config "$id" "$host" || return 1
-  route_named_hostname "$bin" "$host" || return 1
+  route_named_hostname "$bin" "$host" "$id" || return 1
   printf '%s\n' "$host" >"${DIR}/hostname"
-  : >"${DIR}/logs.txt"
-  rm -f "${DIR}/error"
-  nohup "$bin" tunnel --config "${DIR}/config.yml" --no-autoupdate run >>"${DIR}/logs.txt" 2>&1 &
+  proto="$(tunnel_protocol)"
+  edge="$(tunnel_edge_ip_version)"
+  export TUNNEL_TRANSPORT_PROTOCOL="$proto"
+  export TUNNEL_EDGE_IP_VERSION="$edge"
+  # Docs: cloudflared tunnel --config /path/config.yml run <NAME>
+  nohup "$bin" tunnel --config "${DIR}/config.yml" --no-autoupdate run "$NAMED_TUNNEL_NAME" >>"${DIR}/logs.txt" 2>&1 &
   echo $! >"${DIR}/cloudflared.pid"
   sleep 1
   if ! cf_pid >/dev/null; then
@@ -196,7 +301,7 @@ rotate_logs() {
 }
 
 write_status() {
-  local running=false pid="" hostname="" public_url="" installed=false logged=false err=""
+  local running=false pid="" hostname="" public_url="" installed=false logged=false err="" runtime=""
   if pid="$(cf_pid)"; then
     running=true
   else
@@ -229,8 +334,16 @@ write_status() {
     err="$(head -c 800 "${DIR}/error")"
   fi
   if [[ "$running" == true ]]; then
-    err=""
-    rm -f "${DIR}/error"
+    runtime="$(recent_runtime_error || true)"
+    if [[ -n "$runtime" ]]; then
+      err="$runtime"
+      printf '%s\n' "$runtime" >"${DIR}/error"
+    elif [[ -n "$err" ]] && is_dns_route_warning "$err"; then
+      :
+    else
+      err=""
+      rm -f "${DIR}/error"
+    fi
   fi
   local now
   now="$(($(date +%s) * 1000))"
@@ -241,7 +354,7 @@ EOF
 }
 
 start_cf() {
-  local bin=""
+  local bin="" proto="" edge=""
   if ! bin="$(cloudflared_bin)"; then
     echo "cloudflared is not installed on the host. Run ./bros in a terminal to install." >"${DIR}/error"
     return 1
@@ -264,7 +377,11 @@ start_cf() {
   fi
   : >"${DIR}/logs.txt"
   rm -f "${DIR}/error"
-  nohup "$bin" tunnel --url "$TARGET" --no-autoupdate >>"${DIR}/logs.txt" 2>&1 &
+  proto="$(tunnel_protocol)"
+  edge="$(tunnel_edge_ip_version)"
+  export TUNNEL_TRANSPORT_PROTOCOL="$proto"
+  export TUNNEL_EDGE_IP_VERSION="$edge"
+  nohup "$bin" tunnel --url "$TARGET" --protocol "$proto" --edge-ip-version "$edge" --no-autoupdate >>"${DIR}/logs.txt" 2>&1 &
   echo $! >"${DIR}/cloudflared.pid"
   sleep 1
   if ! cf_pid >/dev/null; then
@@ -306,7 +423,11 @@ handle_command() {
 maybe_autostart() {
   [[ -f "${DIR}/enabled" && "$(tr -d '[:space:]' <"${DIR}/enabled")" == "1" ]] || return 0
   cf_pid >/dev/null && return 0
-  [[ -f "${DIR}/error" ]] && return 0
+  if [[ -f "${DIR}/error" ]]; then
+    if ! is_dns_route_warning "$(head -c 800 "${DIR}/error")"; then
+      return 0
+    fi
+  fi
   start_cf || true
 }
 

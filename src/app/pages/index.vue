@@ -87,7 +87,7 @@ const tunnelState = computed(() => (tunnelRunning.value ? 'running' : 'stopped')
 /** Absolute URL when tunnel has a public host; otherwise null (show plain status text). */
 const tunnelLink = computed(() => {
   const t = tunnel.value
-  if (!t || t.error || !t.helperAlive || !t.installed || !t.loggedIn) return null
+  if (!t || !t.helperAlive || !t.installed || !t.loggedIn) return null
   const host = t.publicUrl || t.hostname || data.value?.tunnelHost
   if (!host) return null
   return /^https?:\/\//i.test(host) ? host : `https://${host}`
@@ -223,6 +223,7 @@ onUnmounted(() => setLogPoll(false))
           </template>
           <template v-else>{{ tunnelSnippet }}</template>
         </p>
+        <p v-if="tunnel?.error && tunnelLink" class="mt-2 text-xs text-amber-300">{{ tunnel.error }}</p>
         <p v-if="tunnelLocked" class="mt-2 text-xs text-amber-300">
           Stop locked: this session is through the tunnel.
         </p>

@@ -9,6 +9,7 @@ import {
   isTunnelHelperAlive,
   namedTunnelRouteOwned,
   parseQuickTunnelHostname,
+  parseTunnelRuntimeError,
   readTunnelLogs,
   readTunnelStatus,
   tailLines,
@@ -45,6 +46,32 @@ describe('named tunnel zone ownership', () => {
 
   it('treats zone-not-found text as not owned', () => {
     expect(namedTunnelRouteOwned('bros.other.com', 'ERR could not find zone for hostname')).toBe(false)
+  })
+})
+
+describe('parseTunnelRuntimeError', () => {
+  const quicFail = [
+    '2026-09-17T19:00:00Z INF Registered tunnel connection protocol=quic connIndex=0 ip=2606:4700:a0::5 location=ord06',
+    '2026-09-17T19:00:10Z WRN failed to accept QUIC stream: timeout: no recent network activity',
+    '2026-09-17T19:00:10Z ERR failed to serve tunnel connection error="accept stream listener encountered a failure while serving"',
+  ].join('\n')
+
+  it('surfaces QUIC errors after the last successful register', () => {
+    expect(parseTunnelRuntimeError(quicFail)).toMatch(/failed to (accept QUIC stream|serve tunnel connection)/)
+  })
+
+  it('is null when a later register recovered', () => {
+    const logs = `${quicFail}\n2026-09-17T19:00:20Z INF Registered tunnel connection protocol=http2 connIndex=0`
+    expect(parseTunnelRuntimeError(logs)).toBeNull()
+  })
+
+  it('ignores REST route timeout after graceful shutdown', () => {
+    const logs = [
+      '2026-09-17T19:00:00Z INF Registered tunnel connection protocol=quic',
+      '2026-09-17T19:01:00Z INF Initiating graceful shutdown due to signal interrupt',
+      '2026-09-17T19:01:30Z ERR REST request failed: Put "https://api.cloudflare.com/client/v4/zones/abc/tunnels/def/routes": http2: timeout awaiting response headers',
+    ].join('\n')
+    expect(parseTunnelRuntimeError(logs)).toBeNull()
   })
 })
 
@@ -151,6 +178,30 @@ describe('tunnel control files', () => {
     const status = readTunnelStatus(root)
     expect(status.error).toMatch(/does not own the DNS zone/)
     expect(tunnelPublicPayload(status, 'https://bros.example.com').error).toMatch(/does not own the DNS zone/)
+  })
+
+  it('overlays log QUIC errors when status.json says running with no error', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-tunnel-quic-'))
+    mkdirSync(join(root, 'tunnel'), { recursive: true })
+    writeFileSync(join(root, 'tunnel', 'status.json'), JSON.stringify({
+      running: true,
+      pid: 42,
+      hostname: 'bros.example.com',
+      publicUrl: 'https://bros.example.com',
+      error: null,
+      installed: true,
+      loggedIn: true,
+      helper: true,
+      updatedAt: Date.now(),
+    }))
+    writeFileSync(join(root, 'tunnel', 'logs.txt'), [
+      'INF Registered tunnel connection protocol=quic',
+      'ERR failed to accept QUIC stream: timeout: no recent network activity',
+    ].join('\n'))
+    const status = readTunnelStatus(root)
+    expect(status.running).toBe(true)
+    expect(status.error).toMatch(/failed to accept QUIC stream/)
+    expect(tunnelPublicPayload(status).error).toMatch(/failed to accept QUIC stream/)
   })
 
   it('returns empty status when helper files are missing', () => {

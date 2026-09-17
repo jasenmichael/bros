@@ -10,6 +10,7 @@ const { fetchMock, status } = vi.hoisted(() => ({
     tunnel: {
       running: false,
       hostname: null as string | null,
+      publicUrl: null as string | null,
       installed: true,
       loggedIn: true,
       helperAlive: true,
@@ -87,6 +88,24 @@ describe('Dashboard tunnel card', () => {
     expect((toggle.element as HTMLButtonElement).disabled).toBe(true)
     await toggle.trigger('click')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('shows runtime error while the host process is still running', async () => {
+    status.viaTunnel = false
+    status.tunnelHost = 'bros.example.com'
+    status.tunnel.running = true
+    status.tunnel.hostname = 'bros.example.com'
+    status.tunnel.publicUrl = 'https://bros.example.com'
+    status.tunnel.error = 'failed to accept QUIC stream: timeout: no recent network activity'
+    status.tunnel.helperAlive = true
+    status.tunnel.installed = true
+    status.tunnel.loggedIn = true
+
+    const Dashboard = await import('../../src/app/pages/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(Dashboard)
+    expect(wrapper.text()).toContain('failed to accept QUIC stream: timeout: no recent network activity')
+    expect(wrapper.text()).toContain('https://bros.example.com')
+    expect(wrapper.text()).toContain('running')
   })
 
   it('does not list cloudflared as a sidecar snippet', async () => {

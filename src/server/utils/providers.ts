@@ -241,9 +241,7 @@ export async function deleteOllamaModel(baseUrl: string, name: string) {
 export async function ollamaBaseUrlFromProvider(): Promise<string> {
   const p = getProvider('ollama')
   const mode = p?.config?.mode as string | undefined
-  if (mode === 'external' && p?.baseUrl) return p.baseUrl
   const resolved = await resolveOllamaChat(mode)
-  if (mode === 'external') return p?.baseUrl || resolved.baseUrl || OLLAMA_SIDECAR_DNS
   return resolved.baseUrl || OLLAMA_SIDECAR_DNS
 }
 

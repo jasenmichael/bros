@@ -81,6 +81,24 @@ describe('ollama host probe', () => {
     expect(chat.baseUrl).toBe(hostOllamaUrl(11434))
   })
 
+  it('treats legacy external mode as host when scan hits', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes(':11434/api/version')) {
+        return { ok: true, json: async () => ({ version: '0.9.0' }) }
+      }
+      throw new Error('offline')
+    }))
+    const chat = await resolveOllamaChat('external')
+    expect(chat.source).toBe('host')
+    expect(chat.baseUrl).toBe(hostOllamaUrl(11434))
+  })
+
+  it('treats legacy external mode as sidecar when scan misses', async () => {
+    const chat = await resolveOllamaChat('external')
+    expect(chat.source).toBe('sidecar')
+    expect(chat.baseUrl).toBe('http://ollama:11434')
+  })
+
   it('defaults to sidecar DNS when scan misses', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('offline')
