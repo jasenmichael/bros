@@ -40,12 +40,15 @@ export async function probeHostPort(port: number): Promise<boolean> {
   return false
 }
 
-export function firstHostPort(interfaces: Array<{ hostPort?: number }>): number | undefined {
-  return interfaces.map((i) => i.hostPort).find((p) => typeof p === 'number' && p > 0)
+export function firstPublishPort(interfaces: Array<{ publish?: number }>): number | undefined {
+  return interfaces.map((i) => i.publish).find((p) => typeof p === 'number' && p > 0)
 }
 
-export function hostUiUrl(hostPort: number): string {
-  return `http://127.0.0.1:${hostPort}/`
+/** @deprecated use firstPublishPort */
+export const firstHostPort = firstPublishPort
+
+export function hostUiUrl(publish: number): string {
+  return `http://127.0.0.1:${publish}/`
 }
 
 export type HostRuntime = {
@@ -66,10 +69,10 @@ export function resolveHostRuntime(input: {
     return { effectiveMode: 'host', skipStart: true, warnPortTaken: foreign, hostManaged: true }
   }
   if (input.hostMode === 'sidecar') {
-    return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: foreign, hostManaged: foreign }
+    return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: foreign, hostManaged: false }
   }
   if (foreign) {
-    return { effectiveMode: 'host', skipStart: true, warnPortTaken: false, hostManaged: true }
+    return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: true, hostManaged: false }
   }
   return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: false, hostManaged: false }
 }

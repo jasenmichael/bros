@@ -29,6 +29,15 @@ describe('sidecar hostMode settings', () => {
       autostart: false,
       navPinned: false,
       hostMode: 'host',
+      hostProbePort: null,
     })
+  })
+
+  it('persists Host Ollama manual port', async () => {
+    const { getSidecarSetting, setSidecarSetting } = await import('../../src/server/utils/docker')
+    setSidecarSetting('ollama', { hostProbePort: 22000 })
+    expect(getSidecarSetting('ollama').hostProbePort).toBe(22000)
+    setSidecarSetting('ollama', { hostProbePort: null })
+    expect(getSidecarSetting('ollama').hostProbePort).toBeNull()
   })
 })

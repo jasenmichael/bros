@@ -1,7 +1,7 @@
 id: opencode
 slug: opencode
 name: OpenCode
-description: CLI coding agent with web UI (anomalyco/opencode). Host port 4096. Independent of the Bros app container.
+description: CLI coding agent with web UI (anomalyco/opencode). Bros publishes host port 4097.
 
 interfaces:
   - type: cli
@@ -9,6 +9,6 @@ interfaces:
     command: opencode
   - type: webui
     service: opencode
-    targetPort: 4096
-    hostPort: 4096
+    containerPort: 4096
+    publish: 4097
     slug: opencode

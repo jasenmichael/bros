@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  firstHostPort,
+  firstPublishPort,
   hostUiUrl,
   isHostMode,
   resolveHostRuntime,
@@ -15,11 +15,12 @@ describe('isHostMode', () => {
   })
 })
 
-describe('firstHostPort / hostUiUrl', () => {
-  it('picks the first positive hostPort', () => {
-    expect(firstHostPort([{ hostPort: 4096 }])).toBe(4096)
-    expect(firstHostPort([{}, { hostPort: 3080 }])).toBe(3080)
-    expect(firstHostPort([])).toBeUndefined()
+describe('firstPublishPort / hostUiUrl', () => {
+  it('picks the first positive publish port', () => {
+    expect(firstPublishPort([{ publish: 4097 }])).toBe(4097)
+    expect(firstPublishPort([{}, { publish: 3080 }])).toBe(3080)
+    expect(firstPublishPort([{ containerPort: 11434, publish: 11435 } as { publish?: number }])).toBe(11435)
+    expect(firstPublishPort([])).toBeUndefined()
   })
 
   it('builds Open/Pin URLs on 127.0.0.1', () => {
@@ -28,12 +29,12 @@ describe('firstHostPort / hostUiUrl', () => {
 })
 
 describe('resolveHostRuntime', () => {
-  it('auto + foreign occupant is host-managed and skips start', () => {
+  it('auto + foreign occupant does not skip start', () => {
     expect(resolveHostRuntime({ hostMode: 'auto', portOccupied: true, ours: false })).toEqual({
-      effectiveMode: 'host',
-      skipStart: true,
-      warnPortTaken: false,
-      hostManaged: true,
+      effectiveMode: 'sidecar',
+      skipStart: false,
+      warnPortTaken: true,
+      hostManaged: false,
     })
   })
 
@@ -60,12 +61,12 @@ describe('resolveHostRuntime', () => {
     expect(resolveHostRuntime({ hostMode: 'host', portOccupied: false, ours: false }).hostManaged).toBe(true)
   })
 
-  it('sidecar override starts and warns when port is taken by someone else', () => {
+  it('sidecar override starts and flags when port is taken by someone else', () => {
     expect(resolveHostRuntime({ hostMode: 'sidecar', portOccupied: true, ours: false })).toEqual({
       effectiveMode: 'sidecar',
       skipStart: false,
       warnPortTaken: true,
-      hostManaged: true,
+      hostManaged: false,
     })
   })
 })

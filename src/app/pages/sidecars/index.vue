@@ -12,17 +12,19 @@ type SidecarRow = {
     type: string
     slug?: string
     service: string
-    targetPort?: number
-    hostPort?: number
+    containerPort?: number
+    publish?: number
     basePath?: string
   }>
-  settings: { autostart: boolean; navPinned: boolean; hostMode?: 'auto' | 'sidecar' | 'host' }
+  settings: { autostart: boolean; navPinned: boolean; hostMode?: 'auto' | 'sidecar' | 'host'; hostProbePort?: number | null }
   status: { running: boolean; services: Array<{ name: string; state: string }> }
   hostPort?: number
   hostMode?: 'auto' | 'sidecar' | 'host'
   effectiveMode?: 'sidecar' | 'host'
   hostManaged?: boolean
   warning?: string
+  hostOllama?: { port: number; version: string } | null
+  hostOllamaError?: string | null
   hasContainer?: boolean
 }
 
@@ -33,12 +35,12 @@ const actionNote = ref('')
 
 function webuiLinks(s: SidecarRow) {
   return s.interfaces
-    .filter((i) => i.type === 'webui' && i.hostPort)
+    .filter((i) => i.type === 'webui' && i.publish)
     .map((i) => ({
       label: s.name,
-      to: `http://127.0.0.1:${i.hostPort}/`,
+      to: `http://127.0.0.1:${i.publish}/`,
       external: true,
-      hostPort: i.hostPort!,
+      hostPort: i.publish!,
     }))
 }
 
@@ -48,12 +50,12 @@ function openaiEndpoints(s: SidecarRow) {
     .filter((i) => i.type === 'openai')
     .map((i) => {
       const basePath = (i.basePath || '/v1').startsWith('/') ? (i.basePath || '/v1') : `/${i.basePath}`
-      const hostPort = i.hostPort
-        || s.interfaces.find((w) => w.type === 'webui' && w.service === i.service && w.hostPort)?.hostPort
-      const url = hostPort
-        ? `http://127.0.0.1:${hostPort}${basePath}`
-        : `http://${i.service}:${i.targetPort}${basePath}`
-      return { url, network: hostPort ? 'host' as const : 'bros' as const }
+      const publish = i.publish
+        || s.interfaces.find((w) => w.type === 'webui' && w.service === i.service && w.publish)?.publish
+      const url = publish
+        ? `http://127.0.0.1:${publish}${basePath}`
+        : `http://${i.service}:${i.containerPort}${basePath}`
+      return { url, network: publish ? 'host' as const : 'bros' as const }
     })
 }
 
@@ -80,7 +82,21 @@ async function act(id: string, action: 'start' | 'stop' | 'restart') {
   }
 }
 
+const hostPortDraft = ref('')
 const { refreshPinnedNav } = usePinnedNav()
+
+watch(() => data.value?.sidecars, (rows) => {
+  const ollama = rows?.find((s) => s.id === 'ollama')
+  if (ollama && hostPortDraft.value === '') {
+    hostPortDraft.value = ollama.settings.hostProbePort ? String(ollama.settings.hostProbePort) : ''
+  }
+}, { immediate: true })
+
+async function saveOllamaHostPort() {
+  const raw = hostPortDraft.value.trim()
+  const n = raw ? Number(raw) : null
+  await patchSettings('ollama', { hostProbePort: n && n > 0 ? n : null })
+}
 
 const hostModes = [
   { label: 'Auto', value: 'auto' },
@@ -88,7 +104,12 @@ const hostModes = [
   { label: 'Host', value: 'host' },
 ]
 
-async function patchSettings(id: string, body: { autostart?: boolean; navPinned?: boolean; hostMode?: 'auto' | 'sidecar' | 'host' }) {
+async function patchSettings(id: string, body: {
+  autostart?: boolean
+  navPinned?: boolean
+  hostMode?: 'auto' | 'sidecar' | 'host'
+  hostProbePort?: number | null
+}) {
   busy.value = id
   try {
     await $fetch(`/api/sidecars/${id}/settings`, { method: 'PATCH', body })
@@ -135,9 +156,22 @@ async function patchSettings(id: string, body: { autostart?: boolean; navPinned?
 
         <p v-if="s.error" class="mt-3 text-sm text-red-400">{{ s.error }}</p>
         <p v-else-if="s.warning" class="mt-3 text-sm text-amber-300">{{ s.warning }}</p>
-        <p v-if="s.hostManaged" class="mt-2 text-xs text-[var(--bros-muted)]">
-          Host-managed ({{ s.hostMode || 'auto' }}{{ s.effectiveMode && s.effectiveMode !== s.hostMode ? `, effective ${s.effectiveMode}` : '' }}).
+        <p v-if="s.id === 'ollama' && s.hostOllama" class="mt-2 text-sm text-[var(--bros-muted)]">
+          Host Ollama v{{ s.hostOllama.version }} on :{{ s.hostOllama.port }}
         </p>
+        <p v-else-if="s.id === 'ollama' && s.hostOllamaError" class="mt-2 text-sm text-amber-300">{{ s.hostOllamaError }}</p>
+        <p v-if="s.hostPort" class="mt-1 text-xs text-[var(--bros-muted)]">Bros sidecar on :{{ s.hostPort }}</p>
+        <div v-if="s.id === 'ollama'" class="mt-3 flex max-w-sm gap-2">
+          <UInput
+            v-model="hostPortDraft"
+            type="number"
+            placeholder="Host Ollama port"
+            size="sm"
+          />
+          <UButton size="sm" color="neutral" variant="outline" :loading="busy === 'ollama'" @click="saveOllamaHostPort">
+            Check
+          </UButton>
+        </div>
         <div class="mt-4 flex flex-wrap gap-2">
           <UButton
             size="sm"

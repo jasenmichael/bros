@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const navItems = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
-  { label: 'Chat', to: '/chat', icon: 'i-lucide-message-square' },
+  { label: 'New chat', to: '/chat', icon: 'i-lucide-message-square', exact: true },
   { label: 'Models', to: '/models', icon: 'i-lucide-cpu' },
   { label: 'Sidecars', to: '/sidecars', icon: 'i-lucide-container' },
   { label: 'Status', to: '/status', icon: 'i-lucide-activity' },
@@ -24,7 +24,11 @@ const { pinnedItems } = usePinnedNav()
       :bottom-items="bottomItems"
       :pinned-items="pinnedItems"
       show-pinned
-    />
+    >
+      <template #after-primary>
+        <BrosChatRecents />
+      </template>
+    </BrosAppNav>
     <div class="bros-app-frame__main">
       <BrosNavBar brand="Bros" brand-to="/" />
       <NuxtPage />

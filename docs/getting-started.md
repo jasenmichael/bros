@@ -74,6 +74,8 @@ pnpm --filter @bros/website preview
 
 ## Models
 
+On **Models** (and Chat when both are up), pick **Host** Ollama or the Bros **Sidecar** (`http://ollama:11434` on Docker DNS; host publish **11435**). Pull while Host is selected writes to the host Ollama disk, not `$BROS_DIR/data/ollama`.
+
 On **Models**, pull from the menu or type any valid Ollama name (`llama3.2` or community `owner/name:tag`):
 
 1. **Yours** — names you added; kept after refresh in `config.customModels`

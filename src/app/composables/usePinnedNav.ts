@@ -9,7 +9,7 @@ type SidecarNavRow = {
   id: string
   name: string
   packageSlug: string
-  interfaces: Array<{ type: string; slug?: string; hostPort?: number }>
+  interfaces: Array<{ type: string; slug?: string; publish?: number; hostPort?: number }>
   settings: { navPinned: boolean }
 }
 
@@ -44,11 +44,12 @@ export function usePinnedNav() {
     const out: PinnedNavItem[] = []
     for (const s of rows) {
       if (!s.settings?.navPinned) continue
-      const webuis = (s.interfaces || []).filter((i) => i.type === 'webui' && i.hostPort)
+      const webuis = (s.interfaces || []).filter((i) => i.type === 'webui' && (i.publish || i.hostPort))
       for (const iface of webuis) {
+        const port = iface.publish || iface.hostPort
         out.push({
           label: s.name,
-          to: `http://127.0.0.1:${iface.hostPort}/`,
+          to: `http://127.0.0.1:${port}/`,
           icon: 'i-lucide-external-link',
           external: true,
         })

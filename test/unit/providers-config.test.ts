@@ -47,7 +47,7 @@ describe('upsertProvider config merge', () => {
     const { ensureDefaultUseGpu, getProvider } = await import('../../src/server/utils/providers')
 
     expect(ensureDefaultUseGpu(true)).toBe(true)
-    expect(getProvider('ollama')?.config).toMatchObject({ mode: 'sidecar', useGpu: true })
+    expect(getProvider('ollama')?.config).toMatchObject({ useGpu: true })
   })
 
   it('keeps explicit useGpu false when GPU is present', async () => {

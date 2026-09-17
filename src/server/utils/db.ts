@@ -21,6 +21,7 @@ export const sidecarSettings = sqliteTable('sidecar_settings', {
   autostart: integer('autostart', { mode: 'boolean' }).notNull().default(false),
   navPinned: integer('nav_pinned', { mode: 'boolean' }).notNull().default(false),
   hostMode: text('host_mode').notNull().default('auto'),
+  hostProbePort: integer('host_probe_port', { mode: 'number' }),
 })
 
 export const providers = sqliteTable('providers', {
@@ -46,6 +47,7 @@ export const messages = sqliteTable('messages', {
   conversationId: text('conversation_id').notNull(),
   role: text('role').notNull(),
   content: text('content').notNull(),
+  modelId: text('model_id'),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
 })
 
@@ -122,5 +124,12 @@ function migrate(sqlite: Database.Database) {
   const cols = sqlite.prepare('PRAGMA table_info(sidecar_settings)').all() as Array<{ name: string }>
   if (!cols.some((c) => c.name === 'host_mode')) {
     sqlite.exec(`ALTER TABLE sidecar_settings ADD COLUMN host_mode TEXT NOT NULL DEFAULT 'auto'`)
+  }
+  if (!cols.some((c) => c.name === 'host_probe_port')) {
+    sqlite.exec(`ALTER TABLE sidecar_settings ADD COLUMN host_probe_port INTEGER`)
+  }
+  const msgCols = sqlite.prepare('PRAGMA table_info(messages)').all() as Array<{ name: string }>
+  if (!msgCols.some((c) => c.name === 'model_id')) {
+    sqlite.exec(`ALTER TABLE messages ADD COLUMN model_id TEXT`)
   }
 }

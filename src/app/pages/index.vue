@@ -30,6 +30,7 @@ type StatusPayload = {
     warning?: string
     error?: string
     hasContainer: boolean
+    hostOllama?: { port: number; version: string } | null
   }>
 }
 
@@ -42,7 +43,7 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
 const widgets = computed(() => {
   const s = data.value
   const sidecarSnippets = (s?.sidecars || []).filter((row) => row.id !== 'cloudflared').slice(0, 4).map((row) => {
-    const state = row.error ? 'error' : row.hostManaged ? 'host' : row.running ? 'up' : 'stopped'
+    const state = row.error ? 'error' : row.running ? 'up' : 'stopped'
     return `${row.name}: ${state}`
   })
   return [
@@ -253,12 +254,13 @@ onUnmounted(() => setLogPoll(false))
         >
           <div class="flex items-center justify-between gap-2">
             <h3 class="font-medium text-white">{{ row.name }}</h3>
-            <UBadge :color="row.running ? 'success' : row.hostManaged ? 'warning' : 'neutral'" variant="subtle">
-              {{ row.hostManaged ? 'host' : row.running ? 'running' : 'stopped' }}
+            <UBadge :color="row.running ? 'success' : 'neutral'" variant="subtle">
+              {{ row.running ? 'running' : 'stopped' }}
             </UBadge>
           </div>
           <p class="mt-1 text-xs text-[var(--bros-muted)]">
-            {{ row.effectiveMode }}{{ row.hostPort ? ` · :${row.hostPort}` : '' }}
+            {{ row.hostPort ? `:${row.hostPort}` : '' }}
+            <span v-if="row.id === 'ollama' && row.hostOllama"> · host :{{ row.hostOllama.port }}</span>
           </p>
           <p v-if="row.warning || row.error" class="mt-1 text-xs text-amber-300">{{ row.error || row.warning }}</p>
           <div class="mt-2 flex flex-wrap gap-2">

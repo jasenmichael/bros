@@ -1,13 +1,15 @@
-import { addMessage, getConversation, streamChat } from '../../../utils/chat'
+import { addMessage, getConversation, maybeAutoTitle, resolveConversationModel, streamChat } from '../../../utils/chat'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id required' })
-  const body = await readBody<{ content?: string }>(event)
+  const body = await readBody<{ content?: string; modelId?: string }>(event)
   if (!body?.content?.trim()) throw createError({ statusCode: 400, statusMessage: 'content required' })
 
   const convo = getConversation(id)
   if (!convo) throw createError({ statusCode: 404, statusMessage: 'Not found' })
+
+  const modelId = resolveConversationModel(id, body.modelId) || convo.modelId
 
   addMessage(id, 'user', body.content.trim())
   const history = getConversation(id)!.messages.map((m) => ({ role: m.role, content: m.content }))
@@ -21,14 +23,21 @@ export default defineEventHandler(async (event) => {
       let full = ''
       try {
         await streamChat({
-          modelId: convo.modelId,
+          modelId,
           history,
           onToken: (t) => {
             full += t
             controller.enqueue(encoder.encode(t))
           },
         })
-        addMessage(id, 'assistant', full)
+        addMessage(id, 'assistant', full, modelId)
+        if (full.trim()) {
+          try {
+            await maybeAutoTitle(id)
+          } catch {
+            // Title failure must not break the chat.
+          }
+        }
         controller.close()
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

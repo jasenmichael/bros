@@ -2,7 +2,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "${BROS_OLLAMA_PORT:-11434}:11434"
+      - "${BROS_OLLAMA_PORT:-11435}:11434"
     volumes:
       - ${BROS_HOST_DATA_DIR}/ollama:/root/.ollama
       - ${BROS_HOST_DATA_DIR}/ollama-config:/root/.config/ollama

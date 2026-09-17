@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import Docker from 'dockerode'
 import { eq } from 'drizzle-orm'
 import { getDb, sidecarSettings } from './db'
-import { firstHostPort, isHostMode, probeHostPort, resolveHostRuntime, type HostMode } from './hostProbe'
+import { firstPublishPort, isHostMode, probeHostPort, resolveHostRuntime, type HostMode } from './hostProbe'
 import { getSidecar, projectName, type SidecarMeta } from './sidecars'
 
 const NETWORK = process.env.BROS_NETWORK || 'bros'
@@ -100,7 +100,7 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
   const status = sidecar.error
     ? { project: projectName(sidecar.id), running: false, services: [] as Array<{ name: string; state: string }> }
     : await getProjectStatus(sidecar)
-  const hostPort = firstHostPort(sidecar.interfaces)
+  const hostPort = firstPublishPort(sidecar.interfaces)
   let portOccupied = false
   let ours = status.running
   if (typeof hostPort === 'number') {
@@ -117,12 +117,18 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
     portOccupied,
     ours,
   })
-  const warning = runtime.warnPortTaken && hostPort
-    ? `Port ${hostPort} is in use by something other than ${projectName(sidecar.id)}.`
-    : runtime.hostManaged && portOccupied && !ours && hostPort
-      ? `Host-managed: something on port ${hostPort} is not ${projectName(sidecar.id)}.`
-      : undefined
-  return { settings, status, hostPort, portOccupied, ours, warning, ...runtime }
+  const warning = runtime.warnPortTaken && hostPort && !ours
+    ? `Port ${hostPort} is already in use. Bros sidecar cannot start until it is free.`
+    : undefined
+  let hostOllama: { port: number; version: string } | null = null
+  let hostOllamaError: string | null = null
+  if (sidecar.id === 'ollama') {
+    const { findHostOllama } = await import('./ollamaHost')
+    const hit = await findHostOllama()
+    hostOllama = hit.port != null && hit.version ? { port: hit.port, version: hit.version } : null
+    hostOllamaError = hit.error
+  }
+  return { settings, status, hostPort, portOccupied, ours, warning, hostOllama, hostOllamaError, ...runtime }
 }
 
 export async function startSidecar(id: string) {
@@ -137,10 +143,14 @@ export async function startSidecar(id: string) {
       effectiveMode: probed.effectiveMode,
       hostManaged: probed.hostManaged,
       skipped: true,
-      warning: probed.settings.hostMode === 'host'
-        ? `Skipped compose up: host mode.`
-        : `Skipped compose up: host-managed (port ${probed.hostPort} answered by something other than ${projectName(id)}).`,
+      warning: 'Skipped compose up: host mode.',
     }
+  }
+  if (probed.portOccupied && !probed.ours && probed.hostPort) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: `Port ${probed.hostPort} is already in use.`,
+    })
   }
   await ensureNetwork()
   const name = projectName(id)
@@ -161,6 +171,12 @@ export async function startSidecar(id: string) {
       composeArgs.push('-f', gpuFile)
       // Recreate so device reservations apply if a CPU-only container already exists.
       forceRecreate = true
+    }
+    try {
+      const owner11434 = await publishedPortOwner(11434)
+      if (owner11434?.project === name) forceRecreate = true
+    } catch {
+      // ignore
     }
   }
 
@@ -216,9 +232,7 @@ export async function startSidecar(id: string) {
     effectiveMode: probed.effectiveMode,
     hostManaged: probed.hostManaged,
     skipped: false,
-    warning: probed.warnPortTaken
-      ? `Started sidecar while port ${probed.hostPort} was already in use.`
-      : undefined,
+    warning: undefined,
   }
 }
 
@@ -268,21 +282,33 @@ export function getSidecarSetting(id: string) {
     autostart: row?.autostart ?? false,
     navPinned: row?.navPinned ?? false,
     hostMode: (isHostMode(row?.hostMode) ? row.hostMode : 'auto') as HostMode,
+    hostProbePort: typeof row?.hostProbePort === 'number' && row.hostProbePort > 0 ? row.hostProbePort : null,
   }
 }
 
-export function setSidecarSetting(id: string, patch: { autostart?: boolean; navPinned?: boolean; hostMode?: HostMode }) {
+export function setSidecarSetting(id: string, patch: {
+  autostart?: boolean
+  navPinned?: boolean
+  hostMode?: HostMode
+  hostProbePort?: number | null
+}) {
   const current = getSidecarSetting(id)
   const next = {
     sidecarId: id,
     autostart: patch.autostart ?? current.autostart,
     navPinned: patch.navPinned ?? current.navPinned,
     hostMode: patch.hostMode && isHostMode(patch.hostMode) ? patch.hostMode : current.hostMode,
+    hostProbePort: id === 'ollama'
+      ? (patch.hostProbePort === undefined ? current.hostProbePort : patch.hostProbePort)
+      : null,
   }
   const db = getDb()
   const existing = db.select().from(sidecarSettings).where(eq(sidecarSettings.sidecarId, id)).get()
   if (existing) db.update(sidecarSettings).set(next).where(eq(sidecarSettings.sidecarId, id)).run()
   else db.insert(sidecarSettings).values(next).run()
+  if (id === 'ollama' && patch.hostProbePort !== undefined) {
+    void import('./ollamaHost').then((m) => m.resetOllamaHostCache())
+  }
   return next
 }
 

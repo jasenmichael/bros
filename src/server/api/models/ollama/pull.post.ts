@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
 
   const res = event.node.res
   try {
-    for await (const evt of pullOllamaModelStreamWithRetry(ollamaBaseUrlFromProvider(), name)) {
+    for await (const evt of pullOllamaModelStreamWithRetry(await ollamaBaseUrlFromProvider(), name)) {
       if (evt.error) {
         res.write(`${JSON.stringify({ status: 'error', error: evt.error })}\n`)
         break

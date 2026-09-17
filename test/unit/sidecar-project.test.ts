@@ -14,21 +14,33 @@ describe('sidecar project naming', () => {
     expect(RESERVED_SLUGS.has('ollama')).toBe(false)
   })
 
-  it('requires webui hostPort and rejects 3000/8080', () => {
+  it('requires webui publish and rejects 3000/8080', () => {
     expect(() => parseSidecarMeta({
       id: 'demo',
       name: 'Demo',
-      interfaces: [{ type: 'webui', service: 'demo', targetPort: 80 }],
-    })).toThrow(/hostPort/)
+      interfaces: [{ type: 'webui', service: 'demo', containerPort: 80 }],
+    })).toThrow(/publish/)
     expect(() => parseSidecarMeta({
       id: 'demo',
       name: 'Demo',
-      interfaces: [{ type: 'webui', service: 'demo', targetPort: 80, hostPort: 3000 }],
+      interfaces: [{ type: 'webui', service: 'demo', containerPort: 80, publish: 3000 }],
     })).toThrow(/3000 or 8080/)
     expect(parseSidecarMeta({
       id: 'demo',
       name: 'Demo',
-      interfaces: [{ type: 'webui', service: 'demo', targetPort: 80, hostPort: 3090 }],
-    }).interfaces[0].hostPort).toBe(3090)
+      interfaces: [{ type: 'webui', service: 'demo', containerPort: 80, publish: 3090 }],
+    }).interfaces[0].publish).toBe(3090)
+  })
+
+  it('parses ollama hostProbe and publish 11435', () => {
+    const meta = parseSidecarMeta({
+      id: 'ollama',
+      name: 'Ollama',
+      hostProbe: { ports: [11434, 11436, 22000], path: '/api/version' },
+      interfaces: [{ type: 'api', service: 'ollama', containerPort: 11434, publish: 11435 }],
+    })
+    expect(meta.hostProbe?.ports).toEqual([11434, 11436, 22000])
+    expect(meta.interfaces[0].publish).toBe(11435)
+    expect(meta.interfaces[0].containerPort).toBe(11434)
   })
 })

@@ -32,6 +32,8 @@ export default defineEventHandler(async (event) => {
       hostManaged: runtime.hostManaged,
       portOccupied: runtime.portOccupied,
       warning: runtime.warning,
+      hostOllama: runtime.hostOllama,
+      hostOllamaError: runtime.hostOllamaError,
       autostart: runtime.settings.autostart,
       navPinned: runtime.settings.navPinned,
       running: runtime.status.running,

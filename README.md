@@ -37,6 +37,8 @@ In-container `BROS_DATA_DIR` stays `/data`. Do not commit `data/`, `.env`, `.nux
 
 ## Models
 
+On **Models** (and Chat when both are up), pick **Host** Ollama or the Bros **Sidecar** (Docker DNS `http://ollama:11434`; host publish **11435**). Host pulls write to the host Ollama disk, not `$BROS_DIR/data/ollama`.
+
 On **Models**, pull from the menu or type any valid Ollama name (`name:tag` or community `owner/name:tag`):
 
 1. **Yours** — names you added; persisted in the Ollama provider `config.customModels`

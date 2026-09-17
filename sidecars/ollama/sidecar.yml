@@ -1,16 +1,20 @@
 id: ollama
 slug: ollama
 name: Ollama
-description: Local model runtime. Host API port 11434. Independent of the Bros app container.
+description: Local model runtime. Bros publishes host port 11435. Independent of the Bros app container.
+
+hostProbe:
+  ports: [11434, 11436, 22000]
+  path: /api/version
 
 interfaces:
   - type: api
     service: ollama
-    targetPort: 11434
-    hostPort: 11434
+    containerPort: 11434
+    publish: 11435
     basePath: /api
   - type: openai
     service: ollama
-    targetPort: 11434
-    hostPort: 11434
+    containerPort: 11434
+    publish: 11435
     basePath: /v1

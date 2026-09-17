@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { decryptSecret, encryptSecret } from './auth'
 import { getDb, providers } from './db'
 import { isValidOllamaPullName } from './ollamaLibrary'
+import { resolveOllamaChat, OLLAMA_SIDECAR_DNS } from './ollamaHost'
 
 export type ProviderKind = 'ollama' | 'openai' | 'anthropic'
 
@@ -90,7 +91,7 @@ export function ensureDefaultProviders() {
     name: 'Ollama',
     kind: 'ollama',
     baseUrl: 'http://ollama:11434',
-    config: { mode: 'sidecar' },
+    config: {},
   })
 }
 
@@ -237,11 +238,13 @@ export async function deleteOllamaModel(baseUrl: string, name: string) {
   return { ok: true }
 }
 
-export function ollamaBaseUrlFromProvider(): string {
+export async function ollamaBaseUrlFromProvider(): Promise<string> {
   const p = getProvider('ollama')
-  const mode = (p?.config?.mode as string) || 'sidecar'
+  const mode = p?.config?.mode as string | undefined
   if (mode === 'external' && p?.baseUrl) return p.baseUrl
-  return p?.baseUrl || 'http://ollama:11434'
+  const resolved = await resolveOllamaChat(mode)
+  if (mode === 'external') return p?.baseUrl || resolved.baseUrl || OLLAMA_SIDECAR_DNS
+  return resolved.baseUrl || OLLAMA_SIDECAR_DNS
 }
 
 function errorMessage(err: unknown): string {

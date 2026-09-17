@@ -2,6 +2,12 @@ import { desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getDb, conversations, messages } from './db'
 import { getProviderSecret, ollamaBaseUrlFromProvider } from './providers'
+import {
+  DEFAULT_CHAT_TITLE,
+  fallbackTitleFromPrompt,
+  sanitizeGeneratedTitle,
+  shouldAutoTitle,
+} from './chatTitle'
 
 export function listConversations() {
   return getDb().select().from(conversations).orderBy(desc(conversations.updatedAt)).all()
@@ -14,7 +20,7 @@ export function getConversation(id: string) {
   return { ...convo, messages: msgs }
 }
 
-export function createConversation(modelId: string, title = 'New chat') {
+export function createConversation(modelId: string, title = DEFAULT_CHAT_TITLE) {
   const id = randomUUID()
   const now = Date.now()
   getDb().insert(conversations).values({
@@ -27,13 +33,14 @@ export function createConversation(modelId: string, title = 'New chat') {
   return getConversation(id)
 }
 
-export function addMessage(conversationId: string, role: string, content: string) {
+export function addMessage(conversationId: string, role: string, content: string, modelId?: string) {
   const id = randomUUID()
   getDb().insert(messages).values({
     id,
     conversationId,
     role,
     content,
+    modelId: modelId || null,
     createdAt: Date.now(),
   }).run()
   getDb().update(conversations).set({ updatedAt: Date.now() }).where(eq(conversations.id, conversationId)).run()
@@ -43,6 +50,140 @@ export function addMessage(conversationId: string, role: string, content: string
 export function deleteConversation(id: string) {
   getDb().delete(messages).where(eq(messages.conversationId, id)).run()
   getDb().delete(conversations).where(eq(conversations.id, id)).run()
+}
+
+export function updateConversationTitle(id: string, title: string) {
+  const next = title.trim()
+  if (!next) return getConversation(id)
+  getDb().update(conversations).set({
+    title: next,
+    updatedAt: Date.now(),
+  }).where(eq(conversations.id, id)).run()
+  return getConversation(id)
+}
+
+const TITLE_GENERATE_MS = 8000
+
+async function completeOnce(opts: {
+  modelId: string
+  messages: Array<{ role: string; content: string }>
+}): Promise<string> {
+  const { provider, model } = parseModelId(opts.modelId)
+  const signal = AbortSignal.timeout(TITLE_GENERATE_MS)
+
+  if (provider === 'ollama') {
+    const base = await ollamaBaseUrlFromProvider()
+    const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: opts.messages,
+      }),
+      signal,
+    })
+    if (!res.ok) throw new Error(await res.text())
+    const json = await res.json() as { message?: { content?: string } }
+    return String(json.message?.content || '')
+  }
+
+  if (provider === 'openai' || provider === 'anthropic') {
+    const secret = getProviderSecret(provider)
+    if (!secret?.row?.enabled) throw new Error(`Provider ${provider} not configured`)
+    const base = (secret.row.baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
+
+    if (provider === 'openai') {
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${secret.apiKey || ''}`,
+        },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          messages: opts.messages,
+        }),
+        signal,
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> }
+      return String(json.choices?.[0]?.message?.content || '')
+    }
+
+    const res = await fetch(`${base}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': secret.apiKey || '',
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 64,
+        stream: false,
+        messages: opts.messages.filter((m) => m.role !== 'system').map((m) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        })),
+      }),
+      signal,
+    })
+    if (!res.ok) throw new Error(await res.text())
+    const json = await res.json() as { content?: Array<{ text?: string }> }
+    return String(json.content?.[0]?.text || '')
+  }
+
+  throw new Error(`Unknown provider ${provider}`)
+}
+
+export async function generateChatTitle(modelId: string, userPrompt: string): Promise<string> {
+  const raw = await completeOnce({
+    modelId,
+    messages: [{
+      role: 'user',
+      content: `Reply with a 3–6 word title for this user message, no quotes.\n\n${userPrompt}`,
+    }],
+  })
+  return raw
+}
+
+/** First successful assistant reply only. Same model. Failure keeps New chat / first-line fallback. */
+export async function maybeAutoTitle(
+  conversationId: string,
+  generate: (modelId: string, userPrompt: string) => Promise<string> = generateChatTitle,
+) {
+  const convo = getConversation(conversationId)
+  if (!convo) return null
+  const assistantCount = convo.messages.filter((m) => m.role === 'assistant').length
+  if (!shouldAutoTitle(convo.title, assistantCount)) return convo.title
+  const firstUser = convo.messages.find((m) => m.role === 'user')?.content || ''
+  const fallback = fallbackTitleFromPrompt(firstUser)
+  try {
+    const raw = await generate(convo.modelId, firstUser)
+    const title = sanitizeGeneratedTitle(raw, fallback)
+    updateConversationTitle(conversationId, title)
+    return title
+  } catch {
+    updateConversationTitle(conversationId, fallback)
+    return fallback
+  }
+}
+
+/** Persist requested modelId when present; return modelId stream / PATCH must use. */
+export function resolveConversationModel(id: string, requested?: string): string | null {
+  const convo = getConversation(id)
+  if (!convo) return null
+  const next = requested?.trim()
+  if (!next) return convo.modelId
+  if (next !== convo.modelId) {
+    getDb().update(conversations).set({
+      modelId: next,
+      updatedAt: Date.now(),
+    }).where(eq(conversations.id, id)).run()
+  }
+  return next
 }
 
 function parseModelId(modelId: string) {
@@ -59,7 +200,7 @@ export async function streamChat(opts: {
   const { provider, model } = parseModelId(opts.modelId)
 
   if (provider === 'ollama') {
-    const base = ollamaBaseUrlFromProvider()
+    const base = await ollamaBaseUrlFromProvider()
     const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

@@ -22,6 +22,8 @@ export default defineEventHandler(async (event) => {
       hostManaged: runtime.hostManaged,
       portOccupied: runtime.portOccupied,
       warning: runtime.warning,
+      hostOllama: runtime.hostOllama,
+      hostOllamaError: runtime.hostOllamaError,
       hasContainer,
     }
   }))

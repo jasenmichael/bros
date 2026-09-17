@@ -3,7 +3,12 @@ import { isHostMode } from '../../../utils/hostProbe'
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id required' })
-  const body = await readBody<{ autostart?: boolean; navPinned?: boolean; hostMode?: string }>(event)
+  const body = await readBody<{
+    autostart?: boolean
+    navPinned?: boolean
+    hostMode?: string
+    hostProbePort?: number | null
+  }>(event)
   if (body?.hostMode != null && !isHostMode(body.hostMode)) {
     throw createError({ statusCode: 400, statusMessage: 'hostMode must be auto, sidecar, or host' })
   }
@@ -12,5 +17,6 @@ export default defineEventHandler(async (event) => {
     autostart: body?.autostart,
     navPinned: body?.navPinned,
     hostMode: body?.hostMode && isHostMode(body.hostMode) ? body.hostMode : undefined,
+    hostProbePort: body && 'hostProbePort' in body ? body.hostProbePort : undefined,
   })
 })

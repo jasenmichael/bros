@@ -32,6 +32,8 @@ type StatusPayload = {
     running: boolean
     services: Array<{ name: string; state: string }>
     hasContainer: boolean
+    hostOllama?: { port: number; version: string } | null
+    hostOllamaError?: string | null
   }>
   errors: string[]
 }
@@ -120,10 +122,13 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
             <td class="px-3 py-2 text-[var(--bros-muted)]">
               {{ row.hostMode }}{{ row.effectiveMode !== row.hostMode ? ` (${row.effectiveMode})` : '' }}
             </td>
-            <td class="px-3 py-2 font-mono text-[var(--bros-muted)]">{{ row.hostPort ?? '—' }}</td>
+            <td class="px-3 py-2 font-mono text-[var(--bros-muted)]">
+              {{ row.hostPort ?? '—' }}
+              <span v-if="row.id === 'ollama' && row.hostOllama"> · host :{{ row.hostOllama.port }}</span>
+            </td>
             <td class="px-3 py-2">
-              <UBadge :color="row.running ? 'success' : row.hostManaged ? 'warning' : 'neutral'" variant="subtle">
-                {{ row.hostManaged ? 'host-managed' : row.running ? 'running' : 'stopped' }}
+              <UBadge :color="row.running ? 'success' : 'neutral'" variant="subtle">
+                {{ row.running ? 'running' : 'stopped' }}
               </UBadge>
             </td>
             <td class="px-3 py-2 text-[var(--bros-muted)]">{{ row.autostart ? 'on' : 'off' }}</td>

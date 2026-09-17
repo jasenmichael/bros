@@ -8,7 +8,7 @@ Implementation through M6 complete. Host tunnel, passkey session auth, and no-pa
 
 1. **M0** — pnpm monorepo, theme + docs layers, app shell on :3055
 2. **M1** — bootstrap config, SQLite, passcode
-3. **M2** — sidecar engine + Sidecars page (`hostPort` Open/Pin; no path proxy)
+3. **M2** — sidecar engine + Sidecars page (`publish` Open/Pin; no path proxy)
 4. **M3** — core sidecars: ollama, opencode, openwebui (tunnel is host `cloudflared`, not a sidecar)
 5. **M4** — Models page
 6. **M5** — Chat streaming + history
@@ -34,6 +34,16 @@ Not a milestone. Pick when needed:
 ## Data dir binds
 
 Persistent sidecar + app state is `$BROS_DIR/data` on the host (`./data` in a checkout, `~/.bros/data` when installed).
+
+## Recent (Chat nav)
+
+- Chat page is conversation-only. Recents live in the dock under Status (open/collapsible; Rename + Delete). Bottom block: pinned sidecar UIs, then Docs + Settings, then GitHub. `/chat` = new; `/chat/:id` = saved. First successful reply titles from the same model.
+
+## Recent (two Ollamas)
+
+- Sidecar YAML: `containerPort` + `publish` (Ollama host **11435**, OpenCode **4097**, Open WebUI **3080**)
+- Host Ollama is a Chat source (scan 11434/11436/22000 + `GET /api/version`, skip `bros-sc-ollama`)
+- Start fails only if the Bros **publish** port is taken; host :11434 does not skip `bros-sc-ollama`
 
 ## Recent (Models)
 

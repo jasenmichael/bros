@@ -18,6 +18,11 @@ const { data, refresh, pending } = await useFetch<{
   ollamaModels: OllamaModel[]
   ollamaError: string | null
   ollamaBaseUrl?: string
+  ollamaSource?: 'host' | 'sidecar' | 'external'
+  hostOllama?: { port: number; version: string } | null
+  hostOllamaError?: string | null
+  sidecarPublish?: number
+  sidecarDns?: string
 }>('/api/models')
 
 const pullName = ref<string | { label: string; value: string } | undefined>('')
@@ -165,18 +170,30 @@ const providerForm = reactive({
   apiKey: '',
 })
 
-async function setOllamaMode(mode: 'sidecar' | 'external') {
+const ollamaMode = computed(() => {
+  const mode = ollama.value?.config?.mode as string | undefined
+  if (mode === 'host' || mode === 'sidecar' || mode === 'external') return mode
+  return data.value?.ollamaSource || 'sidecar'
+})
+
+async function setOllamaMode(mode: 'host' | 'sidecar' | 'external') {
   busy.value = true
   err.value = ''
   try {
+    const hostUrl = data.value?.hostOllama
+      ? `http://host.docker.internal:${data.value.hostOllama.port}`
+      : 'http://host.docker.internal:11434'
     await $fetch('/api/models/providers', {
       method: 'POST',
       body: {
         id: 'ollama',
         name: 'Ollama',
         kind: 'ollama',
-        baseUrl: mode === 'sidecar' ? 'http://ollama:11434' : (externalUrl.value || 'http://host.docker.internal:11434'),
-        // Server merges config; keep useGpu (and other keys) in the patch for clarity.
+        baseUrl: mode === 'sidecar'
+          ? (data.value?.sidecarDns || 'http://ollama:11434')
+          : mode === 'host'
+            ? hostUrl
+            : (externalUrl.value || hostUrl),
         config: { ...(ollama.value?.config || {}), mode },
       },
     })
@@ -353,21 +370,38 @@ async function removeProvider(id: string) {
 </script>
 
 <template>
-  <BrosPageShell title="Models" description="Ollama sidecar or external URL, plus paid OpenAI-compatible and Anthropic providers.">
+  <BrosPageShell title="Models" description="Host Ollama or Bros sidecar, plus paid OpenAI-compatible and Anthropic providers.">
     <p v-if="err" class="mb-4 text-sm text-red-400">{{ err }}</p>
     <div v-if="pending" class="text-[var(--bros-muted)]">Loading…</div>
 
     <section class="mb-10 space-y-4">
       <h2 class="text-xl font-medium text-white">Ollama</h2>
       <div class="flex flex-wrap gap-2">
-        <UButton size="sm" :variant="ollama?.config?.mode !== 'external' ? 'solid' : 'outline'" @click="setOllamaMode('sidecar')">
+        <UButton
+          size="sm"
+          :variant="ollamaMode === 'host' ? 'solid' : 'outline'"
+          :disabled="!data?.hostOllama"
+          @click="setOllamaMode('host')"
+        >
+          Host{{ data?.hostOllama ? ` :${data.hostOllama.port}` : '' }}
+        </UButton>
+        <UButton size="sm" :variant="ollamaMode === 'sidecar' ? 'solid' : 'outline'" @click="setOllamaMode('sidecar')">
           Sidecar DNS
         </UButton>
-        <UButton size="sm" :variant="ollama?.config?.mode === 'external' ? 'solid' : 'outline'" color="neutral" @click="setOllamaMode('external')">
+        <UButton size="sm" :variant="ollamaMode === 'external' ? 'solid' : 'outline'" color="neutral" @click="setOllamaMode('external')">
           External URL
         </UButton>
       </div>
-      <div v-if="ollama?.config?.mode === 'external'" class="flex max-w-xl gap-2">
+      <p class="text-xs text-[var(--bros-muted)]">
+        <span v-if="data?.hostOllama">Host Ollama v{{ data.hostOllama.version }} on :{{ data.hostOllama.port }}.</span>
+        <span v-else-if="data?.hostOllamaError">{{ data.hostOllamaError }}</span>
+        <span v-else>No host Ollama found (scanned 11434, 11436, 22000).</span>
+        Bros sidecar publishes :{{ data?.sidecarPublish || 11435 }} (Chat uses {{ data?.sidecarDns || 'http://ollama:11434' }} on the Docker network).
+      </p>
+      <p v-if="ollamaMode === 'host'" class="text-xs text-amber-200">
+        Pull and Chat write to the host Ollama disk, not $BROS_DIR/data/ollama.
+      </p>
+      <div v-if="ollamaMode === 'external'" class="flex max-w-xl gap-2">
         <UInput v-model="externalUrl" placeholder="http://host.docker.internal:11434" class="flex-1" />
         <UButton :loading="busy" @click="saveExternalUrl">Save URL</UButton>
       </div>

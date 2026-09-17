@@ -15,7 +15,7 @@
 | DB | SQLite + Drizzle (`bros.sqlite`) |
 | Docker | dockerode + Compose CLI in image |
 | Host port | 3055 (app), 3056 (docs site `pnpm docs:dev`) |
-| Sidecar host ports | Ollama 11434, OpenCode 4096, Open WebUI 3080 (container 8080). Never 3000 or 8080. |
+| Sidecar host ports | Ollama **11435** (container 11434), OpenCode **4097**, Open WebUI **3080** (container 8080). Never 3000 or 8080. |
 | Env prefix | `BROS_*` |
 | Host tunnel | `cloudflared` on the host. `public_url` in `bros.yml` starts a named tunnel + DNS route; otherwise a quick tunnel. `./bros` runs a helper that writes `$BROS_DIR/data/tunnel`. |
 | Network / data | `bros` / host `$BROS_DIR/data` binds (`$BROS_HOST_DATA_DIR`) |

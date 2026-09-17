@@ -7,9 +7,10 @@ import { loadBootstrapConfig } from './config'
 const interfaceSchema = z.object({
   type: z.enum(['webui', 'api', 'openai', 'cli']),
   service: z.string().min(1).optional(),
-  targetPort: z.number().int().positive().optional(),
-  /** When set, Open/Pin use host:port (needed for apps that cannot run under a path prefix). */
-  hostPort: z.number().int().positive().optional(),
+  /** Process listen port inside the container. */
+  containerPort: z.number().int().positive().optional(),
+  /** Host publish port (Open/Pin / curl 127.0.0.1). */
+  publish: z.number().int().positive().optional(),
   slug: z.string().regex(/^[a-z][a-z0-9_-]*$/).optional(),
   basePath: z.string().optional(),
   command: z.string().optional(),
@@ -17,22 +18,28 @@ const interfaceSchema = z.object({
   if (val.type !== 'cli' && !val.service) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'service required', path: ['service'] })
   }
-  if ((val.type === 'webui' || val.type === 'api' || val.type === 'openai') && !val.targetPort) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'targetPort required', path: ['targetPort'] })
+  if ((val.type === 'webui' || val.type === 'api' || val.type === 'openai') && !val.containerPort) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'containerPort required', path: ['containerPort'] })
   }
-  if (val.type === 'webui' && !val.hostPort) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'webui requires hostPort (no path proxy)', path: ['hostPort'] })
+  if (val.type === 'webui' && !val.publish) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'webui requires publish (no path proxy)', path: ['publish'] })
   }
-  if (val.hostPort === 3000 || val.hostPort === 8080) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'hostPort must not be 3000 or 8080', path: ['hostPort'] })
+  if (val.publish === 3000 || val.publish === 8080) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'publish must not be 3000 or 8080', path: ['publish'] })
   }
 })
+
+const hostProbeSchema = z.object({
+  ports: z.array(z.number().int().positive()).min(1),
+  path: z.string().min(1).default('/api/version'),
+}).optional()
 
 const sidecarMetaSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
   slug: z.string().regex(/^[a-z][a-z0-9_-]*$/).optional(),
   name: z.string().min(1),
   description: z.string().optional().default(''),
+  hostProbe: hostProbeSchema,
   interfaces: z.array(interfaceSchema).default([]),
 })
 
@@ -77,8 +84,8 @@ function readSidecarDir(dir: string, source: 'core' | 'custom'): SidecarMeta | n
       return { ...meta, source, dir, packageSlug, error: `Slug "${packageSlug}" is reserved` }
     }
     for (const iface of meta.interfaces) {
-      if (iface.type === 'webui' && !iface.targetPort) {
-        return { ...meta, source, dir, packageSlug, error: 'webui interface requires targetPort' }
+      if (iface.type === 'webui' && !iface.containerPort) {
+        return { ...meta, source, dir, packageSlug, error: 'webui interface requires containerPort' }
       }
       const slug = iface.slug || packageSlug
       if (RESERVED_SLUGS.has(slug)) {

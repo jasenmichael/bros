@@ -1,21 +1,21 @@
 id: openwebui
 slug: openwebui
 name: Open WebUI
-description: Alternate chat UI (separate from Bros Chat). Host port 3080 (container 8080). Independent of the Bros app container.
+description: Alternate chat UI (separate from Bros Chat). Bros publishes host port 3080 (container 8080).
 
 interfaces:
   - type: webui
     service: openwebui
-    targetPort: 8080
-    hostPort: 3080
+    containerPort: 8080
+    publish: 3080
     slug: openwebui
   - type: api
     service: openwebui
-    targetPort: 8080
-    hostPort: 3080
+    containerPort: 8080
+    publish: 3080
     basePath: /api
   - type: openai
     service: openwebui
-    targetPort: 8080
-    hostPort: 3080
+    containerPort: 8080
+    publish: 3080
     basePath: /openai/v1

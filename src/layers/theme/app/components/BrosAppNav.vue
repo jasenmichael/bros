@@ -4,6 +4,7 @@ export interface NavItem {
   to: string
   icon?: string
   external?: boolean
+  exact?: boolean
 }
 
 const props = withDefaults(defineProps<{
@@ -84,6 +85,14 @@ const dockStyle = computed(() => {
 function linkTitle(item: NavItem) {
   return iconMode.value ? item.label : undefined
 }
+
+function linkActiveClass(item: NavItem) {
+  return item.exact ? '' : 'bros-nav-panel__link--active'
+}
+
+function linkExactActiveClass(item: NavItem) {
+  return item.exact ? 'bros-nav-panel__link--active' : undefined
+}
 </script>
 
 <template>
@@ -146,51 +155,61 @@ function linkTitle(item: NavItem) {
           :to="item.to"
           :target="item.external ? '_blank' : undefined"
           class="bros-nav-panel__link"
-          active-class="bros-nav-panel__link--active"
+          :active-class="linkActiveClass(item)"
+          :exact-active-class="linkExactActiveClass(item)"
           :title="linkTitle(item)"
         >
           <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
           <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
         </NuxtLink>
 
-        <template v-if="props.showPinned">
-          <div
-            v-if="props.pinnedItems.length || !(iconMode && isDesktop)"
-            class="bros-nav-panel__divider"
-            role="separator"
-            aria-label="Pinned"
-          />
-          <a
-            v-for="item in props.pinnedItems"
-            :key="item.to"
-            :href="item.to"
-            :target="item.external ? '_blank' : undefined"
-            rel="noopener"
-            class="bros-nav-panel__link"
-            :title="item.label"
-          >
-            <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
-            <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
-          </a>
-          <p v-if="!props.pinnedItems.length && !(iconMode && isDesktop)" class="bros-nav-panel__hint">
-            Pin a sidecar web UI from Sidecars to show it here.
-          </p>
-        </template>
+        <div v-if="$slots['after-primary']" class="bros-nav-panel__recents">
+          <slot name="after-primary" />
+        </div>
 
-        <div v-if="props.bottomItems.length" class="bros-nav-panel__bottom">
-          <div class="bros-nav-panel__divider" />
-          <NuxtLink
-            v-for="item in props.bottomItems"
-            :key="item.to"
-            :to="item.to"
-            :target="item.external ? '_blank' : undefined"
-            class="bros-nav-panel__link"
-            active-class="bros-nav-panel__link--active"
-            :title="linkTitle(item)"
-          >
-            <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
-            <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
-          </NuxtLink>
+        <div
+          v-if="props.bottomItems.length || props.showPinned"
+          class="bros-nav-panel__bottom"
+        >
+          <template v-if="props.showPinned">
+            <div
+              v-if="props.pinnedItems.length || !(iconMode && isDesktop)"
+              class="bros-nav-panel__divider"
+              role="separator"
+              aria-label="Pinned"
+            />
+            <a
+              v-for="item in props.pinnedItems"
+              :key="item.to"
+              :href="item.to"
+              :target="item.external ? '_blank' : undefined"
+              rel="noopener"
+              class="bros-nav-panel__link"
+              :title="item.label"
+            >
+              <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
+              <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
+            </a>
+            <p v-if="!props.pinnedItems.length && !(iconMode && isDesktop)" class="bros-nav-panel__hint">
+              Pin a sidecar web UI from Sidecars to show it here.
+            </p>
+          </template>
+
+          <template v-if="props.bottomItems.length">
+            <div class="bros-nav-panel__divider" />
+            <NuxtLink
+              v-for="item in props.bottomItems"
+              :key="item.to"
+              :to="item.to"
+              :target="item.external ? '_blank' : undefined"
+              class="bros-nav-panel__link"
+              active-class="bros-nav-panel__link--active"
+              :title="linkTitle(item)"
+            >
+              <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
+              <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
+            </NuxtLink>
+          </template>
         </div>
       </nav>
 
@@ -315,8 +334,17 @@ function linkTitle(item: NavItem) {
   display: flex;
   flex: 1;
   flex-direction: column;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 0.75rem 0.5rem 0.5rem;
+}
+
+.bros-nav-panel__recents {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .bros-nav-panel__link {
