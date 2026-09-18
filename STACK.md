@@ -19,6 +19,7 @@
 | Env prefix | `BROS_*` |
 | Host tunnel | `cloudflared` on the host. `public_url` in bootstrap YAML starts a named tunnel via `cloudflared tunnel route dns` + `run --protocol http2`; otherwise a quick tunnel. `bros` runs a helper that writes `$BROS_HOME/data/tunnel`. |
 | Network / data | `bros` / host `$BROS_HOME/data` binds (`$BROS_HOST_DATA_DIR`) |
+| Internal specialist | Git submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)); packaged GGUF + Modelfile installed into the Ollama sidecar (`ollama create bros`), not a host daemon |
 
 ## Layout
 
@@ -29,6 +30,7 @@ bros/
   src/website/
   src/layers/{theme,docs}/
   src/server/
+  vendor/bros-model/   # submodule: internal specialist
 ```
 
 ## Layer chain

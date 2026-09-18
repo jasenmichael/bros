@@ -16,7 +16,9 @@ A conversation is created on the first send, not when opening `/chat`. After the
 
 Shared markdown lives in repo `docs/`. The docs layer (`src/layers/docs`) extends theme (`src/layers/theme`) and owns `/docs` routes. Both `@bros/app` and `@bros/website` `extends` theme and docs. Routes `/docs` and `/docs/*` are the same docs-layer pages in the app UI and the static site — the app does not override them. Theme owns layouts, CSS, and markdown visualization (nav chrome + prose); only nav links differ.
 
-Website (`src/website`) owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). The Bros app owns dashboard `/` plus Chat, Models, Sidecars, Status, and Settings.
+Docs index groups: Start (Getting started, Install, Environment, Configuration), App (Overview, Chat, Models, Status, Settings, Tunnel), Sidecars (hub + Ollama + OpenCode + Open WebUI + Custom), Popular services, Contribute (Development, Docs site). App dock stays a single **Docs** link to `/docs`.
+
+Website (`src/website`) owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). Website nav: Home, Getting started, Models, Sidecars, Development, Configuration. Landing cards: Chat, Models, Sidecars, Development. The Bros app owns dashboard `/` plus Chat, Models, Sidecars, Status, and Settings.
 
 Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:generate` then `pnpm --filter @bros/website preview`.
 
@@ -31,7 +33,8 @@ Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:ge
 **`BROS_HOME` (host):** repo checkout when the CLI sits next to `docker-compose.yml` + `sidecars/`. Installed clone is `~/.bros`. `BROS_DIR` is an alias. Override with `BROS_HOME` or `BROS_DIR`. Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
 - `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, custom sidecars, logs)
-- `$BROS_HOST_DATA_DIR/ollama` → Ollama `/root/.ollama` (models)
+- `$BROS_HOST_DATA_DIR/ollama` → Ollama sidecar `/root/.ollama` (models)
+- `$BROS_HOST_DATA_DIR/bros-model` → Ollama sidecar `/bros-model` (packaged specialist tree, read-only)
 - `$BROS_HOST_DATA_DIR/ollama-config` → Ollama `/root/.config/ollama`
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
@@ -50,9 +53,9 @@ There is **no path proxy**. Every `webui` interface must set `publish` in `sidec
 
 `hostMode` (SQLite, default `auto`): `auto` | `sidecar` | `host`. Auto and Sidecar start the Bros stack on its **publish** port. Start fails if that publish port is already taken. Host mode never starts the sidecar. Occupancy of the upstream default (Ollama 11434) does **not** skip the Bros sidecar (publish **11435**).
 
-**Host Ollama** (Chat/Models) is a second built-in provider (`ollama-host`), always listed even when the daemon is down. Scan `hostProbe.ports` (default 11434, 11436, 22000) with `GET /api/version`, skip `bros-sc-ollama`, optional SQLite `host_probe_port` override (no silent fallback). Sidecar Ollama stays `ollama` at DNS `http://ollama:11434` (host publish **11435**). Chat picks a provider, then a model. `modelId` is `providerId/model` (`ollama/llama3.2`, `ollama-host/llama3.2`, `my-proxy/qwen2.5`). GPU / pull into `$BROS_HOME/data/ollama` is the sidecar; host pull/chat use the host Ollama disk (no Bros disk-fit check). Custom providers are OpenAI-compatible (base URL + optional key + model names), not a paid catalog.
+**Host Ollama** (Chat/Models) is a second built-in provider (`ollama-host`), always listed even when the daemon is down. Scan `hostProbe.ports` (default 11434, 11436, 22000) with `GET /api/version`, skip `bros-sc-ollama`, optional SQLite `host_probe_port` override (no silent fallback). Sidecar Ollama stays `ollama` at DNS `http://ollama:11434` (host publish **11435**). Chat picks a provider, then a model, in order: sidecar, host, Popular services (fixed catalog), then custom. `modelId` is `providerId/model` (`ollama/llama3.2`, `ollama-host/llama3.2`, `openai/gpt-4o-mini`, `my-proxy/qwen2.5`). GPU / pull into `$BROS_HOME/data/ollama` is the sidecar; host pull/chat use the host Ollama disk (no Bros disk-fit check). Popular services and custom providers are OpenAI-compatible (base URL + optional key + model names), not a paid catalog. Keys live in SQLite only (no `OPENAI_API_KEY` env bootstrap).
 
-`bros start` (and `pnpm dev`) remove legacy `forgebox-sc-*` containers before up. `bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack — so sidecars never stay orphaned beside a stopped app. First start also brings up sidecar Ollama and installs the internal `bros` model when the packaged GGUF is present.
+`bros start` (and `pnpm dev`) remove legacy `forgebox-sc-*` containers before up. `bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack — so sidecars never stay orphaned beside a stopped app. First start also brings up sidecar Ollama and installs the internal `bros` model when the packaged GGUF is present (see Internal specialist).
 
 Keep product language **sidecar** / **Sidecars** (routes `/sidecars`, APIs `/api/sidecars`, file `sidecar.yml`).
 
@@ -76,8 +79,16 @@ Shared passcode. Source of truth is plaintext file `{dataDir}/passkey` (in Docke
 
 ## Models catalog
 
-Models lists an **Ollama** section (sidecar, then host) and **Custom providers** below. Sidecar and host always appear. Rows show host:port (`127.0.0.1:11435` for sidecar publish, host probe/override for host, parsed `baseUrl` for custom) — not the provider id — with copy and open-in-new-tab for `http://127.0.0.1:<port>/`. Selecting a different Ollama card expands pull and the installed-model list on that card (the other collapses). The chevron or a second click on the already-open card collapses the panel; the card stays selected. Each provider row has a settings cog that opens a modal — GPU only in the sidecar modal, never on the page or for host/custom. Custom providers are OpenAI-compatible (base URL, optional key, model names); Add custom lives under that heading.
+Models lists **Ollama** (sidecar, then host), **Popular services** (12 always-listed OpenAI-compat cloud cards), then **Custom providers**. Sidecar, host, and popular cards always appear. Popular status is running when a key is saved, otherwise stopped (need a key). Rows show host:port (`127.0.0.1:11435` for sidecar publish, host probe/override for host, API host for popular/custom) — not the provider id — with copy and open-in-new-tab. Selecting a different Ollama card expands pull and the installed-model list on that card (the other collapses). The chevron or a second click on the already-open card collapses the panel; the card stays selected. Each provider row has a settings cog that opens a modal — GPU only in the sidecar modal, never on the page or for host/popular/custom. Popular cog is API key + optional model list (no Delete, no pull). Custom providers are OpenAI-compatible (base URL, optional key, model names); Add custom lives under that heading. Popular slugs are reserved (cannot delete, cannot reuse as a custom id). Heading is never “Paid providers”.
 
 Recommended pulls are official (and verified community) Ollama tags whose on-disk size is **≤ 16 GB**. `qwen3-coder:14b` is not a library tag (official coder is `:30b` / `:480b`); use `freehuntx/qwen3-coder:14b` or `qwen2.5-coder:14b`. 30B tags (~19 GB) stay in the Ollama list, not Recommended.
 
 Any valid Ollama name can be typed and pulled (`name:tag` or community `owner/name:tag`). User-added names persist in that Ollama provider's `config.customModels` list (SQLite via `upsertProvider`) and appear under **Yours** in the Models pull menu. Registry errors (including TLS handshake timeout) are shown as returned; one retry on timeout/5xx, never fake success.
+
+OpenAI-compat Chat (`kind: openai`, popular and custom) sends `stream_options: { include_usage: true }`, reads `delta.content` or `delta.reasoning_content`, and adds OpenRouter `HTTP-Referer` + `X-Title: Bros`. Native Anthropic stream stays for leftover `kind: anthropic` rows; popular Anthropic is seeded as `kind: openai`. Remote `GET /models` runs only when a key is saved.
+
+## Internal specialist
+
+Packaged GGUF + Modelfile live in git submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). When the Ollama sidecar is up (`startSidecar('ollama')` and `/api/models`), Bros `ensureInternalBrosModel` copies `models/`, `ollama/`, and `scripts/` onto `$BROS_HOST_DATA_DIR/bros-model`, bind-mounts that tree at `/bros-model:ro`, and runs `bash /bros-model/scripts/install-ollama.sh` inside `bros-sc-ollama` (`ollama create bros`). Skip if tags already have `bros` and the GGUF size/mtime stamp matches. Missing GGUF: log once, skip; chat still works.
+
+Ollama name `bros` is reserved for the app. First skill is `Label:` chat titles (see Chat) — not the conversation chat model, not listed in Chat or Models, pull/delete returns 400. Typical model update: bump the pinned submodule, then release a new Bros version.

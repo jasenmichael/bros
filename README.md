@@ -36,7 +36,8 @@ Host needs Docker only — no host Node for the app. Optional host `cloudflared`
 `BROS_HOME` is the checkout when the CLI sits next to `docker-compose.yml` + `sidecars/`. The installed clone is `~/.bros`. Override with `BROS_HOME` or `BROS_DIR`. Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
 - `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, custom sidecars, logs)
-- `$BROS_HOST_DATA_DIR/ollama` → Ollama `/root/.ollama`
+- `$BROS_HOST_DATA_DIR/ollama` → Ollama sidecar `/root/.ollama`
+- `$BROS_HOST_DATA_DIR/bros-model` → Ollama sidecar `/bros-model` (packaged specialist, read-only)
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
 
@@ -44,72 +45,17 @@ In-container `BROS_DATA_DIR` stays `/data`. Do not commit `data/`, `.env`, `.nux
 
 ## Models
 
-On **Models** (and Chat when both are up), pick **Host** Ollama or the Bros **Sidecar** (Docker DNS `http://ollama:11434`; host publish **11435**). Pull and chat use the host Ollama disk, not `$BROS_HOME/data/ollama`.
+On **Models**: **Ollama** (sidecar + host), **Popular services** (twelve OpenAI-compat clouds — paste a key), then **Custom providers**. Details: [docs/models.md](docs/models.md), [docs/providers.md](docs/providers.md).
 
-On **Models**, pull from the menu or type any valid Ollama name (`name:tag` or community `owner/name:tag`):
+Pull on an Ollama card, or type any valid Ollama name. **Yours** keeps names you add. Recommended tags are **≤ 16 GB**. Sidecar DNS is `http://ollama:11434` (host publish **11435**). Host pull/chat use the host Ollama disk.
 
-1. **Yours** — names you added; persisted in the Ollama provider `config.customModels`
-2. **Recommended** — official (and verified community) tags whose on-disk size is **≤ 16 GB**
-3. **Ollama** — registry names
-4. **Hugging Face** — GGUF via `hf.co/user/repo`
+### Internal specialist (`bros`)
 
-`qwen3-coder:14b` is not a library tag (official coder is `:30b` / `:480b`). Use `freehuntx/qwen3-coder:14b` or `qwen2.5-coder:14b`. 30B tags (~19 GB) stay in the Ollama list, not Recommended.
+Bros ships a small internal Ollama model named `bros` for app jobs (auto-titling chats). It is **not** listed in Chat or Models. Source: [jasenmichael/bros-model](https://github.com/jasenmichael/bros-model). Packaged GGUF installs into the Ollama sidecar on first start. See [docs/sidecars/ollama.md](docs/sidecars/ollama.md).
 
 ## Development
 
-### Deps
-
-**UI app (Docker, preferred):** Docker Engine + Compose v2, Git. The app process runs in `bros:dev` — no host Node required for that. Host `pnpm` is only needed to type `pnpm dev` (Node **22+**, pnpm **9.15** per `packageManager`). Equivalent with no host Node: `BROS_DEV=1 ./bros`.
-
-**Website** (and optional host Nuxt): Node **22+**, pnpm **9.15**, then `pnpm install` at the repo root.
-
-### UI app (`@bros/app`)
-
-Clone this repo (a curl install tree works if you develop there).
-
-```bash
-pnpm dev
-# http://127.0.0.1:3055
-```
-
-Docker bind-mount stack. First start builds `bros:dev` if it is missing. Later starts skip rebuild. Ctrl+C stops the full stack (core + sidecars).
-
-After Dockerfile or compose changes:
-
-```bash
-pnpm dev:update
-```
-
-Stop a leftover stack:
-
-```bash
-BROS_DEV=1 ./bros stop
-```
-
-Optional host-only Nuxt (no app container; Docker still needed for sidecars via the socket):
-
-```bash
-pnpm install
-pnpm app:dev
-pnpm test
-```
-
-The Cloudflare tunnel hostname works on the Docker dev stack too (Vite client JS must load; otherwise Unlock does nothing).
-
-Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOST_DATA_DIR/passkey`.
-
-### Website (`@bros/website`)
-
-Static site in `src/website`, `baseURL` `/bros/`. Content is repo `docs/`. Theme and docs layers are shared with the app.
-
-```bash
-pnpm install
-pnpm docs:dev
-# http://127.0.0.1:3056/bros/
-
-pnpm docs:generate
-pnpm --filter @bros/website preview
-```
+Contributor hot-reload: `pnpm dev` (`BROS_DEV=1`). First start builds `bros:dev`. Ctrl+C stops the full stack. After Dockerfile/compose changes: `pnpm dev:update`. Tests: `pnpm test`. Full notes: [docs/development.md](docs/development.md). Docs site: [docs/website.md](docs/website.md) (`pnpm docs:dev` → http://127.0.0.1:3056/bros/).
 
 ## Workspace (pnpm)
 

@@ -41,6 +41,11 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 - `bros` is production compose only; `--dev` removed. Docker bind-mount is `pnpm dev` (`BROS_DEV=1`)
 - First start starts sidecar Ollama and installs/updates internal model `bros` from `vendor/bros-model`
 
+## Recent (internal specialist)
+
+- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). Sidecar ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/bros-model` and runs `ollama create bros` inside `bros-sc-ollama`. Name is reserved (not listed; `Label:` titles only).
+- Model updates: bump the pinned submodule to the new bros-model tag/commit, then release a new Bros version. Checkout: `git submodule update --remote` (or pin a SHA) + `./bros update` when the GGUF size/mtime stamp differs. Do not treat host `ollama create` as the operator path.
+
 ## Recent (Chat nav)
 
 
