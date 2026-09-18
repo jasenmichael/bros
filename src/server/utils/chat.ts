@@ -1,13 +1,20 @@
 import { desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getDb, conversations, messages } from './db'
-import { getProviderSecret, ollamaBaseUrlFromProvider } from './providers'
+import { getProvider, getProviderSecret, ollamaBaseUrlFor } from './providers'
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
   sanitizeGeneratedTitle,
   shouldAutoTitle,
 } from './chatTitle'
+import {
+  mergeUsage,
+  usageFromAnthropicEvent,
+  usageFromOllamaObject,
+  usageFromOpenAIObject,
+  type ChatUsage,
+} from './chatStats'
 
 export function listConversations() {
   return getDb().select().from(conversations).orderBy(desc(conversations.updatedAt)).all()
@@ -33,7 +40,19 @@ export function createConversation(modelId: string, title = DEFAULT_CHAT_TITLE) 
   return getConversation(id)
 }
 
-export function addMessage(conversationId: string, role: string, content: string, modelId?: string) {
+export type MessageStats = {
+  durationMs?: number | null
+  promptTokens?: number | null
+  completionTokens?: number | null
+}
+
+export function addMessage(
+  conversationId: string,
+  role: string,
+  content: string,
+  modelId?: string,
+  stats?: MessageStats,
+) {
   const id = randomUUID()
   getDb().insert(messages).values({
     id,
@@ -41,6 +60,9 @@ export function addMessage(conversationId: string, role: string, content: string
     role,
     content,
     modelId: modelId || null,
+    durationMs: stats?.durationMs ?? null,
+    promptTokens: stats?.promptTokens ?? null,
+    completionTokens: stats?.completionTokens ?? null,
     createdAt: Date.now(),
   }).run()
   getDb().update(conversations).set({ updatedAt: Date.now() }).where(eq(conversations.id, conversationId)).run()
@@ -70,9 +92,10 @@ async function completeOnce(opts: {
 }): Promise<string> {
   const { provider, model } = parseModelId(opts.modelId)
   const signal = AbortSignal.timeout(TITLE_GENERATE_MS)
+  const row = getProvider(provider)
 
-  if (provider === 'ollama') {
-    const base = await ollamaBaseUrlFromProvider()
+  if (row?.kind === 'ollama') {
+    const base = await ollamaBaseUrlFor(provider)
     const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -88,12 +111,12 @@ async function completeOnce(opts: {
     return String(json.message?.content || '')
   }
 
-  if (provider === 'openai' || provider === 'anthropic') {
+  if (row?.kind === 'openai' || row?.kind === 'anthropic') {
     const secret = getProviderSecret(provider)
     if (!secret?.row?.enabled) throw new Error(`Provider ${provider} not configured`)
-    const base = (secret.row.baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
+    const base = (secret.row.baseUrl || (row.kind === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
 
-    if (provider === 'openai') {
+    if (row.kind === 'openai') {
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -196,11 +219,13 @@ export async function streamChat(opts: {
   modelId: string
   history: Array<{ role: string; content: string }>
   onToken: (t: string) => void
-}) {
+}): Promise<ChatUsage> {
   const { provider, model } = parseModelId(opts.modelId)
+  const usage: ChatUsage = {}
+  const row = getProvider(provider)
 
-  if (provider === 'ollama') {
-    const base = await ollamaBaseUrlFromProvider()
+  if (row?.kind === 'ollama') {
+    const base = await ollamaBaseUrlFor(provider)
     const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -214,32 +239,35 @@ export async function streamChat(opts: {
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buf = ''
+    const takeLine = (line: string) => {
+      if (!line.trim()) return
+      try {
+        const json = JSON.parse(line)
+        const token = json.message?.content || ''
+        if (token) opts.onToken(token)
+        mergeUsage(usage, usageFromOllamaObject(json))
+      } catch {
+        // ignore
+      }
+    }
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       buf += decoder.decode(value, { stream: true })
       const lines = buf.split('\n')
       buf = lines.pop() || ''
-      for (const line of lines) {
-        if (!line.trim()) continue
-        try {
-          const json = JSON.parse(line)
-          const token = json.message?.content || ''
-          if (token) opts.onToken(token)
-        } catch {
-          // ignore
-        }
-      }
+      for (const line of lines) takeLine(line)
     }
-    return
+    takeLine(buf)
+    return usage
   }
 
-  if (provider === 'openai' || provider === 'anthropic') {
+  if (row?.kind === 'openai' || row?.kind === 'anthropic') {
     const secret = getProviderSecret(provider)
     if (!secret?.row?.enabled) throw createError({ statusCode: 400, statusMessage: `Provider ${provider} not configured` })
-    const base = (secret.row.baseUrl || (provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
+    const base = (secret.row.baseUrl || (row.kind === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
 
-    if (provider === 'openai') {
+    if (row.kind === 'openai') {
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -256,30 +284,32 @@ export async function streamChat(opts: {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
+      const takeLine = (line: string) => {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) return
+        const data = trimmed.slice(5).trim()
+        if (data === '[DONE]') return
+        try {
+          const json = JSON.parse(data)
+          const token = json.choices?.[0]?.delta?.content || ''
+          if (token) opts.onToken(token)
+          mergeUsage(usage, usageFromOpenAIObject(json))
+        } catch {
+          // ignore
+        }
+      }
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         buf += decoder.decode(value, { stream: true })
         const parts = buf.split('\n')
         buf = parts.pop() || ''
-        for (const line of parts) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith('data:')) continue
-          const data = trimmed.slice(5).trim()
-          if (data === '[DONE]') continue
-          try {
-            const json = JSON.parse(data)
-            const token = json.choices?.[0]?.delta?.content || ''
-            if (token) opts.onToken(token)
-          } catch {
-            // ignore
-          }
-        }
+        for (const line of parts) takeLine(line)
       }
-      return
+      takeLine(buf)
+      return usage
     }
 
-    // anthropic messages stream
     const res = await fetch(`${base}/v1/messages`, {
       method: 'POST',
       headers: {
@@ -301,28 +331,31 @@ export async function streamChat(opts: {
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buf = ''
+    const takeLine = (line: string) => {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) return
+      const data = trimmed.slice(5).trim()
+      try {
+        const json = JSON.parse(data)
+        if (json.type === 'content_block_delta') {
+          const token = json.delta?.text || ''
+          if (token) opts.onToken(token)
+        }
+        mergeUsage(usage, usageFromAnthropicEvent(json))
+      } catch {
+        // ignore
+      }
+    }
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       buf += decoder.decode(value, { stream: true })
       const parts = buf.split('\n')
       buf = parts.pop() || ''
-      for (const line of parts) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        try {
-          const json = JSON.parse(data)
-          if (json.type === 'content_block_delta') {
-            const token = json.delta?.text || ''
-            if (token) opts.onToken(token)
-          }
-        } catch {
-          // ignore
-        }
-      }
+      for (const line of parts) takeLine(line)
     }
-    return
+    takeLine(buf)
+    return usage
   }
 
   throw createError({ statusCode: 400, statusMessage: `Unknown provider ${provider}` })

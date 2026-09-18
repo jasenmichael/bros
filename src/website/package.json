@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@bros/docs": "workspace:*",
+    "@bros/theme": "workspace:*",
     "nuxt": "^4.5.0"
   }
 }

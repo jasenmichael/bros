@@ -48,7 +48,7 @@ $BROS_HOST_DATA_DIR/
   opencode/
 ```
 
-Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (including Ollama `config.customModels` and Chat source `config.mode`), chat, and sidecar autostart/nav pins/`hostMode`/`host_probe_port` are stored in SQLite.
+Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (including Ollama `config.customModels` and custom OpenAI `config.models`), chat, and sidecar autostart/nav pins/`hostMode`/`host_probe_port` are stored in SQLite. Built-in providers are `ollama` (sidecar) and `ollama-host`.
 
 Compose publish overrides: `BROS_OLLAMA_PORT` (default 11435), `BROS_OPENCODE_PORT` (4097), `BROS_OPENWEBUI_PORT` (3080).
 

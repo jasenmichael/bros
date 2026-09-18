@@ -6,11 +6,11 @@
 | Package manager | **pnpm workspaces** |
 | App | Nuxt 4 `@bros/app` in `src/app` |
 | Server | Nitro in `src/server` (`serverDir`) |
-| Docs content | Repo-root `docs/` (Nuxt Content) |
-| Docs layer | `@bros/docs` in `src/layers/docs` |
-| Theme layer | `@bros/theme` in `src/layers/theme` |
-| Docs/marketing site | `@bros/website` in `src/website` (Pages `/bros/`) |
-| UI override | App extends docs layer; **`/` = dashboard** |
+| Docs content | Repo-root `docs/` (Nuxt Content, on the docs layer) |
+| Docs layer | `@bros/docs` in `src/layers/docs` (`/docs` pages) |
+| Theme layer | `@bros/theme` in `src/layers/theme` (UI, CSS, nav chrome) |
+| Docs/marketing site | `@bros/website` in `src/website` (Pages `/bros/`; owns `/`) |
+| UI override | App extends theme + docs; **`/` = dashboard**; `/docs` unchanged |
 | Tests | Vitest + `@nuxt/test-utils` |
 | DB | SQLite + Drizzle (`bros.sqlite`) |
 | Docker | dockerode + Compose CLI in image |
@@ -34,8 +34,8 @@ bros/
 ## Layer chain
 
 ```text
-theme → docs layer → app (overrides index)
-                  ↘ website (generate → GitHub Pages)
+theme + docs  →  app     (`/` = dashboard, extra pages)
+              →  website (`/` = marketing homepage)
 ```
 
 ## Compose

@@ -53,6 +53,7 @@ const showHamburger = computed(() => !isDesktop.value)
   top: 0;
   z-index: 20;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 0.75rem;
   min-height: 3rem;

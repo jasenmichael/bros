@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  extends: ['@bros/docs'],
+  extends: ['../layers/docs', '../layers/theme'],
   compatibilityDate: '2025-01-01',
   // Project GitHub Pages site: https://jasenmichael.github.io/bros/
   app: {

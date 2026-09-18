@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { useChatRecents } from '../../composables/useChatRecents'
+import { formatContextLabel, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
 
-type Msg = { id: string; role: string; content: string; modelId?: string | null }
+type Msg = {
+  id: string
+  role: string
+  content: string
+  modelId?: string | null
+  durationMs?: number | null
+  promptTokens?: number | null
+  completionTokens?: number | null
+}
 
 const route = useRoute()
 const { refreshChatRecents, conversations } = useChatRecents()
@@ -15,36 +24,94 @@ const messages = ref<Msg[]>([])
 const input = ref('')
 const streaming = ref('')
 const streamingModelId = ref('')
+const streamingStats = ref<ChatMetaStats>({})
 const busy = ref(false)
-const modelId = ref('ollama/llama3.2')
+const thinking = ref(false)
+const streamAbort = ref<AbortController | null>(null)
+const streamStartedAt = ref(0)
+const liveElapsedMs = ref(0)
+const providerId = ref('ollama')
+const modelName = ref('llama3.2')
 const lastPersistedModel = ref<string | null>(null)
-const pendingSource = ref<'host' | 'sidecar' | null>(null)
 const pageTitle = ref('Chat')
 const loadingThread = ref(false)
 const threadEnd = ref<HTMLElement | null>(null)
 
+let elapsedTimer: ReturnType<typeof setInterval> | null = null
+
 useSeoMeta({ title: () => pageTitle.value })
 
-const { data: modelsData, refresh: refreshModels } = await useFetch<{
-  ollamaModels: Array<{ id: string }>
-  providers: Array<{ id: string; kind: string; config?: Record<string, unknown> }>
-  ollamaSource?: 'host' | 'sidecar'
-  hostOllama?: { port: number; version: string } | null
-  sidecarPublish?: number
+const { data: modelsData } = await useFetch<{
+  providers: Array<{ id: string; name: string; kind: string }>
+  ollamaModelsByProvider: Record<string, Array<{ id: string; name: string }>>
+  openaiModelsByProvider: Record<string, string[]>
 }>('/api/models')
 
-const ollama = computed(() => modelsData.value?.providers.find((p) => p.id === 'ollama'))
-const chatSource = computed(() => {
-  if (pendingSource.value) return pendingSource.value
-  const mode = ollama.value?.config?.mode as string | undefined
-  if (mode === 'host' || mode === 'sidecar') return mode
-  return modelsData.value?.ollamaSource || 'sidecar'
+const orderedProviders = computed(() => {
+  const rows = modelsData.value?.providers || []
+  const sidecar = rows.filter((p) => p.id === 'ollama')
+  const host = rows.filter((p) => p.id === 'ollama-host')
+  const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host')
+  return [...sidecar, ...host, ...rest]
 })
 
-function pickValidModelId(current: string, available: string[]) {
-  if (available.includes(current)) return current
-  return available[0] || current
+const providerItems = computed(() => orderedProviders.value.map((p) => ({
+  label: p.name,
+  value: p.id,
+})))
+
+const selectedProvider = computed(() => orderedProviders.value.find((p) => p.id === providerId.value))
+
+function modelsForProvider(pid: string): string[] {
+  const p = orderedProviders.value.find((row) => row.id === pid)
+  if (!p) return []
+  if (p.kind === 'ollama') {
+    return (modelsData.value?.ollamaModelsByProvider?.[pid] || []).map((m) => m.name)
+  }
+  return modelsData.value?.openaiModelsByProvider?.[pid] || []
 }
+
+const modelItems = computed(() => {
+  const names = modelsForProvider(providerId.value)
+  if (names.length) return names
+  return modelName.value ? [modelName.value] : []
+})
+
+const modelId = computed(() => (
+  modelName.value ? `${providerId.value}/${modelName.value}` : providerId.value
+))
+
+function splitModelId(id: string) {
+  const ids = orderedProviders.value.map((p) => p.id).sort((a, b) => b.length - a.length)
+  for (const pid of ids) {
+    if (id === pid) return { providerId: pid, model: '' }
+    if (id.startsWith(`${pid}/`)) return { providerId: pid, model: id.slice(pid.length + 1) }
+  }
+  const idx = id.indexOf('/')
+  if (idx === -1) return { providerId: providerId.value || 'ollama', model: id }
+  return { providerId: id.slice(0, idx), model: id.slice(idx + 1) }
+}
+
+function applyModelId(next: string) {
+  const parsed = splitModelId(next)
+  providerId.value = parsed.providerId
+  const names = modelsForProvider(parsed.providerId)
+  modelName.value = names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model)
+}
+
+const { data: modelContext } = await useFetch<{ contextLength: number | null }>(
+  '/api/models/context',
+  {
+    query: computed(() => ({ modelId: modelId.value })),
+    watch: [modelId],
+    lazy: true,
+  },
+)
+
+const contextLabel = computed(() => {
+  if (selectedProvider.value?.kind !== 'ollama') return ''
+  return formatContextLabel(modelContext.value?.contextLength) || '—'
+})
 
 async function persistOpenModel(next = modelId.value) {
   if (!convoId.value || !next || next === lastPersistedModel.value) return
@@ -55,43 +122,17 @@ async function persistOpenModel(next = modelId.value) {
   lastPersistedModel.value = next
 }
 
-async function setChatSource(mode: 'host' | 'sidecar') {
-  if (chatSource.value === mode) return
-  pendingSource.value = mode
-  try {
-    await $fetch('/api/models/providers', {
-      method: 'POST',
-      body: {
-        id: 'ollama',
-        name: 'Ollama',
-        kind: 'ollama',
-        baseUrl: mode === 'sidecar'
-          ? 'http://ollama:11434'
-          : (modelsData.value?.hostOllama
-            ? `http://host.docker.internal:${modelsData.value.hostOllama.port}`
-            : 'http://host.docker.internal:11434'),
-        config: { ...(ollama.value?.config || {}), mode },
-      },
-    })
-    await refreshModels()
-    modelId.value = pickValidModelId(modelId.value, modelOptions.value)
-    await persistOpenModel()
-  } finally {
-    pendingSource.value = null
+watch(providerId, (pid) => {
+  const names = modelsForProvider(pid)
+  if (names.length && !names.includes(modelName.value)) {
+    modelName.value = names[0] || ''
   }
-}
-
-const modelOptions = computed(() => {
-  const opts = (modelsData.value?.ollamaModels || []).map((m) => m.id)
-  for (const p of modelsData.value?.providers || []) {
-    if (p.kind === 'openai') opts.push(`${p.id}/gpt-4o`)
-    if (p.kind === 'anthropic') opts.push(`${p.id}/claude-3-5-sonnet-latest`)
-  }
-  return opts.length ? opts : ['ollama/llama3.2']
 })
 
-watch(modelOptions, (opts) => {
-  modelId.value = pickValidModelId(modelId.value, opts)
+watch(modelItems, (names) => {
+  if (names.length && !names.includes(modelName.value)) {
+    modelName.value = names[0] || ''
+  }
 }, { immediate: true })
 
 watch(modelId, (next) => {
@@ -104,14 +145,51 @@ watch(conversations, (rows) => {
   if (row?.title) pageTitle.value = row.title
 })
 
+function startElapsed() {
+  streamStartedAt.value = Date.now()
+  liveElapsedMs.value = 0
+  if (elapsedTimer) clearInterval(elapsedTimer)
+  elapsedTimer = setInterval(() => {
+    liveElapsedMs.value = Date.now() - streamStartedAt.value
+  }, 100)
+}
+
+function stopElapsed() {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer)
+    elapsedTimer = null
+  }
+  if (streamStartedAt.value) {
+    liveElapsedMs.value = Date.now() - streamStartedAt.value
+  }
+}
+
+function applyStreamChunk(raw: string) {
+  const split = splitStreamBody(raw)
+  streaming.value = split.text
+  if (split.stats) streamingStats.value = { ...streamingStats.value, ...split.stats }
+  if (streaming.value) thinking.value = false
+}
+
+function metaLabel(stats: ChatMetaStats) {
+  return formatMetaStats(stats)
+}
+
+const liveMetaLabel = computed(() => formatMetaStats({
+  durationMs: streamingStats.value.durationMs ?? (busy.value ? liveElapsedMs.value : null),
+  promptTokens: streamingStats.value.promptTokens,
+  completionTokens: streamingStats.value.completionTokens,
+}))
+
 async function loadConversation(id: string) {
   try {
     const convo = await $fetch<{ messages: Msg[]; modelId: string; title: string }>(`/api/chat/${id}`)
     messages.value = convo.messages
     lastPersistedModel.value = convo.modelId
-    modelId.value = pickValidModelId(convo.modelId, modelOptions.value)
+    applyModelId(convo.modelId)
     pageTitle.value = convo.title || 'Chat'
     streaming.value = ''
+    thinking.value = false
   } catch {
     messages.value = []
     pageTitle.value = 'Chat'
@@ -124,13 +202,16 @@ function resetEmpty() {
   messages.value = []
   streaming.value = ''
   streamingModelId.value = ''
+  streamingStats.value = {}
+  thinking.value = false
   pageTitle.value = 'Chat'
   lastPersistedModel.value = null
   loadingThread.value = false
+  stopElapsed()
 }
 
 const isThread = computed(() =>
-  Boolean(convoId.value) || messages.value.length > 0 || Boolean(streaming.value) || loadingThread.value,
+  Boolean(convoId.value) || messages.value.length > 0 || Boolean(streaming.value) || thinking.value || loadingThread.value,
 )
 
 watch(convoId, (id) => {
@@ -148,7 +229,7 @@ function scrollThread() {
   threadEnd.value?.scrollIntoView({ block: 'end' })
 }
 
-watch([messages, streaming], () => {
+watch([messages, streaming, thinking], () => {
   if (!isThread.value) return
   nextTick(scrollThread)
 })
@@ -159,8 +240,29 @@ function onComposerKeydown(event: KeyboardEvent) {
   void send()
 }
 
+function stop() {
+  streamAbort.value?.abort()
+}
+
+function isAbortError(e: unknown) {
+  return (e instanceof DOMException && e.name === 'AbortError')
+    || (e instanceof Error && e.name === 'AbortError')
+}
+
+function finalizeAssistant(usedModel: string, content: string, extra?: ChatMetaStats) {
+  messages.value.push({
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content,
+    modelId: usedModel,
+    durationMs: extra?.durationMs ?? streamingStats.value.durationMs ?? liveElapsedMs.value,
+    promptTokens: extra?.promptTokens ?? streamingStats.value.promptTokens ?? null,
+    completionTokens: extra?.completionTokens ?? streamingStats.value.completionTokens ?? null,
+  })
+}
+
 async function send() {
-  if (!input.value.trim()) return
+  if (busy.value || !input.value.trim()) return
   let id = convoId.value
   if (!id) {
     const convo = await $fetch<{ id: string }>('/api/chat', {
@@ -174,36 +276,72 @@ async function send() {
   input.value = ''
   messages.value.push({ id: crypto.randomUUID(), role: 'user', content: text })
   const usedModel = modelId.value
+  const ac = new AbortController()
+  streamAbort.value = ac
   busy.value = true
+  thinking.value = true
   streaming.value = ''
+  streamingStats.value = {}
   streamingModelId.value = usedModel
+  startElapsed()
   try {
     const res = await fetch(`/api/chat/${id}/stream`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ content: text, modelId: usedModel }),
+      signal: ac.signal,
     })
     if (!res.ok || !res.body) throw new Error(await res.text())
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
+    let raw = ''
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      streaming.value += decoder.decode(value, { stream: true })
+      raw += decoder.decode(value, { stream: true })
+      applyStreamChunk(raw)
     }
-    messages.value.push({ id: crypto.randomUUID(), role: 'assistant', content: streaming.value, modelId: usedModel })
+    applyStreamChunk(raw)
+    finalizeAssistant(usedModel, streaming.value)
     streaming.value = ''
     streamingModelId.value = ''
     await refreshChatRecents()
     if (!convoId.value) await navigateTo(`/chat/${id}`, { replace: true })
   } catch (e: unknown) {
-    messages.value.push({ id: crypto.randomUUID(), role: 'assistant', content: `Error: ${e instanceof Error ? e.message : String(e)}`, modelId: usedModel })
+    if (isAbortError(e)) {
+      if (streaming.value) {
+        finalizeAssistant(usedModel, streaming.value, {
+          durationMs: liveElapsedMs.value,
+          promptTokens: streamingStats.value.promptTokens ?? null,
+          completionTokens: streamingStats.value.completionTokens ?? null,
+        })
+        await refreshChatRecents()
+        if (!convoId.value) await navigateTo(`/chat/${id}`, { replace: true })
+      }
+    } else {
+      messages.value.push({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `Error: ${e instanceof Error ? e.message : String(e)}`,
+        modelId: usedModel,
+      })
+    }
     streaming.value = ''
   } finally {
+    thinking.value = false
     streamingModelId.value = ''
+    streamAbort.value = null
+    stopElapsed()
     busy.value = false
   }
 }
+
+onUnmounted(() => {
+  stopElapsed()
+  streamAbort.value?.abort()
+})
+
+defineExpose({ busy, thinking, stop, streamAbort })
 </script>
 
 <template>
@@ -226,7 +364,10 @@ async function send() {
           v-if="m.role === 'assistant'"
           class="bros-chat__meta"
         >
-          ASSISTANT<span v-if="m.modelId"> · {{ m.modelId }}</span>
+          <span class="bros-chat__meta-id">
+            ASSISTANT<span v-if="m.modelId"> · {{ m.modelId }}</span>
+          </span>
+          <span v-if="metaLabel(m)" class="bros-chat__meta-stats">{{ metaLabel(m) }}</span>
         </p>
         <div class="bros-chat__bubble" :class="m.role === 'user' ? 'bros-chat__bubble--user' : 'bros-chat__bubble--assistant'">
           <BrosChatMarkdown :text="m.content" />
@@ -234,40 +375,27 @@ async function send() {
       </div>
       <div v-if="streaming" class="bros-chat__turn bros-chat__turn--assistant">
         <p class="bros-chat__meta">
-          ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
+          <span class="bros-chat__meta-id">
+            ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
+          </span>
+          <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
         </p>
         <div class="bros-chat__bubble bros-chat__bubble--assistant">
           <BrosChatMarkdown :text="streaming" />
         </div>
       </div>
+      <p v-if="thinking" class="bros-chat__thinking">thinking…</p>
       <div ref="threadEnd" />
     </div>
 
     <div class="bros-chat__dock">
       <div class="bros-chat__tools">
-        <div v-if="modelsData?.hostOllama" class="bros-chat__sources">
-          <UButton
-            size="xs"
-            :variant="chatSource === 'host' ? 'solid' : 'ghost'"
-            :color="chatSource === 'host' ? 'primary' : 'neutral'"
-            @click="setChatSource('host')"
-          >
-            Host :{{ modelsData.hostOllama.port }}
-          </UButton>
-          <UButton
-            size="xs"
-            :variant="chatSource === 'sidecar' ? 'solid' : 'ghost'"
-            :color="chatSource === 'sidecar' ? 'primary' : 'neutral'"
-            @click="setChatSource('sidecar')"
-          >
-            Sidecar :{{ modelsData.sidecarPublish || 11435 }}
-          </UButton>
+        <div class="bros-chat__tools-left">
+          <USelect v-model="providerId" :items="providerItems" size="xs" class="bros-chat__provider" />
+          <USelect v-model="modelName" :items="modelItems" size="xs" class="bros-chat__model" />
         </div>
-        <USelect v-model="modelId" :items="modelOptions" size="xs" class="bros-chat__model" />
+        <p v-if="contextLabel" class="bros-chat__ctx">{{ contextLabel }}</p>
       </div>
-      <p v-if="chatSource === 'host'" class="bros-chat__host-note">
-        Chat and pull write to the host Ollama disk, not $BROS_DIR/data/ollama.
-      </p>
       <form class="bros-chat__composer" @submit.prevent="send">
         <UTextarea
           v-model="input"
@@ -282,12 +410,20 @@ async function send() {
           @keydown="onComposerKeydown"
         />
         <UButton
+          v-if="!busy"
           type="submit"
-          :loading="busy"
-          :disabled="busy || !input.trim()"
+          :disabled="!input.trim()"
           icon="i-lucide-arrow-up"
           aria-label="Send"
           class="bros-chat__send"
+        />
+        <UButton
+          v-else
+          type="button"
+          icon="i-lucide-square"
+          aria-label="Stop"
+          class="bros-chat__send"
+          @click="stop"
         />
       </form>
     </div>
@@ -297,8 +433,9 @@ async function send() {
 <style scoped>
 .bros-chat {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  min-height: calc(100dvh - 3rem);
+  min-height: 0;
 }
 
 .bros-chat--empty {
@@ -309,8 +446,7 @@ async function send() {
 }
 
 .bros-chat--thread {
-  min-height: calc(100dvh - 3rem);
-  height: calc(100dvh - 3rem);
+  overflow: hidden;
 }
 
 .bros-chat__hero {
@@ -329,6 +465,7 @@ async function send() {
 .bros-chat__thread {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 1.25rem 1.25rem 0.5rem;
 }
@@ -343,10 +480,31 @@ async function send() {
   justify-content: flex-end;
 }
 
+.bros-chat__thinking {
+  width: min(48rem, 100%);
+  margin: 1.25rem auto;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--bros-muted);
+}
+
 .bros-chat__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin: 0 0 0.35rem;
   font-size: 0.7rem;
   color: var(--bros-muted);
+}
+
+.bros-chat__meta-id {
+  min-width: 0;
+}
+
+.bros-chat__meta-stats {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .bros-chat__bubble {
@@ -383,15 +541,22 @@ async function send() {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 0.5rem 0.75rem;
   margin-bottom: 0.55rem;
 }
 
-.bros-chat__sources {
+.bros-chat__tools-left {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.bros-chat__provider {
+  min-width: 9rem;
+  max-width: 14rem;
 }
 
 .bros-chat__model {
@@ -399,11 +564,11 @@ async function send() {
   max-width: 16rem;
 }
 
-.bros-chat__host-note {
-  margin: 0 0 0.5rem;
-  text-align: center;
+.bros-chat__ctx {
+  margin: 0 0 0 auto;
   font-size: 0.7rem;
-  color: #fde68a;
+  color: var(--bros-muted);
+  flex-shrink: 0;
 }
 
 .bros-chat__composer {

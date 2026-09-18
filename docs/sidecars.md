@@ -28,7 +28,7 @@ There is **no path proxy**. A `webui` must declare `publish` in `sidecar.yml` an
 - **Auto** / **Sidecar**: `compose up` on the Bros **publish** port. Fails if that port is already taken. Host Ollama on 11434 does not skip the sidecar.
 - **Host**: never start the Bros sidecar stack.
 
-**Host Ollama** (Chat/Models): scan ports in `hostProbe` (`GET /api/version`). Skip `bros-sc-ollama`. Optional manual port on the Ollama sidecar card. Pick Host vs Sidecar DNS for Chat.
+**Host Ollama** (Chat/Models): scan ports in `hostProbe` (`GET /api/version`). Skip `bros-sc-ollama`. Optional manual port on Models (host provider) or the Ollama sidecar card. Sidecar and host are separate providers; Chat picks provider then model.
 
 Custom sidecars with a web UI must set `publish` **and** stay on network `bros`.
 

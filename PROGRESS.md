@@ -4,7 +4,7 @@
 
 Product brand is **Bros**. Sidecars remain sidecars (routes, APIs, `sidecar.yml`, `sidecars/`). Host `cloudflared` tunnel, passkey sessions, and no path proxy landed on `main` (`d4bf952`). Remaining gaps are unplanned follow-ups in [PLAN.md](./PLAN.md), not a numbered milestone.
 
-Docs markdown in **`docs/`**. App extends `@bros/docs` and **overrides `/` with the dashboard**. Static site: `src/website` (`pnpm docs:generate`) → https://jasenmichael.github.io/bros/
+Docs markdown in **`docs/`**. Both apps extend theme + docs. `/docs` is identical. App **`/` = dashboard**; website **`/` = marketing**. Static site: `src/website` (`pnpm docs:generate`) → https://jasenmichael.github.io/bros/
 
 ### Run (dev)
 

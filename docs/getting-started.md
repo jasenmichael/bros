@@ -66,17 +66,17 @@ pnpm --filter @bros/website preview
 
 ## Workspace
 
-- `src/layers/theme` — shared UI theme
-- `src/layers/docs` — docs content layer and `/docs` routes (markdown from repo root `docs/`)
-- `src/app` — Bros UI; extends docs layer; **overrides `/` with the dashboard**
-- `src/website` — static docs/marketing site (`pnpm docs:generate`) published to GitHub Pages
+- `src/layers/theme` — shared UI, shell, and nav chrome (same in app and website; only links differ)
+- `src/layers/docs` — docs content layer and `/docs` routes (markdown from repo root `docs/`; identical in both apps)
+- `src/app` — Bros UI; extends theme + docs; **overrides `/` with the dashboard**
+- `src/website` — static site homepage; extends theme + docs; `pnpm docs:generate` published to GitHub Pages
 - `docs/` — canonical markdown for Nuxt Content
 
 ## Models
 
-On **Models** (and Chat when both are up), pick **Host** Ollama or the Bros **Sidecar** (`http://ollama:11434` on Docker DNS; host publish **11435**). Pull while Host is selected writes to the host Ollama disk, not `$BROS_DIR/data/ollama`.
+On **Models**, sidecar Ollama and host Ollama sit under **Ollama** (host stays listed when stopped). Custom OpenAI-compatible providers (base URL + optional key + model names) sit under **Custom providers**, with **Add custom** there. Chat picks a provider, then a model. Sidecar DNS is `http://ollama:11434` on the Docker network (host publish **11435**). Pull and chat use the host Ollama disk, not `$BROS_DIR/data/ollama`. Settings (including GPU for the sidecar only) open from the row cog, not a page-level Settings block.
 
-On **Models**, pull from the menu or type any valid Ollama name (`llama3.2` or community `owner/name:tag`):
+On **Models**, selecting an Ollama card expands pull on that card. Pull from the menu or type any valid Ollama name (`llama3.2` or community `owner/name:tag`):
 
 1. **Yours** — names you added; kept after refresh in `config.customModels`
 2. **Recommended** — official (and verified community) tags **≤ 16 GB**, sized for detected CPU/GPU VRAM
@@ -85,7 +85,7 @@ On **Models**, pull from the menu or type any valid Ollama name (`llama3.2` or c
 
 `qwen3-coder:14b` is not a library tag. Use `freehuntx/qwen3-coder:14b` or `qwen2.5-coder:14b`. 30B tags (~19 GB) stay in the Ollama list, not Recommended.
 
-If an NVIDIA GPU is present, enable **Use GPU** to restart the Ollama sidecar with GPU access.
+If an NVIDIA GPU is present, open the sidecar cog and enable **Use GPU** to restart the Ollama sidecar with GPU access. Host Ollama cannot configure GPU.
 
 ## Bootstrap config
 

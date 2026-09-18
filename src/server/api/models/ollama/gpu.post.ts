@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const config = { ...(existing?.config || {}), useGpu: Boolean(body?.useGpu) }
   upsertProvider({
     id: 'ollama',
-    name: existing?.name || 'Ollama',
+    name: existing?.name || 'Ollama sidecar',
     kind: 'ollama',
     baseUrl: existing?.baseUrl,
     config,

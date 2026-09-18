@@ -163,7 +163,7 @@ function linkExactActiveClass(item: NavItem) {
           <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
         </NuxtLink>
 
-        <div v-if="$slots['after-primary']" class="bros-nav-panel__recents">
+        <div v-if="$slots['after-primary']" class="bros-nav-panel__recents-wrap">
           <slot name="after-primary" />
         </div>
 
@@ -255,7 +255,7 @@ function linkExactActiveClass(item: NavItem) {
   z-index: 30;
   align-self: flex-start;
   flex-shrink: 0;
-  height: 100vh;
+  height: 100dvh;
   border: 0;
   border-right: 1px solid #2a3544;
 }
@@ -266,7 +266,7 @@ function linkExactActiveClass(item: NavItem) {
   left: 0;
   z-index: 50;
   width: 16rem;
-  height: 100vh;
+  height: 100dvh;
   border-radius: 0;
   border-right: 1px solid #2a3544;
 }
@@ -339,12 +339,19 @@ function linkExactActiveClass(item: NavItem) {
   padding: 0.75rem 0.5rem 0.5rem;
 }
 
-.bros-nav-panel__recents {
+.bros-nav-panel__recents-wrap {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.bros-nav-panel__recents-wrap > :deep(*) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .bros-nav-panel__link {

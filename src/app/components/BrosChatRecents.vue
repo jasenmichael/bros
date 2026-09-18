@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { navRecentsScrollHints, navRecentsScrollStep } from '../../layers/theme/app/utils/navRecentsScroll'
 
 const { conversations, refreshChatRecents } = useChatRecents()
 const { iconMode, isDesktop } = useNavDock()
@@ -9,6 +10,9 @@ const recentsOpen = ref(true)
 const renamingId = ref<string | null>(null)
 const renameDraft = ref('')
 const renameInput = ref<HTMLInputElement | null>(null)
+const recentsEl = ref<HTMLElement | null>(null)
+const canScrollUp = ref(false)
+const canScrollDown = ref(false)
 
 const compact = computed(() => iconMode.value && isDesktop.value)
 const showList = computed(() => conversations.value.length > 0 && !compact.value)
@@ -59,6 +63,56 @@ async function removeChat(id: string) {
   await refreshChatRecents()
 }
 
+function syncRecentsHints() {
+  const el = recentsEl.value
+  if (!el || !recentsOpen.value) {
+    canScrollUp.value = false
+    canScrollDown.value = false
+    return
+  }
+  const hints = navRecentsScrollHints(el.scrollTop, el.clientHeight, el.scrollHeight)
+  canScrollUp.value = hints.canScrollUp
+  canScrollDown.value = hints.canScrollDown
+}
+
+function scrollRecents(dir: -1 | 1) {
+  const el = recentsEl.value
+  if (!el) return
+  el.scrollBy({ top: dir * navRecentsScrollStep(el.clientHeight), behavior: 'smooth' })
+}
+
+watch(recentsEl, (el, _prev, onCleanup) => {
+  if (!el) {
+    canScrollUp.value = false
+    canScrollDown.value = false
+    return
+  }
+  const onScroll = () => syncRecentsHints()
+  el.addEventListener('scroll', onScroll, { passive: true })
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(syncRecentsHints) : null
+  ro?.observe(el)
+  const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(syncRecentsHints) : null
+  mo?.observe(el, { childList: true, subtree: true })
+  window.addEventListener('resize', syncRecentsHints)
+  syncRecentsHints()
+  onCleanup(() => {
+    el.removeEventListener('scroll', onScroll)
+    ro?.disconnect()
+    mo?.disconnect()
+    window.removeEventListener('resize', syncRecentsHints)
+  })
+})
+
+watch(recentsOpen, async () => {
+  await nextTick()
+  syncRecentsHints()
+})
+
+watch(() => conversations.value.length, async () => {
+  await nextTick()
+  syncRecentsHints()
+})
+
 function rowItems(id: string, title: string): DropdownMenuItem[] {
   return [
     {
@@ -94,7 +148,16 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
         class="size-3.5 shrink-0"
       />
     </button>
-    <ul v-show="recentsOpen" class="bros-recents__list">
+    <button
+      v-if="canScrollUp && recentsOpen"
+      type="button"
+      class="bros-nav-panel__recents-hint bros-nav-panel__recents-hint--up"
+      aria-label="More chats above"
+      @click="scrollRecents(-1)"
+    >
+      <UIcon name="i-lucide-chevron-up" class="size-3.5" />
+    </button>
+    <ul v-show="recentsOpen" ref="recentsEl" class="bros-recents__list bros-nav-panel__recents">
       <li v-for="c in conversations" :key="c.id" class="bros-recents__row">
         <form
           v-if="renamingId === c.id"
@@ -136,6 +199,15 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
         </template>
       </li>
     </ul>
+    <button
+      v-if="canScrollDown && recentsOpen"
+      type="button"
+      class="bros-nav-panel__recents-hint bros-nav-panel__recents-hint--down"
+      aria-label="More chats below"
+      @click="scrollRecents(1)"
+    >
+      <UIcon name="i-lucide-chevron-down" class="size-3.5" />
+    </button>
   </div>
   </ClientOnly>
 </template>
@@ -175,9 +247,38 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
 }
 
 .bros-recents__list {
+  flex: 1;
+  min-height: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bros-recents__list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.bros-nav-panel__recents-hint {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8b9bb0;
+  cursor: pointer;
+}
+
+.bros-nav-panel__recents-hint:hover {
+  color: #c5d0dc;
 }
 
 .bros-recents__row {

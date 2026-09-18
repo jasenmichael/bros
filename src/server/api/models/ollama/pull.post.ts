@@ -8,31 +8,36 @@ import {
 } from '../../../utils/ollamaLibrary'
 import { getDiskSpace } from '../../../utils/disk'
 import {
-  ollamaBaseUrlFromProvider,
+  ollamaBaseUrlFor,
   pullOllamaModelStreamWithRetry,
   rememberCustomOllamaModel,
+  OLLAMA_HOST_ID,
+  OLLAMA_SIDECAR_ID,
 } from '../../../utils/providers'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ name?: string; model?: string }>(event)
+  const body = await readBody<{ name?: string; model?: string; providerId?: string }>(event)
   const name = (body?.model || body?.name || '').trim()
   if (!name) throw createError({ statusCode: 400, statusMessage: 'model required' })
   if (!isValidOllamaPullName(name)) {
     throw createError({ statusCode: 400, statusMessage: `Invalid Ollama name: ${name}` })
   }
 
-  rememberCustomOllamaModel(name)
+  const providerId = body?.providerId || OLLAMA_SIDECAR_ID
+  rememberCustomOllamaModel(name, providerId)
 
-  await getModelCatalog()
-  const disk = getDiskSpace()
-  const known = findCatalogModel(name)
-  if (known?.sizeBytes && !modelFitsDisk(known.sizeBytes, disk.freeBytes)) {
-    const need = formatSizeBytes(known.sizeBytes + DISK_MARGIN_BYTES)
-    const free = formatSizeBytes(disk.freeBytes)
-    throw createError({
-      statusCode: 400,
-      statusMessage: `Not enough disk space: ${name} needs ~${need} (incl. margin), only ${free} free on ${disk.path}`,
-    })
+  if (providerId !== OLLAMA_HOST_ID) {
+    await getModelCatalog()
+    const disk = getDiskSpace()
+    const known = findCatalogModel(name)
+    if (known?.sizeBytes && !modelFitsDisk(known.sizeBytes, disk.freeBytes)) {
+      const need = formatSizeBytes(known.sizeBytes + DISK_MARGIN_BYTES)
+      const free = formatSizeBytes(disk.freeBytes)
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Not enough disk space: ${name} needs ~${need} (incl. margin), only ${free} free on ${disk.path}`,
+      })
+    }
   }
 
   setResponseHeader(event, 'content-type', 'application/x-ndjson; charset=utf-8')
@@ -41,7 +46,7 @@ export default defineEventHandler(async (event) => {
 
   const res = event.node.res
   try {
-    for await (const evt of pullOllamaModelStreamWithRetry(await ollamaBaseUrlFromProvider(), name)) {
+    for await (const evt of pullOllamaModelStreamWithRetry(await ollamaBaseUrlFor(providerId), name)) {
       if (evt.error) {
         res.write(`${JSON.stringify({ status: 'error', error: evt.error })}\n`)
         break

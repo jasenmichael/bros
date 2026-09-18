@@ -37,7 +37,7 @@ In-container `BROS_DATA_DIR` stays `/data`. Do not commit `data/`, `.env`, `.nux
 
 ## Models
 
-On **Models** (and Chat when both are up), pick **Host** Ollama or the Bros **Sidecar** (Docker DNS `http://ollama:11434`; host publish **11435**). Host pulls write to the host Ollama disk, not `$BROS_DIR/data/ollama`.
+On **Models** (and Chat when both are up), pick **Host** Ollama or the Bros **Sidecar** (Docker DNS `http://ollama:11434`; host publish **11435**). Pull and chat use the host Ollama disk, not `$BROS_DIR/data/ollama`.
 
 On **Models**, pull from the menu or type any valid Ollama name (`name:tag` or community `owner/name:tag`):
 
@@ -64,15 +64,15 @@ pnpm --filter @bros/website preview
 
 | Path | Package | Role |
 |------|---------|------|
-| `src/app/` | `@bros/app` | Bros UI + Nitro API; extends docs layer; **`/` = dashboard** |
+| `src/app/` | `@bros/app` | Bros UI + Nitro API; extends theme + docs; **`/` = dashboard** |
 | `src/layers/docs/` | `@bros/docs` | Docs layer — content from `docs/`, `/docs` routes |
-| `src/layers/theme/` | `@bros/theme` | Nuxt UI + Content + shared nav/theme |
-| `src/website/` | `@bros/website` | Static site (`pnpm docs:generate`) → GitHub Pages `/bros/` |
+| `src/layers/theme/` | `@bros/theme` | Nuxt UI + shared shell/nav chrome |
+| `src/website/` | `@bros/website` | Static site homepage + `extends`; `pnpm docs:generate` → GitHub Pages `/bros/` |
 | `sidecars/` | — | Core sidecar packages |
 
 ```text
-@bros/theme → @bros/docs → @bros/app (dashboard at /)
-                        ↘ @bros/website
+theme + docs  →  @bros/app     (`/` = dashboard)
+              →  @bros/website (`/` = marketing)
 ```
 
 See [SPEC.md](./SPEC.md), [STACK.md](./STACK.md), [PLAN.md](./PLAN.md), [DESIGN.md](./DESIGN.md).

@@ -8,13 +8,15 @@ Chat, Models, Sidecars, Status, Settings, Docs (from `src/layers/docs`). UI on h
 
 ## Chat
 
-`/chat` is a new empty conversation (compact source toggle + model, centered greeting and composer — no left rail, no empty message well). `/chat/:id` opens a saved thread: messages fill the column and the composer docks at the bottom. User turns are visually distinct (right-aligned). The dock label is **New chat**. Previous chats sit under Status as an open, collapsible list. The bottom group is pinned sidecar UIs, then Docs + Settings, then the GitHub footer.
+`/chat` is a new empty conversation (provider dropdown then model dropdown, centered greeting and composer — no left rail, no empty message well). `/chat/:id` opens a saved thread: messages fill the column and the composer docks at the bottom. User turns are visually distinct (right-aligned). The dock label is **New chat**. Previous chats sit under Status as an open, collapsible list. The bottom group is pinned sidecar UIs, then Docs + Settings, then the GitHub footer.
 
-A conversation is created on the first send, not when opening `/chat`. After the first successful assistant reply, the **same** model writes a short title from the first user prompt. Later messages do not retitle. If summarize fails, keep `New chat` or the first line of the prompt. Recents overflow is Rename and Delete only. Each assistant message stores the `modelId` used for that request; the UI shows `ASSISTANT · <modelId>`. Older rows without a stored model omit the extra text. Assistant and user bodies render as markdown. Fenced code snippets include a copy control.
+A conversation is created on the first send, not when opening `/chat`. After the first successful assistant reply, the **same** model writes a short title from the first user prompt. Later messages do not retitle. If summarize fails, keep `New chat` or the first line of the prompt. Recents overflow is Rename and Delete only. Each assistant message stores the `modelId` used for that request; the UI shows `ASSISTANT · <modelId>`. Older rows without a stored model omit the extra text. The assistant meta line keeps duration and token counts on the right when the provider sent them (reload uses the stored row, not the live dropdown). While a reply is in flight, the composer shows **Stop** (aborts the stream) instead of a loading send. Centered **thinking…** stays until the first assistant token or the request ends. Provider then model sit on the left of the tools row; the selected model's context size sits on the right when Ollama reports it. Assistant and user bodies render as markdown. Fenced code snippets include a copy control.
 
 ## Docs
 
-Shared markdown lives in repo `docs/`. Routes `/docs` come from `src/layers/docs`. The Bros app extends that layer and overrides `/` with the dashboard. Static site `src/website` extends the same layer for GitHub Pages (`baseURL` `/bros/`).
+Shared markdown lives in repo `docs/`. Both `@bros/app` and `@bros/website` `extends` the theme and docs layers (`src/layers/theme`, `src/layers/docs`). Routes `/docs` and `/docs/*` are the same docs-layer pages in the app UI and the static site — the app does not override them. Theme and nav chrome are shared; only nav links differ.
+
+Website (`src/website`) owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). The Bros app owns dashboard `/` plus Chat, Models, Sidecars, Status, and Settings.
 
 Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:generate` then `pnpm --filter @bros/website preview`.
 
@@ -48,7 +50,7 @@ There is **no path proxy**. Every `webui` interface must set `publish` in `sidec
 
 `hostMode` (SQLite, default `auto`): `auto` | `sidecar` | `host`. Auto and Sidecar start the Bros stack on its **publish** port. Start fails if that publish port is already taken. Host mode never starts the sidecar. Occupancy of the upstream default (Ollama 11434) does **not** skip the Bros sidecar (publish **11435**).
 
-**Host Ollama** (Chat/Models only) is separate: scan `hostProbe.ports` (default 11434, 11436, 22000) with `GET /api/version`, skip `bros-sc-ollama`, optional SQLite `host_probe_port` override (no silent fallback). Chat/Models persist Host vs Sidecar as provider `config.mode`. Unset or legacy `external` defaults to Host when a scan hit exists, else Sidecar DNS (`http://ollama:11434`). GPU / pull into `$BROS_DIR/data/ollama` is the sidecar; Host mode writes to the host Ollama disk.
+**Host Ollama** (Chat/Models) is a second built-in provider (`ollama-host`), always listed even when the daemon is down. Scan `hostProbe.ports` (default 11434, 11436, 22000) with `GET /api/version`, skip `bros-sc-ollama`, optional SQLite `host_probe_port` override (no silent fallback). Sidecar Ollama stays `ollama` at DNS `http://ollama:11434` (host publish **11435**). Chat picks a provider, then a model. `modelId` is `providerId/model` (`ollama/llama3.2`, `ollama-host/llama3.2`, `my-proxy/qwen2.5`). GPU / pull into `$BROS_DIR/data/ollama` is the sidecar; host pull/chat use the host Ollama disk (no Bros disk-fit check). Custom providers are OpenAI-compatible (base URL + optional key + model names), not a paid catalog.
 
 `./bros start` / `./bros --dev` remove legacy `forgebox-sc-*` containers before up. `./bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack — so sidecars never stay orphaned beside a stopped app.
 
@@ -74,6 +76,8 @@ Shared passcode. Source of truth is plaintext file `{dataDir}/passkey` (in Docke
 
 ## Models catalog
 
+Models lists an **Ollama** section (sidecar, then host) and **Custom providers** below. Sidecar and host always appear. Rows show host:port (`127.0.0.1:11435` for sidecar publish, host probe/override for host, parsed `baseUrl` for custom) — not the provider id — with copy and open-in-new-tab for `http://127.0.0.1:<port>/`. Selecting a different Ollama card expands pull and the installed-model list on that card (the other collapses). The chevron or a second click on the already-open card collapses the panel; the card stays selected. Each provider row has a settings cog that opens a modal — GPU only in the sidecar modal, never on the page or for host/custom. Custom providers are OpenAI-compatible (base URL, optional key, model names); Add custom lives under that heading.
+
 Recommended pulls are official (and verified community) Ollama tags whose on-disk size is **≤ 16 GB**. `qwen3-coder:14b` is not a library tag (official coder is `:30b` / `:480b`); use `freehuntx/qwen3-coder:14b` or `qwen2.5-coder:14b`. 30B tags (~19 GB) stay in the Ollama list, not Recommended.
 
-Any valid Ollama name can be typed and pulled (`name:tag` or community `owner/name:tag`). User-added names persist in the Ollama provider `config.customModels` list (SQLite via `upsertProvider`) and appear under **Yours** in the Models pull menu. Registry errors (including TLS handshake timeout) are shown as returned; one retry on timeout/5xx, never fake success.
+Any valid Ollama name can be typed and pulled (`name:tag` or community `owner/name:tag`). User-added names persist in that Ollama provider's `config.customModels` list (SQLite via `upsertProvider`) and appear under **Yours** in the Models pull menu. Registry errors (including TLS handshake timeout) are shown as returned; one retry on timeout/5xx, never fake success.

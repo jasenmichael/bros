@@ -15,8 +15,8 @@ function betterSqlite3Entry() {
 }
 
 export default defineNuxtConfig({
-  // docs layer extends theme + Nuxt Content; app overrides homepage/nav
-  extends: ['@bros/docs'],
+  // theme + docs layers; this app overrides `/` with the dashboard
+  extends: ['../layers/docs', '../layers/theme'],
   compatibilityDate: '2025-01-01',
   // Vue app package root; Nitro lives in sibling src/server
   srcDir: '.',

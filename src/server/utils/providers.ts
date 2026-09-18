@@ -1,10 +1,21 @@
+import { createError } from 'h3'
 import { eq } from 'drizzle-orm'
 import { decryptSecret, encryptSecret } from './auth'
 import { getDb, providers } from './db'
 import { isValidOllamaPullName } from './ollamaLibrary'
-import { resolveOllamaChat, OLLAMA_SIDECAR_DNS } from './ollamaHost'
+import { findHostOllama, hostOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
 
 export type ProviderKind = 'ollama' | 'openai' | 'anthropic'
+
+export const OLLAMA_SIDECAR_ID = 'ollama'
+export const OLLAMA_HOST_ID = 'ollama-host'
+export const SYSTEM_PROVIDER_IDS = [OLLAMA_SIDECAR_ID, OLLAMA_HOST_ID] as const
+
+export type ProviderStatus = 'running' | 'stopped' | 'error'
+
+export function isSystemProvider(id: string) {
+  return id === OLLAMA_SIDECAR_ID || id === OLLAMA_HOST_ID
+}
 
 export type ProviderRow = {
   id: string
@@ -60,7 +71,7 @@ export function upsertProvider(input: {
   const existingConfig: Record<string, unknown> = existing?.configJson
     ? JSON.parse(existing.configJson) as Record<string, unknown>
     : {}
-  // Partial config patches merge into existing so callers (e.g. mode-only) do not wipe useGpu.
+  // Partial config patches merge into existing so callers do not wipe useGpu / customModels.
   const nextConfig = input.config === undefined
     ? existingConfig
     : { ...existingConfig, ...input.config }
@@ -81,42 +92,70 @@ export function upsertProvider(input: {
 }
 
 export function deleteProvider(id: string) {
+  if (isSystemProvider(id)) {
+    throw createError({ statusCode: 400, statusMessage: `Cannot delete built-in ${id} provider` })
+  }
   getDb().delete(providers).where(eq(providers.id, id)).run()
 }
 
 export function ensureDefaultProviders() {
-  if (getProvider('ollama')) return
-  upsertProvider({
-    id: 'ollama',
-    name: 'Ollama',
-    kind: 'ollama',
-    baseUrl: 'http://ollama:11434',
-    config: {},
-  })
+  const sidecar = getProvider(OLLAMA_SIDECAR_ID)
+  if (!sidecar) {
+    upsertProvider({
+      id: OLLAMA_SIDECAR_ID,
+      name: 'Ollama sidecar',
+      kind: 'ollama',
+      baseUrl: OLLAMA_SIDECAR_DNS,
+      config: {},
+    })
+  }
+  else if (sidecar.name === 'Ollama') {
+    upsertProvider({
+      id: OLLAMA_SIDECAR_ID,
+      name: 'Ollama sidecar',
+      kind: 'ollama',
+      baseUrl: sidecar.baseUrl || OLLAMA_SIDECAR_DNS,
+    })
+  }
+  if (!getProvider(OLLAMA_HOST_ID)) {
+    upsertProvider({
+      id: OLLAMA_HOST_ID,
+      name: 'Ollama host',
+      kind: 'ollama',
+      baseUrl: hostOllamaUrl(11434),
+      config: {},
+    })
+  }
 }
 
-export function listCustomOllamaModels(): string[] {
-  const raw = getProvider('ollama')?.config?.customModels
+export function listCustomOllamaModels(providerId = OLLAMA_SIDECAR_ID): string[] {
+  const raw = getProvider(providerId)?.config?.customModels
   if (!Array.isArray(raw)) return []
   return raw.filter((n): n is string => typeof n === 'string' && isValidOllamaPullName(n))
 }
 
-/** Append a typed/community pull name to ollama provider config.customModels. */
-export function rememberCustomOllamaModel(name: string): string[] {
+/** Append a typed/community pull name to an Ollama provider config.customModels. */
+export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_SIDECAR_ID): string[] {
   ensureDefaultProviders()
   const trimmed = name.trim()
-  const existing = listCustomOllamaModels()
+  const existing = listCustomOllamaModels(providerId)
   if (!isValidOllamaPullName(trimmed) || existing.includes(trimmed)) return existing
   const next = [...existing, trimmed]
-  const p = getProvider('ollama')
+  const p = getProvider(providerId)
   upsertProvider({
-    id: 'ollama',
-    name: p?.name || 'Ollama',
+    id: providerId,
+    name: p?.name || (providerId === OLLAMA_HOST_ID ? 'Ollama host' : 'Ollama sidecar'),
     kind: 'ollama',
     baseUrl: p?.baseUrl,
     config: { customModels: next },
   })
   return next
+}
+
+export function listConfiguredOpenAIModels(providerId: string): string[] {
+  const raw = getProvider(providerId)?.config?.models
+  if (!Array.isArray(raw)) return []
+  return raw.filter((n): n is string => typeof n === 'string' && n.trim().length > 0).map((n) => n.trim())
 }
 
 export function isRetryablePullError(message: string): boolean {
@@ -144,7 +183,7 @@ export function ensureDefaultUseGpu(gpuAvailable: boolean): boolean {
   if (gpuAvailable && (raw === undefined || raw === null)) {
     upsertProvider({
       id: 'ollama',
-      name: existing?.name || 'Ollama',
+      name: existing?.name || 'Ollama sidecar',
       kind: 'ollama',
       baseUrl: existing?.baseUrl,
       config: { useGpu: true },
@@ -154,18 +193,52 @@ export function ensureDefaultUseGpu(gpuAvailable: boolean): boolean {
   return Boolean(raw) && gpuAvailable
 }
 
-export async function listOllamaModels(baseUrl: string) {
+export async function listOllamaModels(baseUrl: string, providerId = OLLAMA_SIDECAR_ID) {
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`)
   if (!res.ok) throw createError({ statusCode: 502, statusMessage: `Ollama error ${res.status}` })
   const data = await res.json() as { models?: Array<{ name: string; size?: number; modified_at?: string; details?: unknown }> }
   return (data.models || []).map((m) => ({
-    id: `ollama/${m.name}`,
+    id: `${providerId}/${m.name}`,
     name: m.name,
-    provider: 'ollama',
+    provider: providerId,
     size: m.size,
     modifiedAt: m.modified_at,
     details: m.details,
   }))
+}
+
+export async function probeOllamaRunning(baseUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/version`, {
+      signal: AbortSignal.timeout(800),
+    })
+    return res.ok
+  }
+  catch {
+    return false
+  }
+}
+
+export async function listOpenAIModelIds(providerId: string): Promise<string[]> {
+  const configured = listConfiguredOpenAIModels(providerId)
+  const secret = getProviderSecret(providerId)
+  const base = secret?.row.baseUrl?.replace(/\/$/, '')
+  if (!base) return configured
+  try {
+    const headers: Record<string, string> = {}
+    if (secret.apiKey) headers.authorization = `Bearer ${secret.apiKey}`
+    const res = await fetch(`${base}/models`, {
+      headers,
+      signal: AbortSignal.timeout(4000),
+    })
+    if (!res.ok) return configured
+    const json = await res.json() as { data?: Array<{ id?: string }> }
+    const remote = (json.data || []).map((m) => m.id).filter((id): id is string => Boolean(id))
+    return [...new Set([...configured, ...remote])]
+  }
+  catch {
+    return configured
+  }
 }
 
 export async function pullOllamaModel(baseUrl: string, name: string) {
@@ -238,11 +311,19 @@ export async function deleteOllamaModel(baseUrl: string, name: string) {
   return { ok: true }
 }
 
+export async function ollamaBaseUrlFor(providerId = OLLAMA_SIDECAR_ID): Promise<string> {
+  if (providerId === OLLAMA_HOST_ID) {
+    const hit = await findHostOllama()
+    if (hit.port != null) return hostOllamaUrl(hit.port)
+    const p = getProvider(OLLAMA_HOST_ID)
+    return p?.baseUrl || hostOllamaUrl(11434)
+  }
+  return OLLAMA_SIDECAR_DNS
+}
+
+/** @deprecated use ollamaBaseUrlFor */
 export async function ollamaBaseUrlFromProvider(): Promise<string> {
-  const p = getProvider('ollama')
-  const mode = p?.config?.mode as string | undefined
-  const resolved = await resolveOllamaChat(mode)
-  return resolved.baseUrl || OLLAMA_SIDECAR_DNS
+  return ollamaBaseUrlFor(OLLAMA_SIDECAR_ID)
 }
 
 function errorMessage(err: unknown): string {

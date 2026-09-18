@@ -57,4 +57,28 @@ describe('conversation modelId', () => {
     addMessage(convo!.id, 'assistant', 'old reply')
     expect(getConversation(convo!.id)?.messages[0]?.modelId).toBeNull()
   })
+
+  it('stores duration and token counts on the assistant message', async () => {
+    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat')
+    const convo = createConversation('ollama/llama3.2')
+    addMessage(convo!.id, 'assistant', 'ok', 'ollama/llama3.2', {
+      durationMs: 1400,
+      promptTokens: 100,
+      completionTokens: 28,
+    })
+    const row = getConversation(convo!.id)?.messages[0]
+    expect(row?.durationMs).toBe(1400)
+    expect(row?.promptTokens).toBe(100)
+    expect(row?.completionTokens).toBe(28)
+  })
+
+  it('leaves historical assistant rows without stats as null', async () => {
+    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat')
+    const convo = createConversation('ollama/llama3.2')
+    addMessage(convo!.id, 'assistant', 'old reply')
+    const row = getConversation(convo!.id)?.messages[0]
+    expect(row?.durationMs).toBeNull()
+    expect(row?.promptTokens).toBeNull()
+    expect(row?.completionTokens).toBeNull()
+  })
 })

@@ -48,6 +48,9 @@ export const messages = sqliteTable('messages', {
   role: text('role').notNull(),
   content: text('content').notNull(),
   modelId: text('model_id'),
+  durationMs: integer('duration_ms', { mode: 'number' }),
+  promptTokens: integer('prompt_tokens', { mode: 'number' }),
+  completionTokens: integer('completion_tokens', { mode: 'number' }),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
 })
 
@@ -131,5 +134,14 @@ function migrate(sqlite: Database.Database) {
   const msgCols = sqlite.prepare('PRAGMA table_info(messages)').all() as Array<{ name: string }>
   if (!msgCols.some((c) => c.name === 'model_id')) {
     sqlite.exec(`ALTER TABLE messages ADD COLUMN model_id TEXT`)
+  }
+  if (!msgCols.some((c) => c.name === 'duration_ms')) {
+    sqlite.exec(`ALTER TABLE messages ADD COLUMN duration_ms INTEGER`)
+  }
+  if (!msgCols.some((c) => c.name === 'prompt_tokens')) {
+    sqlite.exec(`ALTER TABLE messages ADD COLUMN prompt_tokens INTEGER`)
+  }
+  if (!msgCols.some((c) => c.name === 'completion_tokens')) {
+    sqlite.exec(`ALTER TABLE messages ADD COLUMN completion_tokens INTEGER`)
   }
 }

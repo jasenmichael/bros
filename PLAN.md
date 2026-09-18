@@ -16,7 +16,7 @@ Implementation through M6 complete. Host tunnel, passkey session auth, and no-pa
 
 ## Layer chain
 
-`theme` → `docs` → `app` (dashboard overrides `/`); `website` for Pages.
+`theme` + `docs` extended by `app` (`/` = dashboard) and `website` (`/` = marketing). `/docs` is the same layer in both.
 
 ## Follow-ups (unplanned)
 
@@ -24,7 +24,6 @@ Not a milestone. Pick when needed:
 
 - CI: add test + typecheck jobs (Pages workflow only today)
 - Tests: chat stream coverage; e2e beyond `/api/health`
-- Chat: stop hardcoding cloud model ids (`gpt-4o`, `claude-3-5-sonnet-latest`); pick from provider config
 - Custom sidecars: drop-in `$dataDir/sidecars` works; no add/upload UI
 - Settings: paths + passkey only
 - No auto-migrate of pre-rename Docker volumes
@@ -42,13 +41,13 @@ Persistent sidecar + app state is `$BROS_DIR/data` on the host (`./data` in a ch
 ## Recent (two Ollamas)
 
 - Sidecar YAML: `containerPort` + `publish` (Ollama host **11435**, OpenCode **4097**, Open WebUI **3080**)
-- Host Ollama is a Chat source (scan 11434/11436/22000 + `GET /api/version`, skip `bros-sc-ollama`)
+- Host Ollama is its own Chat/Models provider (`ollama-host`; scan 11434/11436/22000 + `GET /api/version`, skip `bros-sc-ollama`)
 - Start fails only if the Bros **publish** port is taken; host :11434 does not skip `bros-sc-ollama`
 
 ## Recent (Models)
 
 - Pull streams NDJSON progress into Models UI (`UProgress`)
-- Provider `upsertProvider` merges partial `config` (keeps `useGpu` when mode-only POSTs)
+- Provider `upsertProvider` merges partial `config` (keeps `useGpu` when later POSTs patch other keys)
 - Ollama start with `useGpu` force-recreates via `docker-compose.gpu.yml`
 
 ## Lifecycle (`./bros`)

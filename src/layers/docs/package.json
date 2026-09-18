@@ -4,7 +4,7 @@
   "type": "module",
   "main": "./nuxt.config.ts",
   "dependencies": {
-    "@bros/theme": "workspace:*",
+    "@nuxt/content": "^3.5.1",
     "nuxt": "^4.5.0",
     "pathe": "^2.0.3"
   }

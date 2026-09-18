@@ -77,7 +77,8 @@ cd ~/.bros
           <strong class="text-white">≤ 16 GB</strong>.
           <code class="text-[var(--bros-text)]">qwen3-coder:14b</code> is not a library tag — use
           <code class="text-[var(--bros-text)]">freehuntx/qwen3-coder:14b</code>
-          or <code class="text-[var(--bros-text)]">qwen2.5-coder:14b</code>.
+          or
+          <code class="text-[var(--bros-text)]">qwen2.5-coder:14b</code>.
           Type any <code class="text-[var(--bros-text)]">name:tag</code> or
           <code class="text-[var(--bros-text)]">owner/name:tag</code>; saved names stay under <strong class="text-white">Yours</strong>.
         </p>

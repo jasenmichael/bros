@@ -1,4 +1,5 @@
 import { addMessage, getConversation, maybeAutoTitle, resolveConversationModel, streamChat } from '../../../utils/chat'
+import { STREAM_STATS_MARK } from '../../../utils/chatStats'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -21,8 +22,9 @@ export default defineEventHandler(async (event) => {
     async start(controller) {
       const encoder = new TextEncoder()
       let full = ''
+      const started = Date.now()
       try {
-        await streamChat({
+        const usage = await streamChat({
           modelId,
           history,
           onToken: (t) => {
@@ -30,7 +32,13 @@ export default defineEventHandler(async (event) => {
             controller.enqueue(encoder.encode(t))
           },
         })
-        addMessage(id, 'assistant', full, modelId)
+        const durationMs = Date.now() - started
+        const stats = {
+          durationMs,
+          promptTokens: usage.promptTokens ?? null,
+          completionTokens: usage.completionTokens ?? null,
+        }
+        addMessage(id, 'assistant', full, modelId, stats)
         if (full.trim()) {
           try {
             await maybeAutoTitle(id)
@@ -38,6 +46,7 @@ export default defineEventHandler(async (event) => {
             // Title failure must not break the chat.
           }
         }
+        controller.enqueue(encoder.encode(`${STREAM_STATS_MARK}${JSON.stringify(stats)}`))
         controller.close()
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

@@ -109,4 +109,31 @@ describe('upsertProvider config merge', () => {
     })
   })
 
+  it('seeds sidecar and host system providers and refuses to delete them', async () => {
+    const {
+      ensureDefaultProviders,
+      getProvider,
+      deleteProvider,
+      isSystemProvider,
+    } = await import('../../src/server/utils/providers')
+
+    ensureDefaultProviders()
+    expect(getProvider('ollama')?.name).toBe('Ollama sidecar')
+    expect(getProvider('ollama-host')?.name).toBe('Ollama host')
+    expect(isSystemProvider('ollama')).toBe(true)
+    expect(isSystemProvider('ollama-host')).toBe(true)
+    expect(isSystemProvider('my-proxy')).toBe(false)
+    expect(() => deleteProvider('ollama')).toThrow(/Cannot delete built-in ollama/)
+    expect(() => deleteProvider('ollama-host')).toThrow(/Cannot delete built-in ollama-host/)
+  })
+
+  it('stores custom pull names on the host provider when providerId is ollama-host', async () => {
+    const { ensureDefaultProviders, rememberCustomOllamaModel, listCustomOllamaModels, getProvider } = await import('../../src/server/utils/providers')
+    ensureDefaultProviders()
+    expect(rememberCustomOllamaModel('llama3.2', 'ollama-host')).toEqual(['llama3.2'])
+    expect(listCustomOllamaModels('ollama-host')).toEqual(['llama3.2'])
+    expect(listCustomOllamaModels('ollama')).toEqual([])
+    expect(getProvider('ollama-host')?.config).toMatchObject({ customModels: ['llama3.2'] })
+  })
+
 })
