@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: Bootstrap YAML, BROS_DIR, and host data binds.
+description: Bootstrap YAML, BROS_HOME, and host data binds.
 ---
 
 # Configuration
@@ -9,8 +9,8 @@ description: Bootstrap YAML, BROS_DIR, and host data binds.
 
 `working_dir`, `data_dir`, and optional `public_url` belong in YAML. Load order:
 
-1. `BROS_CONFIG` exclusive file, or
-2. `.config/bros.yml` then `./bros.yml`
+1. `BROS_CONFIG` exclusive file (install default `~/.config/bros.yml`), or
+2. `~/.config/bros.yml` (install default), else checkout `.config/bros.yml` then `./bros.yml`
 3. Env: `BROS_WORKING_DIR`, `BROS_DATA_DIR`, `BROS_PUBLIC_URL`
 
 ```yaml
@@ -21,18 +21,18 @@ public_url: https://bros.example.com
 
 `public_url` enables the host Cloudflare tunnel and is the advertised hostname. All other settings live in SQLite (`bros.sqlite`) and the UI.
 
-## `BROS_DIR` and host binds
+## `BROS_HOME` and host binds
 
-`BROS_DIR` is the repo checkout when `./bros` sits next to `docker-compose.yml` + `sidecars/`. An installed binary uses `~/.bros`. Override with `BROS_DIR`.
+`BROS_HOME` is the repo checkout when the CLI sits next to `docker-compose.yml` + `sidecars/`. An installed clone is `~/.bros`. `BROS_DIR` is an alias. Override with `BROS_HOME` or `BROS_DIR`. Host bootstrap YAML defaults to `~/.config/bros.yml` (`BROS_CONFIG`). The user-facing command is `~/.local/bin/bros` (`BROS_BIN`).
 
-Persistent binds live under `$BROS_DIR/data` (`BROS_HOST_DATA_DIR`):
+Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
 - `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, custom sidecars, logs)
 - `$BROS_HOST_DATA_DIR/ollama` → Ollama `/root/.ollama`
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
 
-In-container `BROS_DATA_DIR` stays `/data`. `./bros` copies leftover named volumes into empty dest dirs once (does not delete the volumes).
+In-container `BROS_DATA_DIR` stays `/data`. `bros` copies leftover named volumes into empty dest dirs once (does not delete the volumes).
 
 ## Data directory layout
 
@@ -44,6 +44,7 @@ $BROS_HOST_DATA_DIR/
   logs/
   tunnel/
   ollama/
+  bros-model/
   openwebui/
   opencode/
 ```
@@ -56,7 +57,7 @@ Do not commit `data/`, `.env`, `.nuxt`, or `node_modules`.
 
 ## Tunnel (host cloudflared)
 
-The Dashboard Tunnel card controls a **host** `cloudflared` process. Bros inside Docker cannot spawn it. `./bros` / `./bros --dev` start a small helper that writes:
+The Dashboard Tunnel card controls a **host** `cloudflared` process. Bros inside Docker cannot spawn it. `bros` (and `pnpm dev`) start a small helper that writes:
 
 ```text
 $BROS_HOST_DATA_DIR/tunnel/
@@ -74,7 +75,7 @@ When `public_url` is set (or the Dashboard card is on), startup checks:
 
 Missing binary: the wizard offers a **user-local** install to `~/.local/bin` (no sudo). A system package/binary install (`dpkg` / `rpm` / `/usr/local/bin`) is optional and asks you to approve sudo. Native Windows uses the elevated PowerShell snippet in this section, or WSL.
 
-Then run `cloudflared login` in the browser. With `public_url` set, the helper creates/runs a **named** tunnel (`bros`) with `cloudflared tunnel route dns <id> <hostname>` (CNAME to `<id>.cfargotunnel.com`) and `cloudflared tunnel --config $BROS_DIR/data/tunnel/config.yml run bros` (`protocol: http2` and `edge-ip-version: 4` in that YAML; override `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`). Already-exists is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Dashboard shows the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json` (Dashboard + Status). When `public_url` is unset, the card starts a quick tunnel to `http://127.0.0.1:<BROS_PORT>` (default **3055**).
+Then run `cloudflared login` in the browser. With `public_url` set, the helper creates/runs a **named** tunnel (`bros`) with `cloudflared tunnel route dns <id> <hostname>` (CNAME to `<id>.cfargotunnel.com`) and `cloudflared tunnel --config $BROS_HOME/data/tunnel/config.yml run bros` (`protocol: http2` and `edge-ip-version: 4` in that YAML; override `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`). Already-exists is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Dashboard shows the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json` (Dashboard + Status). When `public_url` is unset, the card starts a quick tunnel to `http://127.0.0.1:<BROS_PORT>` (default **3055**).
 
 Windows (elevated PowerShell):
 
@@ -87,4 +88,4 @@ Invoke-WebRequest -Uri $url -OutFile "$installDir\cloudflared.exe"
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";$installDir", "Machine")
 ```
 
-macOS / Linux user-local (preferred, no sudo): `./bros` downloads the official GitHub release into `~/.local/bin`. System install uses the official `.deb` / `.rpm` / `/usr/local/bin` binaries and requires sudo.
+macOS / Linux user-local (preferred, no sudo): `bros` downloads the official GitHub release into `~/.local/bin`. System install uses the official `.deb` / `.rpm` / `/usr/local/bin` binaries and requires sudo.

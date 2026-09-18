@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, symlinkSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -40,11 +41,134 @@ describe('bros CLI start build policy', () => {
     const start = extractFn(readFileSync(BROS, 'utf8'), 'cmd_start')
     expect(start).toMatch(/compose_up /)
     expect(start).not.toMatch(/compose up --build/)
+    expect(start).toMatch(/ensure_ollama_and_model/)
   })
 
-  it('update still pulls and rebuilds', () => {
+  it('update pulls, rebuilds, and git-pulls', () => {
     const update = extractFn(readFileSync(BROS, 'utf8'), 'cmd_update')
     expect(update).toContain('compose pull')
     expect(update).toContain('compose build --pull')
+    expect(update).toContain('pull --ff-only')
+    expect(update).toContain('submodule update --init')
+  })
+})
+
+describe('bros CLI flags and help', () => {
+  it('rejects --dev', () => {
+    let err = ''
+    try {
+      execFileSync(BROS, ['--dev'], { encoding: 'utf8' })
+    }
+    catch (e) {
+      const ex = e as { stderr?: string, stdout?: string }
+      err = `${ex.stderr || ''}${ex.stdout || ''}`
+    }
+    expect(err).toContain('--dev removed. Use: pnpm dev')
+  })
+
+  it('help has no --dev flag and mentions pnpm dev', () => {
+    const out = execFileSync(BROS, ['--help'], { encoding: 'utf8' })
+    expect(out).not.toMatch(/^\s+--dev\b/m)
+    expect(out).toContain('pnpm dev')
+    expect(out).toContain('service install')
+    expect(out).toContain('BROS_HOME')
+  })
+})
+
+describe('bros path helpers', () => {
+  const src = readFileSync(BROS, 'utf8')
+
+  it('resolve_script_dir follows a symlink to the checkout', () => {
+    const fn = extractFn(src, 'resolve_script_dir')
+    const dir = mkdtempSync(join(tmpdir(), 'bros-link-'))
+    const target = join(dir, 'real', 'bros')
+    const link = join(dir, 'bin', 'bros')
+    mkdirSync(join(dir, 'real'), { recursive: true })
+    mkdirSync(join(dir, 'bin'), { recursive: true })
+    writeFileSync(target, '#!/bin/sh\n')
+    symlinkSync(target, link)
+    const out = bash(
+      `set -euo pipefail
+       ${fn}
+       resolve_script_dir '${link}'`,
+    ).trim()
+    rmSync(dir, { recursive: true, force: true })
+    expect(out).toBe(join(dir, 'real'))
+  })
+
+  it('resolve_default_config prefers ~/.config/bros.yml', () => {
+    const xdg = extractFn(src, 'xdg_config_path')
+    const fn = extractFn(src, 'resolve_default_config')
+    const dir = mkdtempSync(join(tmpdir(), 'bros-cfg-'))
+    const home = join(dir, 'home')
+    mkdirSync(join(home, '.config'), { recursive: true })
+    writeFileSync(join(home, '.config', 'bros.yml'), 'public_url: ""\n')
+    writeFileSync(join(dir, 'bros.yml'), 'public_url: "https://ignored.example"\n')
+    const out = bash(
+      `set -euo pipefail
+       HOME='${home}'
+       unset BROS_CONFIG XDG_CONFIG_HOME
+       BROS_HOME='${dir}'
+       ${xdg}
+       ${fn}
+       resolve_default_config`,
+    ).trim()
+    rmSync(dir, { recursive: true, force: true })
+    expect(out).toBe(join(home, '.config', 'bros.yml'))
+  })
+})
+
+describe('internal model stamp skip', () => {
+  it('stamp_is_current is true when dest stamp matches vendor GGUF', () => {
+    const src = readFileSync(BROS, 'utf8')
+    const vendorStamp = extractFn(src, 'vendor_stamp_json')
+    const stampIsCurrent = extractFn(src, 'stamp_is_current')
+    const dir = mkdtempSync(join(tmpdir(), 'bros-stamp-'))
+    const vendor = join(dir, 'vendor', 'bros-model', 'models')
+    mkdirSync(vendor, { recursive: true })
+    mkdirSync(join(dir, 'data', 'bros-model'), { recursive: true })
+    const gguf = join(vendor, 'bros-q4_k_m.gguf')
+    writeFileSync(gguf, 'gguf-bytes')
+    const identity = bash(
+      `set -euo pipefail
+       ${vendorStamp}
+       vendor_stamp_json '${gguf}'`,
+    ).trim()
+    writeFileSync(join(dir, 'data', 'bros-model', '.bros-gguf-stamp.json'), `${identity}\n`)
+    const out = bash(
+      `set -euo pipefail
+       VENDOR_MODEL_DIR='${join(dir, 'vendor', 'bros-model')}'
+       GGUF_REL='models/bros-q4_k_m.gguf'
+       STAMP_NAME='.bros-gguf-stamp.json'
+       BROS_HOST_DATA_DIR='${join(dir, 'data')}'
+       ${extractFn(src, 'gguf_path')}
+       ${extractFn(src, 'stamp_path')}
+       ${vendorStamp}
+       ${stampIsCurrent}
+       if stamp_is_current; then echo current; else echo stale; fi`,
+    ).trim()
+    rmSync(dir, { recursive: true, force: true })
+    expect(out).toBe('current')
+  })
+})
+
+describe('root package scripts', () => {
+  it('pnpm dev is BROS_DEV=1 ./bros', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>
+    }
+    expect(pkg.scripts.dev).toBe('BROS_DEV=1 ./bros')
+    expect(pkg.scripts['dev:update']).toBe('BROS_DEV=1 ./bros update')
+    expect(pkg.scripts['app:dev']).toBe('pnpm --filter @bros/app dev')
+  })
+})
+
+describe('install.sh next steps', () => {
+  it('does not mention --dev', () => {
+    const sh = readFileSync(join(REPO, 'src/website/public/install.sh'), 'utf8')
+    expect(sh).not.toContain('--dev')
+    expect(sh).toContain('BROS_HOME')
+    expect(sh).toContain('BROS_BIN')
+    expect(sh).toContain('--service')
   })
 })

@@ -2,6 +2,7 @@ import { createError } from 'h3'
 import { eq } from 'drizzle-orm'
 import { decryptSecret, encryptSecret } from './auth'
 import { getDb, providers } from './db'
+import { isInternalBrosModel } from './internalBrosModel'
 import { isValidOllamaPullName } from './ollamaLibrary'
 import { findHostOllama, hostOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
 
@@ -131,7 +132,9 @@ export function ensureDefaultProviders() {
 export function listCustomOllamaModels(providerId = OLLAMA_SIDECAR_ID): string[] {
   const raw = getProvider(providerId)?.config?.customModels
   if (!Array.isArray(raw)) return []
-  return raw.filter((n): n is string => typeof n === 'string' && isValidOllamaPullName(n))
+  return raw.filter((n): n is string => (
+    typeof n === 'string' && isValidOllamaPullName(n) && !isInternalBrosModel(n)
+  ))
 }
 
 /** Append a typed/community pull name to an Ollama provider config.customModels. */
@@ -139,7 +142,7 @@ export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_SIDE
   ensureDefaultProviders()
   const trimmed = name.trim()
   const existing = listCustomOllamaModels(providerId)
-  if (!isValidOllamaPullName(trimmed) || existing.includes(trimmed)) return existing
+  if (!isValidOllamaPullName(trimmed) || isInternalBrosModel(trimmed) || existing.includes(trimmed)) return existing
   const next = [...existing, trimmed]
   const p = getProvider(providerId)
   upsertProvider({
@@ -197,14 +200,16 @@ export async function listOllamaModels(baseUrl: string, providerId = OLLAMA_SIDE
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`)
   if (!res.ok) throw createError({ statusCode: 502, statusMessage: `Ollama error ${res.status}` })
   const data = await res.json() as { models?: Array<{ name: string; size?: number; modified_at?: string; details?: unknown }> }
-  return (data.models || []).map((m) => ({
-    id: `${providerId}/${m.name}`,
-    name: m.name,
-    provider: providerId,
-    size: m.size,
-    modifiedAt: m.modified_at,
-    details: m.details,
-  }))
+  return (data.models || [])
+    .filter((m) => !isInternalBrosModel(m.name))
+    .map((m) => ({
+      id: `${providerId}/${m.name}`,
+      name: m.name,
+      provider: providerId,
+      size: m.size,
+      modifiedAt: m.modified_at,
+      details: m.details,
+    }))
 }
 
 export async function probeOllamaRunning(baseUrl: string): Promise<boolean> {

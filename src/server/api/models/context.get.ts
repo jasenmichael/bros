@@ -1,10 +1,11 @@
+import { isInternalBrosModel } from '../../utils/internalBrosModel'
 import { ollamaBaseUrlFor, OLLAMA_HOST_ID } from '../../utils/providers'
 import { ollamaNameFromModelId, parseOllamaContextLength } from '../../utils/chatStats'
 
 export default defineEventHandler(async (event) => {
   const modelId = String(getQuery(event).modelId || '').trim()
   const name = ollamaNameFromModelId(modelId)
-  if (!name) return { modelId, contextLength: null }
+  if (!name || isInternalBrosModel(name)) return { modelId, contextLength: null }
 
   const slash = modelId.indexOf('/')
   const providerId = slash === -1 ? 'ollama' : modelId.slice(0, slash)

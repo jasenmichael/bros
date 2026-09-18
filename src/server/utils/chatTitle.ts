@@ -11,6 +11,9 @@ export function sanitizeGeneratedTitle(raw: string, fallback: string): string {
   t = t.replace(/^["'`«»“”‘’]+|["'`«»“”‘’]+$/g, '').trim()
   t = t.replace(/\s+/g, ' ')
   if (!t || t.length > 80) return fallback
+  const words = t.split(' ').filter(Boolean)
+  if (words.length < 2 || words.length > 5) return fallback
+  if (/[^\p{L}\p{N}\s]/u.test(t)) return fallback
   return t
 }
 

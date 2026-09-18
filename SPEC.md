@@ -10,11 +10,11 @@ Chat, Models, Sidecars, Status, Settings, Docs (from `src/layers/docs`). UI on h
 
 `/chat` is a new empty conversation (provider dropdown then model dropdown, centered greeting and composer — no left rail, no empty message well). `/chat/:id` opens a saved thread: messages fill the column and the composer docks at the bottom. User turns are visually distinct (right-aligned). The dock label is **New chat**. Previous chats sit under Status as an open, collapsible list. The bottom group is pinned sidecar UIs, then Docs + Settings, then the GitHub footer.
 
-A conversation is created on the first send, not when opening `/chat`. After the first successful assistant reply, the **same** model writes a short title from the first user prompt. Later messages do not retitle. If summarize fails, keep `New chat` or the first line of the prompt. Recents overflow is Rename and Delete only. Each assistant message stores the `modelId` used for that request; the UI shows `ASSISTANT · <modelId>`. Older rows without a stored model omit the extra text. The assistant meta line keeps duration and token counts on the right when the provider sent them (reload uses the stored row, not the live dropdown). While a reply is in flight, the composer shows **Stop** (aborts the stream) instead of a loading send. Centered **thinking…** stays until the first assistant token or the request ends. Provider then model sit on the left of the tools row; the selected model's context size sits on the right when Ollama reports it. Assistant and user bodies render as markdown. Fenced code snippets include a copy control.
+A conversation is created on the first send, not when opening `/chat`. After the first successful assistant reply, sidecar model **bros** writes a short title from the first user prompt (`Label:`). Later messages do not retitle. If generate fails, keep `New chat` or the first line of the prompt. The model is internal (not listed in Chat or Models). Recents overflow is Rename and Delete only. Each assistant message stores the `modelId` used for that request; the UI shows `ASSISTANT · <modelId>`. Older rows without a stored model omit the extra text. The assistant meta line keeps duration and token counts on the right when the provider sent them (reload uses the stored row, not the live dropdown). While a reply is in flight, the composer shows **Stop** (aborts the stream) instead of a loading send. Centered **thinking…** stays until the first assistant token or the request ends. Provider then model sit on the left of the tools row; the selected model's context size sits on the right when Ollama reports it. Assistant and user bodies render as markdown. Fenced code snippets include a copy control.
 
 ## Docs
 
-Shared markdown lives in repo `docs/`. Both `@bros/app` and `@bros/website` `extends` the theme and docs layers (`src/layers/theme`, `src/layers/docs`). Routes `/docs` and `/docs/*` are the same docs-layer pages in the app UI and the static site — the app does not override them. Theme and nav chrome are shared; only nav links differ.
+Shared markdown lives in repo `docs/`. The docs layer (`src/layers/docs`) extends theme (`src/layers/theme`) and owns `/docs` routes. Both `@bros/app` and `@bros/website` `extends` theme and docs. Routes `/docs` and `/docs/*` are the same docs-layer pages in the app UI and the static site — the app does not override them. Theme owns layouts, CSS, and markdown visualization (nav chrome + prose); only nav links differ.
 
 Website (`src/website`) owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). The Bros app owns dashboard `/` plus Chat, Models, Sidecars, Status, and Settings.
 
@@ -24,11 +24,11 @@ Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:ge
 
 `working_dir`, `data_dir`, and optional `public_url` in YAML:
 
-1. `BROS_CONFIG` exclusive file, or
-2. `.config/bros.yml` then `./bros.yml`
+1. `BROS_CONFIG` exclusive file (install default `~/.config/bros.yml`), or
+2. checkout `.config/bros.yml` then `./bros.yml`
 3. Env: `BROS_WORKING_DIR`, `BROS_DATA_DIR`, `BROS_PUBLIC_URL`
 
-**`bros-dir` (host):** `BROS_DIR`. Repo checkout (CLI next to `docker-compose.yml` + `sidecars/`) uses that directory. Installed binary uses `~/.bros`. Override with `BROS_DIR`. Persistent binds live under `$BROS_DIR/data` (`BROS_HOST_DATA_DIR`):
+**`BROS_HOME` (host):** repo checkout when the CLI sits next to `docker-compose.yml` + `sidecars/`. Installed clone is `~/.bros`. `BROS_DIR` is an alias. Override with `BROS_HOME` or `BROS_DIR`. Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
 - `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, custom sidecars, logs)
 - `$BROS_HOST_DATA_DIR/ollama` → Ollama `/root/.ollama` (models)
@@ -38,7 +38,7 @@ Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:ge
 - `$BROS_HOST_DATA_DIR/opencode-config` → OpenCode `/root/.config/opencode`
 - `$BROS_HOST_DATA_DIR/opencode-share` → OpenCode `/root/.local/share/opencode`
 
-In-container `BROS_DATA_DIR` stays `/data`. `./bros` copies leftover named volumes into empty dest dirs once (does not delete the volumes).
+In-container `BROS_DATA_DIR` stays `/data`. `bros` copies leftover named volumes into empty dest dirs once (does not delete the volumes).
 
 All other settings live in SQLite (`bros.sqlite`) and the UI.
 
@@ -50,9 +50,9 @@ There is **no path proxy**. Every `webui` interface must set `publish` in `sidec
 
 `hostMode` (SQLite, default `auto`): `auto` | `sidecar` | `host`. Auto and Sidecar start the Bros stack on its **publish** port. Start fails if that publish port is already taken. Host mode never starts the sidecar. Occupancy of the upstream default (Ollama 11434) does **not** skip the Bros sidecar (publish **11435**).
 
-**Host Ollama** (Chat/Models) is a second built-in provider (`ollama-host`), always listed even when the daemon is down. Scan `hostProbe.ports` (default 11434, 11436, 22000) with `GET /api/version`, skip `bros-sc-ollama`, optional SQLite `host_probe_port` override (no silent fallback). Sidecar Ollama stays `ollama` at DNS `http://ollama:11434` (host publish **11435**). Chat picks a provider, then a model. `modelId` is `providerId/model` (`ollama/llama3.2`, `ollama-host/llama3.2`, `my-proxy/qwen2.5`). GPU / pull into `$BROS_DIR/data/ollama` is the sidecar; host pull/chat use the host Ollama disk (no Bros disk-fit check). Custom providers are OpenAI-compatible (base URL + optional key + model names), not a paid catalog.
+**Host Ollama** (Chat/Models) is a second built-in provider (`ollama-host`), always listed even when the daemon is down. Scan `hostProbe.ports` (default 11434, 11436, 22000) with `GET /api/version`, skip `bros-sc-ollama`, optional SQLite `host_probe_port` override (no silent fallback). Sidecar Ollama stays `ollama` at DNS `http://ollama:11434` (host publish **11435**). Chat picks a provider, then a model. `modelId` is `providerId/model` (`ollama/llama3.2`, `ollama-host/llama3.2`, `my-proxy/qwen2.5`). GPU / pull into `$BROS_HOME/data/ollama` is the sidecar; host pull/chat use the host Ollama disk (no Bros disk-fit check). Custom providers are OpenAI-compatible (base URL + optional key + model names), not a paid catalog.
 
-`./bros start` / `./bros --dev` remove legacy `forgebox-sc-*` containers before up. `./bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack — so sidecars never stay orphaned beside a stopped app.
+`bros start` (and `pnpm dev`) remove legacy `forgebox-sc-*` containers before up. `bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack — so sidecars never stay orphaned beside a stopped app. First start also brings up sidecar Ollama and installs the internal `bros` model when the packaged GGUF is present.
 
 Keep product language **sidecar** / **Sidecars** (routes `/sidecars`, APIs `/api/sidecars`, file `sidecar.yml`).
 
@@ -60,11 +60,11 @@ Keep product language **sidecar** / **Sidecars** (routes `/sidecars`, APIs `/api
 
 `/status` reports Bros app, Docker, disk, GPU, host Tunnel, and each sidecar’s mode/port/state/error plus autostart/pin. Dashboard widgets show live snippets and link to Status (and Logs when a container exists). Home does not render the full Status table.
 
-Dashboard also has a **Tunnel** card for a **host** `cloudflared` process. It is not a sidecar. A non-empty `public_url` in bootstrap YAML is the enable + hostname signal: `./bros` / helper startup starts a **named** tunnel (`cloudflared tunnel create`, `cloudflared tunnel route dns <id> <hostname>` which creates a CNAME to `<id>.cfargotunnel.com`, then `cloudflared tunnel --config $BROS_DIR/data/tunnel/config.yml run bros`). `config.yml` has hostname ingress, catch-all `http_status:404`, `protocol: http2`, and `edge-ip-version: 4`. Override with `BROS_TUNNEL_PROTOCOL` (`http2` / `quic` / `auto`) and `BROS_TUNNEL_EDGE_IP_VERSION` (`4` / `6` / `auto`). Quick `*.trycloudflare.com` is only used when `public_url` is unset and the card is turned on. If start fails, `status.json` `error` is shown on the Dashboard card and Status. `route dns` “already exists” is success. If `route dns` times out on Cloudflare’s API, the named tunnel still starts and Dashboard shows the CLI warning plus the expected CNAME (not a leftover REST `PUT /zones/.../tunnels/.../routes` as the only message). If the logged-in Cloudflare account does not own the hostname’s DNS zone (`tunnel route dns` CNAME mismatch or zone error), the tunnel does not start and that reason is shown. Runtime connection errors after the last successful register (for example QUIC idle timeout) are shown even while the process is up. Turning the card off stops the process until the next `./bros` / helper start.
+Dashboard also has a **Tunnel** card for a **host** `cloudflared` process. It is not a sidecar. A non-empty `public_url` in bootstrap YAML is the enable + hostname signal: `bros` / helper startup starts a **named** tunnel (`cloudflared tunnel create`, `cloudflared tunnel route dns <id> <hostname>` which creates a CNAME to `<id>.cfargotunnel.com`, then `cloudflared tunnel --config $BROS_HOME/data/tunnel/config.yml run bros`). `config.yml` has hostname ingress, catch-all `http_status:404`, `protocol: http2`, and `edge-ip-version: 4`. Override with `BROS_TUNNEL_PROTOCOL` (`http2` / `quic` / `auto`) and `BROS_TUNNEL_EDGE_IP_VERSION` (`4` / `6` / `auto`). Quick `*.trycloudflare.com` is only used when `public_url` is unset and the card is turned on. If start fails, `status.json` `error` is shown on the Dashboard card and Status. `route dns` “already exists” is success. If `route dns` times out on Cloudflare’s API, the named tunnel still starts and Dashboard shows the CLI warning plus the expected CNAME (not a leftover REST `PUT /zones/.../tunnels/.../routes` as the only message). If the logged-in Cloudflare account does not own the hostname’s DNS zone (`tunnel route dns` CNAME mismatch or zone error), the tunnel does not start and that reason is shown. Runtime connection errors after the last successful register (for example QUIC idle timeout) are shown even while the process is up. Turning the card off stops the process until the next `./bros` / helper start.
 
 A request is **via-tunnel** when any of `cf-ray`, `cf-connecting-ip`, or `cf-visitor` is present, `cdn-loop` contains `cloudflare`, or the request Host matches `public_url`, optional `BROS_TUNNEL_HOST`, or the last advertised hostname. `/api/status` includes `viaTunnel`, `tunnelHost`, and `tunnel`. While via-tunnel, stop is refused (API 403) and the Dashboard toggle is disabled so the session cannot lock itself out. Start remains allowed.
 
-`./bros --dev` behind the tunnel must keep Vite client modules bootable. Vite serves one `.css` path as `text/css` (`<link>`) or `text/javascript` (JS import). Cloudflare caches that path (query string ignored), so a stylesheet body is reused for the module import and Nuxt never hydrates (Unlock does nothing). Dev rewrites CSS module imports to `/_nuxt/bros-mod/…*.js` and sends `CDN-Cache-Control: no-store` on Vite `/_nuxt` assets. Production hashed CSS is not affected.
+`pnpm dev` behind the tunnel must keep Vite client modules bootable. Vite serves one `.css` path as `text/css` (`<link>`) or `text/javascript` (JS import). Cloudflare caches that path (query string ignored), so a stylesheet body is reused for the module import and Nuxt never hydrates (Unlock does nothing). Dev rewrites CSS module imports to `/_nuxt/bros-mod/…*.js` and sends `CDN-Cache-Control: no-store` on Vite `/_nuxt` assets. Production hashed CSS is not affected.
 
 ## Auth
 

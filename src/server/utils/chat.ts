@@ -1,7 +1,8 @@
 import { desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getDb, conversations, messages } from './db'
-import { getProvider, getProviderSecret, ollamaBaseUrlFor } from './providers'
+import { INTERNAL_BROS_MODEL } from './internalBrosModel'
+import { getProvider, getProviderSecret, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
@@ -86,93 +87,25 @@ export function updateConversationTitle(id: string, title: string) {
 
 const TITLE_GENERATE_MS = 8000
 
-async function completeOnce(opts: {
-  modelId: string
-  messages: Array<{ role: string; content: string }>
-}): Promise<string> {
-  const { provider, model } = parseModelId(opts.modelId)
-  const signal = AbortSignal.timeout(TITLE_GENERATE_MS)
-  const row = getProvider(provider)
-
-  if (row?.kind === 'ollama') {
-    const base = await ollamaBaseUrlFor(provider)
-    const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        messages: opts.messages,
-      }),
-      signal,
-    })
-    if (!res.ok) throw new Error(await res.text())
-    const json = await res.json() as { message?: { content?: string } }
-    return String(json.message?.content || '')
-  }
-
-  if (row?.kind === 'openai' || row?.kind === 'anthropic') {
-    const secret = getProviderSecret(provider)
-    if (!secret?.row?.enabled) throw new Error(`Provider ${provider} not configured`)
-    const base = (secret.row.baseUrl || (row.kind === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
-
-    if (row.kind === 'openai') {
-      const res = await fetch(`${base}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${secret.apiKey || ''}`,
-        },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          messages: opts.messages,
-        }),
-        signal,
-      })
-      if (!res.ok) throw new Error(await res.text())
-      const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> }
-      return String(json.choices?.[0]?.message?.content || '')
-    }
-
-    const res = await fetch(`${base}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': secret.apiKey || '',
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 64,
-        stream: false,
-        messages: opts.messages.filter((m) => m.role !== 'system').map((m) => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content,
-        })),
-      }),
-      signal,
-    })
-    if (!res.ok) throw new Error(await res.text())
-    const json = await res.json() as { content?: Array<{ text?: string }> }
-    return String(json.content?.[0]?.text || '')
-  }
-
-  throw new Error(`Unknown provider ${provider}`)
-}
-
-export async function generateChatTitle(modelId: string, userPrompt: string): Promise<string> {
-  const raw = await completeOnce({
-    modelId,
-    messages: [{
-      role: 'user',
-      content: `Reply with a 3–6 word title for this user message, no quotes.\n\n${userPrompt}`,
-    }],
+/** Sidecar specialist `bros` only. Ignores conversation modelId. */
+export async function generateChatTitle(_modelId: string, userPrompt: string): Promise<string> {
+  const base = await ollamaBaseUrlFor(OLLAMA_SIDECAR_ID)
+  const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: INTERNAL_BROS_MODEL,
+      stream: false,
+      messages: [{ role: 'user', content: `Label: ${userPrompt}` }],
+    }),
+    signal: AbortSignal.timeout(TITLE_GENERATE_MS),
   })
-  return raw
+  if (!res.ok) throw new Error(await res.text())
+  const json = await res.json() as { message?: { content?: string } }
+  return String(json.message?.content || '')
 }
 
-/** First successful assistant reply only. Same model. Failure keeps New chat / first-line fallback. */
+/** First successful assistant reply only. Sidecar bros. Failure keeps New chat / first-line fallback. */
 export async function maybeAutoTitle(
   conversationId: string,
   generate: (modelId: string, userPrompt: string) => Promise<string> = generateChatTitle,

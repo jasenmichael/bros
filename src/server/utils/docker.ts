@@ -131,6 +131,22 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
   return { settings, status, hostPort, portOccupied, ours, warning, hostOllama, hostOllamaError, ...runtime }
 }
 
+export async function execInSidecar(
+  id: string,
+  args: string[],
+  timeoutMs = 120_000,
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const sidecar = getSidecar(id)
+  if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
+  const name = projectName(id)
+  return run(
+    'docker',
+    ['compose', '-p', name, '-f', join(sidecar.dir, 'docker-compose.yml'), 'exec', '-T', sidecar.id, ...args],
+    sidecar.dir,
+    timeoutMs,
+  )
+}
+
 export async function startSidecar(id: string) {
   const sidecar = getSidecar(id)
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
@@ -226,6 +242,15 @@ export async function startSidecar(id: string) {
     }
   }
   const status = await getProjectStatus(sidecar)
+  if (id === 'ollama') {
+    try {
+      const { ensureInternalBrosModel } = await import('./internalBrosModel')
+      await ensureInternalBrosModel()
+    }
+    catch (err) {
+      console.error('internal bros model ensure failed', err)
+    }
+  }
   return {
     ...status,
     hostMode: probed.settings.hostMode,

@@ -59,3 +59,137 @@ body {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Shared docs + MDC markdown (theme-owned; no typography plugin). */
+.bros-prose {
+  max-width: none;
+  color: var(--bros-text);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.bros-prose > :first-child {
+  margin-top: 0;
+}
+
+.bros-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.bros-prose :where(h1, h2, h3, h4, h5, h6) {
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.bros-prose h1 {
+  margin: 0 0 0.75em;
+  font-size: 1.875rem;
+}
+
+.bros-prose h2 {
+  margin: 1.75em 0 0.6em;
+  font-size: 1.35rem;
+}
+
+.bros-prose h3 {
+  margin: 1.4em 0 0.5em;
+  font-size: 1.125rem;
+}
+
+.bros-prose h4,
+.bros-prose h5,
+.bros-prose h6 {
+  margin: 1.2em 0 0.4em;
+  font-size: 1rem;
+}
+
+.bros-prose p {
+  margin: 0.85em 0;
+}
+
+.bros-prose a {
+  color: var(--bros-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.bros-prose a:hover {
+  color: var(--bros-accent-2);
+}
+
+.bros-prose ul,
+.bros-prose ol {
+  margin: 0.85em 0;
+  padding-left: 1.35em;
+}
+
+.bros-prose ul {
+  list-style: disc;
+}
+
+.bros-prose ol {
+  list-style: decimal;
+}
+
+.bros-prose li {
+  margin: 0.25em 0;
+}
+
+.bros-prose li > ul,
+.bros-prose li > ol {
+  margin: 0.2em 0;
+}
+
+.bros-prose blockquote {
+  margin: 1em 0;
+  padding: 0.15em 0 0.15em 1em;
+  border-left: 3px solid var(--bros-accent);
+  color: var(--bros-muted);
+}
+
+.bros-prose hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--bros-border);
+}
+
+.bros-prose :not(pre) > code {
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--bros-surface) 80%, black);
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+  color: var(--bros-text);
+}
+
+.bros-prose table {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.925rem;
+}
+
+.bros-prose th,
+.bros-prose td {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--bros-border);
+  text-align: left;
+}
+
+.bros-prose th {
+  background: color-mix(in srgb, var(--bros-surface) 70%, #0a1016);
+  color: #fff;
+  font-weight: 600;
+}
+
+.bros-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.bros-prose strong {
+  color: #fff;
+  font-weight: 600;
+}

@@ -10,7 +10,7 @@ describe('Chat markdown copy', () => {
       value: { writeText },
     })
 
-    const ProsePre = await import('../../src/app/components/ProsePre.global.vue').then((m) => m.default)
+    const ProsePre = await import('../../src/layers/theme/app/components/content/ProsePre.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProsePre, {
       props: { code: 'echo hello', language: 'bash' },
       slots: { default: () => 'echo hello' },

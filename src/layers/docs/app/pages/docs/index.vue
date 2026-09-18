@@ -5,9 +5,9 @@ useSeoMeta({
 })
 
 const pages = [
-  { title: 'Getting started', to: '/docs/getting-started', body: './bros --dev, port 3055, BROS_DIR, Models.' },
+  { title: 'Getting started', to: '/docs/getting-started', body: 'bros, port 3055, BROS_HOME, Models.' },
   { title: 'Sidecars', to: '/docs/sidecars', body: 'Core Compose packages plus custom under the host data dir.' },
-  { title: 'Configuration', to: '/docs/configuration', body: 'Bootstrap YAML, BROS_DIR, and $BROS_HOST_DATA_DIR binds.' },
+  { title: 'Configuration', to: '/docs/configuration', body: 'Bootstrap YAML, BROS_HOME, and $BROS_HOST_DATA_DIR binds.' },
 ]
 </script>
 

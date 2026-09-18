@@ -1,7 +1,7 @@
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
-// Hit the running ./bros --dev server. Isolated Nuxt spawn fights host Node ABI
+// Hit the running pnpm dev server. Isolated Nuxt spawn fights host Node ABI
 // (better-sqlite3) and container volumes (NUXT_B8006).
 describe('health', async () => {
   await setup({

@@ -2,7 +2,18 @@
 # Bros CLI — start/stop/status/update via Docker Compose.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+resolve_script_dir() {
+  local source="$1"
+  local dir
+  while [[ -L "$source" ]]; do
+    dir="$(cd "$(dirname "$source")" && pwd)"
+    source="$(readlink "$source")"
+    [[ "$source" != /* ]] && source="$dir/$source"
+  done
+  cd "$(dirname "$source")" && pwd
+}
+
+SCRIPT_DIR="$(resolve_script_dir "${BASH_SOURCE[0]}")"
 REPO_ROOT="$SCRIPT_DIR"
 cd "$REPO_ROOT"
 
@@ -13,11 +24,14 @@ if [[ -f "$REPO_ROOT/package.json" ]]; then
 fi
 [[ -f "$REPO_ROOT/VERSION" ]] && VERSION="$(tr -d '[:space:]' <"$REPO_ROOT/VERSION")"
 
-# Defaults: prod compose files, interactive (foreground) up
+# Defaults: prod compose files, interactive (foreground) up.
+# BROS_DEV=1 selects docker-compose.dev.yml (pnpm dev). Not a CLI flag.
 DEV=0
+[[ "${BROS_DEV:-}" == "1" ]] && DEV=1
 DAEMON=0
 CONFIG_PATH=""
 COMMAND=""
+SERVICE_ACTION=""
 
 usage() {
   cat <<EOF
@@ -25,7 +39,7 @@ Bros $VERSION — local AI control plane (Docker Compose)
 
 Usage:
   bros [-h|--help] [-v|--version]
-  bros [options]                 Default: start
+  bros [options]                 start (interactive, production compose)
   bros <command> [options]
 
 Default action (no command): start (up; prod also --build)
@@ -35,35 +49,37 @@ Commands:
   stop               Stop Bros core + all bros-sc-* sidecars (data dirs kept)
   status             Show compose ps and health check
   restart            Stop then start (same flags)
-  check              Check for git/image updates; prompt to update if any
-  update             Pull images and rebuild (alias: upgrade)
+  check              Check for git/image/model updates; prompt to update if any
+  update             Git pull, submodule, images, rebuild (alias: upgrade)
+  service install    systemd --user unit (Linux; runs bros -D)
+  service uninstall  Disable and remove the user unit
+  service status     systemctl --user status bros
 
 Options:
-  --dev              Dev compose: docker-compose.yml + docker-compose.dev.yml
-                     Always interactive (foreground). -D/--daemon ignored with a warning.
-                     compose up (builds only if bros:dev is missing).
-                     Rebuild: ./bros update --dev
-                     (default without --dev: base + docker-compose.prod.yml)
-  -D, --daemon       Background: docker compose up --build -d (prod only; ignored with --dev)
-  -i, --interactive  Foreground (default). Dev: up. Prod: up --build.
-                     Ctrl+C / SIGTERM runs compose down
+  -D, --daemon       Background: docker compose up --build -d
+                     (ignored when BROS_DEV=1; dev is always interactive)
+  -i, --interactive  Foreground (default). Ctrl+C / SIGTERM runs compose down
   -c, --config PATH  Bootstrap YAML; sets BROS_CONFIG (mounted into container)
   -h, --help         Show this help
   -v, --version      Show version
 
 Env:
-  BROS_DIR           Checkout dir (repo) or ~/.bros (installed). Override allowed.
-  BROS_HOST_DATA_DIR Persistent binds; default \$BROS_DIR/data
+  BROS_HOME          Checkout dir (default: this script's repo, else ~/.bros)
+  BROS_DIR           Alias for BROS_HOME
+  BROS_CONFIG        Host bootstrap YAML (default: ~/.config/bros.yml)
+  BROS_BIN           PATH symlink (default: ~/.local/bin/bros)
+  BROS_HOST_DATA_DIR Persistent binds; default \$BROS_HOME/data
   BROS_PORT          App host port (default 3055); tunnel helper targets this
+  BROS_DEV=1         Dev compose (pnpm dev); not a CLI flag
 
 Examples:
-  ./bros --dev
-  ./bros -D
-  ./bros -c ./bros.yml
-  ./bros status --dev
-  ./bros check --dev
-  ./bros update --dev
-  ./bros upgrade --dev
+  bros
+  bros -D
+  bros -c ~/.config/bros.yml
+  bros status
+  bros check
+  bros update
+  bros service install
 EOF
 }
 
@@ -106,15 +122,42 @@ preflight() {
 
 # Repo checkout (compose + sidecars next to this script) vs installed (~/.bros).
 resolve_bros_dir() {
-  if [[ -z "${BROS_DIR:-}" ]]; then
-    if [[ -f "$SCRIPT_DIR/docker-compose.yml" && -d "$SCRIPT_DIR/sidecars" ]]; then
-      BROS_DIR="$SCRIPT_DIR"
-    else
-      BROS_DIR="${HOME}/.bros"
-    fi
+  if [[ -n "${BROS_HOME:-}" ]]; then
+    :
+  elif [[ -n "${BROS_DIR:-}" ]]; then
+    BROS_HOME="$BROS_DIR"
+  elif [[ -f "$SCRIPT_DIR/docker-compose.yml" && -d "$SCRIPT_DIR/sidecars" ]]; then
+    BROS_HOME="$SCRIPT_DIR"
+  else
+    BROS_HOME="${HOME}/.bros"
   fi
-  export BROS_DIR
-  export BROS_HOST_DATA_DIR="${BROS_HOST_DATA_DIR:-${BROS_DIR}/data}"
+  export BROS_HOME
+  export BROS_DIR="${BROS_DIR:-$BROS_HOME}"
+  export BROS_HOST_DATA_DIR="${BROS_HOST_DATA_DIR:-${BROS_HOME}/data}"
+  export BROS_BIN="${BROS_BIN:-${HOME}/.local/bin/bros}"
+}
+
+xdg_config_path() {
+  printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml"
+}
+
+# Host YAML: -c, else BROS_CONFIG file, else ~/.config/bros.yml, else $BROS_HOME/bros.yml.
+resolve_default_config() {
+  if [[ -n "${BROS_CONFIG:-}" && "$BROS_CONFIG" != "/app/bros.yml" && -f "$BROS_CONFIG" ]]; then
+    printf '%s\n' "$BROS_CONFIG"
+    return 0
+  fi
+  local xdg
+  xdg="$(xdg_config_path)"
+  if [[ -f "$xdg" ]]; then
+    printf '%s\n' "$xdg"
+    return 0
+  fi
+  if [[ -f "${BROS_HOME:-}/bros.yml" ]]; then
+    printf '%s\n' "${BROS_HOME}/bros.yml"
+    return 0
+  fi
+  return 1
 }
 
 dir_is_empty() {
@@ -164,7 +207,8 @@ ensure_host_data_dir() {
     "$BROS_HOST_DATA_DIR/opencode-share" \
     "$BROS_HOST_DATA_DIR/sidecars" \
     "$BROS_HOST_DATA_DIR/logs" \
-    "$BROS_HOST_DATA_DIR/tunnel"
+    "$BROS_HOST_DATA_DIR/tunnel" \
+    "$BROS_HOST_DATA_DIR/bros-model"
   # Compose project prefix: bros_bros-data, bros-sc-openwebui_openwebui-data, …
   try_copy_volumes "$BROS_HOST_DATA_DIR" "bros.sqlite" "bros-data" "bros_bros-data"
   try_copy_volumes "$BROS_HOST_DATA_DIR/ollama" "empty" "bros-ollama-data"
@@ -188,7 +232,7 @@ compose() {
 
 # Dev start skips --build (bind-mount; compose builds only if bros:dev is missing).
 # Prod always --build so the baked image stays current.
-# Explicit rebuild/pull: ./bros update --dev
+# Explicit rebuild/pull: BROS_DEV=1 ./bros update  (pnpm dev:update)
 compose_up() {
   if [[ "$DEV" -eq 1 ]]; then
     compose up "$@"
@@ -199,6 +243,10 @@ compose_up() {
 
 # Core sidecars live under ./sidecars/<id>/ with compose project bros-sc-<id>.
 SIDECARS_DIR="$REPO_ROOT/sidecars"
+OLLAMA_COMPOSE="$SIDECARS_DIR/ollama/docker-compose.yml"
+VENDOR_MODEL_DIR="$REPO_ROOT/vendor/bros-model"
+GGUF_REL="models/bros-q4_k_m.gguf"
+STAMP_NAME=".bros-gguf-stamp.json"
 
 # Tear down one compose project by name (ignore missing).
 compose_project_down() {
@@ -264,17 +312,22 @@ stop_full_stack() {
 }
 
 apply_config_env() {
-  if [[ -z "$CONFIG_PATH" ]]; then
-    unset BROS_CONFIG BROS_CONFIG_HOST 2>/dev/null || true
+  local candidate=""
+  if [[ -n "$CONFIG_PATH" ]]; then
+    candidate="$CONFIG_PATH"
+  else
+    candidate="$(resolve_default_config || true)"
+  fi
+  if [[ -z "$candidate" ]]; then
     return 0
   fi
   local abs
-  if [[ "$CONFIG_PATH" = /* ]]; then
-    abs="$CONFIG_PATH"
+  if [[ "$candidate" = /* ]]; then
+    abs="$candidate"
   else
-    abs="$(cd "$(dirname "$CONFIG_PATH")" && pwd)/$(basename "$CONFIG_PATH")"
+    abs="$(cd "$(dirname "$candidate")" && pwd)/$(basename "$candidate")"
   fi
-  [[ -f "$abs" ]] || die "config file not found: $CONFIG_PATH"
+  [[ -f "$abs" ]] || die "config file not found: $candidate"
   export BROS_CONFIG_HOST="$abs"
   # Path inside container (compose mounts host file at /app/bros.yml)
   export BROS_CONFIG="/app/bros.yml"
@@ -294,6 +347,167 @@ on_interactive_signal() {
   exit 130
 }
 
+gguf_path() {
+  printf '%s\n' "$VENDOR_MODEL_DIR/$GGUF_REL"
+}
+
+stamp_path() {
+  printf '%s\n' "${BROS_HOST_DATA_DIR}/bros-model/${STAMP_NAME}"
+}
+
+vendor_stamp_json() {
+  local gguf="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,os,sys; s=os.stat(sys.argv[1]); print(json.dumps({"size": s.st_size, "mtimeMs": s.st_mtime * 1000}))' "$gguf"
+    return 0
+  fi
+  local size mtime
+  size="$(stat -c%s "$gguf" 2>/dev/null || stat -f%z "$gguf")"
+  mtime="$(stat -c%Y "$gguf" 2>/dev/null || stat -f%m "$gguf")"
+  printf '{"size":%s,"mtimeMs":%s000}\n' "$size" "$mtime"
+}
+
+stamp_is_current() {
+  local gguf dest identity
+  gguf="$(gguf_path)"
+  dest="$(stamp_path)"
+  [[ -f "$gguf" && -f "$dest" ]] || return 1
+  identity="$(vendor_stamp_json "$gguf")"
+  if command -v python3 >/dev/null 2>&1; then
+    if python3 -c 'import json,sys
+a=json.loads(open(sys.argv[1],encoding="utf-8").read())
+b=json.loads(sys.argv[2])
+raise SystemExit(0 if a.get("size")==b.get("size") and a.get("mtimeMs")==b.get("mtimeMs") else 1)' "$dest" "$identity"; then
+      return 0
+    fi
+    return 1
+  fi
+  local dest_size ident_size
+  dest_size="$(sed -n 's/.*"size":[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$dest" | head -1)"
+  ident_size="$(sed -n 's/.*"size":[[:space:]]*\([0-9][0-9]*\).*/\1/p' <<<"$identity" | head -1)"
+  [[ -n "$dest_size" && "$dest_size" == "$ident_size" ]]
+}
+
+sidecar_has_bros_model() {
+  local port tags
+  port="${BROS_OLLAMA_PORT:-11435}"
+  tags="$(curl -sf --max-time 3 "http://127.0.0.1:${port}/api/tags" 2>/dev/null || true)"
+  [[ -n "$tags" ]] || return 1
+  echo "$tags" | grep -qE '"name"[[:space:]]*:[[:space:]]*"bros("|:)'
+}
+
+ollama_publish_up() {
+  local port="${BROS_OLLAMA_PORT:-11435}"
+  curl -sf --max-time 2 "http://127.0.0.1:${port}/api/version" >/dev/null 2>&1
+}
+
+ensure_vendor_submodule() {
+  if [[ -f "$(gguf_path)" || -f "$VENDOR_MODEL_DIR/scripts/install-ollama.sh" ]]; then
+    return 0
+  fi
+  if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    echo "Updating vendor/bros-model submodule…"
+    git -C "$REPO_ROOT" submodule update --init --depth 1 vendor/bros-model || true
+  fi
+}
+
+copy_vendor_bros_model() {
+  local dest="$BROS_HOST_DATA_DIR/bros-model"
+  local part
+  mkdir -p "$dest"
+  for part in models ollama scripts; do
+    if [[ -d "$VENDOR_MODEL_DIR/$part" ]]; then
+      rm -rf "$dest/$part"
+      cp -a "$VENDOR_MODEL_DIR/$part" "$dest/$part"
+    fi
+  done
+}
+
+wait_for_bros_network() {
+  local i
+  for i in $(seq 1 60); do
+    docker network inspect bros >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  echo "warning: docker network bros not ready" >&2
+  return 1
+}
+
+wait_for_ollama() {
+  local port i
+  port="${BROS_OLLAMA_PORT:-11435}"
+  for i in $(seq 1 60); do
+    if curl -sf --max-time 2 "http://127.0.0.1:${port}/api/version" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "warning: Ollama sidecar not reachable at http://127.0.0.1:${port}/api/version" >&2
+  return 1
+}
+
+start_ollama_sidecar() {
+  [[ -f "$OLLAMA_COMPOSE" ]] || {
+    echo "warning: missing $OLLAMA_COMPOSE" >&2
+    return 1
+  }
+  echo "Starting Ollama sidecar (bros-sc-ollama)…"
+  docker compose -p bros-sc-ollama -f "$OLLAMA_COMPOSE" up -d --remove-orphans
+}
+
+install_internal_bros_model() {
+  local dest gguf identity
+  dest="$BROS_HOST_DATA_DIR/bros-model"
+  gguf="$(gguf_path)"
+  copy_vendor_bros_model
+  echo "Creating Ollama model bros…"
+  local exec_rc=0
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 180 docker compose -p bros-sc-ollama -f "$OLLAMA_COMPOSE" exec -T ollama \
+      bash /bros-model/scripts/install-ollama.sh || exec_rc=$?
+  else
+    docker compose -p bros-sc-ollama -f "$OLLAMA_COMPOSE" exec -T ollama \
+      bash /bros-model/scripts/install-ollama.sh || exec_rc=$?
+  fi
+  if [[ "$exec_rc" -ne 0 ]]; then
+    echo "warning: internal bros model create failed" >&2
+    return 1
+  fi
+  identity="$(vendor_stamp_json "$gguf")"
+  mkdir -p "$dest"
+  printf '%s\n' "$identity" >"$dest/$STAMP_NAME"
+}
+
+# Sidecar Ollama + packaged model bros. Warn on miss; do not fail start.
+ensure_ollama_and_model() {
+  ensure_vendor_submodule
+  wait_for_bros_network || return 0
+  start_ollama_sidecar || return 0
+  wait_for_ollama || return 0
+  local gguf
+  gguf="$(gguf_path)"
+  if [[ ! -f "$gguf" ]]; then
+    echo "warning: internal bros model: missing packaged model: $gguf" >&2
+    return 0
+  fi
+  if sidecar_has_bros_model && stamp_is_current; then
+    echo "Internal model bros is current."
+    return 0
+  fi
+  install_internal_bros_model || true
+}
+
+model_needs_update() {
+  local gguf
+  gguf="$(gguf_path)"
+  [[ -f "$gguf" ]] || return 1
+  stamp_is_current || return 0
+  if ollama_publish_up; then
+    sidecar_has_bros_model || return 0
+  fi
+  return 1
+}
+
 cmd_start() {
   apply_config_env
   # Never run forgebox-era sidecars beside bros-sc-*.
@@ -305,15 +519,20 @@ cmd_start() {
   if [[ "$DAEMON" -eq 1 ]]; then
     echo "Bros start ($mode, daemon)…"
     compose_up -d
+    ensure_ollama_and_model || true
     return
   fi
 
   echo "Bros start ($mode, interactive)…"
   echo "Ctrl+C stops the full stack (core + sidecars)."
-  # Background + wait so this shell's INT/TERM trap always runs (same --dev compose files).
+  # Background + wait so this shell's INT/TERM trap always runs.
   trap on_interactive_signal INT TERM
   compose_up &
   COMPOSE_UP_PID=$!
+  sleep 2
+  if kill -0 "$COMPOSE_UP_PID" 2>/dev/null; then
+    ensure_ollama_and_model || true
+  fi
   set +e
   wait "$COMPOSE_UP_PID"
   local rc=$?
@@ -343,11 +562,38 @@ cmd_status() {
   else
     echo "Health: unreachable (http://127.0.0.1:${port}/api/health)"
   fi
+  if ollama_publish_up; then
+    if sidecar_has_bros_model; then
+      echo "Ollama sidecar: up (model bros installed)"
+    else
+      echo "Ollama sidecar: up (model bros missing)"
+    fi
+  else
+    echo "Ollama sidecar: down"
+  fi
 }
 
 cmd_restart() {
   cmd_stop
   cmd_start
+}
+
+update_hint() {
+  if [[ "$DEV" -eq 1 ]]; then
+    echo "pnpm dev:update"
+  else
+    echo "bros update"
+  fi
+}
+
+restart_hint() {
+  if [[ "$DEV" -eq 1 ]]; then
+    echo "pnpm dev"
+  else
+    local flags=""
+    [[ "$DAEMON" -eq 1 ]] && flags=" -D"
+    echo "bros restart${flags}"
+  fi
 }
 
 # Exit 0 if updates available, 1 if none.
@@ -419,6 +665,17 @@ detect_updates() {
     fi
   fi
 
+  echo
+  echo "== Internal bros model =="
+  if [[ ! -f "$(gguf_path)" ]]; then
+    echo "Packaged GGUF missing (vendor/bros-model). Skipped."
+  elif model_needs_update; then
+    echo "Stamp stale or model bros missing — run update (or start) to reinstall."
+    found=1
+  else
+    echo "Vendor GGUF stamp matches dest (or Ollama is down; start will install)."
+  fi
+
   [[ "$found" -eq 1 ]]
 }
 
@@ -432,13 +689,13 @@ cmd_check() {
   if [[ $rc -eq 0 ]]; then
     echo
     if [[ ! -t 0 ]]; then
-      echo "Updates available. Non-interactive stdin — not prompting. Run: ./bros update$([[ "$DEV" -eq 1 ]] && echo ' --dev')"
+      echo "Updates available. Non-interactive stdin — not prompting. Run: $(update_hint)"
       return 0
     fi
     read -r -p "Updates available. Run update now? [y/N] " ans || true
     case "${ans:-}" in
       y|Y|yes|YES) cmd_update ;;
-      *) echo "Skipped. Run: ./bros update$([[ "$DEV" -eq 1 ]] && echo ' --dev')" ;;
+      *) echo "Skipped. Run: $(update_hint)" ;;
     esac
   else
     echo
@@ -448,14 +705,91 @@ cmd_check() {
 
 cmd_update() {
   apply_config_env
-  echo "Bros update: pull images + rebuild…"
+  echo "Bros update: git pull + submodule + images…"
+  if git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1 \
+    && git -C "$REPO_ROOT" remote get-url origin >/dev/null 2>&1; then
+    git -C "$REPO_ROOT" pull --ff-only || true
+    git -C "$REPO_ROOT" submodule update --init || true
+  fi
   compose pull || true
   compose build --pull
-  local flags=""
-  [[ "$DEV" -eq 1 ]] && flags+=" --dev"
-  [[ "$DAEMON" -eq 1 ]] && flags+=" -D"
+  if ollama_publish_up && [[ -f "$(gguf_path)" ]]; then
+    if ! stamp_is_current || ! sidecar_has_bros_model; then
+      echo "Reinstalling internal model bros…"
+      install_internal_bros_model || true
+    fi
+  fi
   echo "Images pulled/rebuilt. Restart to run new images:"
-  echo "  ./bros restart${flags}"
+  echo "  $(restart_hint)"
+}
+
+service_unit_dir() {
+  printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+}
+
+service_unit_path() {
+  printf '%s\n' "$(service_unit_dir)/bros.service"
+}
+
+service_exec_bin() {
+  local bin="${BROS_BIN:-${HOME}/.local/bin/bros}"
+  if [[ -x "$bin" ]]; then
+    printf '%s\n' "$bin"
+    return 0
+  fi
+  printf '%s\n' "$BROS_HOME/bros"
+}
+
+cmd_service() {
+  case "$(uname -s)" in
+    Linux) ;;
+    *) die "service is Linux systemd --user only" ;;
+  esac
+  command -v systemctl >/dev/null 2>&1 || die "systemctl not found"
+  local unit dir bin
+  dir="$(service_unit_dir)"
+  unit="$(service_unit_path)"
+  bin="$(service_exec_bin)"
+  case "$SERVICE_ACTION" in
+    install)
+      mkdir -p "$dir"
+      cat >"$unit" <<EOF
+[Unit]
+Description=Bros local AI control plane
+After=docker.socket
+Wants=docker.socket
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=BROS_HOME=${BROS_HOME}
+Environment=BROS_DIR=${BROS_DIR}
+Environment=BROS_HOST_DATA_DIR=${BROS_HOST_DATA_DIR}
+Environment=BROS_CONFIG=${BROS_CONFIG_HOST:-${BROS_CONFIG:-$(xdg_config_path)}}
+ExecStart=${bin} -D
+ExecStop=${bin} stop
+
+[Install]
+WantedBy=default.target
+EOF
+      systemctl --user daemon-reload
+      systemctl --user enable --now bros.service
+      echo "Installed $unit"
+      echo "Without loginctl enable-linger, this unit stops on logout."
+      ;;
+    uninstall)
+      systemctl --user disable --now bros.service 2>/dev/null || true
+      rm -f "$unit"
+      systemctl --user daemon-reload 2>/dev/null || true
+      echo "Removed systemd --user unit bros.service"
+      ;;
+    status)
+      systemctl --user status bros.service --no-pager || true
+      ;;
+    *)
+      die "unknown service action: ${SERVICE_ACTION:-} (install|uninstall|status)"
+      ;;
+  esac
 }
 
 # --- parse args ---
@@ -470,8 +804,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     --dev)
-      DEV=1
-      shift
+      die "--dev removed. Use: pnpm dev"
       ;;
     -D|--daemon)
       DAEMON=1
@@ -491,6 +824,21 @@ while [[ $# -gt 0 ]]; do
       COMMAND="$1"
       shift
       ;;
+    service)
+      [[ -z "$COMMAND" ]] || die "only one command allowed (got '$COMMAND' and '$1')"
+      COMMAND="service"
+      shift
+      [[ $# -ge 1 ]] || die "service requires install, uninstall, or status"
+      case "$1" in
+        install|uninstall|status)
+          SERVICE_ACTION="$1"
+          shift
+          ;;
+        *)
+          die "unknown service action: $1 (install|uninstall|status)"
+          ;;
+      esac
+      ;;
     -*)
       die "unknown option: $1 (try --help)"
       ;;
@@ -503,13 +851,14 @@ done
 [[ -n "$COMMAND" ]] || COMMAND="start"
 [[ "$COMMAND" == "upgrade" ]] && COMMAND="update"
 
-# Dev is always foreground; -D/--daemon has no effect with --dev.
+# Dev is always foreground; -D/--daemon has no effect with BROS_DEV=1.
 if [[ "$DEV" -eq 1 && "$DAEMON" -eq 1 ]]; then
-  echo "warning: --daemon (-D) ignored with --dev (dev always interactive)" >&2
+  echo "warning: --daemon (-D) ignored with BROS_DEV=1 (dev always interactive)" >&2
   DAEMON=0
 fi
 
 preflight
+apply_config_env
 
 case "$COMMAND" in
   start)   cmd_start ;;
@@ -518,5 +867,6 @@ case "$COMMAND" in
   restart) cmd_restart ;;
   check)   cmd_check ;;
   update)  cmd_update ;;
+  service) cmd_service ;;
   *)       die "unknown command: $COMMAND" ;;
 esac

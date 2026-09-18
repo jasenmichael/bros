@@ -70,6 +70,9 @@ COPY --from=build /app/src/app/.output /app/src/app/.output
 COPY --from=build /app/package.json /app/package.json
 COPY --from=build /app/bros.yml /app/bros.yml
 COPY --from=build /app/sidecars /app/sidecars
+COPY --from=build /app/vendor/bros-model/models /app/vendor/bros-model/models
+COPY --from=build /app/vendor/bros-model/ollama /app/vendor/bros-model/ollama
+COPY --from=build /app/vendor/bros-model/scripts /app/vendor/bros-model/scripts
 
 EXPOSE 3055
 CMD ["node", "/app/src/app/.output/server/index.mjs"]

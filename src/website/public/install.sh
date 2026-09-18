@@ -4,16 +4,25 @@
 #
 # Usage:
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
+#   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 #
 # Env overrides:
-#   BROS_REPO   Git clone URL (default: https://github.com/jasenmichael/bros.git)
-#   BROS_DIR    Install directory (default: ~/.bros)
-#   BROS_REF    Git ref to checkout (default: main)
+#   BROS_REPO    Git clone URL (default: https://github.com/jasenmichael/bros.git)
+#   BROS_HOME    Install directory (default: ~/.bros). BROS_DIR is an alias.
+#   BROS_CONFIG  Bootstrap YAML (default: ~/.config/bros.yml)
+#   BROS_BIN     PATH symlink (default: ~/.local/bin/bros)
+#   BROS_REF     Git ref to checkout (default: main)
 set -euo pipefail
 
 BROS_REPO="${BROS_REPO:-https://github.com/jasenmichael/bros.git}"
-BROS_DIR="${BROS_DIR:-${HOME}/.bros}"
+if [[ -z "${BROS_HOME:-}" ]]; then
+  BROS_HOME="${BROS_DIR:-${HOME}/.bros}"
+fi
+BROS_DIR="$BROS_HOME"
 BROS_REF="${BROS_REF:-main}"
+BROS_CONFIG="${BROS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml}"
+BROS_BIN="${BROS_BIN:-${HOME}/.local/bin/bros}"
+INSTALL_SERVICE=0
 
 die() {
   printf 'bros install: error: %s\n' "$*" >&2
@@ -46,63 +55,141 @@ check_docker() {
 
 clone_repo() {
   need_cmd git
-  if [[ -d "$BROS_DIR/.git" ]]; then
-    info "Existing clone at $BROS_DIR — fetching $BROS_REF"
-    git -C "$BROS_DIR" fetch --tags --prune origin
-    git -C "$BROS_DIR" checkout "$BROS_REF"
-    git -C "$BROS_DIR" pull --ff-only origin "$BROS_REF" || true
+  if [[ -d "$BROS_HOME/.git" ]]; then
+    info "Existing clone at $BROS_HOME — fetching $BROS_REF"
+    git -C "$BROS_HOME" fetch --tags --prune origin
+    git -C "$BROS_HOME" checkout "$BROS_REF"
+    git -C "$BROS_HOME" pull --ff-only origin "$BROS_REF" || true
+    git -C "$BROS_HOME" submodule update --init --depth 1
     return 0
   fi
-  if [[ -e "$BROS_DIR" ]]; then
-    die "$BROS_DIR exists but is not a git repo. Move it aside or set BROS_DIR."
+  if [[ -e "$BROS_HOME" ]]; then
+    die "$BROS_HOME exists but is not a git repo. Move it aside or set BROS_HOME."
   fi
-  info "Cloning $BROS_REPO ($BROS_REF) into $BROS_DIR"
-  git clone --branch "$BROS_REF" --depth 1 "$BROS_REPO" "$BROS_DIR"
+  info "Cloning $BROS_REPO ($BROS_REF) into $BROS_HOME"
+  git clone --branch "$BROS_REF" --depth 1 --recurse-submodules --shallow-submodules "$BROS_REPO" "$BROS_HOME"
+}
+
+write_default_config() {
+  if [[ -f "$BROS_CONFIG" ]]; then
+    info "Config exists: $BROS_CONFIG"
+    return 0
+  fi
+  mkdir -p "$(dirname "$BROS_CONFIG")"
+  cat >"$BROS_CONFIG" <<'EOF'
+# Bros bootstrap. Host layout is BROS_HOME + $BROS_HOME/data.
+# Compose sets in-container working_dir=/app and data_dir=/data.
+# Uncomment to enable a named Cloudflare tunnel:
+# public_url: https://bros.example.com
+EOF
+  info "Wrote default config: $BROS_CONFIG"
+}
+
+link_bin() {
+  mkdir -p "$(dirname "$BROS_BIN")"
+  [[ -x "$BROS_HOME/bros" ]] || die "CLI missing at $BROS_HOME/bros"
+  ln -sfn "$BROS_HOME/bros" "$BROS_BIN"
+  info "Symlink $BROS_BIN -> $BROS_HOME/bros"
+  case ":$PATH:" in
+    *":$(dirname "$BROS_BIN"):"*) ;;
+    *)
+      info "warning: $(dirname "$BROS_BIN") is not on PATH. Add it so 'bros' works from any cwd."
+      ;;
+  esac
+}
+
+install_service() {
+  case "$(uname -s)" in
+    Linux) ;;
+    *)
+      info "Service skipped (Linux systemd --user only)."
+      return 0
+      ;;
+  esac
+  if ! command -v systemctl >/dev/null 2>&1; then
+    info "No systemctl — skipping service."
+    return 0
+  fi
+  info "Installing systemd --user unit…"
+  BROS_HOME="$BROS_HOME" BROS_DIR="$BROS_HOME" BROS_CONFIG="$BROS_CONFIG" BROS_BIN="$BROS_BIN" \
+    "$BROS_HOME/bros" service install
+}
+
+maybe_install_service() {
+  if [[ "$INSTALL_SERVICE" -eq 1 ]]; then
+    install_service
+    return 0
+  fi
+  if [[ -t 0 ]]; then
+    read -r -p "Install as a systemd user service? [y/N] " ans || true
+    case "${ans:-}" in
+      y|Y|yes|YES) install_service ;;
+    esac
+  fi
 }
 
 print_next_steps() {
   cat <<EOF
 
-Bros installed at: $BROS_DIR
+Bros installed at: $BROS_HOME
+Config: $BROS_CONFIG
+Command: $BROS_BIN
 
 No host Node required — Docker-only path.
 
 Next:
-  cd $BROS_DIR
-  ./bros --dev
+  bros
+  bros -D
 
-Production (daemon):
-  ./bros -D
-
-Default action (no command) is start. Explicit start still works as an alias.
---dev always interactive (-D/--daemon ignored). Interactive Ctrl+C stops containers.
-
-If ./bros is missing, fall back to:
-  docker compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-Rebuild when Dockerfile/compose change:
-  ./bros update --dev
-
-Stop / status (explicit commands):
-  ./bros stop --dev
-  ./bros status --dev
-  # or: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+Default action (no command) is start (interactive). Ctrl+C stops the full stack.
+Daemon: bros -D
+Stop / status:
+  bros stop
+  bros status
+  bros service status
 
 Docs: https://jasenmichael.github.io/bros/
   Repo docs: README.md and docs/getting-started.md
 EOF
 }
 
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --service)
+        INSTALL_SERVICE=1
+        shift
+        ;;
+      -h|--help)
+        cat <<EOF
+Bros install
+
+Usage:
+  curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
+  curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
+
+Options:
+  --service   Install a systemd --user unit (Linux)
+
+Env: BROS_HOME BROS_DIR BROS_CONFIG BROS_BIN BROS_REPO BROS_REF
+EOF
+        exit 0
+        ;;
+      *)
+        die "unknown argument: $1"
+        ;;
+    esac
+  done
+}
 
 main() {
+  parse_args "$@"
   info "Checking Docker + Compose…"
   check_docker
   clone_repo
-  if [[ -x "$BROS_DIR/bros" ]]; then
-    info "Found ./bros CLI"
-  else
-    info "No ./bros yet — use docker compose from the repo root (see next steps)."
-  fi
+  write_default_config
+  link_bin
+  maybe_install_service
   print_next_steps
 }
 

@@ -1,0 +1,3 @@
+[submodule "vendor/bros-model"]
+	path = vendor/bros-model
+	url = https://github.com/jasenmichael/bros-model.git

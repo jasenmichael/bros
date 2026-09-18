@@ -5,9 +5,9 @@ description: Run Bros with Docker only.
 
 # Getting started
 
-Bros runs entirely through Docker. The host needs Docker and Docker Compose. Optional: host `cloudflared` (install + `cloudflared login`). Set `public_url` in `bros.yml` to start a named tunnel for that hostname; otherwise `./bros` may prompt, and the Dashboard Tunnel card starts a quick tunnel.
+Bros runs entirely through Docker. The host needs Docker and Docker Compose. Optional: host `cloudflared` (install + `cloudflared login`). Set `public_url` in `~/.config/bros.yml` (or `bros.yml`) to start a named tunnel for that hostname; otherwise `bros` may prompt, and the Dashboard Tunnel card starts a quick tunnel.
 
-The root `./bros` CLI defaults to **start** when no command is passed. Explicit `start` still works as an optional alias — prefer the forms below.
+The `bros` CLI defaults to **start** when no command is passed. Explicit `start` still works as an optional alias.
 
 ## Install
 
@@ -15,66 +15,46 @@ The root `./bros` CLI defaults to **start** when no command is passed. Explicit 
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 ```
 
-Clones https://github.com/jasenmichael/bros.git into `~/.bros` (override with `BROS_REPO` / `BROS_DIR` / `BROS_REF`). Docs site: https://jasenmichael.github.io/bros/
-
-A repo checkout (CLI next to `docker-compose.yml` + `sidecars/`) uses that directory as `BROS_DIR`. Persistent binds live under `$BROS_DIR/data` (`$BROS_HOST_DATA_DIR`).
-
-## Dev
+Optional systemd user service (Linux):
 
 ```bash
-./bros --dev
+curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 ```
 
-Same as `docker compose -f docker-compose.yml -f docker-compose.dev.yml up`.
+Clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_HOME`; override with `BROS_HOME` / `BROS_DIR` / `BROS_REPO` / `BROS_REF`). Writes `~/.config/bros.yml` if missing. Symlinks `~/.local/bin/bros`. Docs site: https://jasenmichael.github.io/bros/
 
-First start builds `bros:dev` if it is missing. Later starts skip rebuild (the repo is bind-mounted). After Dockerfile or compose changes, rebuild with `./bros update --dev`.
+A repo checkout (CLI next to `docker-compose.yml` + `sidecars/`) uses that directory as `BROS_HOME`. Persistent binds live under `$BROS_HOME/data` (`$BROS_HOST_DATA_DIR`).
 
-Dev container bind-mounts the repo at `/app` (toolchain image only — no source baked in). On start it runs `pnpm install`, then `pnpm --filter @bros/app dev`.
-
-`--dev` is always interactive (`-D` / `--daemon` ignored). Ctrl+C stops the **full stack**: all `bros-sc-*` sidecars, then core `compose down`. Start also removes legacy `forgebox-sc-*` leftovers so they never run beside Bros.
-
-Stop / status still use explicit commands:
+## Run
 
 ```bash
-./bros stop --dev
-./bros status --dev
+bros
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055). The Cloudflare tunnel hostname works in `--dev` too (Vite client JS must load; otherwise Unlock does nothing).
+Interactive production compose (`docker-compose.yml` + `docker-compose.prod.yml`, `up --build`). Ctrl+C stops the **full stack**: all `bros-sc-*` sidecars, then core `compose down`. Start also removes legacy `forgebox-sc-*` leftovers so they never run beside Bros. First start brings up the Ollama sidecar and installs the internal `bros` model when the packaged GGUF is present.
+
+```bash
+bros -D
+```
+
+Same stack, daemonized.
+
+```bash
+bros stop
+bros status
+bros update
+bros service status
+```
+
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055).
 
 Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOST_DATA_DIR/passkey`. Change it in Settings (updates that file).
 
-## Production
-
-```bash
-./bros -D
-```
-
-Same as `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d`.
-
-## Docs site
-
-The Pages site is `@bros/website` in `src/website` (`baseURL` `/bros/`):
-
-```bash
-pnpm docs:dev
-# http://127.0.0.1:3056/bros/
-
-pnpm docs:generate
-pnpm --filter @bros/website preview
-```
-
-## Workspace
-
-- `src/layers/theme` — shared UI, shell, and nav chrome (same in app and website; only links differ)
-- `src/layers/docs` — docs content layer and `/docs` routes (markdown from repo root `docs/`; identical in both apps)
-- `src/app` — Bros UI; extends theme + docs; **overrides `/` with the dashboard**
-- `src/website` — static site homepage; extends theme + docs; `pnpm docs:generate` published to GitHub Pages
-- `docs/` — canonical markdown for Nuxt Content
+Docker hot-reload for contributors is documented in the repo [README Development](https://github.com/jasenmichael/bros#development) section (`pnpm dev`).
 
 ## Models
 
-On **Models**, sidecar Ollama and host Ollama sit under **Ollama** (host stays listed when stopped). Custom OpenAI-compatible providers (base URL + optional key + model names) sit under **Custom providers**, with **Add custom** there. Chat picks a provider, then a model. Sidecar DNS is `http://ollama:11434` on the Docker network (host publish **11435**). Pull and chat use the host Ollama disk, not `$BROS_DIR/data/ollama`. Settings (including GPU for the sidecar only) open from the row cog, not a page-level Settings block.
+On **Models**, sidecar Ollama and host Ollama sit under **Ollama** (host stays listed when stopped). Custom OpenAI-compatible providers (base URL + optional key + model names) sit under **Custom providers**, with **Add custom** there. Chat picks a provider, then a model. Sidecar DNS is `http://ollama:11434` on the Docker network (host publish **11435**). Pull and chat use the host Ollama disk, not `$BROS_HOME/data/ollama`. Settings (including GPU for the sidecar only) open from the row cog, not a page-level Settings block.
 
 On **Models**, selecting an Ollama card expands pull on that card. Pull from the menu or type any valid Ollama name (`llama3.2` or community `owner/name:tag`):
 
@@ -91,10 +71,10 @@ If an NVIDIA GPU is present, open the sidecar cog and enable **Use GPU** to rest
 
 Bros loads `working_dir` and `data_dir` from:
 
-1. `BROS_CONFIG` (exclusive file), or
+1. `BROS_CONFIG` (exclusive file; install default `~/.config/bros.yml`), or
 2. `.config/bros.yml` then `./bros.yml`
 3. Environment overrides (`BROS_WORKING_DIR`, `BROS_DATA_DIR`)
 
-Host data is `$BROS_DIR/data` (`BROS_HOST_DATA_DIR`). In-container `BROS_DATA_DIR` stays `/data`.
+Host data is `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`). In-container `BROS_DATA_DIR` stays `/data`.
 
 All other settings live in SQLite and the UI.

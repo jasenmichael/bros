@@ -7,6 +7,7 @@ import {
   modelFitsDisk,
 } from '../../../utils/ollamaLibrary'
 import { getDiskSpace } from '../../../utils/disk'
+import { refuseInternalBrosModel } from '../../../utils/internalBrosModel'
 import {
   ollamaBaseUrlFor,
   pullOllamaModelStreamWithRetry,
@@ -22,6 +23,7 @@ export default defineEventHandler(async (event) => {
   if (!isValidOllamaPullName(name)) {
     throw createError({ statusCode: 400, statusMessage: `Invalid Ollama name: ${name}` })
   }
+  refuseInternalBrosModel(name)
 
   const providerId = body?.providerId || OLLAMA_SIDECAR_ID
   rememberCustomOllamaModel(name, providerId)

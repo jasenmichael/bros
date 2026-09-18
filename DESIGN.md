@@ -4,7 +4,8 @@
 
 - Dark surface with cool blue/teal accents (`--bros-accent`, `--bros-accent-2`)
 - Thin themed scrollbars (≈6px, muted thumb, no arrows) via theme `main.css`; Previous chats keep a fully hidden bar + chevron hints
-- Shared shell via `BrosAppNav` / `BrosNavBar` / `BrosPageShell` in `layers/theme` (same chrome in app and website; only nav links differ)
+- Shared shell via theme `layouts/default.vue` (`BrosAppNav` / `BrosNavBar` / `BrosPageShell`); same chrome in app and website; only nav links differ
+- Docs markdown uses theme `.bros-prose` + `ProsePre` (identical on website and in the app)
 - Docs site landing vs app dashboard: same theme, different homepage (`src/website` owns `/`; app `/` is the dashboard)
 - Docs site local: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ (`baseURL` `/bros/`)
 
@@ -21,7 +22,7 @@
 
 - `/` — website: marketing landing. App: dashboard widgets (live snippets). No full Status table on Home
 - `/status` — detail: Bros app, Docker, disk, GPU, host Tunnel, each sidecar mode/port/state/error, autostart/pin, logs links
-- `/docs`, `/docs/*` — identical docs-layer pages in website and app
+- `/docs`, `/docs/*` — identical docs-layer pages in website and app (theme layout + prose)
 - `/chat`, `/chat/:id`, `/models`, `/sidecars`, `/sidecars/:id/logs`, `/settings` — app-only
 - Chat/Models: Models is Ollama (sidecar then host) then Custom providers. Rows show host:port (`127.0.0.1:11435` sidecar publish, not Docker DNS) with copy + open-in-new-tab. Selecting a different Ollama card expands pull + installed models on that card; the chevron (or a second click on the open card) collapses the panel. Ollama and Custom lists stay full BrosPageShell width whether a card is open or collapsed. Each row has a settings cog (UModal); GPU only in the sidecar modal. Host card stays listed when the daemon is down. Chat is provider dropdown then model dropdown.
 - Chat turns: user is a right-aligned bubble (cool accent wash, not a stacked gray card). Assistant is left, markdown body. Label `ASSISTANT · <modelId>` is a small muted line next to the assistant, from the stored request model, not the current dropdown. No model text when the row has none. Fenced code uses a snippet header with a copy control (check after copy).

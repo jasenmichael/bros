@@ -8,7 +8,7 @@ const features = [
   {
     title: 'Getting started',
     to: '/docs/getting-started',
-    body: 'Install with Docker only. ./bros --dev on host port 3055.',
+    body: 'Install with Docker only. bros on host port 3055.',
   },
   {
     title: 'Sidecars',
@@ -47,11 +47,10 @@ const features = [
           Clones
           <a class="text-[var(--bros-accent)] hover:underline" href="https://github.com/jasenmichael/bros">jasenmichael/bros</a>
           into <code class="text-[var(--bros-text)]">~/.bros</code>. Override with
-          <code class="text-[var(--bros-text)]">BROS_DIR</code>.
+          <code class="text-[var(--bros-text)]">BROS_HOME</code>.
         </p>
         <pre class="overflow-x-auto rounded-lg border border-[var(--bros-border)] bg-[#121820] p-4 text-sm text-[#e8eef5]"><code>curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
-cd ~/.bros
-./bros --dev</code></pre>
+bros</code></pre>
         <p class="text-sm text-[var(--bros-muted)]">
           App:
           <a class="text-[var(--bros-accent)] hover:underline" href="http://127.0.0.1:3055">http://127.0.0.1:3055</a>

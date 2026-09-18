@@ -9,6 +9,7 @@ import {
   OLLAMA_SIDECAR_ID,
   type ProviderStatus,
 } from '../../utils/providers'
+import { ensureInternalBrosModel } from '../../utils/internalBrosModel'
 import { findHostOllama, readOllamaManualPort, OLLAMA_SIDECAR_DNS, OLLAMA_SIDECAR_PUBLISH } from '../../utils/ollamaHost'
 
 export default defineEventHandler(async () => {
@@ -24,6 +25,9 @@ export default defineEventHandler(async () => {
   const errors: Record<string, string> = {}
 
   const sidecarRunning = await probeOllamaRunning(OLLAMA_SIDECAR_DNS)
+  if (sidecarRunning) {
+    await ensureInternalBrosModel()
+  }
 
   for (const p of rows) {
     if (p.kind === 'ollama') {

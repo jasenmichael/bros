@@ -13,4 +13,14 @@ export default defineNuxtConfig({
   ui: {
     colorMode: true,
   },
+  components: [
+    {
+      path: join(currentDir, './app/components'),
+    },
+    {
+      path: join(currentDir, './app/components/content'),
+      pathPrefix: false,
+      global: true,
+    },
+  ],
 })

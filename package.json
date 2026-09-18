@@ -3,7 +3,9 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm --filter @bros/app dev",
+    "dev": "BROS_DEV=1 ./bros",
+    "dev:update": "BROS_DEV=1 ./bros update",
+    "app:dev": "pnpm --filter @bros/app dev",
     "build": "pnpm --filter @bros/app build",
     "preview": "pnpm --filter @bros/app preview",
     "docs:dev": "pnpm --filter @bros/website dev",

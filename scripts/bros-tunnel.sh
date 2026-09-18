@@ -17,7 +17,15 @@ bros_find_bootstrap_yaml() {
     printf '%s\n' "$BROS_CONFIG"
     return 0
   fi
+  local xdg="${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml"
+  if [[ -f "$xdg" ]]; then
+    printf '%s\n' "$xdg"
+    return 0
+  fi
   local roots=() root
+  if [[ -n "${BROS_HOME:-}" ]]; then
+    roots+=("$BROS_HOME")
+  fi
   if [[ -n "${BROS_DIR:-}" ]]; then
     roots+=("$BROS_DIR")
   else
