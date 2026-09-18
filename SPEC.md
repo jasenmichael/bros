@@ -16,9 +16,9 @@ A conversation is created on the first send, not when opening `/chat`. After the
 
 Shared markdown lives in repo `docs/`. The docs layer (`src/layers/docs`) extends theme (`src/layers/theme`) and owns `/docs` routes. Both `@bros/app` and `@bros/website` `extends` theme and docs. Routes `/docs` and `/docs/*` are the same docs-layer pages in the app UI and the static site — the app does not override them. Theme owns layouts, CSS, and markdown visualization (nav chrome + prose); only nav links differ.
 
-Docs index groups: Start (Getting started, Install, Environment, Configuration), App (Overview, Chat, Models, Status, Settings, Tunnel), Sidecars (hub + Ollama + OpenCode + Open WebUI + Custom), Popular services, Contribute (Development, Docs site). App dock stays a single **Docs** link to `/docs`.
+Docs index, dock, and website nav share `DOCS_NAV_TREE` (Start, App, Sidecars, Popular services, Contribute). The tree lists every `docs/` page, including Models → Ollama + Custom providers and all twelve Popular service pages. App dock **Docs** expands that tree (collapsible; hidden scrollbar). Dashboard…Status stay un-scrolled. Previous chats and Docs each scroll. Website nav is Home plus the same tree. Docs pages show breadcrumbs above the title (Docs / App / Models / Custom providers).
 
-Website (`src/website`) owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). Website nav: Home, Getting started, Models, Sidecars, Development, Configuration. Landing cards: Chat, Models, Sidecars, Development. The Bros app owns dashboard `/` plus Chat, Models, Sidecars, Status, and Settings.
+Website (`src/website`) owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). Website nav: Home plus the docs directory tree. Landing cards: Chat, Models, Sidecars, Development. The Bros app owns dashboard `/` plus Chat, Models, Sidecars, Status, and Settings.
 
 Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:generate` then `pnpm --filter @bros/website preview`.
 

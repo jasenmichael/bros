@@ -23,6 +23,8 @@ mockNuxtImport('useFetch', () => {
         providers: [
           { id: 'ollama', name: 'Ollama sidecar', kind: 'ollama' },
           { id: 'ollama-host', name: 'Ollama host', kind: 'ollama' },
+          { id: 'openai', name: 'OpenAI', kind: 'openai', popular: true },
+          { id: 'my-proxy', name: 'My proxy', kind: 'openai' },
         ],
         ollamaModelsByProvider: {
           ollama: [{ id: 'ollama/llama3.2', name: 'llama3.2' }],
@@ -58,6 +60,13 @@ describe('Chat page', () => {
     expect(wrapper.text()).not.toContain('thinking…')
     expect(wrapper.find('.bros-chat__tools-left').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__ctx').text()).toBe('8k ctx')
+  })
+
+  it('orders providers sidecar, host, popular, then custom', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as { orderedProviders: Array<{ id: string }> }
+    expect(vm.orderedProviders.map((p) => p.id)).toEqual(['ollama', 'ollama-host', 'openai', 'my-proxy'])
   })
 
   it('shows thinking and Stop while busy, no send spinner', async () => {

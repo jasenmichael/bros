@@ -5,6 +5,8 @@ import {
   listProviders,
   ollamaBaseUrlFor,
   probeOllamaRunning,
+  isPopularProvider,
+  POPULAR_PROVIDER_IDS,
   OLLAMA_HOST_ID,
   OLLAMA_SIDECAR_ID,
   type ProviderStatus,
@@ -72,11 +74,30 @@ export default defineEventHandler(async () => {
         port = manual
       }
     }
+    else if (isPopularProvider(p.id)) {
+      status = p.enabled && p.hasApiKey ? 'running' : 'stopped'
+      if (!p.hasApiKey) statusMessage = 'Need an API key'
+    }
     else if (p.kind === 'openai' || p.kind === 'anthropic') {
       status = p.enabled && (p.baseUrl || p.hasApiKey) ? 'running' : 'stopped'
     }
-    return { ...p, status, statusMessage, port }
+    return {
+      ...p,
+      status,
+      statusMessage,
+      port,
+      popular: isPopularProvider(p.id),
+    }
   })
+
+  const popularIndex = new Map(POPULAR_PROVIDER_IDS.map((id, i) => [id, i]))
+  const rank = (id: string) => {
+    if (id === OLLAMA_SIDECAR_ID) return 0
+    if (id === OLLAMA_HOST_ID) return 1
+    if (popularIndex.has(id)) return 2 + (popularIndex.get(id) || 0)
+    return 100
+  }
+  providers.sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name))
 
   return {
     providers,

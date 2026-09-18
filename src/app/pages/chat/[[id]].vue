@@ -42,7 +42,7 @@ let elapsedTimer: ReturnType<typeof setInterval> | null = null
 useSeoMeta({ title: () => pageTitle.value })
 
 const { data: modelsData } = await useFetch<{
-  providers: Array<{ id: string; name: string; kind: string }>
+  providers: Array<{ id: string; name: string; kind: string; popular?: boolean }>
   ollamaModelsByProvider: Record<string, Array<{ id: string; name: string }>>
   openaiModelsByProvider: Record<string, string[]>
 }>('/api/models')
@@ -51,8 +51,9 @@ const orderedProviders = computed(() => {
   const rows = modelsData.value?.providers || []
   const sidecar = rows.filter((p) => p.id === 'ollama')
   const host = rows.filter((p) => p.id === 'ollama-host')
-  const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host')
-  return [...sidecar, ...host, ...rest]
+  const popular = rows.filter((p) => p.popular)
+  const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular)
+  return [...sidecar, ...host, ...popular, ...rest]
 })
 
 const providerItems = computed(() => orderedProviders.value.map((p) => ({
@@ -341,7 +342,7 @@ onUnmounted(() => {
   streamAbort.value?.abort()
 })
 
-defineExpose({ busy, thinking, stop, streamAbort })
+defineExpose({ busy, thinking, stop, streamAbort, orderedProviders })
 </script>
 
 <template>

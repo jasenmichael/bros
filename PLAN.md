@@ -49,7 +49,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 ## Recent (Chat nav)
 
 
-- Chat page is conversation-only. Recents live in the dock under Status (open/collapsible; Rename + Delete). Bottom block: pinned sidecar UIs, then Docs + Settings, then GitHub. `/chat` = new; `/chat/:id` = saved. First successful reply titles via sidecar specialist `bros` (`Label:`); the name is not listed in Chat or Models.
+- Chat page is conversation-only. Recents live in the dock under Status (open/collapsible; Rename + Delete). Bottom block: pinned sidecar UIs, then Docs (collapsible docs tree) + Settings, then GitHub. `/chat` = new; `/chat/:id` = saved. First successful reply titles via sidecar specialist `bros` (`Label:`); the name is not listed in Chat or Models.
 
 ## Recent (two Ollamas)
 

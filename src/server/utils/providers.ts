@@ -5,6 +5,7 @@ import { getDb, providers } from './db'
 import { isInternalBrosModel } from './internalBrosModel'
 import { isValidOllamaPullName } from './ollamaLibrary'
 import { findHostOllama, hostOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
+import { PROVIDER_PRESETS, isPopularProvider } from './providerPresets'
 
 export type ProviderKind = 'ollama' | 'openai' | 'anthropic'
 
@@ -12,10 +13,17 @@ export const OLLAMA_SIDECAR_ID = 'ollama'
 export const OLLAMA_HOST_ID = 'ollama-host'
 export const SYSTEM_PROVIDER_IDS = [OLLAMA_SIDECAR_ID, OLLAMA_HOST_ID] as const
 
+export { isPopularProvider, PROVIDER_PRESETS }
+export { POPULAR_PROVIDER_IDS, getProviderPreset } from './providerPresets'
+
 export type ProviderStatus = 'running' | 'stopped' | 'error'
 
 export function isSystemProvider(id: string) {
   return id === OLLAMA_SIDECAR_ID || id === OLLAMA_HOST_ID
+}
+
+export function isReservedProviderId(id: string) {
+  return isSystemProvider(id) || isPopularProvider(id)
 }
 
 export type ProviderRow = {
@@ -93,7 +101,7 @@ export function upsertProvider(input: {
 }
 
 export function deleteProvider(id: string) {
-  if (isSystemProvider(id)) {
+  if (isSystemProvider(id) || isPopularProvider(id)) {
     throw createError({ statusCode: 400, statusMessage: `Cannot delete built-in ${id} provider` })
   }
   getDb().delete(providers).where(eq(providers.id, id)).run()
@@ -125,6 +133,17 @@ export function ensureDefaultProviders() {
       kind: 'ollama',
       baseUrl: hostOllamaUrl(11434),
       config: {},
+    })
+  }
+  for (const preset of PROVIDER_PRESETS) {
+    if (getProvider(preset.id)) continue
+    upsertProvider({
+      id: preset.id,
+      name: preset.name,
+      kind: 'openai',
+      baseUrl: preset.baseUrl,
+      enabled: true,
+      config: { models: [...preset.models] },
     })
   }
 }
@@ -228,7 +247,7 @@ export async function listOpenAIModelIds(providerId: string): Promise<string[]> 
   const configured = listConfiguredOpenAIModels(providerId)
   const secret = getProviderSecret(providerId)
   const base = secret?.row.baseUrl?.replace(/\/$/, '')
-  if (!base) return configured
+  if (!base || !secret.apiKey) return configured
   try {
     const headers: Record<string, string> = {}
     if (secret.apiKey) headers.authorization = `Bearer ${secret.apiKey}`

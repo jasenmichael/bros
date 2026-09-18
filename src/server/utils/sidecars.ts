@@ -3,6 +3,7 @@ import { join } from 'pathe'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import { loadBootstrapConfig } from './config'
+import { POPULAR_PROVIDER_IDS } from './providerPresets'
 
 const interfaceSchema = z.object({
   type: z.enum(['webui', 'api', 'openai', 'cli']),
@@ -58,6 +59,7 @@ export type SidecarMeta = z.infer<typeof sidecarMetaSchema> & {
 export const RESERVED_SLUGS = new Set([
   'api', 'chat', 'models', 'sidecars', 'settings', 'docs',
   'login', 'setup', 'status', '_nuxt', 'favicon.ico',
+  ...POPULAR_PROVIDER_IDS,
 ])
 
 function readSidecarDir(dir: string, source: 'core' | 'custom'): SidecarMeta | null {

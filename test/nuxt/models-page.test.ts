@@ -21,6 +21,18 @@ mockNuxtImport('useFetch', () => {
         providers: [
           { id: 'ollama', name: 'Ollama sidecar', kind: 'ollama', baseUrl: 'http://ollama:11434', enabled: true, hasApiKey: false, config: {}, status: 'running', port: 11435 },
           { id: 'ollama-host', name: 'Ollama host', kind: 'ollama', baseUrl: 'http://host.docker.internal:11434', enabled: true, hasApiKey: false, config: {}, status: 'stopped', port: null },
+          { id: 'openai', name: 'OpenAI', kind: 'openai', baseUrl: 'https://api.openai.com/v1', enabled: true, hasApiKey: false, config: { models: ['gpt-4o-mini'] }, status: 'stopped', popular: true, statusMessage: 'Need an API key' },
+          { id: 'gemini', name: 'Google Gemini', kind: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'groq', name: 'Groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'openrouter', name: 'OpenRouter', kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'anthropic', name: 'Anthropic', kind: 'openai', baseUrl: 'https://api.anthropic.com/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'deepseek', name: 'DeepSeek', kind: 'openai', baseUrl: 'https://api.deepseek.com/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'mistral', name: 'Mistral AI', kind: 'openai', baseUrl: 'https://api.mistral.ai/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'xai', name: 'xAI', kind: 'openai', baseUrl: 'https://api.x.ai/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'together', name: 'Together AI', kind: 'openai', baseUrl: 'https://api.together.xyz/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'fireworks', name: 'Fireworks AI', kind: 'openai', baseUrl: 'https://api.fireworks.ai/inference/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'perplexity', name: 'Perplexity', kind: 'openai', baseUrl: 'https://api.perplexity.ai', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
+          { id: 'cohere', name: 'Cohere', kind: 'openai', baseUrl: 'https://api.cohere.ai/compatibility/v1', enabled: true, hasApiKey: false, config: {}, status: 'stopped', popular: true },
         ],
         ollamaModelsByProvider: { ollama: [], 'ollama-host': [] },
         openaiModelsByProvider: {},
@@ -51,7 +63,22 @@ describe('Models page', () => {
     const wrapper = await mountSuspended(ModelsPage)
     const titles = headings(wrapper)
     expect(titles).toContain('Ollama')
+    expect(titles).toContain('Popular services')
     expect(titles).toContain('Custom providers')
+    expect(titles.indexOf('Ollama')).toBeLessThan(titles.indexOf('Popular services'))
+    expect(titles.indexOf('Popular services')).toBeLessThan(titles.indexOf('Custom providers'))
+    expect(wrapper.text()).toContain('OpenAI')
+    expect(wrapper.text()).toContain('Google Gemini')
+    expect(wrapper.text()).toContain('Groq')
+    expect(wrapper.text()).toContain('OpenRouter')
+    expect(wrapper.text()).toContain('Anthropic')
+    expect(wrapper.text()).toContain('DeepSeek')
+    expect(wrapper.text()).toContain('Mistral AI')
+    expect(wrapper.text()).toContain('xAI')
+    expect(wrapper.text()).toContain('Together AI')
+    expect(wrapper.text()).toContain('Fireworks AI')
+    expect(wrapper.text()).toContain('Perplexity')
+    expect(wrapper.text()).toContain('Cohere')
     expect(titles).not.toContain('Providers')
     expect(titles).not.toContain('Settings')
     expect(wrapper.text()).toContain('Ollama sidecar')
@@ -70,7 +97,8 @@ describe('Models page', () => {
     expect(wrapper.text()).toContain('user/name:tag')
     const pageText = wrapper.text()
     expect(pageText.indexOf('Pull')).toBeGreaterThan(-1)
-    expect(pageText.indexOf('Pull')).toBeLessThan(pageText.indexOf('Custom providers'))
+    expect(pageText.indexOf('Pull')).toBeLessThan(pageText.indexOf('Popular services'))
+    expect(pageText.indexOf('Popular services')).toBeLessThan(pageText.indexOf('Custom providers'))
     expect(wrapper.find('button[aria-label="Settings for Ollama sidecar"]').exists()).toBe(true)
     expect(wrapper.find('button[aria-label="Settings for Ollama host"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="Copy http://127.0.0.1:11435/"]').exists()).toBe(true)
@@ -130,6 +158,22 @@ describe('Models page', () => {
     expect(hostText).toContain('Save port')
     expect(hostText).toContain('host Ollama disk')
     expect(hostText).not.toContain('Use GPU')
+  })
+
+  it('opens popular settings with key fields and no Delete', async () => {
+    document.querySelectorAll('[role="dialog"]').forEach((el) => el.remove())
+    const ModelsPage = await import('../../src/app/pages/models/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ModelsPage)
+    await wrapper.find('button[aria-label="Settings for OpenAI"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')]
+    const dialogText = dialogs.map((el) => el.textContent || '').join('\n')
+    expect(dialogText).toContain('OpenAI')
+    expect(dialogText).toContain('api.openai.com')
+    expect(dialogText).toContain('Save')
+    expect(dialogText).not.toContain('Delete')
+    expect(dialogText).not.toContain('Use GPU')
+    expect(dialogText).not.toContain('Paid providers')
   })
 
   it('opens a custom OpenAI-compat form from Add custom under Custom providers', async () => {

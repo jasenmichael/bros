@@ -14,7 +14,7 @@
   "dependencies": {
     "@bros/docs": "workspace:*",
     "@bros/theme": "workspace:*",
-    "better-sqlite3": "^11.9.1",
+    "better-sqlite3": "^12.11.1",
     "defu": "^6.1.4",
     "dockerode": "^4.0.6",
     "drizzle-orm": "^0.44.2",

@@ -19,7 +19,9 @@ data_dir: ./data
 public_url: https://bros.example.com
 ```
 
-`public_url` enables the host Cloudflare tunnel and is the advertised hostname. All other settings live in SQLite (`bros.sqlite`) and the UI.
+`public_url` enables the host Cloudflare tunnel and is the advertised hostname. All other settings live in SQLite (`bros.sqlite`) and the UI. YAML does not bootstrap provider API keys (no `OPENAI_API_KEY`).
+
+Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tunnel).
 
 ## `BROS_HOME` and host binds
 
@@ -28,7 +30,8 @@ public_url: https://bros.example.com
 Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
 - `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, custom sidecars, logs)
-- `$BROS_HOST_DATA_DIR/ollama` → Ollama `/root/.ollama`
+- `$BROS_HOST_DATA_DIR/ollama` → Ollama sidecar `/root/.ollama`
+- `$BROS_HOST_DATA_DIR/bros-model` → Ollama sidecar `/bros-model` (packaged specialist, read-only)
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
 
@@ -49,43 +52,8 @@ $BROS_HOST_DATA_DIR/
   opencode/
 ```
 
-Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (including Ollama `config.customModels` and custom OpenAI `config.models`), chat, and sidecar autostart/nav pins/`hostMode`/`host_probe_port` are stored in SQLite. Built-in providers are `ollama` (sidecar) and `ollama-host`.
+Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (Ollama `config.customModels`, Popular services keys/models, custom OpenAI `config.models`), chat, and sidecar autostart/nav pins/`hostMode`/`host_probe_port` are stored in SQLite. Built-in providers are `ollama` (sidecar), `ollama-host`, and the 12 Popular services rows.
 
-Compose publish overrides: `BROS_OLLAMA_PORT` (default 11435), `BROS_OPENCODE_PORT` (4097), `BROS_OPENWEBUI_PORT` (3080).
+`$BROS_HOST_DATA_DIR/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)).
 
 Do not commit `data/`, `.env`, `.nuxt`, or `node_modules`.
-
-## Tunnel (host cloudflared)
-
-The Dashboard Tunnel card controls a **host** `cloudflared` process. Bros inside Docker cannot spawn it. `bros` (and `pnpm dev`) start a small helper that writes:
-
-```text
-$BROS_HOST_DATA_DIR/tunnel/
-  enabled
-  hostname
-  status.json
-  logs.txt
-  command
-```
-
-When `public_url` is set (or the Dashboard card is on), startup checks:
-
-1. `cloudflared` on `PATH` (or `~/.local/bin/cloudflared`)
-2. Login via `~/.cloudflared/cert.pem` or `cloudflared tunnel list`
-
-Missing binary: the wizard offers a **user-local** install to `~/.local/bin` (no sudo). A system package/binary install (`dpkg` / `rpm` / `/usr/local/bin`) is optional and asks you to approve sudo. Native Windows uses the elevated PowerShell snippet in this section, or WSL.
-
-Then run `cloudflared login` in the browser. With `public_url` set, the helper creates/runs a **named** tunnel (`bros`) with `cloudflared tunnel route dns <id> <hostname>` (CNAME to `<id>.cfargotunnel.com`) and `cloudflared tunnel --config $BROS_HOME/data/tunnel/config.yml run bros` (`protocol: http2` and `edge-ip-version: 4` in that YAML; override `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`). Already-exists is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Dashboard shows the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json` (Dashboard + Status). When `public_url` is unset, the card starts a quick tunnel to `http://127.0.0.1:<BROS_PORT>` (default **3055**).
-
-Windows (elevated PowerShell):
-
-```powershell
-$arch = if ([Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
-$url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-$arch.exe"
-$installDir = "$env:ProgramFiles\cloudflared"
-New-Item -ItemType Directory -Force -Path $installDir
-Invoke-WebRequest -Uri $url -OutFile "$installDir\cloudflared.exe"
-[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "Machine") + ";$installDir", "Machine")
-```
-
-macOS / Linux user-local (preferred, no sudo): `bros` downloads the official GitHub release into `~/.local/bin`. System install uses the official `.deb` / `.rpm` / `/usr/local/bin` binaries and requires sudo.

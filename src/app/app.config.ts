@@ -1,3 +1,5 @@
+import { docsNavItems } from '../layers/docs/app/utils/docsNav'
+
 export default defineAppConfig({
   bros: {
     navItems: [
@@ -8,7 +10,7 @@ export default defineAppConfig({
       { label: 'Status', to: '/status', icon: 'i-lucide-activity' },
     ],
     bottomItems: [
-      { label: 'Docs', to: '/docs', icon: 'i-lucide-book-open' },
+      { label: 'Docs', to: '/docs', icon: 'i-lucide-book-open', children: docsNavItems() },
       { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
     ],
     showPinned: true,

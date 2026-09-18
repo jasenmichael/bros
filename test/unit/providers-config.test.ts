@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('upsertProvider config merge', () => {
   let dataDir = ''
@@ -134,6 +134,71 @@ describe('upsertProvider config merge', () => {
     expect(listCustomOllamaModels('ollama-host')).toEqual(['llama3.2'])
     expect(listCustomOllamaModels('ollama')).toEqual([])
     expect(getProvider('ollama-host')?.config).toMatchObject({ customModels: ['llama3.2'] })
+  })
+
+  it('seeds 12 popular OpenAI-compat rows and refuses to delete them', async () => {
+    const {
+      ensureDefaultProviders,
+      getProvider,
+      deleteProvider,
+      upsertProvider,
+      isPopularProvider,
+    } = await import('../../src/server/utils/providers')
+    const { PROVIDER_PRESETS } = await import('../../src/server/utils/providerPresets')
+
+    ensureDefaultProviders()
+    expect(PROVIDER_PRESETS).toHaveLength(12)
+    for (const preset of PROVIDER_PRESETS) {
+      const row = getProvider(preset.id)
+      expect(row?.kind).toBe('openai')
+      expect(row?.name).toBe(preset.name)
+      expect(row?.baseUrl).toBe(preset.baseUrl)
+      expect(row?.config.models).toEqual(preset.models)
+      expect(isPopularProvider(preset.id)).toBe(true)
+      expect(() => deleteProvider(preset.id)).toThrow(new RegExp(`Cannot delete built-in ${preset.id}`))
+    }
+  })
+
+  it('does not clobber a saved popular key or models on re-seed', async () => {
+    const { ensureDefaultProviders, getProvider, upsertProvider, getProviderSecret } = await import('../../src/server/utils/providers')
+    ensureDefaultProviders()
+    upsertProvider({
+      id: 'openai',
+      name: 'OpenAI',
+      kind: 'openai',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'sk-test',
+      config: { models: ['gpt-4o-mini'] },
+    })
+    ensureDefaultProviders()
+    expect(getProvider('openai')?.config.models).toEqual(['gpt-4o-mini'])
+    expect(getProviderSecret('openai')?.apiKey).toBe('sk-test')
+  })
+
+  it('treats popular slugs as reserved so custom cannot reuse openai', async () => {
+    const { ensureDefaultProviders, isReservedProviderId, isPopularProvider } = await import('../../src/server/utils/providers')
+    ensureDefaultProviders()
+    expect(isReservedProviderId('openai')).toBe(true)
+    expect(isReservedProviderId('gemini')).toBe(true)
+    expect(isPopularProvider('my-proxy')).toBe(false)
+    expect(isReservedProviderId('my-proxy')).toBe(false)
+  })
+
+  it('skips remote GET /models when no API key is saved', async () => {
+    const { ensureDefaultProviders, listOpenAIModelIds } = await import('../../src/server/utils/providers')
+    const { getProviderPreset } = await import('../../src/server/utils/providerPresets')
+    ensureDefaultProviders()
+    const originalFetch = globalThis.fetch
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+    try {
+      const ids = await listOpenAIModelIds('openai')
+      expect(ids).toEqual(getProviderPreset('openai')?.models)
+      expect(fetchMock).not.toHaveBeenCalled()
+    }
+    finally {
+      globalThis.fetch = originalFetch
+    }
   })
 
 })

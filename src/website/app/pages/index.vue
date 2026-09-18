@@ -6,9 +6,14 @@ useSeoMeta({
 
 const features = [
   {
-    title: 'Getting started',
-    to: '/docs/getting-started',
-    body: 'Install with Docker only. bros on host port 3055.',
+    title: 'Chat',
+    to: '/docs/chat',
+    body: 'Provider then model. Sidecar, host, Popular services, then custom. Stop aborts the stream.',
+  },
+  {
+    title: 'Models',
+    to: '/docs/models',
+    body: 'Ollama locally. Popular services take a user API key. Custom is any OpenAI-compat base URL.',
   },
   {
     title: 'Sidecars',
@@ -16,9 +21,9 @@ const features = [
     body: 'Managed Compose projects on the bros network. Core plus custom under data/sidecars.',
   },
   {
-    title: 'Configuration',
-    to: '/docs/configuration',
-    body: 'Bootstrap YAML is working_dir + data_dir. Everything else lives in SQLite and the UI.',
+    title: 'Development',
+    to: '/docs/development',
+    body: 'pnpm dev bind-mount for contributors. User CLI stays bros.',
   },
 ]
 </script>
@@ -33,11 +38,11 @@ const features = [
         <UButton to="/docs/getting-started" color="primary">
           Get started
         </UButton>
+        <UButton to="/docs/models" color="neutral" variant="outline">
+          Models
+        </UButton>
         <UButton to="/docs/sidecars" color="neutral" variant="outline">
           Sidecars
-        </UButton>
-        <UButton to="/docs/configuration" color="neutral" variant="outline">
-          Configuration
         </UButton>
       </div>
 
@@ -57,7 +62,7 @@ bros</code></pre>
         </p>
       </section>
 
-      <section class="grid gap-4 md:grid-cols-3">
+      <section class="grid gap-4 md:grid-cols-2">
         <NuxtLink
           v-for="item in features"
           :key="item.to"
@@ -72,14 +77,15 @@ bros</code></pre>
       <section class="space-y-2 max-w-2xl">
         <h2 class="text-lg font-semibold text-white">Models</h2>
         <p class="text-[var(--bros-muted)]">
-          Recommended pulls are official (and verified community) Ollama tags whose on-disk size is
+          Models has three sections: <strong class="text-white">Ollama</strong> (sidecar + host),
+          <strong class="text-white">Popular services</strong> (twelve OpenAI-compat clouds — paste a key),
+          and <strong class="text-white">Custom providers</strong>.
+          Ollama recommended pulls are official (and verified community) tags
           <strong class="text-white">≤ 16 GB</strong>.
-          <code class="text-[var(--bros-text)]">qwen3-coder:14b</code> is not a library tag — use
-          <code class="text-[var(--bros-text)]">freehuntx/qwen3-coder:14b</code>
-          or
-          <code class="text-[var(--bros-text)]">qwen2.5-coder:14b</code>.
-          Type any <code class="text-[var(--bros-text)]">name:tag</code> or
-          <code class="text-[var(--bros-text)]">owner/name:tag</code>; saved names stay under <strong class="text-white">Yours</strong>.
+          See
+          <NuxtLink to="/docs/models" class="text-[var(--bros-accent)] hover:underline">Models</NuxtLink>
+          and
+          <NuxtLink to="/docs/providers" class="text-[var(--bros-accent)] hover:underline">Popular services</NuxtLink>.
         </p>
       </section>
 

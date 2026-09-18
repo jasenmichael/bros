@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -64,6 +64,15 @@ describe('loadBootstrapConfig', () => {
     writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\npublic_url: "https://from-yaml.example"\n')
     process.env.BROS_PUBLIC_URL = 'https://from-env.example'
     expect(loadBootstrapConfig(root).publicUrl).toBe('https://from-env.example')
+  })
+
+  it('from src/app cwd, uses checkout bros.yml data_dir (not src/app/data)', () => {
+    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\n')
+    const appCwd = join(root, 'src', 'app')
+    mkdirSync(appCwd, { recursive: true })
+    const cfg = loadBootstrapConfig(appCwd)
+    expect(cfg.workingDir).toBe(resolve(root))
+    expect(cfg.dataDir).toBe(resolve(root, 'data'))
   })
 })
 

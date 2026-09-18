@@ -1,4 +1,4 @@
-import { getProvider, isSystemProvider, upsertProvider, type ProviderKind } from '../../utils/providers'
+import { getProvider, getProviderPreset, isPopularProvider, isSystemProvider, upsertProvider, type ProviderKind } from '../../utils/providers'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{
@@ -20,6 +20,17 @@ export default defineEventHandler(async (event) => {
     if (body.kind !== 'ollama') {
       throw createError({ statusCode: 400, statusMessage: 'Built-in Ollama providers cannot change kind' })
     }
+  }
+  else if (isPopularProvider(body.id)) {
+    if (body.kind !== 'openai') {
+      throw createError({ statusCode: 400, statusMessage: 'Popular services must stay OpenAI-compatible' })
+    }
+    const preset = getProviderPreset(body.id)
+    return upsertProvider({
+      ...body,
+      kind: 'openai',
+      baseUrl: preset?.baseUrl ?? body.baseUrl,
+    })
   }
   else {
     const existing = getProvider(body.id)

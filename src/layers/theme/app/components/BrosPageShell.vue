@@ -10,6 +10,7 @@ withDefaults(defineProps<{
 
 <template>
   <div class="mx-auto w-full max-w-6xl px-4 py-8">
+    <slot name="lead" />
     <div v-if="title" class="mb-8">
       <h1 class="text-3xl font-semibold tracking-tight text-white">{{ title }}</h1>
       <p v-if="description" class="mt-2 max-w-2xl text-[var(--bros-muted)]">{{ description }}</p>

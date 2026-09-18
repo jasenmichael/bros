@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getDb, conversations, messages } from './db'
 import { INTERNAL_BROS_MODEL } from './internalBrosModel'
-import { getProvider, getProviderSecret, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
+import { getProvider, getProviderPreset, getProviderSecret, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
@@ -201,15 +201,18 @@ export async function streamChat(opts: {
     const base = (secret.row.baseUrl || (row.kind === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
 
     if (row.kind === 'openai') {
+      const extraHeaders = getProviderPreset(provider)?.headers || {}
       const res = await fetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${secret.apiKey || ''}`,
+          ...extraHeaders,
         },
         body: JSON.stringify({
           model,
           stream: true,
+          stream_options: { include_usage: true },
           messages: opts.history,
         }),
       })
@@ -224,7 +227,8 @@ export async function streamChat(opts: {
         if (data === '[DONE]') return
         try {
           const json = JSON.parse(data)
-          const token = json.choices?.[0]?.delta?.content || ''
+          const delta = json.choices?.[0]?.delta
+          const token = delta?.content || delta?.reasoning_content || ''
           if (token) opts.onToken(token)
           mergeUsage(usage, usageFromOpenAIObject(json))
         } catch {

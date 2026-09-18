@@ -1,6 +1,6 @@
 ---
 title: Sidecars
-description: Managed Compose projects outside the core stack.
+description: Managed Compose projects on the bros network.
 ---
 
 # Sidecars
@@ -21,23 +21,26 @@ There is **no path proxy**. A `webui` must declare `publish` in `sidecar.yml` an
 
 ## Host vs sidecar
 
-`containerPort` is the process listen port inside Docker. `publish` is the host port. Ollama stays 11434 inside the container and publishes **11435** so a host Ollama on 11434 can coexist.
+`containerPort` is the process listen port inside Docker. `publish` is the host port.
 
 `hostMode` is stored per sidecar (`auto`, `sidecar`, `host`).
 
-- **Auto** / **Sidecar**: `compose up` on the Bros **publish** port. Fails if that port is already taken. Host Ollama on 11434 does not skip the sidecar.
+- **Auto** / **Sidecar**: `compose up` on the Bros **publish** port. Fails if that port is already taken.
 - **Host**: never start the Bros sidecar stack.
 
-**Host Ollama** (Chat/Models): scan ports in `hostProbe` (`GET /api/version`). Skip `bros-sc-ollama`. Optional manual port on Models (host provider) or the Ollama sidecar card. Sidecar and host are separate providers; Chat picks provider then model.
-
-Custom sidecars with a web UI must set `publish` **and** stay on network `bros`.
+Custom sidecars with a web UI must set `publish` **and** stay on network `bros`. There is no add/upload UI — drop files on disk.
 
 ## Status
 
 `/status` lists each sidecar’s mode, port, state, error, autostart, and pin. Dashboard widgets link there (and to Logs when a container exists).
 
-Core sidecars: `ollama` (Bros **11435**, host install **11434**), `opencode` (**4097**), `openwebui` (**3080** → container 8080).
+`bros start` (and `pnpm dev`) remove leftover `forgebox-sc-*` containers before up. `bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack.
 
-Cloudflare tunnel is **not** a sidecar. The Dashboard **Tunnel** card starts/stops a host `cloudflared` process (`./bros` helper + files under `$BROS_HOST_DATA_DIR/tunnel`). `public_url` in `bros.yml` starts a named tunnel (`cloudflared tunnel route dns` + `cloudflared tunnel --config …/config.yml run bros`) for that hostname; otherwise the card uses a quick tunnel. If the current request is via-tunnel (`cf-ray`, `cf-connecting-ip`, `cf-visitor`, `cdn-loop` containing `cloudflare`, or Host matching `public_url` / `BROS_TUNNEL_HOST` / last hostname), Bros will not stop the tunnel — Dashboard toggle stays disabled, and `POST /api/tunnel/stop` returns 403.
+Cloudflare tunnel is **not** a sidecar. See [Tunnel](/docs/tunnel).
 
-`bros start` (and `pnpm dev`) remove leftover `forgebox-sc-*` containers before up. `bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack. First start also brings up sidecar Ollama and installs the internal `bros` model when the packaged GGUF is present.
+## Core and custom
+
+- [Ollama](/docs/sidecars/ollama) — publish **11435**, container 11434
+- [OpenCode](/docs/sidecars/opencode) — publish **4097**
+- [Open WebUI](/docs/sidecars/openwebui) — publish **3080** → container 8080
+- [Custom](/docs/sidecars/custom) — `$BROS_HOST_DATA_DIR/sidecars/<id>/`

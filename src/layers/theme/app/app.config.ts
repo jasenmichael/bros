@@ -1,10 +1,4 @@
-export type BrosNavItem = {
-  label: string
-  to: string
-  icon?: string
-  external?: boolean
-  exact?: boolean
-}
+export type { BrosNavItem } from './types/nav'
 
 export default defineAppConfig({
   bros: {

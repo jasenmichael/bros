@@ -1,18 +1,12 @@
 <script setup lang="ts">
-export interface NavItem {
-  label: string
-  to: string
-  icon?: string
-  external?: boolean
-  exact?: boolean
-}
+import type { BrosNavItem } from '../types/nav'
 
 const props = withDefaults(defineProps<{
   brand?: string
   brandTo?: string
-  items?: NavItem[]
-  bottomItems?: NavItem[]
-  pinnedItems?: NavItem[]
+  items?: BrosNavItem[]
+  bottomItems?: BrosNavItem[]
+  pinnedItems?: BrosNavItem[]
   showPinned?: boolean
 }>(), {
   brand: 'Bros',
@@ -82,16 +76,8 @@ const dockStyle = computed(() => {
   return { width: `${dockWidth.value}px` }
 })
 
-function linkTitle(item: NavItem) {
+function linkTitle(item: BrosNavItem) {
   return iconMode.value ? item.label : undefined
-}
-
-function linkActiveClass(item: NavItem) {
-  return item.exact ? '' : 'bros-nav-panel__link--active'
-}
-
-function linkExactActiveClass(item: NavItem) {
-  return item.exact ? 'bros-nav-panel__link--active' : undefined
 }
 </script>
 
@@ -149,19 +135,14 @@ function linkExactActiveClass(item: NavItem) {
       </div>
 
       <nav class="bros-nav-panel__nav" aria-label="Primary">
-        <NuxtLink
-          v-for="item in props.items"
-          :key="item.to"
-          :to="item.to"
-          :target="item.external ? '_blank' : undefined"
-          class="bros-nav-panel__link"
-          :active-class="linkActiveClass(item)"
-          :exact-active-class="linkExactActiveClass(item)"
-          :title="linkTitle(item)"
+        <div
+          class="bros-nav-panel__items"
+          :class="{
+            'bros-nav-panel__items--fill bros-nav-panel__scroll': !$slots['after-primary'],
+          }"
         >
-          <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
-          <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
-        </NuxtLink>
+          <BrosNavTree :items="props.items" :icon-mode="iconMode && isDesktop" />
+        </div>
 
         <div v-if="$slots['after-primary']" class="bros-nav-panel__recents-wrap">
           <slot name="after-primary" />
@@ -197,18 +178,9 @@ function linkExactActiveClass(item: NavItem) {
 
           <template v-if="props.bottomItems.length">
             <div class="bros-nav-panel__divider" />
-            <NuxtLink
-              v-for="item in props.bottomItems"
-              :key="item.to"
-              :to="item.to"
-              :target="item.external ? '_blank' : undefined"
-              class="bros-nav-panel__link"
-              active-class="bros-nav-panel__link--active"
-              :title="linkTitle(item)"
-            >
-              <UIcon v-if="item.icon" :name="item.icon" class="size-4 shrink-0" />
-              <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
-            </NuxtLink>
+            <div class="bros-nav-panel__bottom-tree bros-nav-panel__scroll">
+              <BrosNavTree :items="props.bottomItems" :icon-mode="iconMode && isDesktop" />
+            </div>
           </template>
         </div>
       </nav>
@@ -339,11 +311,38 @@ function linkExactActiveClass(item: NavItem) {
   padding: 0.75rem 0.5rem 0.5rem;
 }
 
+.bros-nav-panel__scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bros-nav-panel__scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.bros-nav-panel__items {
+  flex-shrink: 0;
+}
+
+.bros-nav-panel__items--fill {
+  flex: 1;
+  min-height: 0;
+}
+
+.bros-nav-panel__bottom-tree {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .bros-nav-panel__recents-wrap {
   display: flex;
-  flex: 1;
+  flex: 1 1 auto;
   flex-direction: column;
-  min-height: 0;
+  min-height: 8rem;
   overflow: hidden;
 }
 
@@ -391,7 +390,11 @@ function linkExactActiveClass(item: NavItem) {
 }
 
 .bros-nav-panel__bottom {
-  margin-top: auto;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 48%;
   padding-top: 0.5rem;
 }
 

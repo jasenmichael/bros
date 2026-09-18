@@ -14,6 +14,7 @@ type Provider = {
   status?: 'running' | 'stopped' | 'error'
   statusMessage?: string | null
   port?: number | null
+  popular?: boolean
 }
 
 type OllamaModel = { id: string; name: string; size?: number }
@@ -92,16 +93,21 @@ const listedProviders = computed(() => {
   const rows = data.value?.providers || []
   const sidecar = rows.filter((p) => p.id === 'ollama')
   const host = rows.filter((p) => p.id === 'ollama-host')
-  const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host')
-  return [...sidecar, ...host, ...rest]
+  const popular = rows.filter((p) => p.popular)
+  const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular)
+  return [...sidecar, ...host, ...popular, ...rest]
 })
 
 const ollamaProviders = computed(() =>
   listedProviders.value.filter((p) => p.id === 'ollama' || p.id === 'ollama-host'),
 )
 
+const popularProviders = computed(() =>
+  listedProviders.value.filter((p) => p.popular),
+)
+
 const customProviders = computed(() =>
-  listedProviders.value.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host'),
+  listedProviders.value.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular),
 )
 
 const selected = computed(() =>
@@ -136,7 +142,8 @@ const settingsProvider = computed(() => {
 const isAdd = computed(() => settingsTarget.value === ADD_ID)
 const isSidecarSettings = computed(() => settingsTarget.value === 'ollama')
 const isHostSettings = computed(() => settingsTarget.value === 'ollama-host')
-const isCustomSettings = computed(() => Boolean(settingsProvider.value) && settingsProvider.value?.kind !== 'ollama')
+const isCustomSettings = computed(() => Boolean(settingsProvider.value) && settingsProvider.value?.kind !== 'ollama' && !settingsProvider.value?.popular)
+const isPopularSettings = computed(() => Boolean(settingsProvider.value?.popular))
 const settingsTitle = computed(() => {
   if (isAdd.value) return 'Add custom provider'
   return settingsProvider.value?.name || 'Provider settings'
@@ -486,6 +493,11 @@ function parseModelNames(raw: string) {
 
 async function saveCustom() {
   if (!customForm.id || !customForm.name) return
+  const id = customForm.id.trim()
+  if (isAdd.value && (listedProviders.value.some((p) => p.id === id) || id === 'ollama' || id === 'ollama-host')) {
+    err.value = 'id is reserved'
+    return
+  }
   busy.value = true
   err.value = ''
   try {
@@ -554,7 +566,7 @@ async function saveHostPort() {
 </script>
 
 <template>
-  <BrosPageShell class="w-full" title="Models" description="Ollama sidecar, host Ollama, and custom OpenAI-compatible providers.">
+  <BrosPageShell class="w-full" title="Models" description="Ollama sidecar, host Ollama, popular services, and custom OpenAI-compatible providers.">
     <p v-if="err" class="mb-4 text-sm text-red-400">{{ err }}</p>
     <div v-if="pending" class="text-[var(--bros-muted)]">Loading…</div>
 
@@ -630,7 +642,7 @@ async function saveHostPort() {
                 {{ selected?.statusMessage || 'Host Ollama is stopped. Pull and Chat need the host daemon.' }}
               </p>
               <p class="text-xs text-amber-200">
-                Pull and chat use the host Ollama disk, not $BROS_DIR/data/ollama.
+                Pull and chat use the host Ollama disk, not $BROS_HOME/data/ollama.
               </p>
             </template>
             <div class="flex w-full min-w-0 gap-2" :class="!ollamaRunning && isHost ? 'opacity-50' : ''">
@@ -711,6 +723,59 @@ async function saveHostPort() {
         </li>
         <li v-if="!ollamaProviders.length" class="px-4 py-3 text-sm text-[var(--bros-muted)]">
           No Ollama providers yet.
+        </li>
+      </ul>
+    </section>
+
+    <section class="mb-8 w-full space-y-3">
+      <h2 class="text-xl font-medium text-white">Popular services</h2>
+      <ul class="w-full divide-y divide-[var(--bros-border)] rounded-xl border border-[var(--bros-border)]">
+        <li
+          v-for="p in popularProviders"
+          :key="p.id"
+          class="flex w-full items-center justify-between gap-3 px-4 py-3"
+        >
+          <div>
+            <div class="flex items-center text-white">
+              <span>{{ p.name }}</span>
+              <span v-if="endpointLabel(p)" class="ml-3 inline-flex items-center gap-1.5">
+                <span class="font-mono text-xs text-[var(--bros-muted)]">{{ endpointLabel(p) }}</span>
+                <UButton
+                  :icon="copiedUrl === endpointUrl(p) ? 'i-lucide-check' : 'i-lucide-copy'"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  :aria-label="copiedUrl === endpointUrl(p) ? 'Copied' : `Copy ${endpointUrl(p)}`"
+                  @click.stop="copyUrl(endpointUrl(p)!)"
+                />
+                <UButton
+                  icon="i-lucide-external-link"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  :href="endpointUrl(p) || undefined"
+                  target="_blank"
+                  rel="noreferrer"
+                  :aria-label="`Open ${endpointUrl(p)}`"
+                  @click.stop
+                />
+              </span>
+            </div>
+            <div class="text-xs text-[var(--bros-muted)]">{{ p.statusMessage || p.kind }}</div>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <div class="text-right text-xs" :class="p.status === 'running' ? 'text-emerald-300' : p.status === 'error' ? 'text-amber-300' : 'text-[var(--bros-muted)]'">
+              {{ statusLabel(p) }}
+            </div>
+            <UButton
+              icon="i-lucide-settings"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="`Settings for ${p.name}`"
+              @click.stop="openSettings(p.id)"
+            />
+          </div>
         </li>
       </ul>
     </section>
@@ -809,7 +874,7 @@ async function saveHostPort() {
               {{ settingsProvider?.statusMessage || 'Host Ollama is stopped. Pull and Chat need the host daemon.' }}
             </p>
             <p class="text-xs text-amber-200">
-              Pull and chat use the host Ollama disk, not $BROS_DIR/data/ollama.
+              Pull and chat use the host Ollama disk, not $BROS_HOME/data/ollama.
             </p>
             <UInput v-model="hostPortDraft" placeholder="Host port override (optional)" />
             <p v-if="data?.hostOllama" class="text-xs text-[var(--bros-muted)]">
@@ -828,12 +893,21 @@ async function saveHostPort() {
             </div>
           </template>
 
+          <template v-else-if="isPopularSettings && settingsProvider">
+            <div class="grid gap-2">
+              <UInput :model-value="customForm.id" disabled />
+              <UInput v-model="customForm.name" placeholder="Display name" />
+              <p class="font-mono text-xs text-[var(--bros-muted)]">{{ customForm.baseUrl }}</p>
+              <UInput v-model="customForm.apiKey" type="password" :placeholder="settingsProvider.hasApiKey ? 'API key (leave blank to keep)' : 'API key'" />
+              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
+            </div>
+          </template>
           <template v-else-if="isCustomSettings && settingsProvider">
             <div class="grid gap-2">
               <UInput :model-value="customForm.id" disabled />
               <UInput v-model="customForm.name" placeholder="Display name" />
               <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" />
-              <UInput v-model="customForm.apiKey" type="password" :placeholder="settingsProvider.hasApiKey ? 'API key (leave blank to keep)' : 'API key (optional)'" />
+              <UInput v-model="customForm.apiKey" type="password" :placeholder="settingsProvider.hasApiKey ? 'API key (leave blank to keep)' : 'API key'" />
               <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
             </div>
           </template>
@@ -847,6 +921,9 @@ async function saveHostPort() {
         <UButton :loading="busy" :disabled="!customForm.id || !customForm.name" @click="saveCustom">
           Save provider
         </UButton>
+      </template>
+      <template v-else-if="isPopularSettings && settingsProvider" #footer>
+        <UButton :loading="busy" :disabled="!customForm.name" @click="saveCustom">Save</UButton>
       </template>
       <template v-else-if="isCustomSettings && settingsProvider" #footer>
         <UButton :loading="busy" :disabled="!customForm.name" @click="saveCustom">Save</UButton>
