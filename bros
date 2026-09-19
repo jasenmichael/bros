@@ -160,42 +160,6 @@ resolve_default_config() {
   return 1
 }
 
-dir_is_empty() {
-  local d="$1"
-  [[ -d "$d" ]] || return 0
-  [[ -z "$(ls -A "$d" 2>/dev/null)" ]]
-}
-
-volume_exists() {
-  docker volume inspect "$1" >/dev/null 2>&1
-}
-
-# One-shot: first existing named volume → dest. Keep old volumes.
-# empty_check: "empty" (dir has no files) or a relative marker (skip if dest/marker exists).
-try_copy_volumes() {
-  local dest="$1"
-  local empty_check="$2"
-  shift 2
-  mkdir -p "$dest"
-  if [[ "$empty_check" == "empty" ]]; then
-    dir_is_empty "$dest" || return 0
-  elif [[ -e "$dest/$empty_check" ]]; then
-    return 0
-  fi
-  local vol
-  for vol in "$@"; do
-    volume_exists "$vol" || continue
-    echo "Copying Docker volume $vol → $dest (one-shot)…"
-    docker run --rm \
-      -v "${vol}:/from:ro" \
-      -v "${dest}:/to" \
-      alpine:3.20 \
-      sh -c "cp -a /from/. /to/ && chown -R ${BROS_HOST_UID}:${BROS_HOST_GID} /to" \
-      || die "failed to copy volume $vol to $dest"
-    return 0
-  done
-}
-
 ensure_host_data_dir() {
   mkdir -p \
     "$BROS_HOST_DATA_DIR" \
@@ -209,11 +173,6 @@ ensure_host_data_dir() {
     "$BROS_HOST_DATA_DIR/logs" \
     "$BROS_HOST_DATA_DIR/tunnel" \
     "$BROS_HOST_DATA_DIR/bros-model"
-  # Compose project prefix: bros_bros-data, bros-sc-openwebui_openwebui-data, …
-  try_copy_volumes "$BROS_HOST_DATA_DIR" "bros.sqlite" "bros-data" "bros_bros-data"
-  try_copy_volumes "$BROS_HOST_DATA_DIR/ollama" "empty" "bros-ollama-data"
-  try_copy_volumes "$BROS_HOST_DATA_DIR/openwebui" "empty" "openwebui-data" "bros-sc-openwebui_openwebui-data"
-  try_copy_volumes "$BROS_HOST_DATA_DIR/opencode" "empty" "opencode-data" "bros-sc-opencode_opencode-data"
 }
 
 compose_files() {
@@ -423,14 +382,14 @@ copy_vendor_bros_model() {
   done
 }
 
-wait_for_bros_network() {
-  local i
-  for i in $(seq 1 60); do
-    docker network inspect bros >/dev/null 2>&1 && return 0
-    sleep 1
-  done
-  echo "warning: docker network bros not ready" >&2
-  return 1
+# Shared by core + sidecars (compose marks it external). dockerode createNetwork
+# leaves no compose labels; core must not try to own this network.
+ensure_bros_network() {
+  local net="${BROS_NETWORK:-bros}"
+  if docker network inspect "$net" >/dev/null 2>&1; then
+    return 0
+  fi
+  docker network create --driver bridge "$net" >/dev/null
 }
 
 wait_for_ollama() {
@@ -481,7 +440,7 @@ install_internal_bros_model() {
 # Sidecar Ollama + packaged model bros. Warn on miss; do not fail start.
 ensure_ollama_and_model() {
   ensure_vendor_submodule
-  wait_for_bros_network || return 0
+  ensure_bros_network || return 0
   start_ollama_sidecar || return 0
   wait_for_ollama || return 0
   local gguf
@@ -516,6 +475,7 @@ cmd_start() {
   bros_tunnel_startup
   local mode
   mode="$([[ "$DEV" -eq 1 ]] && echo dev || echo prod)"
+  ensure_bros_network
   if [[ "$DAEMON" -eq 1 ]]; then
     echo "Bros start ($mode, daemon)…"
     compose_up -d

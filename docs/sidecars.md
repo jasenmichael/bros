@@ -13,7 +13,7 @@ Each sidecar is a directory with:
 
 Core sidecars ship under `sidecars/`. Custom sidecars live under `$BROS_HOST_DATA_DIR/sidecars/` (in-container `<data_dir>/sidecars/`).
 
-Compose project name is `bros-sc-<id>` on Docker network `bros`.
+Compose project name is `bros-sc-<id>` on shared external Docker network `bros`. Core compose uses the same network (`external: true`). The CLI creates it if missing.
 
 Interfaces may include `webui`, `api`, `openai`, and `cli`.
 

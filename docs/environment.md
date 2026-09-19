@@ -36,7 +36,7 @@ Bros uses the `BROS_*` prefix. YAML holds `working_dir`, `data_dir`, and optiona
 | `BROS_WORKING_DIR` | `/app` | App root inside the container |
 | `BROS_DATA_DIR` | `/data` | SQLite, custom sidecars, logs |
 | `BROS_SIDECARS_DIR` | `/app/sidecars` | Core sidecar packages |
-| `BROS_NETWORK` | `bros` | Docker network name |
+| `BROS_NETWORK` | `bros` | Shared external Docker network (CLI/dockerode create if missing) |
 | `BROS_OLLAMA_PORT` | `11435` | Host publish for sidecar Ollama |
 | `BROS_OPENCODE_PORT` | `4097` | Host publish for OpenCode |
 | `BROS_OPENWEBUI_PORT` | `3080` | Host publish for Open WebUI |

@@ -57,6 +57,18 @@ describe('sidecar data binds', () => {
     expect(isMissingHostDataBind('/home/me', hostData)).toBe(false)
   })
 
+  it('sidecars join external network bros', () => {
+    const root = join(import.meta.dirname, '../..')
+    for (const rel of [
+      'sidecars/ollama/docker-compose.yml',
+      'sidecars/openwebui/docker-compose.yml',
+      'sidecars/opencode/docker-compose.yml',
+    ]) {
+      const yml = readFileSync(join(root, rel), 'utf8')
+      expect(yml).toMatch(/networks:\s*\n\s+bros:\s*\n\s+external: true\s*$/m)
+    }
+  })
+
   it('requires BROS_HOST_DATA_DIR in sidecar compose so empty env cannot bind /ollama', () => {
     const root = join(import.meta.dirname, '../..')
     for (const rel of [

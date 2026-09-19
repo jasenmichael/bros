@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
+  labelRequestContent,
   sanitizeGeneratedTitle,
   shouldAutoTitle,
 } from '../../src/server/utils/chatTitle'
@@ -26,10 +27,11 @@ describe('chat title helpers', () => {
     expect(sanitizeGeneratedTitle('Cloudflare Docker Setup', 'fallback')).toBe('Cloudflare Docker Setup')
   })
 
-  it('uses fallback for one word, six words, or punctuation', () => {
+  it('uses fallback for one word, six words, or leftover punctuation', () => {
     expect(sanitizeGeneratedTitle('Hi', 'Explain Docker')).toBe('Explain Docker')
     expect(sanitizeGeneratedTitle('one two three four five six', 'Explain Docker')).toBe('Explain Docker')
-    expect(sanitizeGeneratedTitle('Cloudflare Docker Setup!', 'Explain Docker')).toBe('Explain Docker')
+    expect(sanitizeGeneratedTitle('Cloudflare Docker Setup!', 'Explain Docker')).toBe('Cloudflare Docker Setup')
+    expect(sanitizeGeneratedTitle('Cloudflare (Docker) Setup', 'Explain Docker')).toBe('Explain Docker')
   })
 
   it('uses fallback when generate returns empty or huge text', () => {
@@ -37,11 +39,19 @@ describe('chat title helpers', () => {
     expect(sanitizeGeneratedTitle('x'.repeat(81), 'Explain Docker')).toBe('Explain Docker')
   })
 
-  it('rejects specialist SYSTEM-prompt regurgitation', () => {
+  it('rejects specialist SYSTEM-prompt regurgitation only', () => {
     expect(sanitizeGeneratedTitle('Bros Model Label', 'how are you?')).toBe('how are you?')
     expect(sanitizeGeneratedTitle('Bros Model', 'hello')).toBe('hello')
     expect(sanitizeGeneratedTitle('Label', 'good morning')).toBe('good morning')
     expect(sanitizeGeneratedTitle('Docker Volumes', 'Explain Docker volumes')).toBe('Docker Volumes')
+    expect(sanitizeGeneratedTitle('How are You', 'how are you?')).toBe('How are You')
+    expect(sanitizeGeneratedTitle('Hello Chat', 'hello')).toBe('Hello Chat')
+    expect(sanitizeGeneratedTitle('Baby Friendly Label', 'hey baby')).toBe('Baby Friendly Label')
+    expect(sanitizeGeneratedTitle('Hi, Name', 'hi, how are you')).toBe('Hi Name')
+  })
+
+  it('builds the Label this chat request', () => {
+    expect(labelRequestContent('Explain Docker volumes')).toBe('Label this chat: Explain Docker volumes')
   })
 
   it('only auto-titles the first assistant reply while still New chat', () => {
@@ -98,7 +108,7 @@ describe('conversation title persist', () => {
       const body = JSON.parse(String(init?.body || '{}')) as { model?: string; stream?: boolean; messages?: Array<{ content?: string }> }
       expect(body.model).toBe('bros')
       expect(body.stream).toBe(false)
-      expect(body.messages?.[0]?.content).toBe('Label: Explain Docker volumes')
+      expect(body.messages?.[0]?.content).toBe('Label this chat: Explain Docker volumes')
       return new Response(JSON.stringify({ message: { content: 'Docker volumes' } }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -111,14 +121,27 @@ describe('conversation title persist', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toMatch(/11436|22000|127\.0\.0\.1:11434/)
   })
 
+  it('keeps first-line fallback when generate returns SYSTEM regurgitation', async () => {
+    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat')
+    const convo = createConversation('ollama/llama3.2')
+    addMessage(convo!.id, 'user', 'how are you?')
+    addMessage(convo!.id, 'assistant', 'Fine.')
+    const title = await maybeAutoTitle(convo!.id, async () => 'Bros Model Label')
+    expect(title).toBe('how are you?')
+    expect(getConversation(convo!.id)?.title).toBe('how are you?')
+  })
+
   it('keeps first-line fallback when summarize fails', async () => {
     const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
     addMessage(convo!.id, 'assistant', 'Volumes persist data.')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const title = await maybeAutoTitle(convo!.id, async () => {
       throw new Error('model down')
     })
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
     expect(title).toBe('Explain Docker volumes')
     expect(getConversation(convo!.id)?.title).toBe('Explain Docker volumes')
   })

@@ -46,5 +46,5 @@ services:
 networks:
   bros:
     name: bros
-    driver: bridge
+    external: true
 

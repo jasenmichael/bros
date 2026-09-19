@@ -6,6 +6,7 @@ import { getProvider, getProviderPreset, getProviderSecret, ollamaBaseUrlFor, OL
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
+  labelRequestContent,
   sanitizeGeneratedTitle,
   shouldAutoTitle,
 } from './chatTitle'
@@ -85,7 +86,7 @@ export function updateConversationTitle(id: string, title: string) {
   return getConversation(id)
 }
 
-const TITLE_GENERATE_MS = 8000
+const TITLE_GENERATE_MS = 30_000
 
 /** Sidecar specialist `bros` only. Ignores conversation modelId. */
 export async function generateChatTitle(_modelId: string, userPrompt: string): Promise<string> {
@@ -96,7 +97,7 @@ export async function generateChatTitle(_modelId: string, userPrompt: string): P
     body: JSON.stringify({
       model: INTERNAL_BROS_MODEL,
       stream: false,
-      messages: [{ role: 'user', content: `Label: ${userPrompt}` }],
+      messages: [{ role: 'user', content: labelRequestContent(userPrompt) }],
     }),
     signal: AbortSignal.timeout(TITLE_GENERATE_MS),
   })
@@ -121,7 +122,8 @@ export async function maybeAutoTitle(
     const title = sanitizeGeneratedTitle(raw, fallback)
     updateConversationTitle(conversationId, title)
     return title
-  } catch {
+  } catch (err) {
+    console.warn('chat title generate failed', err instanceof Error ? err.message : err)
     updateConversationTitle(conversationId, fallback)
     return fallback
   }

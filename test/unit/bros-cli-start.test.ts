@@ -44,6 +44,64 @@ describe('bros CLI start build policy', () => {
     expect(start).toMatch(/ensure_ollama_and_model/)
   })
 
+  it('cmd_start ensures shared network before compose_up', () => {
+    const start = extractFn(readFileSync(BROS, 'utf8'), 'cmd_start')
+    expect(start).toMatch(/ensure_bros_network/)
+    expect(start.indexOf('ensure_bros_network')).toBeLessThan(start.indexOf('compose_up'))
+  })
+
+  it('ensure_bros_network creates a missing bridge network', () => {
+    const fn = extractFn(readFileSync(BROS, 'utf8'), 'ensure_bros_network')
+    const out = bash(
+      `set -euo pipefail
+       calls="$(mktemp)"
+       docker() {
+         printf '%s\\n' "$*" >> "$calls"
+         if [[ "$1" == network && "$2" == inspect ]]; then return 1; fi
+         if [[ "$1" == network && "$2" == create ]]; then return 0; fi
+         return 1
+       }
+       ${fn}
+       ensure_bros_network
+       cat "$calls"
+       rm -f "$calls"`,
+    ).trim()
+    expect(out).toBe('network inspect bros\nnetwork create --driver bridge bros')
+  })
+
+  it('ensure_bros_network is a no-op when the network exists', () => {
+    const fn = extractFn(readFileSync(BROS, 'utf8'), 'ensure_bros_network')
+    const out = bash(
+      `set -euo pipefail
+       docker() {
+         if [[ "$1" == network && "$2" == inspect ]]; then return 0; fi
+         echo "unexpected: $*" >&2
+         return 1
+       }
+       ${fn}
+       ensure_bros_network
+       echo ok`,
+    ).trim()
+    expect(out).toBe('ok')
+  })
+
+  it('core compose treats bros as external', () => {
+    const yml = readFileSync(join(REPO, 'docker-compose.yml'), 'utf8')
+    expect(yml).toMatch(/networks:\s*\n\s+bros:\s*\n\s+name: bros\s*\n\s+external: true\s*$/m)
+  })
+
+  it('does not copy named Docker volumes on start', () => {
+    const src = readFileSync(BROS, 'utf8')
+    expect(src).not.toContain('try_copy_volumes')
+    expect(src).not.toContain('Copying Docker volume')
+    expect(src).not.toMatch(/^volume_exists\(\)/m)
+    expect(src).not.toMatch(/^dir_is_empty\(\)/m)
+    const ensure = extractFn(src, 'ensure_host_data_dir')
+    expect(ensure).toContain('mkdir -p')
+    expect(ensure).not.toContain('docker volume')
+    expect(ensure).not.toContain('alpine:3.20')
+  })
+
   it('update pulls, rebuilds, and git-pulls', () => {
     const update = extractFn(readFileSync(BROS, 'utf8'), 'cmd_update')
     expect(update).toContain('compose pull')
@@ -157,7 +215,7 @@ describe('root package scripts', () => {
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    expect(pkg.scripts.dev).toBe('BROS_DEV=1 ./bros')
+    expect(pkg.scripts.dev).toMatch(/^BROS_DEV=1 \.\/bros\b/)
     expect(pkg.scripts['dev:update']).toBe('BROS_DEV=1 ./bros update')
     expect(pkg.scripts['app:dev']).toBe('pnpm --filter @bros/app dev')
   })

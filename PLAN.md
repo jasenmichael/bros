@@ -28,7 +28,7 @@ Not a milestone. Pick when needed:
 - Custom sidecars: drop-in `$dataDir/sidecars` works; no add/upload UI
 - Settings: paths + passkey only
 - No auto-migrate of pre-rename Docker volumes
-- Named `bros-data` / `bros-ollama-data` / sidecar volumes: `bros` one-shot copies into `$BROS_HOME/data` when dest empty; old volumes left in place
+- Named `bros-data` / `bros-ollama-data` / sidecar volumes: leftover volumes stay unused; start does not copy them into `$BROS_HOME/data`
 - Docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; generate + `pnpm --filter @bros/website preview`
 
 ## Data dir binds

@@ -41,13 +41,13 @@ Local docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:ge
 - `$BROS_HOST_DATA_DIR/opencode-config` → OpenCode `/root/.config/opencode`
 - `$BROS_HOST_DATA_DIR/opencode-share` → OpenCode `/root/.local/share/opencode`
 
-In-container `BROS_DATA_DIR` stays `/data`. `bros` copies leftover named volumes into empty dest dirs once (does not delete the volumes).
+In-container `BROS_DATA_DIR` stays `/data`. Start does not copy leftover named volumes into those dirs.
 
 All other settings live in SQLite (`bros.sqlite`) and the UI.
 
 ## Sidecars
 
-Managed Compose projects **outside** the core stack. Core packages under `sidecars/`; custom under `<data_dir>/sidecars/`. Compose project name `bros-sc-<id>` on Docker network `bros`.
+Managed Compose projects **outside** the core stack. Core packages under `sidecars/`; custom under `<data_dir>/sidecars/`. Compose project name `bros-sc-<id>` on shared external Docker network `bros` (CLI or dockerode create it if missing; core compose does not own it).
 
 There is **no path proxy**. Every `webui` interface must set `publish` in `sidecar.yml` and map `publish:containerPort` in `docker-compose.yml`. Open/Pin always use `http://127.0.0.1:<publish>/`. Other containers still use internal DNS `http://<service>:<containerPort>`. Host **publish** ports **3000** and **8080** are forbidden. Env overrides (`BROS_OLLAMA_PORT`, `BROS_OPENCODE_PORT`, `BROS_OPENWEBUI_PORT`) are escape hatches.
 

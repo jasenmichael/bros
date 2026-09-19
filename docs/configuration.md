@@ -35,7 +35,7 @@ Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
 
-In-container `BROS_DATA_DIR` stays `/data`. `bros` copies leftover named volumes into empty dest dirs once (does not delete the volumes).
+In-container `BROS_DATA_DIR` stays `/data`. Start does not copy leftover named volumes into those dirs.
 
 ## Data directory layout
 

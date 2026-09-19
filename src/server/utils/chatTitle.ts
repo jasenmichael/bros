@@ -1,5 +1,10 @@
 export const DEFAULT_CHAT_TITLE = 'New chat'
 
+/** Sidecar `bros` Label: skill. Extra "this chat" steers greetings off the SYSTEM line. */
+export function labelRequestContent(userPrompt: string): string {
+  return `Label this chat: ${userPrompt}`
+}
+
 export function fallbackTitleFromPrompt(prompt: string): string {
   const line = prompt.trim().split(/\r?\n/, 1)[0]?.replace(/\s+/g, ' ').trim() || ''
   if (!line) return DEFAULT_CHAT_TITLE
@@ -9,10 +14,11 @@ export function fallbackTitleFromPrompt(prompt: string): string {
 export function sanitizeGeneratedTitle(raw: string, fallback: string): string {
   let t = raw.trim().split(/\r?\n/, 1)[0] || ''
   t = t.replace(/^["'`«»“”‘’]+|["'`«»“”‘’]+$/g, '').trim()
-  t = t.replace(/\s+/g, ' ')
+  t = t.replace(/[,:;!?]+/g, '')
+  t = t.replace(/\s+/g, ' ').trim()
   if (!t || t.length > 80) return fallback
   // Tiny specialist often echoes its SYSTEM line ("Bros Model Label") instead of a title.
-  if (/\blabel\b/i.test(t) || /^bros model\b/i.test(t)) return fallback
+  if (/^bros model(?:\s+label)?$/i.test(t) || /^label$/i.test(t)) return fallback
   const words = t.split(' ').filter(Boolean)
   if (words.length < 2 || words.length > 5) return fallback
   if (/[^\p{L}\p{N}\s]/u.test(t)) return fallback

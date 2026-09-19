@@ -44,11 +44,11 @@ Docs extends theme. App and website also extend theme + docs so both layers stay
 
 ## Compose
 
-- `docker-compose.yml` + `docker-compose.dev.yml` / `docker-compose.prod.yml`
+- `docker-compose.yml` + `docker-compose.dev.yml` / `docker-compose.prod.yml`. Core + sidecars join external network `bros` (`external: true`). `bros` / dockerode create it if missing so compose never tries to own/relabel it.
 - Dev start (`pnpm dev` / `BROS_DEV=1 ./bros`): `compose up` without `--build`. Builds only if `bros:dev` is missing. Daily source edits use the bind-mount. Rebuild/pull: `pnpm dev:update`.
 - Prod start (`bros`): `compose up --build` (source is baked into `bros:latest`).
 - Dev image (`Dockerfile` target `development`): toolchain only — no source `COPY`; bind-mount `./:/app`, then `pnpm install` + `pnpm --filter @bros/app dev`
 - Sidecars **not** in main Compose; managed via Docker socket
-- Persistent data is host binds under `$BROS_HOME/data` (repo `./data`, installed `~/.bros/data`), not named `bros-data` / `bros-ollama-data` volumes. Dev `node_modules` volumes stay named caches.
+- Persistent data is host binds under `$BROS_HOME/data` (repo `./data`, installed `~/.bros/data`), not named `bros-data` / `bros-ollama-data` volumes. Start does not copy leftover named volumes. Dev `node_modules` volumes stay named caches.
 - Docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:generate` then `pnpm --filter @bros/website preview`. Pages artifact is `src/website/.output/public`.
 - Host Node (`pnpm app:dev`): Chat/Models reach sidecar Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1:<probe>`. Compose app keeps Docker DNS (`http://ollama:11434`, `host.docker.internal`). Sidecar `docker compose` injects `BROS_HOST_DATA_DIR` so binds are `$BROS_HOME/data/...`, not host `/ollama`.
