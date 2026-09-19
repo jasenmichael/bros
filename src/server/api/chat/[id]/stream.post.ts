@@ -1,4 +1,4 @@
-import { addMessage, getConversation, maybeAutoTitle, resolveConversationModel, streamChat } from '../../../utils/chat'
+import { addMessage, assertChatProviderEnabled, getConversation, maybeAutoTitle, resolveConversationModel, streamChat } from '../../../utils/chat'
 import { STREAM_STATS_MARK } from '../../../utils/chatStats'
 
 export default defineEventHandler(async (event) => {
@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   if (!convo) throw createError({ statusCode: 404, statusMessage: 'Not found' })
 
   const modelId = resolveConversationModel(id, body.modelId) || convo.modelId
+  assertChatProviderEnabled(modelId)
 
   addMessage(id, 'user', body.content.trim())
   const history = getConversation(id)!.messages.map((m) => ({ role: m.role, content: m.content }))

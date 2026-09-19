@@ -81,4 +81,36 @@ describe('Chat page', () => {
     expect(wrapper.find('[aria-label="Send"]').exists()).toBe(false)
     expect(wrapper.find('.bros-chat__send').attributes('data-loading')).toBeUndefined()
   })
+
+  it('renders assistant markdown with docs prose in the thread', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as {
+      messages: Array<{
+        id: string
+        role: string
+        content: string
+        modelId?: string
+        durationMs?: number
+        completionTokens?: number
+      }>
+    }
+    vm.messages = [
+      { id: 'u1', role: 'user', content: 'create a nuxt starter app' },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: '## Nuxt 3\n\n- use `nuxi init`\n\n```bash\npnpm dlx nuxi@latest init app\n```\n',
+        modelId: 'ollama/gemma3:12b',
+        durationMs: 59000,
+        completionTokens: 12,
+      },
+    ]
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.bros-chat__thread').exists()).toBe(true)
+    expect(wrapper.text()).toContain('ASSISTANT')
+    expect(wrapper.text()).toContain('ollama/gemma3:12b')
+    expect(wrapper.findAllComponents({ name: 'BrosChatMarkdown' }).length).toBeGreaterThan(0)
+    expect(wrapper.find('.bros-chat-md').exists()).toBe(false)
+  })
 })

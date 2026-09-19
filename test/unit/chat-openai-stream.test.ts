@@ -63,4 +63,24 @@ describe('OpenAI-compat chat stream', () => {
     expect(body.stream_options).toEqual({ include_usage: true })
     expect(body.model).toBe('openrouter/free')
   })
+
+  it('refuses a disabled provider and does not call that provider or others', async () => {
+    const { ensureDefaultProviders, setProviderEnabled } = await import('../../src/server/utils/providers')
+    const { streamChat } = await import('../../src/server/utils/chat')
+    ensureDefaultProviders()
+    setProviderEnabled('openrouter', false)
+
+    let fetches = 0
+    globalThis.fetch = (async () => {
+      fetches += 1
+      return new Response('should not run', { status: 500 })
+    }) as typeof fetch
+
+    await expect(streamChat({
+      modelId: 'openrouter/openrouter/free',
+      history: [{ role: 'user', content: 'hi' }],
+      onToken: () => {},
+    })).rejects.toMatchObject({ statusCode: 400, statusMessage: 'OpenRouter is disabled for chat' })
+    expect(fetches).toBe(0)
+  })
 })

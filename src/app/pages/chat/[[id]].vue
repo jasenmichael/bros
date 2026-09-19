@@ -42,13 +42,13 @@ let elapsedTimer: ReturnType<typeof setInterval> | null = null
 useSeoMeta({ title: () => pageTitle.value })
 
 const { data: modelsData } = await useFetch<{
-  providers: Array<{ id: string; name: string; kind: string; popular?: boolean }>
+  providers: Array<{ id: string; name: string; kind: string; popular?: boolean; enabled?: boolean }>
   ollamaModelsByProvider: Record<string, Array<{ id: string; name: string }>>
   openaiModelsByProvider: Record<string, string[]>
 }>('/api/models')
 
 const orderedProviders = computed(() => {
-  const rows = modelsData.value?.providers || []
+  const rows = (modelsData.value?.providers || []).filter((p) => p.enabled !== false)
   const sidecar = rows.filter((p) => p.id === 'ollama')
   const host = rows.filter((p) => p.id === 'ollama-host')
   const popular = rows.filter((p) => p.popular)
@@ -134,6 +134,20 @@ watch(modelItems, (names) => {
   if (names.length && !names.includes(modelName.value)) {
     modelName.value = names[0] || ''
   }
+}, { immediate: true })
+
+watch([providerId, orderedProviders], () => {
+  const rows = orderedProviders.value
+  if (!rows.length) {
+    providerId.value = ''
+    modelName.value = ''
+    return
+  }
+  if (rows.some((p) => p.id === providerId.value)) return
+  const first = rows[0]
+  providerId.value = first.id
+  const names = modelsForProvider(first.id)
+  modelName.value = names[0] || ''
 }, { immediate: true })
 
 watch(modelId, (next) => {
@@ -263,7 +277,7 @@ function finalizeAssistant(usedModel: string, content: string, extra?: ChatMetaS
 }
 
 async function send() {
-  if (busy.value || !input.value.trim()) return
+  if (busy.value || !input.value.trim() || !providerId.value || !modelName.value) return
   let id = convoId.value
   if (!id) {
     const convo = await $fetch<{ id: string }>('/api/chat', {
@@ -342,7 +356,7 @@ onUnmounted(() => {
   streamAbort.value?.abort()
 })
 
-defineExpose({ busy, thinking, stop, streamAbort, orderedProviders })
+defineExpose({ busy, thinking, stop, streamAbort, orderedProviders, providerId })
 </script>
 
 <template>
@@ -511,8 +525,6 @@ defineExpose({ busy, thinking, stop, streamAbort, orderedProviders })
 .bros-chat__bubble {
   min-width: 0;
   max-width: 100%;
-  font-size: 0.95rem;
-  line-height: 1.55;
 }
 
 .bros-chat__bubble--user {

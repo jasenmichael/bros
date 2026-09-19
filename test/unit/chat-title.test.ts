@@ -121,6 +121,30 @@ describe('conversation title persist', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toMatch(/11436|22000|127\.0\.0\.1:11434/)
   })
 
+  it('still titles via sidecar bros when ollama is disabled for chat', async () => {
+    const { addMessage, createConversation, generateChatTitle, maybeAutoTitle } = await import('../../src/server/utils/chat')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
+    const { sidecarOllamaUrl } = await import('../../src/server/utils/ollamaHost')
+    ensureDefaultProviders()
+    setProviderEnabled('ollama', false)
+    expect(getProvider('ollama')?.enabled).toBe(false)
+    const convo = createConversation('ollama-host/llama3.2')
+    addMessage(convo!.id, 'user', 'Explain Docker volumes')
+    addMessage(convo!.id, 'assistant', 'Volumes persist data.')
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(String(url)).toBe(`${sidecarOllamaUrl()}/api/chat`)
+      return new Response(JSON.stringify({ message: { content: 'Docker volumes' } }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const raw = await generateChatTitle('ollama-host/llama3.2', 'Explain Docker volumes')
+    expect(raw).toBe('Docker volumes')
+    const title = await maybeAutoTitle(convo!.id)
+    expect(title).toBe('Docker volumes')
+    expect(fetchMock).toHaveBeenCalled()
+    expect(getProvider('ollama')?.enabled).toBe(false)
+    expect(getProvider('ollama-host')?.enabled).toBe(true)
+  })
+
   it('keeps first-line fallback when generate returns SYSTEM regurgitation', async () => {
     const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat')
     const convo = createConversation('ollama/llama3.2')

@@ -92,7 +92,7 @@ export function upsertProvider(input: {
     apiKeyEnc: input.apiKey === undefined || input.apiKey === null
       ? (existing?.apiKeyEnc ?? null)
       : (input.apiKey ? encryptSecret(input.apiKey) : null),
-    enabled: input.enabled ?? true,
+    enabled: input.enabled ?? (existing ? Boolean(existing.enabled) : true),
     configJson: JSON.stringify(nextConfig),
   }
   if (existing) db.update(providers).set(values).where(eq(providers.id, input.id)).run()
@@ -105,6 +105,29 @@ export function deleteProvider(id: string) {
     throw createError({ statusCode: 400, statusMessage: `Cannot delete built-in ${id} provider` })
   }
   getDb().delete(providers).where(eq(providers.id, id)).run()
+}
+
+/** Chat picker only. Does not start/stop sidecars, host Ollama, or other providers. */
+export function isChatSelectionEnabled(row: { enabled?: boolean } | null | undefined) {
+  return row?.enabled !== false
+}
+
+export function filterChatProviders<T extends { enabled?: boolean }>(rows: T[]): T[] {
+  return rows.filter((p) => isChatSelectionEnabled(p))
+}
+
+export function setProviderEnabled(id: string, enabled: boolean) {
+  const existing = getProvider(id)
+  if (!existing) {
+    throw createError({ statusCode: 404, statusMessage: 'Provider not found' })
+  }
+  return upsertProvider({
+    id: existing.id,
+    name: existing.name,
+    kind: existing.kind,
+    baseUrl: existing.baseUrl,
+    enabled,
+  })
 }
 
 export function ensureDefaultProviders() {

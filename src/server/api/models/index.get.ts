@@ -75,11 +75,11 @@ export default defineEventHandler(async () => {
       }
     }
     else if (isPopularProvider(p.id)) {
-      status = p.enabled && p.hasApiKey ? 'running' : 'stopped'
+      status = p.hasApiKey ? 'running' : 'stopped'
       if (!p.hasApiKey) statusMessage = 'Need an API key'
     }
     else if (p.kind === 'openai' || p.kind === 'anthropic') {
-      status = p.enabled && (p.baseUrl || p.hasApiKey) ? 'running' : 'stopped'
+      status = (p.baseUrl || p.hasApiKey) ? 'running' : 'stopped'
     }
     return {
       ...p,

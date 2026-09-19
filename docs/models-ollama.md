@@ -5,7 +5,7 @@ description: Pull menu, GPU, disk margin, and Yours.
 
 # Ollama models
 
-Sidecar and host always appear under **Ollama** on Models. Host stays listed when the daemon is down. Selecting a card expands pull and the installed-model list on that card.
+Sidecar and host always appear under **Ollama** on Models. Host stays listed when the daemon is down. Both cards load collapsed. Selecting a card expands pull and the installed-model list on that card. Each row has a Chat switch that only hides that provider from the Chat picker.
 
 ## Pull menu
 

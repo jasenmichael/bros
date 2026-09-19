@@ -58,7 +58,7 @@ function visibleText(wrapper: { text: () => string }) {
 }
 
 describe('Models page', () => {
-  it('lists Ollama then Custom providers, with pull inside the selected sidecar card', async () => {
+  it('lists Ollama then Custom providers, with both Ollama cards collapsed on load', async () => {
     const ModelsPage = await import('../../src/app/pages/models/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ModelsPage)
     const titles = headings(wrapper)
@@ -93,11 +93,15 @@ describe('Models page', () => {
     expect(wrapper.text()).not.toContain('Sidecar DNS')
     expect(wrapper.text()).not.toContain('Paid providers')
     expect(wrapper.text()).not.toContain('External URL')
-    expect(wrapper.text()).toContain('Pull')
-    expect(wrapper.text()).toContain('user/name:tag')
+    expect(wrapper.text()).not.toContain('Pull')
+    expect(wrapper.text()).not.toContain('user/name:tag')
+    expect(wrapper.text()).not.toContain('Recommended stays')
+    expect(wrapper.find('[aria-label="Collapse models"]').exists()).toBe(false)
+    expect(wrapper.findAll('[aria-label="Expand models"]').length).toBe(2)
+    expect(wrapper.find('[aria-label="Enable Ollama sidecar for chat"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Enable Ollama host for chat"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Enable OpenAI for chat"]').exists()).toBe(true)
     const pageText = wrapper.text()
-    expect(pageText.indexOf('Pull')).toBeGreaterThan(-1)
-    expect(pageText.indexOf('Pull')).toBeLessThan(pageText.indexOf('Popular services'))
     expect(pageText.indexOf('Popular services')).toBeLessThan(pageText.indexOf('Custom providers'))
     expect(wrapper.find('button[aria-label="Settings for Ollama sidecar"]').exists()).toBe(true)
     expect(wrapper.find('button[aria-label="Settings for Ollama host"]').exists()).toBe(true)
@@ -108,17 +112,21 @@ describe('Models page', () => {
     expect(wrapper.find('[href="http://127.0.0.1:11434/"]').exists()).toBe(true)
     expect(visibleText(wrapper)).not.toContain('Use GPU')
     expect(visibleText(wrapper)).not.toContain('GPU detected')
-    expect(wrapper.find('[aria-label="Collapse models"]').exists()).toBe(true)
     const ollamaList = wrapper.findAll('ul').find((ul) => ul.text().includes('Ollama sidecar'))
     const customList = wrapper.findAll('ul').find((ul) => ul.text().includes('No custom providers yet.'))
     expect(ollamaList?.classes()).toContain('w-full')
     expect(customList?.classes()).toContain('w-full')
   })
 
-  it('collapses the sidecar pull panel from the chevron without losing selection', async () => {
+  it('expands then collapses the sidecar pull panel from the chevron without losing selection', async () => {
     const ModelsPage = await import('../../src/app/pages/models/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ModelsPage)
+    const expanders = wrapper.findAll('[aria-label="Expand models"]')
+    expect(expanders.length).toBe(2)
+    await expanders[0]!.trigger('click')
+    await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('user/name:tag')
+    expect(wrapper.text()).toContain('Pull')
     await wrapper.find('[aria-label="Collapse models"]').trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).not.toContain('user/name:tag')

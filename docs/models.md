@@ -13,11 +13,13 @@ description: Ollama, Popular services, and Custom providers.
 
 Keys live in SQLite. There is no `OPENAI_API_KEY` env bootstrap.
 
-## Status and cog
+## Status, Chat switch, and cog
 
-Each row has a settings cog. Popular status is **running** when a key is saved (and enabled), otherwise **stopped** (need a key). Endpoint label is the API host (copy / open), not the slug. Popular cards have no pull and no GPU. Popular rows cannot be deleted.
+Each row has a **Chat** switch (default on) and a settings cog. Off removes that provider from the Chat picker only — sidecar and host Ollama stay running, other providers are unchanged, and internal specialist `bros` still uses sidecar Ollama. Popular status is **running** when a key is saved, otherwise **stopped** (need a key). Endpoint label is the API host (copy / open), not the slug. Popular cards have no pull and no GPU. Popular rows cannot be deleted.
 
-Chat provider order: sidecar, host, popular (catalog order), then custom. Heading is **Popular services**, never “Paid providers”.
+Ollama sidecar and host cards load **collapsed**. Open one to pull or list installed models; the other stays closed.
+
+Chat provider order: sidecar, host, popular (catalog order), then custom — skipping Chat-disabled providers. Heading is **Popular services**, never “Paid providers”.
 
 ## Related
 

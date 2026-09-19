@@ -46,6 +46,10 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 - Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). Sidecar ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/bros-model` and runs `ollama create bros` inside `bros-sc-ollama`. Name is reserved (not listed; `Label:` titles only).
 - Model updates: bump the pinned submodule to the new bros-model tag/commit, then release a new Bros version. Checkout: `git submodule update --remote` (or pin a SHA) + `./bros update` when the GGUF size/mtime stamp differs. Do not treat host `ollama create` as the operator path.
 
+## Recent (Chat markdown)
+
+- Chat message bodies use theme `.bros-prose` + `ProsePre` via `MDC` (same visualization as Docs `ContentRenderer`). No separate Tailwind `prose` stack.
+
 ## Recent (Chat nav)
 
 
@@ -62,6 +66,8 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 - Pull streams NDJSON progress into Models UI (`UProgress`)
 - Provider `upsertProvider` merges partial `config` (keeps `useGpu` when later POSTs patch other keys)
 - Ollama start with `useGpu` force-recreates via `docker-compose.gpu.yml`
+- Every provider row has a Chat switch (SQLite `providers.enabled`, default on). Off hides that provider from the Chat picker only.
+- Both Ollama cards (sidecar + host) load collapsed; opening one is in-session only
 
 ## Lifecycle (`bros`)
 

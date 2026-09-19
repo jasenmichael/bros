@@ -16,7 +16,7 @@ Chat order:
 3. Popular services (fixed catalog order)
 4. Custom providers
 
-Unconfigured popular cards still appear. Until `GET /models` succeeds, the model dropdown uses the preset list from Models. `modelId` is `providerId/model` (first slash splits the provider). Examples: `ollama/llama3.2`, `openai/gpt-4o-mini`, `groq/openai/gpt-oss-120b`.
+Unconfigured popular cards still appear unless their **Chat** switch on Models is off. That switch never stops sidecar or host Ollama. Until `GET /models` succeeds, the model dropdown uses the preset list from Models. `modelId` is `providerId/model` (first slash splits the provider). Examples: `ollama/llama3.2`, `openai/gpt-4o-mini`, `groq/openai/gpt-oss-120b`. If the selected Chat model’s provider is then disabled, Chat falls back to the next enabled provider.
 
 Context size shows on the tools row **only for Ollama** when the runtime reports it.
 
@@ -24,7 +24,7 @@ Context size shows on the tools row **only for Ollama** when the runtime reports
 
 While a reply is in flight, the composer shows **Stop** (aborts the stream) instead of send. Centered **thinking…** stays until the first assistant token or the request ends.
 
-Assistant bodies render as markdown. Each assistant message stores the `modelId` used for that request. The UI shows `ASSISTANT · <modelId>` plus duration and token counts on the right when the provider sent them.
+Assistant and user bodies render as markdown with the same theme prose as Docs (`.bros-prose` + `ProsePre`). Each assistant message stores the `modelId` used for that request. The UI shows `ASSISTANT · <modelId>` plus duration and token counts on the right when the provider sent them.
 
 Popular services and custom providers both use OpenAI-compatible `POST /chat/completions`. Bros sends `stream_options.include_usage` when the body allows it, and reads `delta.content` or `delta.reasoning_content` (DeepSeek reasoner otherwise streams empty). OpenRouter requests add `HTTP-Referer` and `X-Title: Bros`.
 

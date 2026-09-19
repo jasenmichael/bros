@@ -184,6 +184,48 @@ describe('upsertProvider config merge', () => {
     expect(isReservedProviderId('my-proxy')).toBe(false)
   })
 
+  it('defaults enabled and keeps it when later upserts omit the flag', async () => {
+    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider, filterChatProviders, isChatSelectionEnabled } = await import('../../src/server/utils/providers')
+    ensureDefaultProviders()
+    expect(getProvider('ollama')?.enabled).toBe(true)
+    expect(getProvider('ollama-host')?.enabled).toBe(true)
+    expect(getProvider('openai')?.enabled).toBe(true)
+    expect(isChatSelectionEnabled(getProvider('openai'))).toBe(true)
+
+    setProviderEnabled('ollama', false)
+    expect(getProvider('ollama')?.enabled).toBe(false)
+    expect(getProvider('ollama-host')?.enabled).toBe(true)
+    expect(getProvider('openai')?.enabled).toBe(true)
+
+    upsertProvider({
+      id: 'ollama',
+      name: 'Ollama sidecar',
+      kind: 'ollama',
+      baseUrl: 'http://ollama:11434',
+      config: { useGpu: true },
+    })
+    expect(getProvider('ollama')?.enabled).toBe(false)
+    expect(getProvider('ollama')?.config).toMatchObject({ useGpu: true })
+    expect(filterChatProviders([
+      getProvider('ollama')!,
+      getProvider('ollama-host')!,
+      getProvider('openai')!,
+    ]).map((p) => p.id)).toEqual(['ollama-host', 'openai'])
+  })
+
+  it('setProviderEnabled only flips that provider', async () => {
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
+    ensureDefaultProviders()
+    const sidecarBefore = getProvider('ollama')
+    setProviderEnabled('openai', false)
+    setProviderEnabled('ollama-host', false)
+    expect(getProvider('openai')?.enabled).toBe(false)
+    expect(getProvider('ollama-host')?.enabled).toBe(false)
+    expect(getProvider('ollama')?.enabled).toBe(true)
+    expect(getProvider('ollama')?.baseUrl).toBe(sidecarBefore?.baseUrl)
+    expect(getProvider('ollama')?.config).toEqual(sidecarBefore?.config)
+  })
+
   it('skips remote GET /models when no API key is saved', async () => {
     const { ensureDefaultProviders, listOpenAIModelIds } = await import('../../src/server/utils/providers')
     const { getProviderPreset } = await import('../../src/server/utils/providerPresets')

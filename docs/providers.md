@@ -5,7 +5,7 @@ description: Twelve built-in OpenAI-compatible cloud providers. Paste a key on M
 
 # Popular services
 
-Twelve majors, always listed on Models. OpenAI-compatible Chat Completions. Paste a user API key in the card cog. Keys live in SQLite. None of the 12 APIs are unlimited free — Ollama (already in Bros) is the unlimited local path.
+Twelve majors, always listed on Models. OpenAI-compatible Chat Completions. Paste a user API key in the card cog. Each card has a Chat switch (default on) that only hides that provider from the Chat picker. Keys live in SQLite. None of the 12 APIs are unlimited free — Ollama (already in Bros) is the unlimited local path.
 
 Free-tier notes below are Sep 2026; they change often. Bros does not hard-code quotas in the UI.
 

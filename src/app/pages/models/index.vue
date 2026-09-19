@@ -114,7 +114,7 @@ const selected = computed(() =>
   ollamaProviders.value.find((p) => p.id === selectedId.value) || ollamaProviders.value[0] || null,
 )
 
-const panelOpen = ref(true)
+const panelOpen = ref(false)
 
 function selectOllama(id: string) {
   if (selectedId.value === id) {
@@ -251,7 +251,6 @@ const customForm = reactive({
 watch(() => data.value?.providers, (rows) => {
   if (rows && !rows.some((p) => p.id === selectedId.value)) {
     selectedId.value = 'ollama'
-    panelOpen.value = true
   }
 })
 
@@ -535,6 +534,19 @@ async function removeProvider(id: string) {
   }
 }
 
+async function setChatEnabled(p: Provider, enabled: boolean) {
+  busy.value = true
+  err.value = ''
+  try {
+    await $fetch(`/api/models/providers/${p.id}`, { method: 'PATCH', body: { enabled } })
+    await refresh()
+  } catch (e: unknown) {
+    err.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Update failed'
+  } finally {
+    busy.value = false
+  }
+}
+
 async function saveHostPort() {
   busy.value = true
   err.value = ''
@@ -613,6 +625,15 @@ async function saveHostPort() {
               <div class="text-right text-xs" :class="p.status === 'running' ? 'text-emerald-300' : p.status === 'error' ? 'text-amber-300' : 'text-[var(--bros-muted)]'">
                 {{ statusLabel(p) }}
               </div>
+              <label class="flex items-center gap-1.5 text-xs text-[var(--bros-muted)]" @click.stop>
+                <USwitch
+                  :model-value="p.enabled"
+                  :disabled="busy"
+                  :aria-label="`Enable ${p.name} for chat`"
+                  @update:model-value="(v: boolean) => setChatEnabled(p, v)"
+                />
+                Chat
+              </label>
               <UButton
                 :icon="selectedId === p.id && panelOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
                 color="neutral"
@@ -767,6 +788,15 @@ async function saveHostPort() {
             <div class="text-right text-xs" :class="p.status === 'running' ? 'text-emerald-300' : p.status === 'error' ? 'text-amber-300' : 'text-[var(--bros-muted)]'">
               {{ statusLabel(p) }}
             </div>
+            <label class="flex items-center gap-1.5 text-xs text-[var(--bros-muted)]" @click.stop>
+              <USwitch
+                :model-value="p.enabled"
+                :disabled="busy"
+                :aria-label="`Enable ${p.name} for chat`"
+                @update:model-value="(v: boolean) => setChatEnabled(p, v)"
+              />
+              Chat
+            </label>
             <UButton
               icon="i-lucide-settings"
               color="neutral"
@@ -819,14 +849,25 @@ async function saveHostPort() {
             </div>
             <div class="text-xs text-[var(--bros-muted)]">{{ p.kind }}</div>
           </div>
-          <UButton
-            icon="i-lucide-settings"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            :aria-label="`Settings for ${p.name}`"
-            @click.stop="openSettings(p.id)"
-          />
+          <div class="flex shrink-0 items-center gap-2">
+            <label class="flex items-center gap-1.5 text-xs text-[var(--bros-muted)]" @click.stop>
+              <USwitch
+                :model-value="p.enabled"
+                :disabled="busy"
+                :aria-label="`Enable ${p.name} for chat`"
+                @update:model-value="(v: boolean) => setChatEnabled(p, v)"
+              />
+              Chat
+            </label>
+            <UButton
+              icon="i-lucide-settings"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="`Settings for ${p.name}`"
+              @click.stop="openSettings(p.id)"
+            />
+          </div>
         </li>
         <li v-if="!customProviders.length" class="px-4 py-3 text-sm text-[var(--bros-muted)]">
           No custom providers yet.

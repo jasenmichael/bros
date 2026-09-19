@@ -45,7 +45,7 @@ In-container `BROS_DATA_DIR` stays `/data`. Do not commit `data/`, `.env`, `.nux
 
 ## Models
 
-On **Models**: **Ollama** (sidecar + host), **Popular services** (twelve OpenAI-compat clouds — paste a key), then **Custom providers**. Details: [docs/models.md](docs/models.md), [docs/providers.md](docs/providers.md).
+On **Models**: **Ollama** (sidecar + host, cards load collapsed), **Popular services** (twelve OpenAI-compat clouds — paste a key), then **Custom providers**. Each card has a Chat switch (default on) that only hides that provider from the Chat picker. Details: [docs/models.md](docs/models.md), [docs/providers.md](docs/providers.md).
 
 Pull on an Ollama card, or type any valid Ollama name. **Yours** keeps names you add. Recommended tags are **≤ 16 GB**. Sidecar DNS is `http://ollama:11434` (host publish **11435**). Host pull/chat use the host Ollama disk.
 

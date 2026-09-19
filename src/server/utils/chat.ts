@@ -1,8 +1,9 @@
+import { createError } from 'h3'
 import { desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getDb, conversations, messages } from './db'
 import { INTERNAL_BROS_MODEL } from './internalBrosModel'
-import { getProvider, getProviderPreset, getProviderSecret, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
+import { getProvider, getProviderPreset, getProviderSecret, isChatSelectionEnabled, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
@@ -150,6 +151,14 @@ function parseModelId(modelId: string) {
   return { provider: modelId.slice(0, idx), model: modelId.slice(idx + 1) }
 }
 
+export function assertChatProviderEnabled(modelId: string) {
+  const { provider } = parseModelId(modelId)
+  const row = getProvider(provider)
+  if (row && !isChatSelectionEnabled(row)) {
+    throw createError({ statusCode: 400, statusMessage: `${row.name} is disabled for chat` })
+  }
+}
+
 export async function streamChat(opts: {
   modelId: string
   history: Array<{ role: string; content: string }>
@@ -158,6 +167,9 @@ export async function streamChat(opts: {
   const { provider, model } = parseModelId(opts.modelId)
   const usage: ChatUsage = {}
   const row = getProvider(provider)
+  if (row && !isChatSelectionEnabled(row)) {
+    throw createError({ statusCode: 400, statusMessage: `${row.name} is disabled for chat` })
+  }
 
   if (row?.kind === 'ollama') {
     const base = await ollamaBaseUrlFor(provider)
