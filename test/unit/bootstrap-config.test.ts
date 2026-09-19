@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ensureDataLayout, loadBootstrapConfig, shouldAutostartFromPublicUrl } from '../../src/server/utils/config'
+import { ensureDataLayout, hostDataDirForBinds, loadBootstrapConfig, shouldAutostartFromPublicUrl } from '../../src/server/utils/config'
 
-const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL'] as const
+const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_HOST_DATA_DIR', 'BROS_HOME', 'BROS_DIR'] as const
 
 describe('loadBootstrapConfig', () => {
   const saved: Record<string, string | undefined> = {}
@@ -73,6 +73,45 @@ describe('loadBootstrapConfig', () => {
     const cfg = loadBootstrapConfig(appCwd)
     expect(cfg.workingDir).toBe(resolve(root))
     expect(cfg.dataDir).toBe(resolve(root, 'data'))
+  })
+})
+
+describe('hostDataDirForBinds', () => {
+  const saved: Record<string, string | undefined> = {}
+  let root = ''
+
+  beforeEach(() => {
+    for (const key of ENV_KEYS) {
+      saved[key] = process.env[key]
+      delete process.env[key]
+    }
+    root = mkdtempSync(join(tmpdir(), 'bros-host-data-'))
+  })
+
+  afterEach(() => {
+    for (const key of ENV_KEYS) {
+      if (saved[key] === undefined) delete process.env[key]
+      else process.env[key] = saved[key]
+    }
+    if (root) rmSync(root, { recursive: true, force: true })
+  })
+
+  it('prefers BROS_HOST_DATA_DIR over yaml data_dir', () => {
+    process.env.BROS_HOST_DATA_DIR = join(root, 'host-data')
+    process.env.BROS_DATA_DIR = join(root, 'container-data')
+    expect(hostDataDirForBinds()).toBe(resolve(root, 'host-data'))
+  })
+
+  it('ignores in-container /data and uses BROS_HOME/data', () => {
+    process.env.BROS_HOST_DATA_DIR = '/data'
+    process.env.BROS_HOME = root
+    expect(hostDataDirForBinds()).toBe(resolve(root, 'data'))
+  })
+
+  it('falls back to BROS_DATA_DIR when that is a host path', () => {
+    process.env.BROS_DATA_DIR = join(root, 'from-data-dir')
+    process.env.BROS_WORKING_DIR = root
+    expect(hostDataDirForBinds()).toBe(resolve(root, 'from-data-dir'))
   })
 })
 

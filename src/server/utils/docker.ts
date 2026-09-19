@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import Docker from 'dockerode'
 import { eq } from 'drizzle-orm'
+import { hostDataDirForBinds } from './config'
 import { getDb, sidecarSettings } from './db'
 import { firstPublishPort, isHostMode, probeHostPort, resolveHostRuntime, type HostMode } from './hostProbe'
 import { getSidecar, projectName, type SidecarMeta } from './sidecars'
@@ -15,9 +16,25 @@ export function getDocker() {
   return docker
 }
 
+/** Empty `${BROS_HOST_DATA_DIR}/ollama` interpolates to host `/ollama`. */
+export function isMissingHostDataBind(source: string, hostData: string): boolean {
+  const src = source.replace(/\/+$/, '')
+  const base = hostData.replace(/\/+$/, '')
+  if (src === base || src.startsWith(`${base}/`)) return false
+  return src.split('/').filter(Boolean).length === 1
+}
+
+function composeEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    BROS_HOST_DATA_DIR: hostDataDirForBinds(),
+    BROS_HOST_HOME_BIND: process.env.BROS_HOST_HOME_BIND?.trim() || process.env.HOME || '',
+  }
+}
+
 function run(cmd: string, args: string[], cwd: string, timeoutMs = 120_000): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { cwd, env: process.env })
+    const child = spawn(cmd, args, { cwd, env: composeEnv() })
     let stdout = ''
     let stderr = ''
     const timer = setTimeout(() => {
@@ -31,6 +48,26 @@ function run(cmd: string, args: string[], cwd: string, timeoutMs = 120_000): Pro
       resolve({ code: code ?? 1, stdout, stderr })
     })
   })
+}
+
+async function sidecarBindsNeedRecreate(project: string, hostData: string): Promise<boolean> {
+  try {
+    const d = getDocker()
+    const containers = await d.listContainers({
+      all: true,
+      filters: { label: [`com.docker.compose.project=${project}`] },
+    })
+    for (const c of containers) {
+      const info = await d.getContainer(c.Id).inspect()
+      for (const m of info.Mounts || []) {
+        if (m.Type !== 'bind' || !m.Source) continue
+        if (isMissingHostDataBind(m.Source, hostData)) return true
+      }
+    }
+  } catch {
+    return false
+  }
+  return false
 }
 
 async function ensureNetwork() {
@@ -172,6 +209,8 @@ export async function startSidecar(id: string) {
   const name = projectName(id)
   const composeArgs = ['compose', '-p', name, '-f', join(sidecar.dir, 'docker-compose.yml')]
   let forceRecreate = false
+  const hostData = hostDataDirForBinds()
+  if (await sidecarBindsNeedRecreate(name, hostData)) forceRecreate = true
 
   if (id === 'ollama') {
     const { getProvider } = await import('./providers')

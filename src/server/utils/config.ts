@@ -104,6 +104,22 @@ export function loadBootstrapConfig(cwd = process.cwd()): BootstrapConfig {
   return { workingDir, dataDir, publicUrl }
 }
 
+/**
+ * Host path for sidecar Compose binds. In-container `BROS_DATA_DIR=/data` is not
+ * a bind source. Empty `BROS_HOST_DATA_DIR` interpolates to `/ollama` on the host.
+ */
+export function hostDataDirForBinds(): string {
+  const explicit = process.env.BROS_HOST_DATA_DIR?.trim()
+  if (explicit && explicit !== '/data') return resolve(explicit)
+  const home = (process.env.BROS_HOME || process.env.BROS_DIR || '').trim()
+  if (home) return resolve(home, 'data')
+  const { dataDir } = loadBootstrapConfig()
+  if (dataDir === '/data' || dataDir === '/data/') {
+    throw new Error('BROS_HOST_DATA_DIR is unset; cannot bind sidecar volumes')
+  }
+  return dataDir
+}
+
 export function shouldAutostartFromPublicUrl(publicUrl: string | null | undefined): boolean {
   return Boolean(publicUrl && publicUrl.trim())
 }

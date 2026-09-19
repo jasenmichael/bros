@@ -10,7 +10,9 @@ import {
   resetOllamaHostCache,
   resolveOllamaChat,
   setOllamaManualPortForTests,
+  sidecarOllamaUrl,
 } from '../../src/server/utils/ollamaHost'
+import { setAppRunsInDockerForTests } from '../../src/server/utils/hostProbe'
 
 describe('ollama host probe', () => {
   let dataDir = ''
@@ -21,6 +23,7 @@ describe('ollama host probe', () => {
     process.env.BROS_WORKING_DIR = dataDir
     resetOllamaHostCache()
     setOllamaManualPortForTests(null)
+    setAppRunsInDockerForTests(undefined)
     vi.spyOn(docker, 'publishedPortOwner').mockResolvedValue(null)
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('offline')
@@ -29,6 +32,7 @@ describe('ollama host probe', () => {
 
   afterEach(() => {
     resetOllamaHostCache()
+    setAppRunsInDockerForTests(undefined)
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
@@ -39,7 +43,7 @@ describe('ollama host probe', () => {
       ok: true,
       json: async () => ({ version: '0.11.0' }),
     })))
-    expect(await probeOllamaVersion(11434)).toEqual({ version: '0.11.0' })
+    expect(await probeOllamaVersion(11434)).toEqual({ version: '0.11.0', host: '127.0.0.1' })
   })
 
   it('rejects non-Ollama HTTP', async () => {
@@ -66,7 +70,7 @@ describe('ollama host probe', () => {
   it('uses sidecar DNS when mode is sidecar', async () => {
     const chat = await resolveOllamaChat('sidecar')
     expect(chat.source).toBe('sidecar')
-    expect(chat.baseUrl).toBe('http://ollama:11434')
+    expect(chat.baseUrl).toBe(sidecarOllamaUrl())
   })
 
   it('honors persisted host mode when scan hits', async () => {
@@ -96,7 +100,7 @@ describe('ollama host probe', () => {
   it('treats legacy external mode as sidecar when scan misses', async () => {
     const chat = await resolveOllamaChat('external')
     expect(chat.source).toBe('sidecar')
-    expect(chat.baseUrl).toBe('http://ollama:11434')
+    expect(chat.baseUrl).toBe(sidecarOllamaUrl())
   })
 
   it('defaults to sidecar DNS when scan misses', async () => {
@@ -105,7 +109,7 @@ describe('ollama host probe', () => {
     }))
     const chat = await resolveOllamaChat(undefined)
     expect(chat.source).toBe('sidecar')
-    expect(chat.baseUrl).toBe('http://ollama:11434')
+    expect(chat.baseUrl).toBe(sidecarOllamaUrl())
     expect(chat.host).toBeNull()
   })
 
@@ -125,7 +129,7 @@ describe('ollama host probe', () => {
       throw new Error('offline')
     }))
     const hit = await findHostOllama()
-    expect(hit).toEqual({ port: 11436, version: '0.9.1', error: null, manual: false })
+    expect(hit).toEqual({ port: 11436, version: '0.9.1', host: '127.0.0.1', error: null, manual: false })
     const called = vi.mocked(fetch).mock.calls.map((c) => String(c[0]))
     expect(called.some((u) => u.includes(':11434/'))).toBe(false)
   })
@@ -174,6 +178,42 @@ services:
       throw new Error('offline')
     }))
     const hit = await findHostOllama()
-    expect(hit).toEqual({ port: 22000, version: 'from-yaml', error: null, manual: false })
+    expect(hit).toEqual({ port: 22000, version: 'from-yaml', host: '127.0.0.1', error: null, manual: false })
+  })
+
+  it('on host Node lists via 127.0.0.1 and never calls host.docker.internal', async () => {
+    setAppRunsInDockerForTests(false)
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.includes('host.docker.internal')) throw new Error('dns hang')
+      if (u.includes('127.0.0.1:11434/api/version')) {
+        return { ok: true, json: async () => ({ version: '0.32.14' }) }
+      }
+      throw new Error('offline')
+    }))
+    const hit = await findHostOllama()
+    expect(hit).toEqual({ port: 11434, version: '0.32.14', host: '127.0.0.1', error: null, manual: false })
+    const chat = await resolveOllamaChat(undefined)
+    expect(chat.baseUrl).toBe('http://127.0.0.1:11434')
+    expect(sidecarOllamaUrl()).toBe('http://127.0.0.1:11435')
+    const called = vi.mocked(fetch).mock.calls.map((c) => String(c[0]))
+    expect(called.some((u) => u.includes('host.docker.internal'))).toBe(false)
+    expect(called.some((u) => u.includes('127.0.0.1:11434'))).toBe(true)
+  })
+
+  it('in Docker uses sidecar DNS and host.docker.internal', async () => {
+    setAppRunsInDockerForTests(true)
+    resetOllamaHostCache()
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('host.docker.internal:11434/api/version')) {
+        return { ok: true, json: async () => ({ version: '0.9.0' }) }
+      }
+      throw new Error('offline')
+    }))
+    expect(sidecarOllamaUrl()).toBe('http://ollama:11434')
+    const chat = await resolveOllamaChat(undefined)
+    expect(chat.source).toBe('host')
+    expect(chat.baseUrl).toBe('http://host.docker.internal:11434')
+    expect(chat.host).toEqual({ port: 11434, version: '0.9.0' })
   })
 })

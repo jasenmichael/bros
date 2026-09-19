@@ -51,3 +51,4 @@ Docs extends theme. App and website also extend theme + docs so both layers stay
 - Sidecars **not** in main Compose; managed via Docker socket
 - Persistent data is host binds under `$BROS_HOME/data` (repo `./data`, installed `~/.bros/data`), not named `bros-data` / `bros-ollama-data` volumes. Dev `node_modules` volumes stay named caches.
 - Docs site: `pnpm docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm docs:generate` then `pnpm --filter @bros/website preview`. Pages artifact is `src/website/.output/public`.
+- Host Node (`pnpm app:dev`): Chat/Models reach sidecar Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1:<probe>`. Compose app keeps Docker DNS (`http://ollama:11434`, `host.docker.internal`). Sidecar `docker compose` injects `BROS_HOST_DATA_DIR` so binds are `$BROS_HOME/data/...`, not host `/ollama`.

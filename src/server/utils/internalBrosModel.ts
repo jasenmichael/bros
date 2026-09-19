@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import { join } from 'pathe'
 import { loadBootstrapConfig } from './config'
-import { OLLAMA_SIDECAR_DNS } from './ollamaHost'
+import { sidecarOllamaUrl } from './ollamaHost'
 
 export const INTERNAL_BROS_MODEL = 'bros'
 export const VENDOR_BROS_MODEL_REL = 'vendor/bros-model'
@@ -95,7 +95,7 @@ function copyVendorTree(vendorRoot: string, destRoot: string) {
 
 async function sidecarHasBros(): Promise<boolean> {
   try {
-    const res = await fetch(`${OLLAMA_SIDECAR_DNS.replace(/\/$/, '')}/api/tags`, {
+    const res = await fetch(`${sidecarOllamaUrl().replace(/\/$/, '')}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     })
     if (!res.ok) return false

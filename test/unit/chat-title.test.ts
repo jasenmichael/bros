@@ -37,6 +37,13 @@ describe('chat title helpers', () => {
     expect(sanitizeGeneratedTitle('x'.repeat(81), 'Explain Docker')).toBe('Explain Docker')
   })
 
+  it('rejects specialist SYSTEM-prompt regurgitation', () => {
+    expect(sanitizeGeneratedTitle('Bros Model Label', 'how are you?')).toBe('how are you?')
+    expect(sanitizeGeneratedTitle('Bros Model', 'hello')).toBe('hello')
+    expect(sanitizeGeneratedTitle('Label', 'good morning')).toBe('good morning')
+    expect(sanitizeGeneratedTitle('Docker Volumes', 'Explain Docker volumes')).toBe('Docker Volumes')
+  })
+
   it('only auto-titles the first assistant reply while still New chat', () => {
     expect(shouldAutoTitle(DEFAULT_CHAT_TITLE, 1)).toBe(true)
     expect(shouldAutoTitle(DEFAULT_CHAT_TITLE, 2)).toBe(false)
@@ -85,8 +92,9 @@ describe('conversation title persist', () => {
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
     addMessage(convo!.id, 'assistant', 'Volumes persist data.')
+    const { sidecarOllamaUrl } = await import('../../src/server/utils/ollamaHost')
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(String(url)).toBe('http://ollama:11434/api/chat')
+      expect(String(url)).toBe(`${sidecarOllamaUrl()}/api/chat`)
       const body = JSON.parse(String(init?.body || '{}')) as { model?: string; stream?: boolean; messages?: Array<{ content?: string }> }
       expect(body.model).toBe('bros')
       expect(body.stream).toBe(false)

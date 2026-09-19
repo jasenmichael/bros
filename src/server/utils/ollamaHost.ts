@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { getDb, sidecarSettings } from './db'
-import { dockerHostName } from './hostProbe'
+import { appRunsInDocker, dockerHostCandidates } from './hostProbe'
 import { getSidecar, projectName } from './sidecars'
 
 export const OLLAMA_SIDECAR_DNS = 'http://ollama:11434'
@@ -19,6 +19,7 @@ export function normalizeOllamaMode(mode?: string | null): OllamaChatSource | un
 export type HostOllamaHit = {
   port: number | null
   version: string | null
+  host: string | null
   error: string | null
   manual: boolean
 }
@@ -41,24 +42,25 @@ export function setOllamaManualPortForTests(port: number | null) {
   cache = null
 }
 
-export function hostOllamaUrl(port: number): string {
-  return `http://${dockerHostName()}:${port}`
+export function hostOllamaUrl(port: number, host?: string | null): string {
+  return `http://${host || dockerHostCandidates()[0]}:${port}`
 }
 
-export async function probeOllamaVersion(port: number, timeoutMs = 800): Promise<{ version: string } | null> {
-  const hosts = Array.from(new Set([
-    dockerHostName(),
-    'host.docker.internal',
-    '172.17.0.1',
-  ]))
-  for (const host of hosts) {
+/** Reachable sidecar Ollama: Docker DNS in-container, publish port on host Node. */
+export function sidecarOllamaUrl(): string {
+  if (appRunsInDocker()) return OLLAMA_SIDECAR_DNS
+  return `http://127.0.0.1:${OLLAMA_SIDECAR_PUBLISH}`
+}
+
+export async function probeOllamaVersion(port: number, timeoutMs = 800): Promise<{ version: string; host: string } | null> {
+  for (const host of dockerHostCandidates()) {
     try {
       const res = await fetch(`http://${host}:${port}/api/version`, {
         signal: AbortSignal.timeout(timeoutMs),
       })
       if (!res.ok) continue
       const json = await res.json() as { version?: unknown }
-      if (typeof json.version === 'string' && json.version) return { version: json.version }
+      if (typeof json.version === 'string' && json.version) return { version: json.version, host }
     } catch {
       // try next host
     }
@@ -84,7 +86,7 @@ export function readOllamaManualPort(): number | null {
 
 export async function findHostOllama(): Promise<HostOllamaHit> {
   const manual = readOllamaManualPort()
-  const key = `m:${manual ?? ''}`
+  const key = `m:${manual ?? ''}:d:${appRunsInDocker()}`
   if (cache && cache.key === key && Date.now() - cache.at < CACHE_MS) return cache.value
 
   const store = (value: HostOllamaHit) => {
@@ -97,6 +99,7 @@ export async function findHostOllama(): Promise<HostOllamaHit> {
       return store({
         port: null,
         version: null,
+        host: null,
         error: `Port ${manual} is the Bros Ollama sidecar, not a host install.`,
         manual: true,
       })
@@ -106,11 +109,12 @@ export async function findHostOllama(): Promise<HostOllamaHit> {
       return store({
         port: null,
         version: null,
+        host: null,
         error: `No Ollama on :${manual}`,
         manual: true,
       })
     }
-    return store({ port: manual, version: hit.version, error: null, manual: true })
+    return store({ port: manual, version: hit.version, host: hit.host, error: null, manual: true })
   }
 
   const fromYaml = getSidecar('ollama')?.hostProbe?.ports
@@ -118,9 +122,9 @@ export async function findHostOllama(): Promise<HostOllamaHit> {
   for (const port of ports) {
     if (await ownerProject(port) === OLLAMA_BROS_PROJECT) continue
     const hit = await probeOllamaVersion(port)
-    if (hit) return store({ port, version: hit.version, error: null, manual: false })
+    if (hit) return store({ port, version: hit.version, host: hit.host, error: null, manual: false })
   }
-  return store({ port: null, version: null, error: null, manual: false })
+  return store({ port: null, version: null, host: null, error: null, manual: false })
 }
 
 export async function resolveOllamaChat(mode?: string | null): Promise<{
@@ -136,17 +140,17 @@ export async function resolveOllamaChat(mode?: string | null): Promise<{
     : null
 
   if (persisted === 'sidecar') {
-    return { source: 'sidecar', baseUrl: OLLAMA_SIDECAR_DNS, host, hostError: hostHit.error }
+    return { source: 'sidecar', baseUrl: sidecarOllamaUrl(), host, hostError: hostHit.error }
   }
   if (persisted === 'host') {
-    if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port), host, hostError: hostHit.error }
+    if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port, hostHit.host), host, hostError: hostHit.error }
     return {
       source: 'host',
-      baseUrl: hostOllamaUrl(hostHit.manual && readOllamaManualPort() ? readOllamaManualPort()! : 11434),
+      baseUrl: hostOllamaUrl(hostHit.manual && readOllamaManualPort() ? readOllamaManualPort()! : 11434, hostHit.host),
       host: null,
       hostError: hostHit.error || 'Host Ollama not found',
     }
   }
-  if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port), host, hostError: hostHit.error }
-  return { source: 'sidecar', baseUrl: OLLAMA_SIDECAR_DNS, host, hostError: hostHit.error }
+  if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port, hostHit.host), host, hostError: hostHit.error }
+  return { source: 'sidecar', baseUrl: sidecarOllamaUrl(), host, hostError: hostHit.error }
 }

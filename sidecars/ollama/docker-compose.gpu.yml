@@ -6,4 +6,4 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     volumes:
-      - ${BROS_HOST_DATA_DIR}/bros-model:/bros-model:ro
+      - ${BROS_HOST_DATA_DIR:?unset}/bros-model:/bros-model:ro

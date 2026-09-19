@@ -4,9 +4,9 @@ services:
     ports:
       - "${BROS_OLLAMA_PORT:-11435}:11434"
     volumes:
-      - ${BROS_HOST_DATA_DIR}/ollama:/root/.ollama
-      - ${BROS_HOST_DATA_DIR}/ollama-config:/root/.config/ollama
-      - ${BROS_HOST_DATA_DIR}/bros-model:/bros-model:ro
+      - ${BROS_HOST_DATA_DIR:?unset}/ollama:/root/.ollama
+      - ${BROS_HOST_DATA_DIR:?unset}/ollama-config:/root/.config/ollama
+      - ${BROS_HOST_DATA_DIR:?unset}/bros-model:/bros-model:ro
       # Same host path as app so symlink imports resolve inside Ollama
       - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:ro
     restart: unless-stopped

@@ -7,9 +7,9 @@ services:
     ports:
       - "${BROS_OPENCODE_PORT:-4097}:4096"
     volumes:
-      - ${BROS_HOST_DATA_DIR}/opencode:/workspace
-      - ${BROS_HOST_DATA_DIR}/opencode-config:/root/.config/opencode
-      - ${BROS_HOST_DATA_DIR}/opencode-share:/root/.local/share/opencode
+      - ${BROS_HOST_DATA_DIR:?unset}/opencode:/workspace
+      - ${BROS_HOST_DATA_DIR:?unset}/opencode-config:/root/.config/opencode
+      - ${BROS_HOST_DATA_DIR:?unset}/opencode-share:/root/.local/share/opencode
     restart: unless-stopped
     networks:
       - bros

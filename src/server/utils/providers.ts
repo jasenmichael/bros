@@ -4,7 +4,7 @@ import { decryptSecret, encryptSecret } from './auth'
 import { getDb, providers } from './db'
 import { isInternalBrosModel } from './internalBrosModel'
 import { isValidOllamaPullName } from './ollamaLibrary'
-import { findHostOllama, hostOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
+import { findHostOllama, hostOllamaUrl, sidecarOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
 import { PROVIDER_PRESETS, isPopularProvider } from './providerPresets'
 
 export type ProviderKind = 'ollama' | 'openai' | 'anthropic'
@@ -216,7 +216,9 @@ export function ensureDefaultUseGpu(gpuAvailable: boolean): boolean {
 }
 
 export async function listOllamaModels(baseUrl: string, providerId = OLLAMA_SIDECAR_ID) {
-  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`)
+  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`, {
+    signal: AbortSignal.timeout(4000),
+  })
   if (!res.ok) throw createError({ statusCode: 502, statusMessage: `Ollama error ${res.status}` })
   const data = await res.json() as { models?: Array<{ name: string; size?: number; modified_at?: string; details?: unknown }> }
   return (data.models || [])
@@ -338,11 +340,11 @@ export async function deleteOllamaModel(baseUrl: string, name: string) {
 export async function ollamaBaseUrlFor(providerId = OLLAMA_SIDECAR_ID): Promise<string> {
   if (providerId === OLLAMA_HOST_ID) {
     const hit = await findHostOllama()
-    if (hit.port != null) return hostOllamaUrl(hit.port)
+    if (hit.port != null) return hostOllamaUrl(hit.port, hit.host)
     const p = getProvider(OLLAMA_HOST_ID)
     return p?.baseUrl || hostOllamaUrl(11434)
   }
-  return OLLAMA_SIDECAR_DNS
+  return sidecarOllamaUrl()
 }
 
 /** @deprecated use ollamaBaseUrlFor */

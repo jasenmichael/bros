@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
+  dockerHostCandidates,
   firstPublishPort,
   hostUiUrl,
   isHostMode,
   resolveHostRuntime,
+  setAppRunsInDockerForTests,
 } from '../../src/server/utils/hostProbe'
 
 describe('isHostMode', () => {
@@ -12,6 +14,23 @@ describe('isHostMode', () => {
     expect(isHostMode('sidecar')).toBe(true)
     expect(isHostMode('host')).toBe(true)
     expect(isHostMode('other')).toBe(false)
+  })
+})
+
+describe('dockerHostCandidates', () => {
+  afterEach(() => {
+    setAppRunsInDockerForTests(undefined)
+  })
+
+  it('uses 127.0.0.1 on host Node and skips host.docker.internal', () => {
+    setAppRunsInDockerForTests(false)
+    expect(dockerHostCandidates()).toEqual(['127.0.0.1', '172.17.0.1'])
+  })
+
+  it('uses host.docker.internal inside Docker', () => {
+    setAppRunsInDockerForTests(true)
+    expect(dockerHostCandidates()[0]).toBe('host.docker.internal')
+    expect(dockerHostCandidates()).toContain('172.17.0.1')
   })
 })
 

@@ -12,7 +12,7 @@ import {
   type ProviderStatus,
 } from '../../utils/providers'
 import { ensureInternalBrosModel } from '../../utils/internalBrosModel'
-import { findHostOllama, readOllamaManualPort, OLLAMA_SIDECAR_DNS, OLLAMA_SIDECAR_PUBLISH } from '../../utils/ollamaHost'
+import { findHostOllama, readOllamaManualPort, sidecarOllamaUrl, OLLAMA_SIDECAR_DNS, OLLAMA_SIDECAR_PUBLISH } from '../../utils/ollamaHost'
 
 export default defineEventHandler(async () => {
   ensureDefaultProviders()
@@ -26,7 +26,7 @@ export default defineEventHandler(async () => {
   const openaiModelsByProvider: Record<string, string[]> = {}
   const errors: Record<string, string> = {}
 
-  const sidecarRunning = await probeOllamaRunning(OLLAMA_SIDECAR_DNS)
+  const sidecarRunning = await probeOllamaRunning(sidecarOllamaUrl())
   if (sidecarRunning) {
     await ensureInternalBrosModel()
   }
