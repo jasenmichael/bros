@@ -1,0 +1,11 @@
+id: firecrawl-ui
+slug: firecrawl-ui
+name: Firecrawl UI
+description: Web UI for the Firecrawl scrape API (obeone/firecrawl-ui). Bros publishes host port 3081 (container 8080).
+
+interfaces:
+  - type: webui
+    service: firecrawl-ui
+    containerPort: 8080
+    publish: 3081
+    slug: firecrawl-ui

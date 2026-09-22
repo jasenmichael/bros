@@ -34,6 +34,7 @@ describe('OpenAI-compat chat stream', () => {
       kind: 'openai',
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'sk-or-test',
+      enabled: true,
     })
 
     const calls: Array<{ url: string; init?: RequestInit }> = []
@@ -68,7 +69,7 @@ describe('OpenAI-compat chat stream', () => {
     const { ensureDefaultProviders, setProviderEnabled } = await import('../../src/server/utils/providers')
     const { streamChat } = await import('../../src/server/utils/chat')
     ensureDefaultProviders()
-    setProviderEnabled('openrouter', false)
+    await setProviderEnabled('openrouter', false)
 
     let fetches = 0
     globalThis.fetch = (async () => {

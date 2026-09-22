@@ -5,7 +5,7 @@ description: Install Bros with Docker, run bros, open port 3055.
 
 # Getting started
 
-Bros is a Docker-isolated local AI control plane. Chat, Models, and Sidecars on one host. The host needs Docker and Docker Compose. Optional: host `cloudflared` for a Cloudflare tunnel (install + `cloudflared login`). See [Tunnel](/docs/tunnel).
+Bros is a Docker-isolated local AI control plane. Chat, Providers, and Sidecars on one host. The host needs Docker and Docker Compose. Optional: host `cloudflared` for a Cloudflare tunnel (install + `cloudflared login`). See [Tunnel](/docs/tunnel).
 
 The `bros` CLI defaults to **start** when no command is passed.
 
@@ -41,9 +41,9 @@ Ctrl+C on an interactive start stops the **full stack**. First start brings up t
 
 ## Next
 
-- [App](/docs/app) — Dashboard, Chat, Models, Sidecars, Status, Settings, Docs
-- [Models](/docs/models) — Ollama, Popular services, Custom providers
-- [Sidecars](/docs/sidecars) — core Compose packages plus custom drop-ins
+- [App](/docs/app) — Dashboard, Chat, Providers, Sidecars, Status, Settings, Docs
+- [Providers](/docs/providers) — Ollama, Popular services, Custom providers
+- [Sidecars](/docs/sidecars) — Core Ollama, then Addon sidecars (bros / repo / custom)
 - [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_HOME`
 - [Environment](/docs/environment) — `BROS_*` catalog
 - [Tunnel](/docs/tunnel) — host `cloudflared`, install, login

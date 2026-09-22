@@ -32,11 +32,15 @@ describe('layer ownership', () => {
     expect(read('src/layers/theme/app/app.vue')).toContain('NuxtLayout')
     expect(read('src/layers/theme/app/layouts/default.vue')).toContain('BrosAppNav')
     expect(read('src/app/app.config.ts')).toContain('Dashboard')
+    expect(read('src/app/app.config.ts')).toContain("label: 'Providers'")
+    expect(read('src/app/app.config.ts')).toContain("to: '/providers'")
+    expect(read('src/app/app.config.ts')).not.toContain("label: 'Models'")
+    expect(read('src/app/app.config.ts')).not.toContain("to: '/models'")
     expect(read('src/app/app.config.ts')).toContain('docsNavItems')
     expect(read('src/website/app/app.config.ts')).toContain('docsNavItems')
     expect(read('src/layers/docs/app/utils/docsNav.ts')).toContain('Getting started')
-    expect(read('src/layers/docs/app/utils/docsNav.ts')).toContain("to: '/docs/models'")
-    expect(read('src/layers/docs/app/utils/docsNav.ts')).toContain("to: '/docs/models-custom'")
+    expect(read('src/layers/docs/app/utils/docsNav.ts')).toContain("to: '/docs/providers'")
+    expect(read('src/layers/docs/app/utils/docsNav.ts')).toContain("to: '/docs/providers/custom'")
     expect(read('src/layers/docs/app/utils/docsNav.ts')).toContain("to: '/docs/development'")
     expect(read('src/layers/theme/app/components/BrosAppNav.vue')).toContain('BrosNavTree')
     expect(read('src/layers/docs/app/pages/docs/[...slug].vue')).toContain('BrosDocsCrumbs')
@@ -64,6 +68,17 @@ describe('layer ownership', () => {
     expect(recents.indexOf('bros-recents__list')).toBeLessThan(recents.indexOf('bros-nav-panel__recents-hint--down'))
     expect(read('src/layers/theme/app/app.config.ts')).toContain('showAfterPrimary: false')
     expect(read('src/app/app.config.ts')).toContain('showAfterPrimary: true')
+  })
+
+  it('truncates dock labels on one line instead of wrapping', () => {
+    const tree = read('src/layers/theme/app/components/BrosNavTree.vue')
+    const nav = read('src/layers/theme/app/components/BrosAppNav.vue')
+    const recents = read('src/app/components/BrosChatRecents.vue')
+    for (const src of [tree, nav, recents]) {
+      expect(src).toContain('bros-nav-label')
+      expect(src).toContain('white-space: nowrap')
+      expect(src).toContain('text-overflow: ellipsis')
+    }
   })
 
   it('has both apps extend docs then theme', () => {

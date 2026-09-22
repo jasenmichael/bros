@@ -1,9 +1,16 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
-import { loadBootstrapConfig } from './config'
+import { createError } from 'h3'
+import { ensureDataLayout, loadBootstrapConfig } from './config'
 import { POPULAR_PROVIDER_IDS } from './providerPresets'
+
+export const CORE_SIDECAR_ID = 'ollama'
+
+export type SidecarKind = 'core' | 'addon' | 'additional'
+export type SidecarSourceLabel = 'shipped' | 'data dir' | string
 
 const interfaceSchema = z.object({
   type: z.enum(['webui', 'api', 'openai', 'cli']),
@@ -30,17 +37,11 @@ const interfaceSchema = z.object({
   }
 })
 
-const hostProbeSchema = z.object({
-  ports: z.array(z.number().int().positive()).min(1),
-  path: z.string().min(1).default('/api/version'),
-}).optional()
-
 const sidecarMetaSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9_-]*$/),
   slug: z.string().regex(/^[a-z][a-z0-9_-]*$/).optional(),
   name: z.string().min(1),
   description: z.string().optional().default(''),
-  hostProbe: hostProbeSchema,
   interfaces: z.array(interfaceSchema).default([]),
 })
 
@@ -50,22 +51,105 @@ export function parseSidecarMeta(raw: unknown) {
 
 export type SidecarInterface = z.infer<typeof interfaceSchema>
 export type SidecarMeta = z.infer<typeof sidecarMetaSchema> & {
-  source: 'core' | 'custom'
+  source: SidecarSourceLabel
+  kind: SidecarKind
   dir: string
   packageSlug: string
+  disabled: boolean
+  editable: boolean
+  gitUrl?: string
   error?: string
 }
 
+export type DiscoverOptions = {
+  shippedRoot?: string
+  dataDir?: string
+  env?: NodeJS.ProcessEnv
+}
+
 export const RESERVED_SLUGS = new Set([
-  'api', 'chat', 'models', 'sidecars', 'settings', 'docs',
+  'api', 'chat', 'models', 'providers', 'sidecars', 'settings', 'docs',
   'login', 'setup', 'status', '_nuxt', 'favicon.ico',
   ...POPULAR_PROVIDER_IDS,
 ])
 
-function readSidecarDir(dir: string, source: 'core' | 'custom'): SidecarMeta | null {
+const SIDECAR_ID_RE = /^[a-z][a-z0-9_-]*$/
+
+function truthyOff(value: string | undefined): boolean {
+  if (value == null) return false
+  const v = value.trim().toLowerCase()
+  return v === '0' || v === 'false' || v === 'off' || v === 'no'
+}
+
+/** Addon ids skipped at autostart. Ollama cannot be disabled. */
+export function disabledAddonIds(env: NodeJS.ProcessEnv = process.env): Set<string> {
+  const out = new Set<string>()
+  for (const raw of (env.BROS_SIDECARS_DISABLE || '').split(',')) {
+    const id = raw.trim().toLowerCase()
+    if (id && id !== CORE_SIDECAR_ID) out.add(id)
+  }
+  for (const [key, val] of Object.entries(env)) {
+    if (!key.startsWith('BROS_SIDECAR_')) continue
+    if (key === 'BROS_SIDECARS_DISABLE' || key === 'BROS_SIDECARS_DIR') continue
+    if (!truthyOff(val)) continue
+    const id = key.slice('BROS_SIDECAR_'.length).toLowerCase()
+    if (id && id !== CORE_SIDECAR_ID) out.add(id)
+    const hyphen = id.replace(/_/g, '-')
+    if (hyphen !== id && hyphen !== CORE_SIDECAR_ID) out.add(hyphen)
+  }
+  return out
+}
+
+export function shippedSidecarsRoot(opts?: DiscoverOptions): string {
+  if (opts?.shippedRoot) return opts.shippedRoot
+  const fromEnv = (opts?.env || process.env).BROS_SIDECARS_DIR?.trim()
+  if (fromEnv) return fromEnv
+  const { workingDir } = loadBootstrapConfig()
+  return join(workingDir, 'sidecars')
+}
+
+export function sidecarDataDir(opts?: DiscoverOptions): string {
+  if (opts?.dataDir) return opts.dataDir
+  return loadBootstrapConfig().dataDir
+}
+
+export function isShippedAddonId(id: string, opts?: DiscoverOptions): boolean {
+  if (id === CORE_SIDECAR_ID) return false
+  const root = shippedSidecarsRoot(opts)
+  return existsSync(join(root, id, 'sidecar.yml')) && existsSync(join(root, id, 'docker-compose.yml'))
+}
+
+export function isReservedSidecarId(id: string, opts?: DiscoverOptions): boolean {
+  if (RESERVED_SLUGS.has(id) || id === CORE_SIDECAR_ID) return true
+  return isShippedAddonId(id, opts)
+}
+
+export function defaultSidecarAutostart(id: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (id === CORE_SIDECAR_ID) return true
+  if (disabledAddonIds(env).has(id)) return false
+  return isShippedAddonId(id, { env })
+}
+
+export function shouldAutostartSidecar(
+  sidecar: { id: string; disabled?: boolean },
+  settings: { autostart: boolean },
+): boolean {
+  if (sidecar.id === CORE_SIDECAR_ID) return true
+  if (sidecar.disabled) return false
+  return settings.autostart
+}
+
+function readSidecarDir(
+  dir: string,
+  source: SidecarSourceLabel,
+  kind: SidecarKind,
+  extra: { disabled?: boolean; gitUrl?: string } = {},
+): SidecarMeta | null {
   const metaPath = join(dir, 'sidecar.yml')
   const composePath = join(dir, 'docker-compose.yml')
   if (!existsSync(metaPath) || !existsSync(composePath)) return null
+  const disabled = extra.disabled === true
+  const editable = source === 'data dir'
 
   try {
     const raw = parseYaml(readFileSync(metaPath, 'utf8'))
@@ -75,26 +159,30 @@ function readSidecarDir(dir: string, source: 'core' | 'custom'): SidecarMeta | n
       return {
         ...meta,
         source,
+        kind,
         dir,
         packageSlug: meta.slug || meta.id,
+        disabled,
+        editable,
+        gitUrl: extra.gitUrl,
         error: `Directory name "${idFromDir}" must match id "${meta.id}"`,
       }
     }
     parseYaml(readFileSync(composePath, 'utf8'))
     const packageSlug = meta.slug || meta.id
     if (RESERVED_SLUGS.has(packageSlug)) {
-      return { ...meta, source, dir, packageSlug, error: `Slug "${packageSlug}" is reserved` }
+      return { ...meta, source, kind, dir, packageSlug, disabled, editable, gitUrl: extra.gitUrl, error: `Slug "${packageSlug}" is reserved` }
     }
     for (const iface of meta.interfaces) {
       if (iface.type === 'webui' && !iface.containerPort) {
-        return { ...meta, source, dir, packageSlug, error: 'webui interface requires containerPort' }
+        return { ...meta, source, kind, dir, packageSlug, disabled, editable, gitUrl: extra.gitUrl, error: 'webui interface requires containerPort' }
       }
       const slug = iface.slug || packageSlug
       if (RESERVED_SLUGS.has(slug)) {
-        return { ...meta, source, dir, packageSlug, error: `Interface slug "${slug}" is reserved` }
+        return { ...meta, source, kind, dir, packageSlug, disabled, editable, gitUrl: extra.gitUrl, error: `Interface slug "${slug}" is reserved` }
       }
     }
-    return { ...meta, source, dir, packageSlug }
+    return { ...meta, source, kind, dir, packageSlug, disabled, editable, gitUrl: extra.gitUrl }
   } catch (err) {
     const id = dir.split(/[/\\]/).filter(Boolean).pop() || 'unknown'
     return {
@@ -103,59 +191,331 @@ function readSidecarDir(dir: string, source: 'core' | 'custom'): SidecarMeta | n
       description: '',
       interfaces: [],
       source,
+      kind,
       dir,
       packageSlug: id,
+      disabled,
+      editable,
+      gitUrl: extra.gitUrl,
       error: err instanceof Error ? err.message : String(err),
     }
   }
 }
 
-function scanRoot(root: string, source: 'core' | 'custom'): SidecarMeta[] {
+function scanRoot(
+  root: string,
+  source: SidecarSourceLabel,
+  kind: SidecarKind,
+  extra: { disabledIds?: Set<string>; gitUrl?: string } = {},
+): SidecarMeta[] {
   if (!existsSync(root)) return []
   return readdirSync(root, { withFileTypes: true })
     .filter((d) => d.isDirectory())
-    .map((d) => readSidecarDir(join(root, d.name), source))
+    .map((d) => {
+      const disabled = extra.disabledIds?.has(d.name) === true
+      return readSidecarDir(join(root, d.name), source, kind, { disabled, gitUrl: extra.gitUrl })
+    })
     .filter((x): x is SidecarMeta => Boolean(x))
 }
 
-export function discoverSidecars(): { sidecars: SidecarMeta[]; errors: string[] } {
-  const { workingDir, dataDir } = loadBootstrapConfig()
-  const core = scanRoot(join(workingDir, 'sidecars'), 'core')
-  const custom = scanRoot(join(dataDir, 'sidecars'), 'custom')
-  const errors: string[] = []
-  const coreIds = new Set(core.map((s) => s.id))
-  const coreSlugs = new Set<string>()
-  for (const s of core) {
-    coreSlugs.add(s.packageSlug)
-    for (const iface of s.interfaces) {
-      if (iface.type === 'webui') coreSlugs.add(iface.slug || s.packageSlug)
-    }
-  }
-
-  const acceptedCustom: SidecarMeta[] = []
-  for (const s of custom) {
-    if (coreIds.has(s.id)) {
-      errors.push(`Custom sidecar "${s.id}" conflicts with core id — rejected`)
-      continue
-    }
-    const slugs = [
-      s.packageSlug,
-      ...s.interfaces.filter((i) => i.type === 'webui').map((i) => i.slug || s.packageSlug),
-    ]
-    if (slugs.some((slug) => coreSlugs.has(slug))) {
-      errors.push(`Custom sidecar "${s.id}" conflicts with core slug — rejected`)
-      continue
-    }
-    acceptedCustom.push(s)
-  }
-
-  return { sidecars: [...core, ...acceptedCustom], errors }
+function collectSlugs(s: SidecarMeta): string[] {
+  return [
+    s.packageSlug,
+    ...s.interfaces.filter((i) => i.type === 'webui').map((i) => i.slug || s.packageSlug),
+  ]
 }
 
-export function getSidecar(id: string): SidecarMeta | undefined {
-  return discoverSidecars().sidecars.find((s) => s.id === id)
+function gitRemoteUrl(repoRoot: string): string | null {
+  const cfg = join(repoRoot, '.git', 'config')
+  if (!existsSync(cfg)) return null
+  const text = readFileSync(cfg, 'utf8')
+  const match = text.match(/\[remote "origin"\][\s\S]*?url\s*=\s*(\S+)/)
+  return match?.[1] || null
+}
+
+function scanClonedRepos(dataDir: string): SidecarMeta[] {
+  const base = join(dataDir, 'sidecar-repos')
+  if (!existsSync(base)) return []
+  const out: SidecarMeta[] = []
+  for (const d of readdirSync(base, { withFileTypes: true })) {
+    if (!d.isDirectory()) continue
+    const repoRoot = join(base, d.name)
+    const gitUrl = gitRemoteUrl(repoRoot) || undefined
+    const source = gitUrl || 'git repo'
+    out.push(...scanRoot(join(repoRoot, 'sidecars'), source, 'additional', { gitUrl }))
+  }
+  return out
+}
+
+function rejectConflicts(
+  incoming: SidecarMeta[],
+  takenIds: Set<string>,
+  takenSlugs: Set<string>,
+  errors: string[],
+  label: string,
+): SidecarMeta[] {
+  const accepted: SidecarMeta[] = []
+  for (const s of incoming) {
+    if (takenIds.has(s.id) || s.id === CORE_SIDECAR_ID) {
+      errors.push(`${label} sidecar "${s.id}" conflicts with a shipped or reserved id — rejected`)
+      continue
+    }
+    const slugs = collectSlugs(s)
+    if (slugs.some((slug) => takenSlugs.has(slug) || RESERVED_SLUGS.has(slug))) {
+      errors.push(`${label} sidecar "${s.id}" conflicts with a shipped or reserved slug — rejected`)
+      continue
+    }
+    accepted.push(s)
+    takenIds.add(s.id)
+    for (const slug of slugs) takenSlugs.add(slug)
+  }
+  return accepted
+}
+
+export function discoverSidecars(opts?: DiscoverOptions): { sidecars: SidecarMeta[]; errors: string[] } {
+  const shippedRoot = shippedSidecarsRoot(opts)
+  const dataDir = sidecarDataDir(opts)
+  const env = opts?.env || process.env
+  const disabled = disabledAddonIds(env)
+  const errors: string[] = []
+
+  const shippedRaw = scanRoot(shippedRoot, 'shipped', 'addon')
+  const core: SidecarMeta[] = []
+  const addons: SidecarMeta[] = []
+  for (const s of shippedRaw) {
+    if (s.id === CORE_SIDECAR_ID) {
+      core.push({ ...s, kind: 'core', source: 'shipped', disabled: false, editable: false })
+      continue
+    }
+    addons.push({
+      ...s,
+      kind: 'addon',
+      source: 'shipped',
+      disabled: disabled.has(s.id),
+      editable: false,
+    })
+  }
+
+  const takenIds = new Set(core.concat(addons).map((s) => s.id))
+  const takenSlugs = new Set<string>()
+  for (const s of core.concat(addons)) {
+    for (const slug of collectSlugs(s)) takenSlugs.add(slug)
+  }
+
+  const custom = rejectConflicts(
+    scanRoot(join(dataDir, 'sidecars'), 'data dir', 'additional'),
+    takenIds,
+    takenSlugs,
+    errors,
+    'Custom',
+  )
+  const cloned = rejectConflicts(
+    scanClonedRepos(dataDir),
+    takenIds,
+    takenSlugs,
+    errors,
+    'Git',
+  )
+
+  return { sidecars: [...core, ...addons, ...custom, ...cloned], errors }
+}
+
+export function getSidecar(id: string, opts?: DiscoverOptions): SidecarMeta | undefined {
+  return discoverSidecars(opts).sidecars.find((s) => s.id === id)
 }
 
 export function projectName(id: string) {
   return `bros-sc-${id}`
+}
+
+export function readSidecarFiles(id: string, opts?: DiscoverOptions): { sidecarYml: string; composeYml: string } {
+  const sidecar = getSidecar(id, opts)
+  if (!sidecar) throw createError({ statusCode: 404, statusMessage: `Sidecar "${id}" not found` })
+  return {
+    sidecarYml: readFileSync(join(sidecar.dir, 'sidecar.yml'), 'utf8'),
+    composeYml: readFileSync(join(sidecar.dir, 'docker-compose.yml'), 'utf8'),
+  }
+}
+
+function assertWritableAdditional(sidecar: SidecarMeta) {
+  if (sidecar.kind === 'core' || sidecar.source === 'shipped') {
+    throw createError({ statusCode: 400, statusMessage: `Shipped sidecar "${sidecar.id}" is not editable` })
+  }
+  if (!sidecar.editable) {
+    throw createError({ statusCode: 400, statusMessage: `Sidecar "${sidecar.id}" is not editable in the UI` })
+  }
+}
+
+export function writeCustomSidecar(input: {
+  id: string
+  sidecarYml: string
+  composeYml: string
+}, opts?: DiscoverOptions): SidecarMeta {
+  const id = input.id.trim().toLowerCase()
+  if (!SIDECAR_ID_RE.test(id)) {
+    throw createError({ statusCode: 400, statusMessage: 'id must be a lowercase slug' })
+  }
+  if (isReservedSidecarId(id, opts)) {
+    throw createError({ statusCode: 400, statusMessage: `Id "${id}" is reserved` })
+  }
+  const existing = getSidecar(id, opts)
+  if (existing) {
+    throw createError({ statusCode: 400, statusMessage: `Sidecar "${id}" already exists` })
+  }
+
+  let meta
+  try {
+    meta = sidecarMetaSchema.parse(parseYaml(input.sidecarYml))
+  } catch (err) {
+    throw createError({ statusCode: 400, statusMessage: err instanceof Error ? err.message : 'Invalid sidecar.yml' })
+  }
+  if (meta.id !== id) {
+    throw createError({ statusCode: 400, statusMessage: `sidecar.yml id "${meta.id}" must match "${id}"` })
+  }
+  try {
+    parseYaml(input.composeYml)
+  } catch (err) {
+    throw createError({ statusCode: 400, statusMessage: err instanceof Error ? err.message : 'Invalid docker-compose.yml' })
+  }
+
+  const dataDir = sidecarDataDir(opts)
+  ensureDataLayout(dataDir)
+  const dir = join(dataDir, 'sidecars', id)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'sidecar.yml'), input.sidecarYml.endsWith('\n') ? input.sidecarYml : `${input.sidecarYml}\n`)
+  writeFileSync(join(dir, 'docker-compose.yml'), input.composeYml.endsWith('\n') ? input.composeYml : `${input.composeYml}\n`)
+
+  const created = readSidecarDir(dir, 'data dir', 'additional')
+  if (!created) throw createError({ statusCode: 500, statusMessage: 'Failed to write sidecar' })
+  if (created.error) throw createError({ statusCode: 400, statusMessage: created.error })
+  return created
+}
+
+export function saveSidecarFiles(id: string, input: {
+  sidecarYml: string
+  composeYml: string
+}, opts?: DiscoverOptions): { sidecar: SidecarMeta; composeChanged: boolean } {
+  const sidecar = getSidecar(id, opts)
+  if (!sidecar) throw createError({ statusCode: 404, statusMessage: `Sidecar "${id}" not found` })
+  assertWritableAdditional(sidecar)
+
+  let meta
+  try {
+    meta = sidecarMetaSchema.parse(parseYaml(input.sidecarYml))
+  } catch (err) {
+    throw createError({ statusCode: 400, statusMessage: err instanceof Error ? err.message : 'Invalid sidecar.yml' })
+  }
+  if (meta.id !== id) {
+    throw createError({ statusCode: 400, statusMessage: `sidecar.yml id cannot change from "${id}"` })
+  }
+  try {
+    parseYaml(input.composeYml)
+  } catch (err) {
+    throw createError({ statusCode: 400, statusMessage: err instanceof Error ? err.message : 'Invalid docker-compose.yml' })
+  }
+
+  const composePath = join(sidecar.dir, 'docker-compose.yml')
+  const before = existsSync(composePath) ? readFileSync(composePath, 'utf8') : ''
+  writeFileSync(join(sidecar.dir, 'sidecar.yml'), input.sidecarYml.endsWith('\n') ? input.sidecarYml : `${input.sidecarYml}\n`)
+  writeFileSync(composePath, input.composeYml.endsWith('\n') ? input.composeYml : `${input.composeYml}\n`)
+  const after = readFileSync(composePath, 'utf8')
+  const updated = readSidecarDir(sidecar.dir, sidecar.source, sidecar.kind, { gitUrl: sidecar.gitUrl })
+  if (!updated) throw createError({ statusCode: 500, statusMessage: 'Failed to save sidecar' })
+  if (updated.error) throw createError({ statusCode: 400, statusMessage: updated.error })
+  return { sidecar: updated, composeChanged: before !== after }
+}
+
+export function sidecarRepoNameFromUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, '').replace(/\.git$/i, '')
+  const part = trimmed.split(/[:/]/).filter(Boolean).pop() || ''
+  return part.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+export function assertGitUrl(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed || /[\s;|&$`]/.test(trimmed) || trimmed.startsWith('-')) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid git URL' })
+  }
+  if (!/^(https?:\/\/|git@|ssh:\/\/)/i.test(trimmed)) {
+    throw createError({ statusCode: 400, statusMessage: 'Git URL must be https, ssh, or git@' })
+  }
+  return trimmed
+}
+
+function runGit(args: string[], cwd: string, timeoutMs = 120_000): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn('git', args, { cwd })
+    let stdout = ''
+    let stderr = ''
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      resolve({ code: 124, stdout, stderr: stderr || `timeout after ${timeoutMs}ms` })
+    }, timeoutMs)
+    child.stdout.on('data', (d) => { stdout += String(d) })
+    child.stderr.on('data', (d) => { stderr += String(d) })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      resolve({ code: code ?? 1, stdout, stderr })
+    })
+  })
+}
+
+export async function cloneSidecarRepo(input: {
+  url: string
+  name?: string
+}, opts?: DiscoverOptions): Promise<{ name: string; source: string; sidecars: SidecarMeta[] }> {
+  const url = assertGitUrl(input.url)
+  const name = (input.name?.trim() || sidecarRepoNameFromUrl(url)).toLowerCase()
+  if (!SIDECAR_ID_RE.test(name)) {
+    throw createError({ statusCode: 400, statusMessage: 'Repo folder name must be a lowercase slug' })
+  }
+  const dataDir = sidecarDataDir(opts)
+  ensureDataLayout(dataDir)
+  mkdirSync(join(dataDir, 'sidecar-repos'), { recursive: true })
+  const dest = join(dataDir, 'sidecar-repos', name)
+  if (existsSync(dest)) {
+    throw createError({ statusCode: 400, statusMessage: `Repo folder "${name}" already exists` })
+  }
+  const result = await runGit(['clone', '--depth', '1', url, dest], dataDir)
+  if (result.code !== 0) {
+    throw createError({ statusCode: 400, statusMessage: result.stderr || 'git clone failed' })
+  }
+  const { sidecars, errors } = discoverSidecars(opts)
+  const fromRepo = sidecars.filter((s) => s.gitUrl === url || (s.source === url) || s.dir.startsWith(join(dest, 'sidecars')))
+  if (!fromRepo.length) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: errors[0] || `Clone succeeded but ${name}/sidecars/ has no valid sidecar packages`,
+    })
+  }
+  return { name, source: url, sidecars: fromRepo }
+}
+
+function repoRootForSidecar(sidecar: SidecarMeta, dataDir: string): string | null {
+  const base = join(dataDir, 'sidecar-repos')
+  if (!sidecar.dir.startsWith(base)) return null
+  const rel = sidecar.dir.slice(base.length).replace(/^[/\\]+/, '')
+  const name = rel.split(/[/\\]/)[0]
+  return name ? join(base, name) : null
+}
+
+export async function pullSidecarRepo(id: string, opts?: DiscoverOptions): Promise<{
+  composeChanged: boolean
+  source: string
+}> {
+  const sidecar = getSidecar(id, opts)
+  if (!sidecar) throw createError({ statusCode: 404, statusMessage: `Sidecar "${id}" not found` })
+  const dataDir = sidecarDataDir(opts)
+  const repoRoot = repoRootForSidecar(sidecar, dataDir)
+  if (!repoRoot) {
+    throw createError({ statusCode: 400, statusMessage: `Sidecar "${id}" is not from a git repo` })
+  }
+  const composePath = join(sidecar.dir, 'docker-compose.yml')
+  const before = existsSync(composePath) ? readFileSync(composePath, 'utf8') : ''
+  const result = await runGit(['pull', '--ff-only'], repoRoot)
+  if (result.code !== 0) {
+    throw createError({ statusCode: 400, statusMessage: result.stderr || 'git pull failed' })
+  }
+  const after = existsSync(composePath) ? readFileSync(composePath, 'utf8') : ''
+  return { composeChanged: before !== after, source: sidecar.source }
 }

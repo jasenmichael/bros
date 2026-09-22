@@ -9,12 +9,12 @@ Mistral OpenAI-compatible API. Free mode plus about $10/month credits; training 
 
 ## Key
 
-Create a key at [Mistral Console](https://console.mistral.ai/api-keys). Paste it on Models → Popular services → Mistral AI (cog). Keys live in SQLite, not env.
+Create a key at [Mistral Console](https://console.mistral.ai/api-keys). Paste it on Providers → Popular services → Mistral AI (open the card). Keys live in SQLite, not env.
 
 ## Enable
 
-1. Open Models
-2. Popular services → Mistral AI → cog
+1. Open Providers
+2. Popular services → Mistral AI → open the card
 3. Paste the key, Save
 
 Status is **running** when a key is saved.
@@ -25,7 +25,7 @@ Status is **running** when a key is saved.
 - Auth: `Authorization: Bearer <key>`
 - Chat: `POST /chat/completions`
 
-Default model ids (editable in the cog; live `GET /models` merges when a key exists):
+Default model ids (editable on the card; live `GET /models` merges when a key exists):
 
 - `mistral-small-latest`
 - `mistral-large-latest`

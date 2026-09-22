@@ -5,7 +5,7 @@ description: BROS_* catalog, YAML vs env vs SQLite.
 
 # Environment
 
-Bros uses the `BROS_*` prefix. YAML holds `working_dir`, `data_dir`, and optional `public_url`. Env can override those. Everything else (providers, keys, chat, sidecar pins) lives in SQLite and the UI. There is **no** `OPENAI_API_KEY` env bootstrap — paste keys on Models.
+Bros uses the `BROS_*` prefix. YAML holds `working_dir`, `data_dir`, and optional `public_url`. Env can override those. Everything else (providers, keys, chat, sidecar pins) lives in SQLite and the UI. There is **no** `OPENAI_API_KEY` env bootstrap — paste keys on Providers.
 
 ## Host (CLI / install)
 
@@ -34,12 +34,20 @@ Bros uses the `BROS_*` prefix. YAML holds `working_dir`, `data_dir`, and optiona
 | Variable | Default | Role |
 | --- | --- | --- |
 | `BROS_WORKING_DIR` | `/app` | App root inside the container |
-| `BROS_DATA_DIR` | `/data` | SQLite, custom sidecars, logs |
-| `BROS_SIDECARS_DIR` | `/app/sidecars` | Core sidecar packages |
+| `BROS_DATA_DIR` | `/data` | SQLite, additional sidecars, sidecar-repos, logs |
+| `BROS_SIDECARS_DIR` | `/app/sidecars` | Shipped sidecar packages (core Ollama + addons) |
+| `BROS_SIDECARS_DISABLE` | unset | Comma list of shipped addon ids to skip at autostart (`opencode,openwebui,firecrawl,firecrawl-ui`). Cannot disable `ollama`. |
+| `BROS_SIDECAR_OPENCODE` | unset | `0` / `false` / `off` skips OpenCode autostart |
+| `BROS_SIDECAR_OPENWEBUI` | unset | `0` / `false` / `off` skips Open WebUI autostart |
+| `BROS_SIDECAR_FIRECRAWL` | unset | `0` / `false` / `off` skips Firecrawl autostart |
+| `BROS_SIDECAR_FIRECRAWL_UI` | unset | `0` / `false` / `off` skips Firecrawl UI autostart (`firecrawl-ui`) |
 | `BROS_NETWORK` | `bros` | Shared external Docker network (CLI/dockerode create if missing) |
 | `BROS_OLLAMA_PORT` | `11435` | Host publish for sidecar Ollama |
 | `BROS_OPENCODE_PORT` | `4097` | Host publish for OpenCode |
 | `BROS_OPENWEBUI_PORT` | `3080` | Host publish for Open WebUI |
+| `BROS_FIRECRAWL_PORT` | `3002` | Host publish for Firecrawl API |
+| `BROS_FIRECRAWL_UI_PORT` | `3081` | Host publish for Firecrawl UI |
+| `BROS_FIRECRAWL_POSTGRES_PASSWORD` | local default | Firecrawl Postgres (not published) |
 | `BROS_TUNNEL_PROTOCOL` | `http2` | `cloudflared` protocol (`http2` / `quic` / `auto`) |
 | `BROS_TUNNEL_EDGE_IP_VERSION` | `4` | `4` / `6` / `auto` |
 | `BROS_TUNNEL_HOST` | unset | Extra Host match for via-tunnel detection |

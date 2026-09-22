@@ -7,6 +7,7 @@ import {
   customCatalogFromNames,
   formatSizeBytes,
   isValidOllamaPullName,
+  ollamaNameFromMenuValue,
   modelFitsDisk,
   pickRecommended,
   type CatalogModel,
@@ -110,6 +111,12 @@ describe('isValidOllamaPullName', () => {
     expect(isValidOllamaPullName('  ')).toBe(false)
     expect(isValidOllamaPullName('has space/name:tag')).toBe(false)
     expect(isValidOllamaPullName('bad;rm -rf')).toBe(false)
+  })
+
+  it('reads a catalog menu value or display label', () => {
+    expect(ollamaNameFromMenuValue({ label: 'gemma3:12b · 8.1 GB', value: 'gemma3:12b' })).toBe('gemma3:12b')
+    expect(ollamaNameFromMenuValue('gemma3:12b · 8.1 GB')).toBe('gemma3:12b')
+    expect(ollamaNameFromMenuValue('freehuntx/qwen3-coder:14b')).toBe('freehuntx/qwen3-coder:14b')
   })
 })
 

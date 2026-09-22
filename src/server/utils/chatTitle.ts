@@ -1,8 +1,8 @@
 export const DEFAULT_CHAT_TITLE = 'New chat'
 
-/** Sidecar `bros` Label: skill. Extra "this chat" steers greetings off the SYSTEM line. */
+/** Sidecar `bros` Label: skill. Tag must match the specialist training data. */
 export function labelRequestContent(userPrompt: string): string {
-  return `Label this chat: ${userPrompt}`
+  return `Label: ${userPrompt}`
 }
 
 export function fallbackTitleFromPrompt(prompt: string): string {
@@ -16,12 +16,14 @@ export function sanitizeGeneratedTitle(raw: string, fallback: string): string {
   t = t.replace(/^["'`«»“”‘’]+|["'`«»“”‘’]+$/g, '').trim()
   t = t.replace(/[,:;!?]+/g, '')
   t = t.replace(/\s+/g, ' ').trim()
+  t = t.replace(/\u2019/g, "'")
   if (!t || t.length > 80) return fallback
   // Tiny specialist often echoes its SYSTEM line ("Bros Model Label") instead of a title.
   if (/^bros model(?:\s+label)?$/i.test(t) || /^label$/i.test(t)) return fallback
   const words = t.split(' ').filter(Boolean)
   if (words.length < 2 || words.length > 5) return fallback
-  if (/[^\p{L}\p{N}\s]/u.test(t)) return fallback
+  // Allow apostrophes so "I Can't Sleep" is kept; reject other leftover punctuation.
+  if (/[^\p{L}\p{N}\s']/u.test(t)) return fallback
   return t
 }
 

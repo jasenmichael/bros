@@ -41,6 +41,7 @@ export default defineEventHandler(async (event) => {
     || path === '/'
     || path.startsWith('/chat')
     || path.startsWith('/models')
+    || path.startsWith('/providers')
     || path.startsWith('/sidecars')
     || path.startsWith('/settings')
     || path.startsWith('/status')

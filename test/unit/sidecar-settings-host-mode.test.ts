@@ -26,11 +26,17 @@ describe('sidecar hostMode settings', () => {
     const next = setSidecarSetting('ollama', { hostMode: 'host' })
     expect(next.hostMode).toBe('host')
     expect(getSidecarSetting('ollama')).toEqual({
-      autostart: false,
+      autostart: true,
       navPinned: false,
       hostMode: 'host',
       hostProbePort: null,
     })
+  })
+
+  it('keeps ollama autostart on', async () => {
+    const { getSidecarSetting, setSidecarSetting } = await import('../../src/server/utils/docker')
+    expect(setSidecarSetting('ollama', { autostart: false }).autostart).toBe(true)
+    expect(getSidecarSetting('ollama').autostart).toBe(true)
   })
 
   it('persists Host Ollama manual port', async () => {

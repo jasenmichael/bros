@@ -1,11 +1,7 @@
 id: ollama
 slug: ollama
 name: Ollama
-description: Local model runtime. Bros publishes host port 11435. Independent of the Bros app container.
-
-hostProbe:
-  ports: [11434, 11436, 22000]
-  path: /api/version
+description: Local model runtime. Bros publishes host port 11435. Independent of the Bros app container. Compose sets OLLAMA_NOPRUNE=1 so incomplete pulls are not pruned.
 
 interfaces:
   - type: api

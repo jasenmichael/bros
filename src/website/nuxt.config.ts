@@ -27,6 +27,8 @@ export default defineNuxtConfig({
         '/docs/sidecars/ollama',
         '/docs/sidecars/opencode',
         '/docs/sidecars/openwebui',
+        '/docs/sidecars/firecrawl',
+        '/docs/sidecars/firecrawl-ui',
         '/docs/sidecars/custom',
         '/docs/providers',
         '/docs/providers/gemini',

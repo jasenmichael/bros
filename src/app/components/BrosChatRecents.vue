@@ -5,6 +5,7 @@ import { navRecentsScrollHints, navRecentsScrollStep } from '../../layers/theme/
 const { conversations, refreshChatRecents } = useChatRecents()
 const { iconMode, isDesktop } = useNavDock()
 const route = useRoute()
+const router = useRouter()
 
 const recentsOpen = ref(true)
 const renamingId = ref<string | null>(null)
@@ -59,7 +60,7 @@ async function saveRename() {
 
 async function removeChat(id: string) {
   await $fetch(`/api/chat/${id}`, { method: 'DELETE' })
-  if (route.path === `/chat/${id}`) await navigateTo('/chat')
+  if (route.path === `/chat/${id}`) await router.replace('/chat')
   await refreshChatRecents()
 }
 
@@ -142,7 +143,7 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
       :aria-expanded="recentsOpen"
       @click="recentsOpen = !recentsOpen"
     >
-      <span>Previous chats</span>
+      <span class="bros-nav-label">Previous chats</span>
       <UIcon
         :name="recentsOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
         class="size-3.5 shrink-0"
@@ -180,7 +181,7 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
             :class="{ 'bros-recents__link--active': isActive(c.id) }"
             :title="c.title"
           >
-            <span class="truncate">{{ c.title }}</span>
+            <span class="bros-nav-label truncate">{{ c.title }}</span>
           </NuxtLink>
           <UDropdownMenu
             :items="rowItems(c.id, c.title)"
@@ -217,6 +218,7 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -228,6 +230,7 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
 
 .bros-recents__toggle {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   width: 100%;
@@ -281,8 +284,16 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
   color: #c5d0dc;
 }
 
+.bros-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bros-recents__row {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.15rem;
   margin-bottom: 0.1rem;

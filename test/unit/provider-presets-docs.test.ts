@@ -15,6 +15,8 @@ describe('popular provider docs catalog', () => {
       expect(existsSync(path), rel).toBe(true)
       const body = readFileSync(path, 'utf8')
       expect(body).toContain(preset.baseUrl)
+      expect(preset.siteUrl).toMatch(/^https:\/\//)
+      expect(body).toContain(preset.siteUrl)
       expect(body).toContain(`# ${preset.name}`)
       for (const model of preset.models) {
         expect(body).toContain(model)

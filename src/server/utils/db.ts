@@ -30,7 +30,7 @@ export const providers = sqliteTable('providers', {
   kind: text('kind').notNull(), // ollama | openai | anthropic
   baseUrl: text('base_url'),
   apiKeyEnc: text('api_key_enc'),
-  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
   configJson: text('config_json'),
 })
 
@@ -52,6 +52,19 @@ export const messages = sqliteTable('messages', {
   promptTokens: integer('prompt_tokens', { mode: 'number' }),
   completionTokens: integer('completion_tokens', { mode: 'number' }),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
+})
+
+export const ollamaPullJobRows = sqliteTable('ollama_pull_jobs', {
+  id: text('id').primaryKey(),
+  providerId: text('provider_id').notNull(),
+  model: text('model').notNull(),
+  status: text('status').notNull(),
+  percent: integer('percent', { mode: 'number' }),
+  completed: integer('completed', { mode: 'number' }).notNull(),
+  total: integer('total', { mode: 'number' }).notNull(),
+  error: text('error'),
+  phase: text('phase').notNull(),
+  startedAt: integer('started_at', { mode: 'number' }).notNull(),
 })
 
 let _db: ReturnType<typeof drizzle> | null = null
@@ -106,7 +119,7 @@ function migrate(sqlite: Database.Database) {
       kind TEXT NOT NULL,
       base_url TEXT,
       api_key_enc TEXT,
-      enabled INTEGER NOT NULL DEFAULT 1,
+      enabled INTEGER NOT NULL DEFAULT 0,
       config_json TEXT
     );
     CREATE TABLE IF NOT EXISTS conversations (
@@ -122,6 +135,18 @@ function migrate(sqlite: Database.Database) {
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS ollama_pull_jobs (
+      id TEXT PRIMARY KEY,
+      provider_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      status TEXT NOT NULL,
+      percent INTEGER,
+      completed INTEGER NOT NULL DEFAULT 0,
+      total INTEGER NOT NULL DEFAULT 0,
+      error TEXT,
+      phase TEXT NOT NULL,
+      started_at INTEGER NOT NULL
     );
   `)
   const cols = sqlite.prepare('PRAGMA table_info(sidecar_settings)').all() as Array<{ name: string }>

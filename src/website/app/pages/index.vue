@@ -1,7 +1,7 @@
 <script setup lang="ts">
 useSeoMeta({
   title: 'Bros',
-  description: 'Docker-isolated local AI control plane: chat, models, and managed sidecars.',
+  description: 'Docker-isolated local AI control plane: chat, providers, and managed sidecars.',
 })
 
 const features = [
@@ -11,14 +11,14 @@ const features = [
     body: 'Provider then model. Sidecar, host, Popular services, then custom. Stop aborts the stream.',
   },
   {
-    title: 'Models',
-    to: '/docs/models',
+    title: 'Providers',
+    to: '/docs/providers',
     body: 'Ollama locally. Popular services take a user API key. Custom is any OpenAI-compat base URL.',
   },
   {
     title: 'Sidecars',
     to: '/docs/sidecars',
-    body: 'Managed Compose projects on the bros network. Core plus custom under data/sidecars.',
+    body: 'Core Ollama, then addon sidecars from shipped packs, a git clone, or the data dir.',
   },
   {
     title: 'Development',
@@ -31,15 +31,15 @@ const features = [
 <template>
   <BrosPageShell
     title="Bros"
-    description="Boxed Runtime Orchestration System — a Docker-isolated local AI control plane. Chat, models, and sidecars on one host."
+    description="Boxed Runtime Orchestration System — a Docker-isolated local AI control plane. Chat, providers, and sidecars on one host."
   >
     <div class="space-y-10">
       <div class="flex flex-wrap gap-3">
         <UButton to="/docs/getting-started" color="primary">
           Get started
         </UButton>
-        <UButton to="/docs/models" color="neutral" variant="outline">
-          Models
+        <UButton to="/docs/providers" color="neutral" variant="outline">
+          Providers
         </UButton>
         <UButton to="/docs/sidecars" color="neutral" variant="outline">
           Sidecars
@@ -75,17 +75,17 @@ bros</code></pre>
       </section>
 
       <section class="space-y-2 max-w-2xl">
-        <h2 class="text-lg font-semibold text-white">Models</h2>
+        <h2 class="text-lg font-semibold text-white">Providers</h2>
         <p class="text-[var(--bros-muted)]">
-          Models has three sections: <strong class="text-white">Ollama</strong> (sidecar + host),
+          Providers has three sections: <strong class="text-white">Ollama</strong> (sidecar + host),
           <strong class="text-white">Popular services</strong> (twelve OpenAI-compat clouds — paste a key),
           and <strong class="text-white">Custom providers</strong>.
           Ollama recommended pulls are official (and verified community) tags
           <strong class="text-white">≤ 16 GB</strong>.
           See
-          <NuxtLink to="/docs/models" class="text-[var(--bros-accent)] hover:underline">Models</NuxtLink>
+          <NuxtLink to="/docs/providers" class="text-[var(--bros-accent)] hover:underline">Providers</NuxtLink>
           and
-          <NuxtLink to="/docs/providers" class="text-[var(--bros-accent)] hover:underline">Popular services</NuxtLink>.
+          <NuxtLink to="/docs/providers/custom" class="text-[var(--bros-accent)] hover:underline">Custom</NuxtLink>.
         </p>
       </section>
 

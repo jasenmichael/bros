@@ -34,6 +34,11 @@ describe('chat title helpers', () => {
     expect(sanitizeGeneratedTitle('Cloudflare (Docker) Setup', 'Explain Docker')).toBe('Explain Docker')
   })
 
+  it('keeps a short Label with an apostrophe instead of the raw prompt', () => {
+    expect(sanitizeGeneratedTitle("I Can't Sleep", 'I can not sleep, what can help?')).toBe("I Can't Sleep")
+    expect(sanitizeGeneratedTitle('I Can’t Sleep', 'I can not sleep, what can help?')).toBe("I Can't Sleep")
+  })
+
   it('uses fallback when generate returns empty or huge text', () => {
     expect(sanitizeGeneratedTitle('   ', 'Explain Docker')).toBe('Explain Docker')
     expect(sanitizeGeneratedTitle('x'.repeat(81), 'Explain Docker')).toBe('Explain Docker')
@@ -50,8 +55,8 @@ describe('chat title helpers', () => {
     expect(sanitizeGeneratedTitle('Hi, Name', 'hi, how are you')).toBe('Hi Name')
   })
 
-  it('builds the Label this chat request', () => {
-    expect(labelRequestContent('Explain Docker volumes')).toBe('Label this chat: Explain Docker volumes')
+  it('builds the Label: request the specialist was trained on', () => {
+    expect(labelRequestContent('Explain Docker volumes')).toBe('Label: Explain Docker volumes')
   })
 
   it('only auto-titles the first assistant reply while still New chat', () => {
@@ -108,7 +113,7 @@ describe('conversation title persist', () => {
       const body = JSON.parse(String(init?.body || '{}')) as { model?: string; stream?: boolean; messages?: Array<{ content?: string }> }
       expect(body.model).toBe('bros')
       expect(body.stream).toBe(false)
-      expect(body.messages?.[0]?.content).toBe('Label this chat: Explain Docker volumes')
+      expect(body.messages?.[0]?.content).toBe('Label: Explain Docker volumes')
       return new Response(JSON.stringify({ message: { content: 'Docker volumes' } }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -126,7 +131,7 @@ describe('conversation title persist', () => {
     const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
     const { sidecarOllamaUrl } = await import('../../src/server/utils/ollamaHost')
     ensureDefaultProviders()
-    setProviderEnabled('ollama', false)
+    await setProviderEnabled('ollama', false)
     expect(getProvider('ollama')?.enabled).toBe(false)
     const convo = createConversation('ollama-host/llama3.2')
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
@@ -143,6 +148,17 @@ describe('conversation title persist', () => {
     expect(fetchMock).toHaveBeenCalled()
     expect(getProvider('ollama')?.enabled).toBe(false)
     expect(getProvider('ollama-host')?.enabled).toBe(true)
+  })
+
+  it('persists I Can\'t Sleep instead of the raw first prompt', async () => {
+    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat')
+    const prompt = 'I can not sleep, what can help?'
+    const convo = createConversation('ollama/gemma3:12b')
+    addMessage(convo!.id, 'user', prompt)
+    addMessage(convo!.id, 'assistant', 'Try a dark room.')
+    const title = await maybeAutoTitle(convo!.id, async () => "I Can't Sleep")
+    expect(title).toBe("I Can't Sleep")
+    expect(getConversation(convo!.id)?.title).toBe("I Can't Sleep")
   })
 
   it('keeps first-line fallback when generate returns SYSTEM regurgitation', async () => {

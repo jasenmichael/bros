@@ -34,6 +34,21 @@ describe('pullOllamaModelStream', () => {
       { status: 'success' },
     ])
   })
+
+  it('passes AbortSignal to Ollama fetch', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal)
+      return new Response(ndjsonBody([{ status: 'success' }]), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const ac = new AbortController()
+    const events = []
+    for await (const evt of pullOllamaModelStream('http://ollama:11434', 'llama3.2:3b', ac.signal)) {
+      events.push(evt)
+    }
+    expect(events).toEqual([{ status: 'success' }])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('isRetryablePullError', () => {

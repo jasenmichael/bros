@@ -9,12 +9,12 @@ Cohere via the OpenAI compatibility endpoint. Trial key, 1,000 calls/month, non-
 
 ## Key
 
-Create a key at [Cohere Dashboard](https://dashboard.cohere.com/api-keys). Paste it on Models → Popular services → Cohere (cog). Keys live in SQLite, not env.
+Create a key at [Cohere Dashboard](https://dashboard.cohere.com/api-keys). Paste it on Providers → Popular services → Cohere (open the card). Keys live in SQLite, not env.
 
 ## Enable
 
-1. Open Models
-2. Popular services → Cohere → cog
+1. Open Providers
+2. Popular services → Cohere → open the card
 3. Paste the key, Save
 
 Status is **running** when a key is saved.
@@ -25,7 +25,7 @@ Status is **running** when a key is saved.
 - Auth: `Authorization: Bearer <key>`
 - Chat: `POST /chat/completions`
 
-Default model ids (editable in the cog; live `GET /models` merges when a key exists):
+Default model ids (editable on the card; live `GET /models` merges when a key exists):
 
 - `command-r-plus`
 - `command-r`

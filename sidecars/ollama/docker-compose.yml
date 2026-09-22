@@ -3,6 +3,8 @@ services:
     image: ollama/ollama:latest
     ports:
       - "${BROS_OLLAMA_PORT:-11435}:11434"
+    environment:
+      OLLAMA_NOPRUNE: "1"
     volumes:
       - ${BROS_HOST_DATA_DIR:?unset}/ollama:/root/.ollama
       - ${BROS_HOST_DATA_DIR:?unset}/ollama-config:/root/.config/ollama

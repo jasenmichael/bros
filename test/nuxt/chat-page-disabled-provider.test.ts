@@ -11,7 +11,7 @@ mockNuxtImport('useFetch', () => {
         pending: ref(false),
       }
     }
-    if (typeof url === 'string' && url.startsWith('/api/models/context')) {
+    if (String(url || '').includes('models/context')) {
       return {
         data: ref({ contextLength: 8192 }),
         refresh: async () => {},
@@ -21,16 +21,11 @@ mockNuxtImport('useFetch', () => {
     return {
       data: ref({
         providers: [
-          { id: 'ollama', name: 'Ollama sidecar', kind: 'ollama', enabled: false },
-          { id: 'ollama-host', name: 'Ollama host', kind: 'ollama', enabled: true },
-          { id: 'openai', name: 'OpenAI', kind: 'openai', popular: true, enabled: true },
-          { id: 'my-proxy', name: 'My proxy', kind: 'openai', enabled: true },
+          { id: 'ollama', name: 'Ollama (core)', kind: 'ollama', enabled: false, models: [{ name: 'llama3.2', enabled: true }] },
+          { id: 'ollama-host', name: 'Ollama (host)', kind: 'ollama', enabled: true, models: [{ name: 'llama3.2', enabled: true }] },
+          { id: 'openai', name: 'OpenAI', kind: 'openai', popular: true, enabled: true, models: [] },
+          { id: 'my-proxy', name: 'My proxy', kind: 'openai', enabled: true, models: [] },
         ],
-        ollamaModelsByProvider: {
-          ollama: [{ id: 'ollama/llama3.2', name: 'llama3.2' }],
-          'ollama-host': [{ id: 'ollama-host/llama3.2', name: 'llama3.2' }],
-        },
-        openaiModelsByProvider: {},
       }),
       refresh: async () => {},
       pending: ref(false),
@@ -47,6 +42,6 @@ describe('Chat page with a disabled provider', () => {
     const vm = wrapper.vm as unknown as { orderedProviders: Array<{ id: string }>; providerId: string }
     expect(vm.orderedProviders.map((p) => p.id)).toEqual(['ollama-host', 'openai', 'my-proxy'])
     expect(vm.providerId).toBe('ollama-host')
-    expect(wrapper.text()).not.toMatch(/Ollama sidecar/)
+    expect(wrapper.text()).not.toMatch(/Ollama \(core\)/)
   })
 })

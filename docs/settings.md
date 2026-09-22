@@ -1,11 +1,26 @@
 ---
 title: Settings
-description: Read-only bootstrap paths and the passkey file.
+description: Chat extras, host Ollama toggle, read-only bootstrap paths, and the passkey file.
 ---
 
 # Settings
 
-`/settings` shows bootstrap paths (read-only) and the login passkey.
+`/settings` shows Chat extras, the host Ollama toggle, bootstrap paths (read-only), and the login passkey.
+
+## Chat
+
+Two fields persist in SQLite `meta` (same `bros.sqlite` as other UI settings), not YAML or env:
+
+- `chat_prepend` — extra context prepended to the last user text on each send
+- `chat_assistant_description` — short personality/role used as the system message
+
+Empty means off. Save writes both. They apply to user Chat only — never to internal specialist `bros` (`Label:` titles). Message shape: [Chat](/docs/chat).
+
+Chat and passkey fields are full width in the `max-w-xl` column.
+
+## Host Ollama
+
+**Enable host Ollama** (off by default) stores `enable_host_ollama` in SQLite `meta`. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Sidecars.
 
 ## Paths
 

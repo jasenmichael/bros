@@ -1,3 +1,5 @@
+import { sidecarOpenLinks } from '../utils/sidecarHostLinks'
+
 export type PinnedNavItem = {
   label: string
   to: string
@@ -14,7 +16,7 @@ type SidecarNavRow = {
 }
 
 /**
- * Shared fetch for nav-pinned sidecar web UIs.
+ * Shared fetch for nav-pinned sidecar web UIs and published APIs.
  * Refresh after pin toggles: `await refreshPinnedNav()`.
  */
 export function usePinnedNav() {
@@ -44,12 +46,10 @@ export function usePinnedNav() {
     const out: PinnedNavItem[] = []
     for (const s of rows) {
       if (!s.settings?.navPinned) continue
-      const webuis = (s.interfaces || []).filter((i) => i.type === 'webui' && (i.publish || i.hostPort))
-      for (const iface of webuis) {
-        const port = iface.publish || iface.hostPort
+      for (const link of sidecarOpenLinks(s)) {
         out.push({
-          label: s.name,
-          to: `http://127.0.0.1:${port}/`,
+          label: link.label,
+          to: link.to,
           icon: 'i-lucide-external-link',
           external: true,
         })

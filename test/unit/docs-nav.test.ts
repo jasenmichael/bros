@@ -36,10 +36,10 @@ describe('docs nav tree', () => {
   })
 
   it('builds crumbs for custom providers', () => {
-    expect(docsBreadcrumbs('/docs/models-custom').map((crumb) => crumb.label)).toEqual([
+    expect(docsBreadcrumbs('/docs/providers/custom').map((crumb) => crumb.label)).toEqual([
       'Docs',
       'App',
-      'Models',
+      'Providers',
       'Custom providers',
     ])
   })

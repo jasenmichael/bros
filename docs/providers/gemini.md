@@ -9,12 +9,12 @@ Google Gemini via the OpenAI-compatible endpoint. AI Studio free key exists; Fla
 
 ## Key
 
-Create a key in [Google AI Studio](https://aistudio.google.com/apikey). Paste it on Models → Popular services → Google Gemini (cog). Keys live in SQLite, not env.
+Create a key in [Google AI Studio](https://aistudio.google.com/api-keys). Paste it on Providers → Popular services → Google Gemini (open the card). Keys live in SQLite, not env.
 
 ## Enable
 
-1. Open Models
-2. Popular services → Google Gemini → cog
+1. Open Providers
+2. Popular services → Google Gemini → open the card
 3. Paste the key, Save
 
 Status is **running** when a key is saved.
@@ -25,7 +25,7 @@ Status is **running** when a key is saved.
 - Auth: `Authorization: Bearer <key>`
 - Chat: `POST /chat/completions`
 
-Default model ids (editable in the cog; live `GET /models` merges when a key exists):
+Default model ids (editable on the card; live `GET /models` merges when a key exists):
 
 - `gemini-2.5-flash`
 - `gemini-2.5-pro`

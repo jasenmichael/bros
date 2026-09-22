@@ -1,4 +1,14 @@
-import { addMessage, assertChatProviderEnabled, getConversation, maybeAutoTitle, resolveConversationModel, streamChat } from '../../../utils/chat'
+import {
+  addMessage,
+  assertChatProviderEnabled,
+  beginConversationStream,
+  endConversationStream,
+  getConversation,
+  isCurrentConversationStream,
+  maybeAutoTitle,
+  resolveConversationModel,
+  streamChat,
+} from '../../../utils/chat'
 import { STREAM_STATS_MARK } from '../../../utils/chatStats'
 
 export default defineEventHandler(async (event) => {
@@ -13,6 +23,12 @@ export default defineEventHandler(async (event) => {
   const modelId = resolveConversationModel(id, body.modelId) || convo.modelId
   assertChatProviderEnabled(modelId)
 
+  const job = beginConversationStream(id)
+  const onClose = () => {
+    if (isCurrentConversationStream(id, job.generation)) job.abort.abort()
+  }
+  event.node.req.on('close', onClose)
+
   addMessage(id, 'user', body.content.trim())
   const history = getConversation(id)!.messages.map((m) => ({ role: m.role, content: m.content }))
 
@@ -24,15 +40,21 @@ export default defineEventHandler(async (event) => {
       const encoder = new TextEncoder()
       let full = ''
       const started = Date.now()
+      const stale = () => job.signal.aborted || !isCurrentConversationStream(id, job.generation)
       try {
         const usage = await streamChat({
           modelId,
           history,
+          signal: job.signal,
           onToken: (t) => {
             full += t
             controller.enqueue(encoder.encode(t))
           },
         })
+        if (stale()) {
+          controller.close()
+          return
+        }
         const durationMs = Date.now() - started
         const stats = {
           durationMs,
@@ -50,9 +72,16 @@ export default defineEventHandler(async (event) => {
         controller.enqueue(encoder.encode(`${STREAM_STATS_MARK}${JSON.stringify(stats)}`))
         controller.close()
       } catch (err) {
+        if (stale()) {
+          controller.close()
+          return
+        }
         const msg = err instanceof Error ? err.message : String(err)
         controller.enqueue(encoder.encode(`\n[error] ${msg}`))
         controller.close()
+      } finally {
+        event.node.req.off('close', onClose)
+        endConversationStream(id, job.generation)
       }
     },
   })

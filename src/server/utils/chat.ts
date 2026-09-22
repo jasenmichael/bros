@@ -1,9 +1,11 @@
 import { createError } from 'h3'
-import { desc, eq } from 'drizzle-orm'
+import { asc, desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { getDb, conversations, messages } from './db'
 import { INTERNAL_BROS_MODEL } from './internalBrosModel'
-import { getProvider, getProviderPreset, getProviderSecret, isChatSelectionEnabled, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
+import { getProvider, getProviderSecret, isChatSelectionEnabled, ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from './providers'
+import { getProviderPreset } from './providerPresets'
+import { applyChatSettings, getChatSettings } from './chatSettings'
 import {
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
@@ -26,7 +28,12 @@ export function listConversations() {
 export function getConversation(id: string) {
   const convo = getDb().select().from(conversations).where(eq(conversations.id, id)).get()
   if (!convo) return null
-  const msgs = getDb().select().from(messages).where(eq(messages.conversationId, id)).all()
+  const msgs = getDb()
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, id))
+    .orderBy(asc(messages.createdAt))
+    .all()
   return { ...convo, messages: msgs }
 }
 
@@ -75,6 +82,61 @@ export function addMessage(
 export function deleteConversation(id: string) {
   getDb().delete(messages).where(eq(messages.conversationId, id)).run()
   getDb().delete(conversations).where(eq(conversations.id, id)).run()
+}
+
+type StreamJob = { generation: number; abort: AbortController }
+const streamJobs = new Map<string, StreamJob>()
+
+export function beginConversationStream(conversationId: string) {
+  const prev = streamJobs.get(conversationId)
+  prev?.abort.abort()
+  const generation = (prev?.generation ?? 0) + 1
+  const abort = new AbortController()
+  streamJobs.set(conversationId, { generation, abort })
+  return { generation, abort, signal: abort.signal }
+}
+
+export function isCurrentConversationStream(conversationId: string, generation: number) {
+  return streamJobs.get(conversationId)?.generation === generation
+}
+
+export function abortConversationStream(conversationId: string) {
+  const prev = streamJobs.get(conversationId)
+  prev?.abort.abort()
+  if (!prev) return
+  streamJobs.set(conversationId, { generation: prev.generation + 1, abort: new AbortController() })
+}
+
+export function endConversationStream(conversationId: string, generation: number) {
+  const cur = streamJobs.get(conversationId)
+  if (cur?.generation === generation) streamJobs.delete(conversationId)
+}
+
+/** Delete that user turn and every later row. No orphan assistant after the cut. */
+export function truncateConversationMessages(
+  conversationId: string,
+  opts: { fromMessageId?: string; fromIndex?: number },
+) {
+  const convo = getConversation(conversationId)
+  if (!convo) return null
+  const msgs = convo.messages
+  let idx = -1
+  if (opts.fromMessageId) {
+    idx = msgs.findIndex((m) => m.id === opts.fromMessageId)
+  }
+  if (idx === -1 && typeof opts.fromIndex === 'number' && Number.isFinite(opts.fromIndex)) {
+    idx = opts.fromIndex
+  }
+  if (idx < 0) return null
+  if (idx >= msgs.length) return convo
+  const target = msgs[idx]
+  if (!target || target.role !== 'user') return null
+  abortConversationStream(conversationId)
+  for (const row of msgs.slice(idx)) {
+    getDb().delete(messages).where(eq(messages.id, row.id)).run()
+  }
+  getDb().update(conversations).set({ updatedAt: Date.now() }).where(eq(conversations.id, conversationId)).run()
+  return getConversation(conversationId)
 }
 
 export function updateConversationTitle(id: string, title: string) {
@@ -163,6 +225,7 @@ export async function streamChat(opts: {
   modelId: string
   history: Array<{ role: string; content: string }>
   onToken: (t: string) => void
+  signal?: AbortSignal
 }): Promise<ChatUsage> {
   const { provider, model } = parseModelId(opts.modelId)
   const usage: ChatUsage = {}
@@ -170,6 +233,8 @@ export async function streamChat(opts: {
   if (row && !isChatSelectionEnabled(row)) {
     throw createError({ statusCode: 400, statusMessage: `${row.name} is disabled for chat` })
   }
+
+  const history = applyChatSettings(opts.history, getChatSettings())
 
   if (row?.kind === 'ollama') {
     const base = await ollamaBaseUrlFor(provider)
@@ -179,8 +244,9 @@ export async function streamChat(opts: {
       body: JSON.stringify({
         model,
         stream: true,
-        messages: opts.history.map((m) => ({ role: m.role, content: m.content })),
+        messages: history.map((m) => ({ role: m.role, content: m.content })),
       }),
+      signal: opts.signal,
     })
     if (!res.ok || !res.body) throw createError({ statusCode: 502, statusMessage: await res.text() })
     const reader = res.body.getReader()
@@ -227,8 +293,9 @@ export async function streamChat(opts: {
           model,
           stream: true,
           stream_options: { include_usage: true },
-          messages: opts.history,
+          messages: history,
         }),
+        signal: opts.signal,
       })
       if (!res.ok || !res.body) throw createError({ statusCode: 502, statusMessage: await res.text() })
       const reader = res.body.getReader()
@@ -272,11 +339,15 @@ export async function streamChat(opts: {
         model,
         max_tokens: 2048,
         stream: true,
-        messages: opts.history.filter((m) => m.role !== 'system').map((m) => ({
+        ...(history.some((m) => m.role === 'system')
+          ? { system: history.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n') }
+          : {}),
+        messages: history.filter((m) => m.role !== 'system').map((m) => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content,
         })),
       }),
+      signal: opts.signal,
     })
     if (!res.ok || !res.body) throw createError({ statusCode: 502, statusMessage: await res.text() })
     const reader = res.body.getReader()

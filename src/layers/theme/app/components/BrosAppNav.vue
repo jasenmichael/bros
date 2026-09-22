@@ -169,7 +169,7 @@ function linkTitle(item: BrosNavItem) {
               :title="item.label"
             >
               <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
-              <span v-if="!(iconMode && isDesktop)">{{ item.label }}</span>
+              <span v-if="!(iconMode && isDesktop)" class="bros-nav-label">{{ item.label }}</span>
             </a>
             <p v-if="!props.pinnedItems.length && !(iconMode && isDesktop)" class="bros-nav-panel__hint">
               Pin a sidecar web UI from Sidecars to show it here.
@@ -247,6 +247,7 @@ function linkTitle(item: BrosNavItem) {
   display: flex;
   height: 100%;
   width: 100%;
+  min-width: 0;
   flex-direction: column;
   background: #121820;
 }
@@ -306,6 +307,7 @@ function linkTitle(item: BrosNavItem) {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   padding: 0.75rem 0.5rem 0.5rem;
@@ -326,6 +328,7 @@ function linkTitle(item: BrosNavItem) {
 
 .bros-nav-panel__items {
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .bros-nav-panel__items--fill {
@@ -334,6 +337,7 @@ function linkTitle(item: BrosNavItem) {
 }
 
 .bros-nav-panel__bottom-tree {
+  min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
 }
@@ -342,6 +346,7 @@ function linkTitle(item: BrosNavItem) {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  min-width: 0;
   min-height: 8rem;
   overflow: hidden;
 }
@@ -355,6 +360,7 @@ function linkTitle(item: BrosNavItem) {
 
 .bros-nav-panel__link {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 0.55rem;
   margin-bottom: 0.15rem;
@@ -363,6 +369,13 @@ function linkTitle(item: BrosNavItem) {
   color: #c5d0dc;
   text-decoration: none;
   font-size: 0.925rem;
+}
+
+.bros-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bros-nav-panel--icon .bros-nav-panel__link {
@@ -393,6 +406,7 @@ function linkTitle(item: BrosNavItem) {
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   max-height: 48%;
   padding-top: 0.5rem;

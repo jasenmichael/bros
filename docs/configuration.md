@@ -29,11 +29,14 @@ Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tun
 
 Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
-- `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, custom sidecars, logs)
+- `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, additional sidecars, sidecar-repos, logs)
 - `$BROS_HOST_DATA_DIR/ollama` → Ollama sidecar `/root/.ollama`
 - `$BROS_HOST_DATA_DIR/bros-model` → Ollama sidecar `/bros-model` (packaged specialist, read-only)
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
+- `$BROS_HOST_DATA_DIR/firecrawl-pg` → Firecrawl Postgres
+- `$BROS_HOST_DATA_DIR/firecrawl-redis` → Firecrawl Redis
+- `$BROS_HOST_DATA_DIR/firecrawl-rabbitmq` → Firecrawl RabbitMQ
 
 In-container `BROS_DATA_DIR` stays `/data`. Start does not copy leftover named volumes into those dirs.
 
@@ -43,16 +46,22 @@ In-container `BROS_DATA_DIR` stays `/data`. Start does not copy leftover named v
 $BROS_HOST_DATA_DIR/
   passkey
   bros.sqlite
-  sidecars/
+  sidecars/            # additional (user-created)
+  sidecar-repos/       # cloned git trees; each tree’s sidecars/ is loaded
   logs/
   tunnel/
   ollama/
   bros-model/
   openwebui/
   opencode/
+  firecrawl-pg/
+  firecrawl-redis/
+  firecrawl-rabbitmq/
 ```
 
-Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (Ollama `config.customModels`, Popular services keys/models, custom OpenAI `config.models`), chat, and sidecar autostart/nav pins/`hostMode`/`host_probe_port` are stored in SQLite. Built-in providers are `ollama` (sidecar), `ollama-host`, and the 12 Popular services rows.
+Shipped addons autostart unless disabled: `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui`. Ollama has no disable env.
+
+Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (Ollama `config.customModels`, Popular services keys/models, custom OpenAI `config.models`), chat, Settings `enable_host_ollama` (host Ollama row, default off), and sidecar autostart/nav pins/`hostMode`/`host_probe_port` (manual host-Ollama override) are stored in SQLite. Built-in providers are `ollama` (sidecar), `ollama-host` (row always seeded; listed only when `enable_host_ollama` is on), and the 12 Popular services rows.
 
 `$BROS_HOST_DATA_DIR/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)).
 

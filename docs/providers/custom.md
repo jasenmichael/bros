@@ -1,11 +1,11 @@
 ---
 title: Custom providers
-description: Add an OpenAI-compatible endpoint with a slug, base URL, and optional key.
+description: Add an OpenAI-compatible endpoint with a slug, base URL, and a key for Chat.
 ---
 
 # Custom providers
 
-**Add custom** lives under Custom providers on Models. Custom rows are OpenAI-compatible: base URL + optional key + model names. Kind stays `openai`. Same Chat stream path as Popular services (`POST /chat/completions`).
+**Add custom** lives under Custom providers on Providers. Custom rows are OpenAI-compatible: base URL + key + model names. Kind stays `openai`. Chat starts **off** until a key passes `GET /models`. Same Chat stream path as Popular services (`POST /chat/completions`).
 
 ## Slug rules
 
@@ -15,7 +15,7 @@ description: Add an OpenAI-compatible endpoint with a slug, base URL, and option
 
 ## Contract
 
-Bros calls `{baseUrl}/chat/completions` with `Authorization: Bearer <key>` when a key is set, and `{baseUrl}/models` to merge live ids when a key exists.
+Bros calls `{baseUrl}/chat/completions` with `Authorization: Bearer <key>` when a key is set, and `{baseUrl}/models` to validate the key and merge live ids. Chat stays off without a successful probe. Provider CRUD: [API](/docs/api).
 
 ## Paste-in examples
 

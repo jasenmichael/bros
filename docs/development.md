@@ -30,7 +30,7 @@ BROS_DEV=1 ./bros stop
 
 ## Host Node (optional)
 
-Node **22+**, pnpm **9.15**. Docker still needed for sidecars via the socket. Chat/Models talk to sidecar Ollama at `http://127.0.0.1:11435` and host Ollama at `http://127.0.0.1:<probe>` (not `ollama` / `host.docker.internal`). Sidecar Compose always gets `BROS_HOST_DATA_DIR` (checkout `data/`); an empty value used to bind host `/ollama` instead of `$BROS_HOME/data/ollama`.
+Node **22+**, pnpm **9.15**. Docker still needed for sidecars via the socket. Chat/Providers talk to sidecar Ollama at `http://127.0.0.1:11435` and host Ollama at `http://127.0.0.1:<probe>` (not `ollama` / `host.docker.internal`). Sidecar Compose always gets `BROS_HOST_DATA_DIR` (checkout `data/`); an empty value used to bind host `/ollama` instead of `$BROS_HOME/data/ollama`.
 
 ```bash
 pnpm install

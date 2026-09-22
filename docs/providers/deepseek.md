@@ -9,12 +9,12 @@ DeepSeek OpenAI-compatible API. Cheap, not free. `deepseek-reasoner` streams thi
 
 ## Key
 
-Create a key at [DeepSeek Platform](https://platform.deepseek.com/api_keys). Paste it on Models → Popular services → DeepSeek (cog). Keys live in SQLite, not env.
+Create a key at [DeepSeek Platform](https://platform.deepseek.com/api_keys). Paste it on Providers → Popular services → DeepSeek (open the card). Keys live in SQLite, not env.
 
 ## Enable
 
-1. Open Models
-2. Popular services → DeepSeek → cog
+1. Open Providers
+2. Popular services → DeepSeek → open the card
 3. Paste the key, Save
 
 Status is **running** when a key is saved.
@@ -26,7 +26,7 @@ Status is **running** when a key is saved.
 - Chat: `POST /chat/completions`
 - Stream quirk: `delta.content` or `delta.reasoning_content`
 
-Default model ids (editable in the cog; live `GET /models` merges when a key exists):
+Default model ids (editable on the card; live `GET /models` merges when a key exists):
 
 - `deepseek-chat`
 - `deepseek-reasoner`

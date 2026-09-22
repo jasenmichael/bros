@@ -1,0 +1,13 @@
+services:
+  firecrawl-ui:
+    build: .
+    image: bros-firecrawl-ui
+    ports:
+      - "${BROS_FIRECRAWL_UI_PORT:-3081}:8080"
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

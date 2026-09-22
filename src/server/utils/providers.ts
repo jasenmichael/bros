@@ -1,11 +1,12 @@
 import { createError } from 'h3'
 import { eq } from 'drizzle-orm'
+import { nextDisabledOllamaModels, parseDisabledOllamaModels } from '../../app/utils/ollamaDisabledModels'
 import { decryptSecret, encryptSecret } from './auth'
 import { getDb, providers } from './db'
-import { isInternalBrosModel } from './internalBrosModel'
+import { isInternalBrosModel, refuseInternalBrosModel } from './internalBrosModel'
 import { isValidOllamaPullName } from './ollamaLibrary'
 import { findHostOllama, hostOllamaUrl, sidecarOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
-import { PROVIDER_PRESETS, isPopularProvider } from './providerPresets'
+import { PROVIDER_PRESETS, getProviderPreset, isPopularProvider } from './providerPresets'
 
 export type ProviderKind = 'ollama' | 'openai' | 'anthropic'
 
@@ -13,10 +14,30 @@ export const OLLAMA_SIDECAR_ID = 'ollama'
 export const OLLAMA_HOST_ID = 'ollama-host'
 export const SYSTEM_PROVIDER_IDS = [OLLAMA_SIDECAR_ID, OLLAMA_HOST_ID] as const
 
-export { isPopularProvider, PROVIDER_PRESETS }
-export { POPULAR_PROVIDER_IDS, getProviderPreset } from './providerPresets'
+/** Provider-row health. Not sidecar process lifecycle (that stays running/stopped on Status). */
+export type ProviderStatus = 'ready' | 'needs_key' | 'invalid_key' | 'unreachable'
 
-export type ProviderStatus = 'running' | 'stopped' | 'error'
+export type ProviderHealth = {
+  ok: boolean
+  kind: ProviderStatus
+  message: string
+}
+
+export function healthLabel(kind: ProviderStatus) {
+  if (kind === 'ready') return 'Ready'
+  if (kind === 'needs_key') return 'Need an API key'
+  if (kind === 'invalid_key') return 'Invalid key'
+  return 'Unreachable'
+}
+
+export function providerNeedsApiKey(kind: ProviderKind) {
+  return kind === 'openai' || kind === 'anthropic'
+}
+
+/** Ollama sidecar + host start Chat-on. Popular/custom start Chat-off. */
+export function defaultChatEnabled(kind: ProviderKind) {
+  return kind === 'ollama'
+}
 
 export function isSystemProvider(id: string) {
   return id === OLLAMA_SIDECAR_ID || id === OLLAMA_HOST_ID
@@ -80,7 +101,7 @@ export function upsertProvider(input: {
   const existingConfig: Record<string, unknown> = existing?.configJson
     ? JSON.parse(existing.configJson) as Record<string, unknown>
     : {}
-  // Partial config patches merge into existing so callers do not wipe useGpu / customModels.
+  // Partial config patches merge into existing so callers do not wipe useGpu / customModels / disabledModels.
   const nextConfig = input.config === undefined
     ? existingConfig
     : { ...existingConfig, ...input.config }
@@ -92,7 +113,7 @@ export function upsertProvider(input: {
     apiKeyEnc: input.apiKey === undefined || input.apiKey === null
       ? (existing?.apiKeyEnc ?? null)
       : (input.apiKey ? encryptSecret(input.apiKey) : null),
-    enabled: input.enabled ?? (existing ? Boolean(existing.enabled) : true),
+    enabled: input.enabled ?? (existing ? Boolean(existing.enabled) : defaultChatEnabled(input.kind)),
     configJson: JSON.stringify(nextConfig),
   }
   if (existing) db.update(providers).set(values).where(eq(providers.id, input.id)).run()
@@ -116,10 +137,16 @@ export function filterChatProviders<T extends { enabled?: boolean }>(rows: T[]):
   return rows.filter((p) => isChatSelectionEnabled(p))
 }
 
-export function setProviderEnabled(id: string, enabled: boolean) {
+export async function setProviderEnabled(id: string, enabled: boolean) {
   const existing = getProvider(id)
   if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Provider not found' })
+  }
+  if (enabled) {
+    const health = await probeProviderHealth(id)
+    if (!health.ok) {
+      throw createError({ statusCode: 400, statusMessage: health.message })
+    }
   }
   return upsertProvider({
     id: existing.id,
@@ -130,32 +157,113 @@ export function setProviderEnabled(id: string, enabled: boolean) {
   })
 }
 
+/** After a key/config save: auto-enable Chat when probe succeeds; force Chat off when it fails. */
+export async function persistProviderAndSyncChat(input: {
+  id: string
+  name: string
+  kind: ProviderKind
+  baseUrl?: string | null
+  apiKey?: string | null
+  enabled?: boolean
+  config?: Record<string, unknown>
+}) {
+  const row = upsertProvider(input)
+  if (!row || row.kind === 'ollama') return row
+  const health = await probeProviderHealth(row.id)
+  const wantEnable = input.enabled === true || Boolean(input.apiKey)
+  if (wantEnable) {
+    if (!health.ok) {
+      upsertProvider({
+        id: row.id,
+        name: row.name,
+        kind: row.kind,
+        baseUrl: row.baseUrl,
+        enabled: false,
+      })
+      throw createError({ statusCode: 400, statusMessage: health.message })
+    }
+    return upsertProvider({
+      id: row.id,
+      name: row.name,
+      kind: row.kind,
+      baseUrl: row.baseUrl,
+      enabled: true,
+    })
+  }
+  if (row.enabled && !health.ok) {
+    return upsertProvider({
+      id: row.id,
+      name: row.name,
+      kind: row.kind,
+      baseUrl: row.baseUrl,
+      enabled: false,
+    })
+  }
+  return getProvider(row.id)
+}
+
+/**
+ * Existing DBs: turn Chat off only for keyed rows with no key (old default-on).
+ * Failed / invalid-key probes stay display-only — GET /api/providers must not persist Chat-off.
+ * Leave Ollama Chat as-is.
+ */
+export async function disableUnhealthyKeyedChat() {
+  const healthById = new Map<string, ProviderHealth>()
+  for (const p of listProviders()) {
+    if (p.kind === 'ollama') continue
+    const health = await probeProviderHealth(p.id)
+    healthById.set(p.id, health)
+    if (p.enabled && health.kind === 'needs_key') {
+      upsertProvider({
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+        baseUrl: p.baseUrl,
+        enabled: false,
+      })
+    }
+  }
+  return healthById
+}
+
+const SIDECAR_LEGACY_NAMES = new Set(['Ollama', 'Ollama sidecar'])
+const HOST_LEGACY_NAMES = new Set(['Ollama host'])
+
 export function ensureDefaultProviders() {
   const sidecar = getProvider(OLLAMA_SIDECAR_ID)
   if (!sidecar) {
     upsertProvider({
       id: OLLAMA_SIDECAR_ID,
-      name: 'Ollama sidecar',
+      name: 'Ollama (core)',
       kind: 'ollama',
       baseUrl: OLLAMA_SIDECAR_DNS,
       config: {},
     })
   }
-  else if (sidecar.name === 'Ollama') {
+  else if (SIDECAR_LEGACY_NAMES.has(sidecar.name)) {
     upsertProvider({
       id: OLLAMA_SIDECAR_ID,
-      name: 'Ollama sidecar',
+      name: 'Ollama (core)',
       kind: 'ollama',
       baseUrl: sidecar.baseUrl || OLLAMA_SIDECAR_DNS,
     })
   }
-  if (!getProvider(OLLAMA_HOST_ID)) {
+  const host = getProvider(OLLAMA_HOST_ID)
+  if (!host) {
     upsertProvider({
       id: OLLAMA_HOST_ID,
-      name: 'Ollama host',
+      name: 'Ollama (host)',
       kind: 'ollama',
       baseUrl: hostOllamaUrl(11434),
       config: {},
+    })
+  }
+  else if (HOST_LEGACY_NAMES.has(host.name)) {
+    upsertProvider({
+      id: OLLAMA_HOST_ID,
+      name: 'Ollama (host)',
+      kind: 'ollama',
+      baseUrl: host.baseUrl || hostOllamaUrl(11434),
     })
   }
   for (const preset of PROVIDER_PRESETS) {
@@ -165,7 +273,7 @@ export function ensureDefaultProviders() {
       name: preset.name,
       kind: 'openai',
       baseUrl: preset.baseUrl,
-      enabled: true,
+      enabled: false,
       config: { models: [...preset.models] },
     })
   }
@@ -179,6 +287,30 @@ export function listCustomOllamaModels(providerId = OLLAMA_SIDECAR_ID): string[]
   ))
 }
 
+export function listDisabledOllamaModels(providerId: string): string[] {
+  return parseDisabledOllamaModels(getProvider(providerId)?.config)
+}
+
+/** Chat-off names for one provider. Default on unless the name is already stored. */
+export function setOllamaModelChatEnabled(providerId: string, name: string, enabled: boolean): string[] {
+  const p = getProvider(providerId)
+  if (!p) {
+    throw createError({ statusCode: 404, statusMessage: 'Provider not found' })
+  }
+  const trimmed = name.trim()
+  if (!trimmed) throw createError({ statusCode: 400, statusMessage: 'model required' })
+  refuseInternalBrosModel(trimmed)
+  const next = nextDisabledOllamaModels(listDisabledOllamaModels(providerId), trimmed, enabled)
+  upsertProvider({
+    id: p.id,
+    name: p.name,
+    kind: p.kind,
+    baseUrl: p.baseUrl,
+    config: { disabledModels: next },
+  })
+  return next
+}
+
 /** Append a typed/community pull name to an Ollama provider config.customModels. */
 export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_SIDECAR_ID): string[] {
   ensureDefaultProviders()
@@ -189,7 +321,7 @@ export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_SIDE
   const p = getProvider(providerId)
   upsertProvider({
     id: providerId,
-    name: p?.name || (providerId === OLLAMA_HOST_ID ? 'Ollama host' : 'Ollama sidecar'),
+    name: p?.name || (providerId === OLLAMA_HOST_ID ? 'Ollama (host)' : 'Ollama (core)'),
     kind: 'ollama',
     baseUrl: p?.baseUrl,
     config: { customModels: next },
@@ -228,7 +360,7 @@ export function ensureDefaultUseGpu(gpuAvailable: boolean): boolean {
   if (gpuAvailable && (raw === undefined || raw === null)) {
     upsertProvider({
       id: 'ollama',
-      name: existing?.name || 'Ollama sidecar',
+      name: existing?.name || 'Ollama (core)',
       kind: 'ollama',
       baseUrl: existing?.baseUrl,
       config: { useGpu: true },
@@ -265,6 +397,65 @@ export async function probeOllamaRunning(baseUrl: string): Promise<boolean> {
   }
   catch {
     return false
+  }
+}
+
+function classifyHttpHealth(status: number, body: string): ProviderHealth {
+  if (status === 401 || status === 403) {
+    return { ok: false, kind: 'invalid_key', message: 'Invalid key' }
+  }
+  const detail = body.replace(/\s+/g, ' ').trim().slice(0, 160)
+  return {
+    ok: false,
+    kind: 'unreachable',
+    message: detail || `Unreachable (${status})`,
+  }
+}
+
+/** Live key + endpoint check. Never treat a non-empty key as healthy by itself. */
+export async function probeProviderHealth(id: string): Promise<ProviderHealth> {
+  const secret = getProviderSecret(id)
+  if (!secret) return { ok: false, kind: 'unreachable', message: 'Provider not found' }
+  const kind = secret.row.kind as ProviderKind
+
+  if (kind === 'ollama') {
+    const base = await ollamaBaseUrlFor(id)
+    const ok = await probeOllamaRunning(base)
+    if (ok) return { ok: true, kind: 'ready', message: 'Ready' }
+    return {
+      ok: false,
+      kind: 'unreachable',
+      message: id === OLLAMA_HOST_ID
+        ? 'Host Ollama is unreachable.'
+        : 'Ollama sidecar is unreachable',
+    }
+  }
+
+  if (!secret.apiKey) {
+    return { ok: false, kind: 'needs_key', message: 'Need an API key' }
+  }
+  const base = secret.row.baseUrl?.replace(/\/$/, '')
+  if (!base) {
+    return { ok: false, kind: 'unreachable', message: 'Need a base URL' }
+  }
+  try {
+    const extra = getProviderPreset(id)?.headers || {}
+    const res = await fetch(`${base}/models`, {
+      headers: {
+        authorization: `Bearer ${secret.apiKey}`,
+        ...extra,
+      },
+      signal: AbortSignal.timeout(4000),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return classifyHttpHealth(res.status, text)
+    }
+    return { ok: true, kind: 'ready', message: 'Ready' }
+  }
+  catch (err) {
+    const detail = err instanceof Error ? err.message : 'Unreachable'
+    return { ok: false, kind: 'unreachable', message: detail || 'Unreachable' }
   }
 }
 
@@ -309,11 +500,16 @@ export type PullProgressEvent = {
 }
 
 /** Stream Ollama pull NDJSON progress events. */
-export async function* pullOllamaModelStream(baseUrl: string, name: string): AsyncGenerator<PullProgressEvent> {
+export async function* pullOllamaModelStream(
+  baseUrl: string,
+  name: string,
+  signal?: AbortSignal,
+): AsyncGenerator<PullProgressEvent> {
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/pull`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, stream: true }),
+    signal,
   })
   if (!res.ok) {
     throw createError({ statusCode: 502, statusMessage: await readOllamaError(res) })
@@ -325,28 +521,37 @@ export async function* pullOllamaModelStream(baseUrl: string, name: string): Asy
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-      try {
-        yield JSON.parse(trimmed) as PullProgressEvent
-      } catch {
-        // ignore malformed chunk
+  const onAbort = () => {
+    void reader.cancel()
+  }
+  signal?.addEventListener('abort', onAbort)
+  try {
+    while (true) {
+      if (signal?.aborted) break
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        try {
+          yield JSON.parse(trimmed) as PullProgressEvent
+        } catch {
+          // ignore malformed chunk
+        }
       }
     }
-  }
-  if (buffer.trim()) {
-    try {
-      yield JSON.parse(buffer.trim()) as PullProgressEvent
-    } catch {
-      // ignore
+    if (buffer.trim()) {
+      try {
+        yield JSON.parse(buffer.trim()) as PullProgressEvent
+      } catch {
+        // ignore
+      }
     }
+  } finally {
+    signal?.removeEventListener('abort', onAbort)
   }
 }
 
@@ -382,11 +587,20 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'AbortError' || /aborted/i.test(err.message))
+}
+
 /** One retry on registry timeout / 5xx. Second failure is yielded, never faked as success. */
-export async function* pullOllamaModelStreamWithRetry(baseUrl: string, name: string): AsyncGenerator<PullProgressEvent> {
+export async function* pullOllamaModelStreamWithRetry(
+  baseUrl: string,
+  name: string,
+  signal?: AbortSignal,
+): AsyncGenerator<PullProgressEvent> {
   try {
     let retryable: string | undefined
-    for await (const evt of pullOllamaModelStream(baseUrl, name)) {
+    for await (const evt of pullOllamaModelStream(baseUrl, name, signal)) {
+      if (signal?.aborted) return
       if (evt.error && isRetryablePullError(evt.error)) {
         retryable = evt.error
         break
@@ -394,16 +608,17 @@ export async function* pullOllamaModelStreamWithRetry(baseUrl: string, name: str
       yield evt
       if (evt.error) return
     }
-    if (!retryable) return
+    if (!retryable || signal?.aborted) return
     yield { status: `Retrying after: ${retryable}` }
-    for await (const evt of pullOllamaModelStream(baseUrl, name)) {
+    for await (const evt of pullOllamaModelStream(baseUrl, name, signal)) {
       yield evt
     }
   } catch (err) {
+    if (signal?.aborted || isAbortError(err)) throw err
     const message = errorMessage(err)
     if (!isRetryablePullError(message)) throw err
     yield { status: `Retrying after: ${message}` }
-    for await (const evt of pullOllamaModelStream(baseUrl, name)) {
+    for await (const evt of pullOllamaModelStream(baseUrl, name, signal)) {
       yield evt
     }
   }

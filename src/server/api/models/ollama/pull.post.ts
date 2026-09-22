@@ -9,8 +9,10 @@ import {
 import { getDiskSpace } from '../../../utils/disk'
 import { refuseInternalBrosModel } from '../../../utils/internalBrosModel'
 import {
-  ollamaBaseUrlFor,
-  pullOllamaModelStreamWithRetry,
+  createOrReusePullJob,
+  startPullRunner,
+} from '../../../utils/ollamaPullJobs'
+import {
   rememberCustomOllamaModel,
   OLLAMA_HOST_ID,
   OLLAMA_SIDECAR_ID,
@@ -42,29 +44,10 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  setResponseHeader(event, 'content-type', 'application/x-ndjson; charset=utf-8')
-  setResponseHeader(event, 'cache-control', 'no-cache')
-  setResponseHeader(event, 'x-accel-buffering', 'no')
-
-  const res = event.node.res
-  try {
-    for await (const evt of pullOllamaModelStreamWithRetry(await ollamaBaseUrlFor(providerId), name)) {
-      if (evt.error) {
-        res.write(`${JSON.stringify({ status: 'error', error: evt.error })}\n`)
-        break
-      }
-      res.write(`${JSON.stringify(evt)}\n`)
-      if (typeof (res as { flush?: () => void }).flush === 'function') {
-        ;(res as { flush: () => void }).flush()
-      }
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    if (!res.headersSent) {
-      throw createError({ statusCode: 502, statusMessage: message })
-    }
-    res.write(`${JSON.stringify({ status: 'error', error: message })}\n`)
+  const { created, job } = createOrReusePullJob(providerId, name)
+  if (created && job.phase === 'running') {
+    startPullRunner(providerId, name)
   }
-  res.end()
-  event._handled = true
+
+  return { ok: true, job }
 })

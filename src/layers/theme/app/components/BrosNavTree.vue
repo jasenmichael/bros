@@ -81,10 +81,10 @@ function linkExactActiveClass(item: BrosNavItem) {
         :class="{ 'bros-nav-tree__link--nested': depth > 0 }"
         :active-class="linkActiveClass(item)"
         :exact-active-class="linkExactActiveClass(item)"
-        :title="iconMode ? item.label : undefined"
+        :title="item.label"
       >
         <UIcon v-if="item.icon && depth === 0" :name="item.icon" class="size-4 shrink-0" />
-        <span v-if="!iconMode">{{ item.label }}</span>
+        <span v-if="!iconMode" class="bros-nav-label">{{ item.label }}</span>
       </NuxtLink>
       <button
         v-else-if="!iconMode"
@@ -92,7 +92,7 @@ function linkExactActiveClass(item: BrosNavItem) {
         class="bros-nav-tree__link bros-nav-tree__group"
       >
         <UIcon v-if="item.icon && depth === 0" :name="item.icon" class="size-4 shrink-0" />
-        <span>{{ item.label }}</span>
+        <span class="bros-nav-label">{{ item.label }}</span>
       </button>
       <button
         v-if="!iconMode && item.children?.length"
@@ -120,6 +120,14 @@ function linkExactActiveClass(item: BrosNavItem) {
   align-items: center;
   gap: 0.1rem;
   margin-bottom: 0.1rem;
+  min-width: 0;
+}
+
+.bros-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bros-nav-tree__row--icon {
@@ -149,7 +157,8 @@ function linkExactActiveClass(item: BrosNavItem) {
 }
 
 .bros-nav-tree__row--icon .bros-nav-tree__link {
-  flex: 0;
+  flex: none;
+  min-width: auto;
   justify-content: center;
   padding: 0.55rem 0.35rem;
 }

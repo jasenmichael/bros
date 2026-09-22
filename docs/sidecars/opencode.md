@@ -5,7 +5,7 @@ description: CLI coding agent with web UI on host port 4097.
 
 # OpenCode sidecar
 
-Core package `sidecars/opencode`. CLI coding agent with web UI (anomalyco/opencode).
+Shipped **addon** package `sidecars/opencode`. CLI coding agent with web UI (anomalyco/opencode). Enabled by default. Disable autostart with `BROS_SIDECAR_OPENCODE=0` or `BROS_SIDECARS_DISABLE=opencode`. Still listed under Addon sidecars with source **bros**.
 
 ## Ports
 

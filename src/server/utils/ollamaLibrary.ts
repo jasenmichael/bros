@@ -1,5 +1,8 @@
+import { isValidOllamaPullName, ollamaNameFromMenuValue } from '../../app/utils/ollamaPullName'
 import { detectGpu, type GpuInfo } from './gpu'
 import { getDiskSpace, type DiskSpace } from './disk'
+
+export { isValidOllamaPullName, ollamaNameFromMenuValue }
 
 export type CatalogModel = {
   /** Exact string passed to `ollama pull` */
@@ -102,14 +105,6 @@ const HF_CURATED: CatalogModel[] = [
     sizeBytes: fromParamsB(7),
   },
 ]
-
-/** Official `name[:tag]`, community `owner/name[:tag]`, or HF `hf.co/owner/repo[:quant]`. */
-export function isValidOllamaPullName(raw: string): boolean {
-  const name = raw.trim()
-  if (!name || name.length > 256 || /\s/.test(name)) return false
-  if (/[;|&$`<>\\]/.test(name)) return false
-  return /^(?:hf\.co\/)?[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*(?::[A-Za-z0-9._-]+)?$/.test(name)
-}
 
 export function customCatalogFromNames(names: string[], sections: Omit<CatalogSections, 'custom'>): CatalogModel[] {
   const known = new Set(

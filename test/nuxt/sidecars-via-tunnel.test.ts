@@ -8,11 +8,12 @@ const { payload } = vi.hoisted(() => ({
     errors: [] as string[],
     sidecars: [
       {
-        id: 'ollama',
-        name: 'Ollama',
-        description: 'Models',
-        source: 'core' as const,
-        packageSlug: 'ollama',
+        id: 'opencode',
+        name: 'OpenCode',
+        description: 'Code',
+        source: 'shipped' as const,
+        kind: 'addon' as const,
+        packageSlug: 'opencode',
         interfaces: [],
         settings: { autostart: false, navPinned: false, hostMode: 'auto' as const },
         status: { running: true, services: [] },

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 
@@ -11,7 +11,7 @@ mockNuxtImport('useFetch', () => {
         pending: ref(false),
       }
     }
-    if (typeof url === 'string' && url.startsWith('/api/models/context')) {
+    if (String(url || '').includes('models/context')) {
       return {
         data: ref({ contextLength: 8192 }),
         refresh: async () => {},
@@ -21,16 +21,22 @@ mockNuxtImport('useFetch', () => {
     return {
       data: ref({
         providers: [
-          { id: 'ollama', name: 'Ollama sidecar', kind: 'ollama' },
-          { id: 'ollama-host', name: 'Ollama host', kind: 'ollama' },
-          { id: 'openai', name: 'OpenAI', kind: 'openai', popular: true },
-          { id: 'my-proxy', name: 'My proxy', kind: 'openai' },
+          { id: 'ollama', name: 'Ollama (core)', kind: 'ollama', config: { disabledModels: ['hidden-model'] }, models: [
+            { id: 'ollama/llama3.2', name: 'llama3.2', enabled: true },
+            { id: 'ollama/hidden-model', name: 'hidden-model', enabled: false },
+          ] },
+          { id: 'ollama-host', name: 'Ollama (host)', kind: 'ollama', models: [
+            { id: 'ollama-host/llama3.2', name: 'llama3.2', enabled: true },
+          ] },
+          { id: 'openai', name: 'OpenAI', kind: 'openai', popular: true, config: { disabledModels: ['gpt-hidden'] }, models: [
+            { name: 'gpt-4o-mini', enabled: true },
+            { name: 'gpt-hidden', enabled: false },
+          ] },
+          { id: 'my-proxy', name: 'My proxy', kind: 'openai', config: { disabledModels: ['secret-model'] }, models: [
+            { name: 'qwen2.5', enabled: true },
+            { name: 'secret-model', enabled: false },
+          ] },
         ],
-        ollamaModelsByProvider: {
-          ollama: [{ id: 'ollama/llama3.2', name: 'llama3.2' }],
-          'ollama-host': [{ id: 'ollama-host/llama3.2', name: 'llama3.2' }],
-        },
-        openaiModelsByProvider: {},
       }),
       refresh: async () => {},
       pending: ref(false),
@@ -50,7 +56,20 @@ describe('Chat page', () => {
     expect(wrapper.text()).not.toContain('Host :11434')
     expect(wrapper.text()).not.toContain('Sidecar :11435')
     expect(wrapper.find('.bros-chat__provider').exists()).toBe(true)
+    expect(wrapper.find('.bros-chat__provider-wrap').exists()).toBe(true)
+    expect(wrapper.find('.bros-chat__provider-sizer').exists()).toBe(true)
+    expect(wrapper.findAll('.bros-chat__provider-sizer').length).toBe(1)
     expect(wrapper.find('.bros-chat__model').exists()).toBe(true)
+    const vm = wrapper.vm as unknown as {
+      modelPickerUi: { content: string }
+      providerPickerUi: { content: string; base: string }
+    }
+    expect(vm.modelPickerUi.content).toContain('min-w-72')
+    expect(vm.providerPickerUi.content).toContain('w-max')
+    expect(vm.providerPickerUi.content).not.toContain('min-w-72')
+    expect(vm.providerPickerUi.base).toContain('w-full')
+    expect(vm.providerPickerUi.base).not.toContain('min-w-72')
+    expect(vm.providerPickerUi.base).not.toContain('w-max')
     expect(wrapper.text()).not.toContain('Bros Chat — streaming against configured models.')
     expect(wrapper.html()).not.toMatch(/uppercase">user/i)
     expect(wrapper.find('.bros-chat__composer').exists()).toBe(true)
@@ -60,6 +79,22 @@ describe('Chat page', () => {
     expect(wrapper.text()).not.toContain('thinking…')
     expect(wrapper.find('.bros-chat__tools-left').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__ctx').text()).toBe('8k ctx')
+  })
+
+  it('omits disabled Ollama models from the picker', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as { modelsForProvider: (id: string) => string[] }
+    expect(vm.modelsForProvider('ollama')).toEqual(['llama3.2'])
+    expect(vm.modelsForProvider('ollama-host')).toEqual(['llama3.2'])
+  })
+
+  it('omits disabled popular and custom models from the picker', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as { modelsForProvider: (id: string) => string[] }
+    expect(vm.modelsForProvider('openai')).toEqual(['gpt-4o-mini'])
+    expect(vm.modelsForProvider('my-proxy')).toEqual(['qwen2.5'])
   })
 
   it('orders providers sidecar, host, popular, then custom', async () => {
@@ -112,5 +147,73 @@ describe('Chat page', () => {
     expect(wrapper.text()).toContain('ollama/gemma3:12b')
     expect(wrapper.findAllComponents({ name: 'BrosChatMarkdown' }).length).toBeGreaterThan(0)
     expect(wrapper.find('.bros-chat-md').exists()).toBe(false)
+    const assistant = wrapper.find('.bros-chat__turn--assistant')
+    const html = assistant.html()
+    expect(html.indexOf('bros-chat__bubble')).toBeGreaterThan(-1)
+    expect(html.indexOf('bros-chat__bubble')).toBeLessThan(html.indexOf('bros-chat__meta'))
+    expect(wrapper.find('[aria-label="Copy reply"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Copy message"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Edit message"]').exists()).toBe(true)
+  })
+
+  it('copies stored raw markdown for the assistant reply', async () => {
+    const raw = '## Nuxt 3\n\n```bash\npnpm dlx nuxi@latest init app\n```\n'
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as {
+      messages: Array<{ id: string; role: string; content: string; modelId?: string }>
+    }
+    vm.messages = [
+      { id: 'u1', role: 'user', content: 'create a nuxt starter app' },
+      { id: 'a1', role: 'assistant', content: raw, modelId: 'ollama/gemma3:12b' },
+    ]
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[aria-label="Copy reply"]').trigger('click')
+    expect(writeText).toHaveBeenCalledWith(raw)
+  })
+
+  it('edit+resend drops following turns then sends the edited text', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as {
+      messages: Array<{ id: string; role: string; content: string }>
+      resendFrom: (message: { id: string; role: string; content: string }, text: string) => Promise<void>
+    }
+    vm.messages = [
+      { id: 'u1', role: 'user', content: 'first' },
+      { id: 'a1', role: 'assistant', content: 'ok' },
+      { id: 'u2', role: 'user', content: 'second' },
+      { id: 'a2', role: 'assistant', content: 'later' },
+    ]
+    await vm.resendFrom(vm.messages[2]!, 'edited second').catch(() => {})
+    const contents = vm.messages.map((m) => m.content)
+    expect(contents).toEqual(['first', 'ok'])
+    expect(contents).not.toContain('later')
+    expect(contents).not.toContain('second')
+  })
+
+  it('pins the thread scroller to the bottom', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as {
+      messages: Array<{ id: string; role: string; content: string }>
+      scrollThread: () => void
+    }
+    vm.messages = [
+      { id: 'u1', role: 'user', content: 'hello' },
+      { id: 'a1', role: 'assistant', content: 'world' },
+    ]
+    await wrapper.vm.$nextTick()
+    const thread = wrapper.find('.bros-chat__thread').element as HTMLElement
+    Object.defineProperty(thread, 'scrollHeight', { configurable: true, get: () => 2400 })
+    Object.defineProperty(thread, 'clientHeight', { configurable: true, get: () => 400 })
+    thread.scrollTop = 0
+    vm.scrollThread()
+    expect(thread.scrollTop).toBe(2400)
   })
 })
