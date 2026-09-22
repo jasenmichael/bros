@@ -3,6 +3,11 @@ services:
     image: ghcr.io/anomalyco/opencode
     # ENTRYPOINT is opencode; web UI must stay in foreground for container lifetime.
     command: ["web", "--hostname", "0.0.0.0", "--port", "4096"]
+    environment:
+      # Harmless until ghcr.io/anomalyco/opencode ships base-path (PR 28326 still open).
+      # 1.18.30 ignores this; `web --base-path` is unknown and the container exits;
+      # `server.basePath` / OPENCODE_BASE_PATH also no-ops. Do not add --base-path.
+      OPENCODE_SERVER_BASE_PATH: /opencode
     working_dir: /workspace
     ports:
       - "${BROS_OPENCODE_PORT:-4097}:4096"

@@ -69,7 +69,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     body: 'sidecar.yml, Compose, network bros.',
     children: [
       { label: 'Ollama', to: '/docs/sidecars/ollama', body: 'Publish 11435, host provider, bros model.' },
-      { label: 'OpenCode', to: '/docs/sidecars/opencode', body: 'Publish 4097, pin, Open.' },
+      { label: 'OpenCode', to: '/docs/sidecars/opencode', body: 'Publish 4097, LAN / until upstream base-path.' },
       { label: 'Open WebUI', to: '/docs/sidecars/openwebui', body: 'Publish 3080, never 3000/8080.' },
       { label: 'Firecrawl', to: '/docs/sidecars/firecrawl', body: 'Publish 3002, scrape API; UI is Firecrawl UI.' },
       { label: 'Firecrawl UI', to: '/docs/sidecars/firecrawl-ui', body: 'Publish 3081, scrape UI, never 3000/8080.' },

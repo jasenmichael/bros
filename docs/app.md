@@ -12,7 +12,7 @@ Bros UI on host port **3055**. Login uses a shared passkey. After login, the doc
 - **Dashboard** (`/`) — live widgets for the app, Docker, disk, GPU, **Ollama** (sidecar + host providers; Details → `/providers`), and tunnel. No Sidecars summary card. **Bros services** lists every Bros-managed Docker container (app `bros` plus each `bros-sc-*` service, including Firecrawl’s stack). Sidecar rows sit in a later **Sidecar snippets** section (Status / Logs). Each snippet shows that sidecar’s publish port only — not host Ollama. Host Ollama is not a sidecar. No full Status table.
 - **Chat** (`/chat`, `/chat/:id`) — provider then model, streaming replies, Voice to text mic (Whisper sidecar). See [Chat](/docs/chat).
 - **Providers** (`/providers`) — Ollama, Popular services, Custom providers. See [Providers](/docs/providers).
-- **Sidecars** (`/sidecars`) — Core (Ollama), then Addon sidecars (shipped OpenCode / Open WebUI / Firecrawl / Firecrawl UI / Whisper plus data-dir and git packs). Card source badges: **bros**, **repo**, **custom**. Each card has a refresh icon next to running/stopped. A section with one card uses the wide layout (Core always). Two or more cards go two-up compact on large screens; mobile stays one wide card per row. Open/Pin published webui at `http://127.0.0.1:<publish>/`. Pin in nav only when a `webui` exists. Published APIs get Open, not Pin. See [Sidecars](/docs/sidecars).
+- **Sidecars** (`/sidecars`) — Core (Ollama), then Addon sidecars (shipped OpenCode / Open WebUI / Firecrawl / Firecrawl UI / Whisper plus data-dir and git packs). Card source badges: **bros**, **repo**, **custom**. Each card has a refresh icon next to running/stopped. A section with one card uses the wide layout (Core always). Two or more cards go two-up compact on large screens; mobile stays one wide card per row. Open/Pin published webui at `http://127.0.0.1:<publish>/` on LAN (`http://127.0.0.1:4097/` for OpenCode). Via-tunnel, `proxy.public` pins use `/${id}/` on the Bros host — no shipped pack opts in today. Pin in nav only when a `webui` exists. Published APIs get Open, not Pin. See [Sidecars](/docs/sidecars).
 - **Status** (`/status`) — detail health. See [Status](/docs/status).
 - **Settings** (`/settings`) — Chat prepend + assistant description, read-only paths, and passkey. See [Settings](/docs/settings).
 - **Docs** (`/docs`) — this documentation (same markdown as the Pages site).
@@ -31,4 +31,4 @@ Previous chats: open, collapsible list. Recents overflow is Rename and Delete. P
 
 ## Recents and pins
 
-Chat threads land under Previous chats after the first send. Sidecar web UIs with `navPinned` open as `http://127.0.0.1:<publish>/`.
+Chat threads land under Previous chats after the first send. Sidecar web UIs with `navPinned` open as `http://127.0.0.1:<publish>/` on LAN, or same-host `/${id}/` via-tunnel when `proxy.public`.

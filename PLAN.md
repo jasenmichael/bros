@@ -8,7 +8,7 @@ Implementation through **M7** complete. Install clones `BROS_HOME`, writes `~/.c
 
 1. **M0** — pnpm monorepo, theme + docs layers, app shell on :3055
 2. **M1** — bootstrap config, SQLite, passcode
-3. **M2** — sidecar engine + Sidecars page (`publish` Open/Pin; no path proxy)
+3. **M2** — sidecar engine + Sidecars page (`publish` Open/Pin; path proxy later for `proxy.public`)
 4. **M3** — shipped sidecars: core Ollama; addon OpenCode + Open WebUI + Firecrawl + Firecrawl UI + Whisper (tunnel is host `cloudflared`, not a sidecar)
 5. **M4** — Providers page
 6. **M5** — Chat streaming + history
@@ -26,6 +26,7 @@ Not a milestone. Pick when needed:
 - CI: add test + typecheck jobs (Pages workflow only today)
 - Tests: chat stream coverage; e2e beyond `/api/health`
 - Additional sidecars: Add in the UI (`$BROS_HOME/data/sidecars/<id>/`) or clone a repo (`$BROS_HOME/data/sidecar-repos/<name>/`)
+- OpenCode `proxy.public` / `/opencode/`: wait for `ghcr.io/anomalyco/opencode` to ship base-path ([PR 28326](https://github.com/anomalyco/opencode/pull/28326)). 1.18.30 ignores `OPENCODE_SERVER_BASE_PATH`; `--base-path` exits. Do not fake a Bros-side prefix.
 - Settings: Chat prepend + assistant description (SQLite `meta`), plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes
 - Named `bros-data` / `bros-ollama-data` / sidecar volumes: leftover volumes stay unused; start does not copy them into `$BROS_HOME/data`
@@ -89,11 +90,11 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 
 ## Host tunnel
 
-`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_HOME/data/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `pnpm dev` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
+`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_HOME/data/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. One hostname to Bros `:3055`. Sidecar Open/Pin stay LAN except `proxy.public` webuis on the same host. No shipped pack opts in today. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `pnpm dev` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
 
 ## Recent (internal Docker APIs)
 
-- Compose app reaches sidecar Ollama and Whisper via Docker DNS (`sidecarReachUrl`). Host publish is Open/Pin, host Node, and occupancy probes only. `BROS_OLLAMA_PORT` applies to host Node Chat the same way `BROS_WHISPER_PORT` does for STT. `appRunsInDocker` also treats `BROS_DATA_DIR=/data` / `BROS_WORKING_DIR=/app` as in-container.
+- Compose app reaches sidecar Ollama and Whisper via Docker DNS (`sidecarReachUrl`). Host publish is Open/Pin, host Node, and occupancy probes only, except `proxy.public` webuis which also reverse-proxy at `/${id}/`. `BROS_OLLAMA_PORT` applies to host Node Chat the same way `BROS_WHISPER_PORT` does for STT. `appRunsInDocker` also treats `BROS_DATA_DIR=/data` / `BROS_WORKING_DIR=/app` as in-container.
 
 
 ## TODO:

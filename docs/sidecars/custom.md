@@ -23,7 +23,7 @@ Compose project name is `bros-sc-<id>` on network `bros`.
 
 - Directory name must match `id` in `sidecar.yml`
 - A `webui` interface must set `publish` and map `publish:containerPort` in Compose. A published `api` is Open the same way. Pin in nav is only for a published `webui`.
-- Open/Pin always open `http://127.0.0.1:<publish>/`
+- Open/Pin open `http://127.0.0.1:<publish>/` on LAN. `proxy.public: true` on a `webui` also enables same-host `/${id}/` via-tunnel (the UI must listen under that path). Default is no public proxy.
 - Compose-app Bros talks to sidecar APIs at `http://<service>:<containerPort>` on network `bros`
 - Stay on Docker network `bros`
 - Do not publish host ports **3000** or **8080**

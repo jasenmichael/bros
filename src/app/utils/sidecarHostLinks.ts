@@ -5,10 +5,13 @@ export type SidecarHostIface = {
   publish?: number
   hostPort?: number
   basePath?: string
+  proxy?: { public?: boolean }
 }
 
 export type SidecarHostRow = {
+  id?: string
   name: string
+  packageSlug?: string
   interfaces: SidecarHostIface[]
 }
 
@@ -24,6 +27,10 @@ export type SidecarCopyUrl = {
   network: 'host' | 'bros'
 }
 
+export type SidecarHostLinkOpts = {
+  viaTunnel?: boolean
+}
+
 function hostPort(iface: SidecarHostIface): number | undefined {
   return iface.publish || iface.hostPort
 }
@@ -34,7 +41,24 @@ function withBasePath(origin: string, basePath?: string): string {
   return `${origin.replace(/\/$/, '')}${path}`
 }
 
-function sidecarLinksOfType(s: SidecarHostRow, types: Set<string>): SidecarOpenLink[] {
+function sidecarId(s: SidecarHostRow): string {
+  return s.id || s.packageSlug || ''
+}
+
+function publicProxyPath(id: string): string {
+  return `/${id}/`
+}
+
+function webUiHref(s: SidecarHostRow, iface: SidecarHostIface, port: number, viaTunnel?: boolean): string {
+  const id = sidecarId(s)
+  if (iface.proxy?.public && id) {
+    if (viaTunnel) return publicProxyPath(id)
+    return `http://127.0.0.1:${port}${publicProxyPath(id)}`
+  }
+  return `http://127.0.0.1:${port}/`
+}
+
+function sidecarLinksOfType(s: SidecarHostRow, types: Set<string>, opts?: SidecarHostLinkOpts): SidecarOpenLink[] {
   const out: SidecarOpenLink[] = []
   const seen = new Set<number>()
   for (const iface of s.interfaces || []) {
@@ -44,7 +68,7 @@ function sidecarLinksOfType(s: SidecarHostRow, types: Set<string>): SidecarOpenL
     seen.add(port)
     out.push({
       label: s.name,
-      to: `http://127.0.0.1:${port}/`,
+      to: webUiHref(s, iface, port, opts?.viaTunnel),
       external: true,
       hostPort: port,
     })
@@ -53,13 +77,13 @@ function sidecarLinksOfType(s: SidecarHostRow, types: Set<string>): SidecarOpenL
 }
 
 /** Open targets: published webui or api (Firecrawl API has no product Web UI). */
-export function sidecarOpenLinks(s: SidecarHostRow): SidecarOpenLink[] {
-  return sidecarLinksOfType(s, new Set(['webui', 'api']))
+export function sidecarOpenLinks(s: SidecarHostRow, opts?: SidecarHostLinkOpts): SidecarOpenLink[] {
+  return sidecarLinksOfType(s, new Set(['webui', 'api']), opts)
 }
 
 /** Pin in nav: published webui only. */
-export function sidecarWebUiLinks(s: SidecarHostRow): SidecarOpenLink[] {
-  return sidecarLinksOfType(s, new Set(['webui']))
+export function sidecarWebUiLinks(s: SidecarHostRow, opts?: SidecarHostLinkOpts): SidecarOpenLink[] {
+  return sidecarLinksOfType(s, new Set(['webui']), opts)
 }
 
 /** Copyable API URLs: host publish, then Docker DNS on network bros. */

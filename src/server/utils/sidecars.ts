@@ -22,6 +22,8 @@ const interfaceSchema = z.object({
   slug: z.string().regex(/^[a-z][a-z0-9_-]*$/).optional(),
   basePath: z.string().optional(),
   command: z.string().optional(),
+  /** Same-host path proxy at `/${sidecar.id}/`. Off unless `public: true`. */
+  proxy: z.object({ public: z.boolean() }).optional(),
 }).superRefine((val, ctx) => {
   if (val.type !== 'cli' && !val.service) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'service required', path: ['service'] })
@@ -30,7 +32,7 @@ const interfaceSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'containerPort required', path: ['containerPort'] })
   }
   if (val.type === 'webui' && !val.publish) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'webui requires publish (no path proxy)', path: ['publish'] })
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'webui requires publish', path: ['publish'] })
   }
   if (val.publish === 3000 || val.publish === 8080) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'publish must not be 3000 or 8080', path: ['publish'] })

@@ -37,6 +37,17 @@ describe('sidecar project naming', () => {
       name: 'Demo',
       interfaces: [{ type: 'webui', service: 'demo', containerPort: 80, publish: 3090 }],
     }).interfaces[0].publish).toBe(3090)
+    expect(parseSidecarMeta({
+      id: 'demo',
+      name: 'Demo',
+      interfaces: [{
+        type: 'webui',
+        service: 'demo',
+        containerPort: 80,
+        publish: 3090,
+        proxy: { public: true },
+      }],
+    }).interfaces[0].proxy).toEqual({ public: true })
   })
 
   it('parses shipped firecrawl-ui webui publish 3081', () => {
@@ -85,6 +96,7 @@ describe('sidecar project naming', () => {
     })
     expect(meta.interfaces[0].publish).toBe(11435)
     expect(meta.interfaces[0].containerPort).toBe(11434)
+    expect(meta.interfaces[0].proxy).toBeUndefined()
   })
 })
 

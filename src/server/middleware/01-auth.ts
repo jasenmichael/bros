@@ -2,6 +2,7 @@ import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret, ensurePas
 import { ensureDefaultProviders } from '../utils/providers'
 import { getDb } from '../utils/db'
 import { autostartSidecars } from '../utils/docker'
+import { needsAuthGate, publicProxyIds } from '../utils/sidecarProxy'
 
 let bootstrapped = false
 let autostartDone = false
@@ -36,15 +37,7 @@ export default defineEventHandler(async (event) => {
 
   if (path === '/login' || path === '/setup') return
 
-  const needsGate =
-    path.startsWith('/api/')
-    || path === '/'
-    || path.startsWith('/chat')
-    || path.startsWith('/models')
-    || path.startsWith('/providers')
-    || path.startsWith('/sidecars')
-    || path.startsWith('/settings')
-    || path.startsWith('/status')
+  const needsGate = needsAuthGate(path, publicProxyIds())
 
   // In-app docs readable after unlock; allow without auth for local docs browsing
   if (path.startsWith('/docs')) return

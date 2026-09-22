@@ -12,7 +12,7 @@ Shipped **addon** package `sidecars/openwebui`. Alternate chat UI, separate from
 - Container: **8080**
 - Host publish: **3080** (`BROS_OPENWEBUI_PORT` override)
 
-Never publish host ports **3000** or **8080**. Open/Pin: `http://127.0.0.1:3080/`.
+Never publish host ports **3000** or **8080**. No `proxy.public` — Open/Pin stay LAN `http://127.0.0.1:3080/`.
 
 ## Binds
 

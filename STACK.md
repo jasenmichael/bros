@@ -16,6 +16,7 @@
 | Docker | dockerode + Compose CLI in image |
 | Host port | 3055 (app), 3056 (docs site `pnpm docs:dev`) |
 | Sidecar host ports | Ollama **11435** (container 11434), OpenCode **4097**, Open WebUI **3080** (container 8080), Firecrawl **3002**, Firecrawl UI **3081** (container 8080), Whisper **8090** (container 8000). Never 3000 or 8080. |
+| Path proxy | Nitro allowlist middleware + h3 `proxyRequest` (HTTP/SSE) and httpxy `proxyUpgrade` (WebSocket). Only `sidecar.yml` `proxy.public` webuis that natively listen under `/${id}/`. No shipped pack opts in today. |
 | Env prefix | `BROS_*` |
 | Host tunnel | `cloudflared` on the host. `public_url` in bootstrap YAML starts a named tunnel via `cloudflared tunnel route dns` + `run --protocol http2`; otherwise a quick tunnel. `bros` runs a helper that writes `$BROS_HOME/data/tunnel`. |
 | Network / data | `bros` / host `$BROS_HOME/data` binds (`$BROS_HOST_DATA_DIR`), including `$BROS_HOME/data/whisper` (Speaches HF cache; compose `user: "0:0"` so a Docker-created root bind is writable). Compose-app sidecar APIs use Docker DNS on that network. |
