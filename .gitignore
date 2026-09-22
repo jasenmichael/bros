@@ -26,3 +26,4 @@ graphify-out
 
 # Node compile cache (often root-owned from Docker)
 **/node-compile-cache/
+.cursor/
