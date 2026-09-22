@@ -20,11 +20,59 @@ const { fetchMock, status } = vi.hoisted(() => ({
     docker: { ok: true },
     disk: { path: '/data', freeBytes: 1, totalBytes: 2, freeLabel: '1 GB', totalLabel: '2 GB' },
     gpu: { available: false },
+    enableHostOllama: false,
+    containers: [
+      {
+        id: 'app',
+        name: 'bros',
+        service: 'bros',
+        project: 'bros',
+        kind: 'app' as const,
+        sidecarId: null as string | null,
+        state: 'running',
+        status: 'Up',
+        running: true,
+        ports: [3055],
+      },
+      {
+        id: 'fc-redis',
+        name: 'bros-sc-firecrawl-redis-1',
+        service: 'redis',
+        project: 'bros-sc-firecrawl',
+        kind: 'sidecar' as const,
+        sidecarId: 'firecrawl',
+        state: 'exited',
+        status: 'Exited (0)',
+        running: false,
+        ports: [] as number[],
+      },
+    ],
     sidecars: [
       {
         id: 'ollama',
         name: 'Ollama',
         running: true,
+        hostPort: 11435,
+        effectiveMode: 'sidecar',
+        hostManaged: false,
+        hasContainer: true,
+        hostOllama: { port: 3080, version: '0.1' },
+        hostOllamaError: null as string | null,
+      },
+      {
+        id: 'opencode',
+        name: 'OpenCode',
+        running: true,
+        hostPort: 4097,
+        effectiveMode: 'sidecar',
+        hostManaged: false,
+        hasContainer: true,
+      },
+      {
+        id: 'firecrawl',
+        name: 'Firecrawl',
+        running: false,
+        hostPort: 3002,
         effectiveMode: 'sidecar',
         hostManaged: false,
         hasContainer: true,
@@ -113,5 +161,53 @@ describe('Dashboard tunnel card', () => {
     const wrapper = await mountSuspended(Dashboard)
     expect(wrapper.text()).toContain('Ollama')
     expect(wrapper.text()).not.toMatch(/Sidecar snippets[\s\S]*cloudflared/)
+  })
+
+  it('has no Sidecars summary card in the widget grid', async () => {
+    status.enableHostOllama = false
+    const Dashboard = await import('../../src/app/pages/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(Dashboard)
+    expect(wrapper.text()).toContain('Sidecar snippets')
+    expect(wrapper.text()).toContain('Tunnel')
+    expect(wrapper.text()).not.toContain('Manage')
+    expect(wrapper.find('a[href="/sidecars"]').exists()).toBe(false)
+  })
+
+  it('shows an Ollama provider card, not addon sidecars', async () => {
+    status.enableHostOllama = false
+    const Dashboard = await import('../../src/app/pages/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(Dashboard)
+    const ollamaCard = wrapper.findAll('article').find((article) => article.find('h2').text() === 'Ollama')
+    expect(ollamaCard).toBeTruthy()
+    expect(ollamaCard!.text()).toContain('Sidecar (core):')
+    expect(ollamaCard!.text()).toContain('up')
+    expect(ollamaCard!.text()).toContain('http://127.0.0.1:11435/')
+    expect(ollamaCard!.text()).not.toContain('OpenCode')
+    expect(ollamaCard!.text()).not.toContain('Open WebUI')
+    expect(ollamaCard!.text()).not.toContain('Host:')
+    expect(ollamaCard!.find('a[href="/providers"]').exists()).toBe(true)
+  })
+
+  it('shows host Ollama on the Ollama card only when the settings gate is on', async () => {
+    status.enableHostOllama = true
+    const Dashboard = await import('../../src/app/pages/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(Dashboard)
+    const ollamaCard = wrapper.findAll('article').find((article) => article.find('h2').text() === 'Ollama')
+    expect(ollamaCard!.text()).toContain('Host:')
+    expect(ollamaCard!.text()).toContain('http://127.0.0.1:3080/')
+    expect(wrapper.text()).not.toMatch(/Sidecar snippets[\s\S]*host :/)
+    status.enableHostOllama = false
+  })
+
+  it('lists Bros-managed Docker containers including the app', async () => {
+    const Dashboard = await import('../../src/app/pages/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(Dashboard)
+    expect(wrapper.text()).toContain('Bros services')
+    expect(wrapper.text()).toContain('App')
+    expect(wrapper.text()).toContain('bros')
+    expect(wrapper.text()).toContain(':3055')
+    expect(wrapper.text()).toContain('Firecrawl')
+    expect(wrapper.text()).toContain('redis')
+    expect(wrapper.text()).toContain('exited')
   })
 })

@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm'
 import { hostDataDirForBinds } from './config'
 import { getDb, sidecarSettings } from './db'
 import { firstPublishPort, isHostMode, probeHostPort, resolveHostRuntime, type HostMode } from './hostProbe'
-import { getSidecar, projectName, type SidecarMeta } from './sidecars'
+import { CORE_SIDECAR_ID, defaultSidecarAutostart, getSidecar, projectName, shouldAutostartSidecar, type SidecarMeta } from './sidecars'
 
 const NETWORK = process.env.BROS_NETWORK || 'bros'
 
@@ -29,6 +29,7 @@ function composeEnv(): NodeJS.ProcessEnv {
     ...process.env,
     BROS_HOST_DATA_DIR: hostDataDirForBinds(),
     BROS_HOST_HOME_BIND: process.env.BROS_HOST_HOME_BIND?.trim() || process.env.HOME || '',
+    OLLAMA_NOPRUNE: '1',
   }
 }
 
@@ -88,6 +89,114 @@ export async function pingDocker(): Promise<{ ok: boolean; error?: string }> {
   }
 }
 
+const CORE_COMPOSE_PROJECT = 'bros'
+const SIDECAR_PROJECT_PREFIX = 'bros-sc-'
+
+export type BrosManagedContainer = {
+  id: string
+  name: string
+  service: string
+  project: string
+  kind: 'app' | 'sidecar'
+  sidecarId: string | null
+  state: string
+  status: string
+  running: boolean
+  ports: number[]
+  image: string
+}
+
+export type BrosContainerListItem = {
+  Id?: string
+  Names?: string[]
+  State?: string
+  Status?: string
+  Image?: string
+  Labels?: Record<string, string>
+  Ports?: Array<{ PublicPort?: number }>
+}
+
+export function containerNames(c: BrosContainerListItem): string[] {
+  return (c.Names || []).map((n) => n.replace(/^\//, '')).filter(Boolean)
+}
+
+export function isBrosManagedContainer(c: BrosContainerListItem): boolean {
+  const project = c.Labels?.['com.docker.compose.project'] || ''
+  if (project === CORE_COMPOSE_PROJECT || project.startsWith(SIDECAR_PROJECT_PREFIX)) return true
+  const names = containerNames(c)
+  if (names.some((n) => n === 'bros' || n.startsWith(SIDECAR_PROJECT_PREFIX))) return true
+  const service = c.Labels?.['com.docker.compose.service'] || ''
+  const image = c.Image || ''
+  return service === 'bros' && (image === 'bros' || image.startsWith('bros:'))
+}
+
+export function toBrosManagedContainer(c: BrosContainerListItem): BrosManagedContainer {
+  const names = containerNames(c)
+  const name = names[0] || c.Id?.slice(0, 12) || 'unknown'
+  const project = c.Labels?.['com.docker.compose.project']
+    || (name === 'bros' ? CORE_COMPOSE_PROJECT : name.startsWith(SIDECAR_PROJECT_PREFIX) ? name.replace(/-[a-z0-9]+-\d+$/i, '') : '')
+  const sidecarId = project.startsWith(SIDECAR_PROJECT_PREFIX) ? project.slice(SIDECAR_PROJECT_PREFIX.length) : null
+  const kind: 'app' | 'sidecar' = sidecarId ? 'sidecar' : 'app'
+  const service = c.Labels?.['com.docker.compose.service'] || (kind === 'app' ? 'bros' : name)
+  const state = (c.State || 'unknown').toLowerCase()
+  const ports = [...new Set((c.Ports || []).map((p) => p.PublicPort).filter((p): p is number => typeof p === 'number' && p > 0))].sort((a, b) => a - b)
+  return {
+    id: c.Id || name,
+    name,
+    service,
+    project,
+    kind,
+    sidecarId,
+    state,
+    status: c.Status || state,
+    running: state === 'running',
+    ports,
+    image: c.Image || '',
+  }
+}
+
+function compareBrosManaged(a: BrosManagedContainer, b: BrosManagedContainer): number {
+  if (a.kind !== b.kind) return a.kind === 'app' ? -1 : 1
+  const p = a.project.localeCompare(b.project)
+  if (p) return p
+  const s = a.service.localeCompare(b.service)
+  if (s) return s
+  return a.name.localeCompare(b.name)
+}
+
+/** App (`bros`) plus every `bros-sc-*` compose container, including stopped. */
+export async function listBrosManagedContainers(): Promise<BrosManagedContainer[]> {
+  try {
+    const containers = await getDocker().listContainers({ all: true })
+    return containers.filter(isBrosManagedContainer).map(toBrosManagedContainer).sort(compareBrosManaged)
+  } catch {
+    return []
+  }
+}
+
+/** Running containers' published host TCP ports. */
+export async function listPublishedHostPorts(): Promise<Array<{
+  port: number
+  project?: string
+  containerName?: string
+  image?: string
+}>> {
+  const d = getDocker()
+  const containers = await d.listContainers({ all: false })
+  const out: PublishedHostPort[] = []
+  for (const c of containers) {
+    const project = c.Labels?.['com.docker.compose.project']
+    const containerName = (c.Names || [])[0]
+    const image = c.Image
+    for (const p of c.Ports || []) {
+      if (typeof p.PublicPort === 'number' && p.PublicPort > 0) {
+        out.push({ port: p.PublicPort, project, containerName, image })
+      }
+    }
+  }
+  return out
+}
+
 export async function publishedPortOwner(hostPort: number): Promise<{ project?: string; containerName?: string } | null> {
   const d = getDocker()
   const containers = await d.listContainers({ all: true })
@@ -113,23 +222,48 @@ export async function projectHasContainers(id: string): Promise<boolean> {
   return containers.length > 0
 }
 
-export async function getProjectStatus(sidecar: SidecarMeta) {
-  const name = projectName(sidecar.id)
-  const result = await run('docker', ['compose', '-p', name, 'ps', '--format', 'json'], sidecar.dir)
-  if (result.code !== 0) {
-    return { project: name, running: false, services: [] as Array<{ name: string; state: string }> }
-  }
-  const lines = result.stdout.trim().split('\n').filter(Boolean)
-  const services = lines.map((line) => {
-    try {
-      const row = JSON.parse(line)
-      return { name: row.Service || row.Name, state: row.State || row.Status || 'unknown' }
-    } catch {
-      return { name: 'unknown', state: 'unknown' }
-    }
+async function projectStatusFromDockerode(name: string) {
+  const containers = await getDocker().listContainers({
+    all: true,
+    filters: { label: [`com.docker.compose.project=${name}`] },
   })
+  const services = containers.map((c) => ({
+    name: c.Labels?.['com.docker.compose.service'] || containerNames(c)[0] || 'unknown',
+    state: c.State || 'unknown',
+  }))
   const running = services.some((s) => String(s.state).toLowerCase().includes('running'))
   return { project: name, running, services }
+}
+
+export async function getProjectStatus(sidecar: SidecarMeta) {
+  const name = projectName(sidecar.id)
+  const composeFile = join(sidecar.dir, 'docker-compose.yml')
+  const result = await run(
+    'docker',
+    ['compose', '-p', name, '-f', composeFile, 'ps', '--format', 'json'],
+    sidecar.dir,
+    30_000,
+  )
+  if (result.code === 0) {
+    const lines = result.stdout.trim().split('\n').filter(Boolean)
+    const services = lines.map((line) => {
+      try {
+        const row = JSON.parse(line)
+        return { name: row.Service || row.Name, state: row.State || row.Status || 'unknown' }
+      } catch {
+        return { name: 'unknown', state: 'unknown' }
+      }
+    })
+    if (services.length) {
+      const running = services.some((s) => String(s.state).toLowerCase().includes('running'))
+      return { project: name, running, services }
+    }
+  }
+  try {
+    return await projectStatusFromDockerode(name)
+  } catch {
+    return { project: name, running: false, services: [] as Array<{ name: string; state: string }> }
+  }
 }
 
 export async function sidecarRuntime(sidecar: SidecarMeta) {
@@ -189,7 +323,7 @@ export async function startSidecar(id: string) {
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
   if (sidecar.error) throw createError({ statusCode: 400, statusMessage: sidecar.error })
   const probed = await sidecarRuntime(sidecar)
-  if (probed.skipStart) {
+  if (probed.skipStart && id !== 'ollama') {
     return {
       ...probed.status,
       hostMode: probed.settings.hostMode,
@@ -242,6 +376,7 @@ export async function startSidecar(id: string) {
     'docker',
     upArgs,
     sidecar.dir,
+    600_000,
   )
   if (up.code !== 0) {
     const taken = probed.warnPortTaken && probed.hostPort
@@ -343,7 +478,7 @@ export async function restartSidecar(id: string) {
 export function getSidecarSetting(id: string) {
   const row = getDb().select().from(sidecarSettings).where(eq(sidecarSettings.sidecarId, id)).get()
   return {
-    autostart: row?.autostart ?? false,
+    autostart: id === CORE_SIDECAR_ID ? true : (row?.autostart ?? defaultSidecarAutostart(id)),
     navPinned: row?.navPinned ?? false,
     hostMode: (isHostMode(row?.hostMode) ? row.hostMode : 'auto') as HostMode,
     hostProbePort: typeof row?.hostProbePort === 'number' && row.hostProbePort > 0 ? row.hostProbePort : null,
@@ -359,10 +494,10 @@ export function setSidecarSetting(id: string, patch: {
   const current = getSidecarSetting(id)
   const next = {
     sidecarId: id,
-    autostart: patch.autostart ?? current.autostart,
+    autostart: id === CORE_SIDECAR_ID ? true : (patch.autostart ?? current.autostart),
     navPinned: patch.navPinned ?? current.navPinned,
     hostMode: patch.hostMode && isHostMode(patch.hostMode) ? patch.hostMode : current.hostMode,
-    hostProbePort: id === 'ollama'
+    hostProbePort: id === CORE_SIDECAR_ID
       ? (patch.hostProbePort === undefined ? current.hostProbePort : patch.hostProbePort)
       : null,
   }
@@ -370,7 +505,7 @@ export function setSidecarSetting(id: string, patch: {
   const existing = db.select().from(sidecarSettings).where(eq(sidecarSettings.sidecarId, id)).get()
   if (existing) db.update(sidecarSettings).set(next).where(eq(sidecarSettings.sidecarId, id)).run()
   else db.insert(sidecarSettings).values(next).run()
-  if (id === 'ollama' && patch.hostProbePort !== undefined) {
+  if (id === CORE_SIDECAR_ID && patch.hostProbePort !== undefined) {
     void import('./ollamaHost').then((m) => m.resetOllamaHostCache())
   }
   return next
@@ -382,7 +517,7 @@ export async function autostartSidecars() {
   for (const s of sidecars) {
     if (s.error) continue
     const settings = getSidecarSetting(s.id)
-    if (settings.autostart) {
+    if (shouldAutostartSidecar(s, settings)) {
       try {
         await startSidecar(s.id)
       } catch (err) {

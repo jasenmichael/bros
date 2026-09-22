@@ -1,17 +1,20 @@
 import { getRequestHost } from 'h3'
 import { getDiskSpace } from '../utils/disk'
-import { pingDocker, projectHasContainers, sidecarRuntime } from '../utils/docker'
+import { listBrosManagedContainers, pingDocker, projectHasContainers, sidecarRuntime } from '../utils/docker'
 import { detectGpuCached } from '../utils/gpu'
 import { formatSizeBytes } from '../utils/ollamaLibrary'
 import { discoverSidecars } from '../utils/sidecars'
 import { loadBootstrapConfig } from '../utils/config'
 import { readTunnelStatus, tunnelPublicPayload } from '../utils/tunnel'
+import { peekOllamaRestartNotice } from '../utils/ollamaMustRun'
+import { isHostOllamaEnabled } from '../utils/hostOllamaSettings'
 import { advertisedTunnelHost, tunnelHostname, viaTunnelFromEvent } from '../utils/viaTunnel'
 
 export default defineEventHandler(async (event) => {
   const docker = await pingDocker()
   const disk = getDiskSpace()
   const gpu = await detectGpuCached()
+  const containers = await listBrosManagedContainers()
   const { sidecars, errors } = discoverSidecars()
   const items = await Promise.all(sidecars.map(async (s) => {
     const runtime = await sidecarRuntime(s)
@@ -25,6 +28,8 @@ export default defineEventHandler(async (event) => {
       id: s.id,
       name: s.name,
       source: s.source,
+      kind: s.kind,
+      disabled: s.disabled,
       error: s.error,
       hostPort: runtime.hostPort,
       hostMode: runtime.settings.hostMode,
@@ -73,7 +78,10 @@ export default defineEventHandler(async (event) => {
       totalLabel: disk.totalBytes ? formatSizeBytes(disk.totalBytes) : null,
     },
     gpu,
+    containers,
+    enableHostOllama: isHostOllamaEnabled(),
     sidecars: items,
     errors,
+    ollamaRestartNotice: peekOllamaRestartNotice(),
   }
 })

@@ -16,6 +16,18 @@ type StatusPayload = {
   docker: { ok: boolean; error?: string }
   disk: { path: string; freeBytes: number | null; totalBytes: number | null; freeLabel: string | null; totalLabel: string | null }
   gpu: { available: boolean; name?: string; vramMb?: number }
+  containers?: Array<{
+    id: string
+    name: string
+    service: string
+    project: string
+    kind: 'app' | 'sidecar'
+    sidecarId: string | null
+    state: string
+    status: string
+    running: boolean
+    ports: number[]
+  }>
   sidecars: Array<{
     id: string
     name: string
@@ -32,8 +44,6 @@ type StatusPayload = {
     running: boolean
     services: Array<{ name: string; state: string }>
     hasContainer: boolean
-    hostOllama?: { port: number; version: string } | null
-    hostOllamaError?: string | null
   }>
   errors: string[]
 }
@@ -101,6 +111,13 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
       </article>
     </div>
 
+    <BrosServiceGroups
+      class="mt-8"
+      :containers="data?.containers || []"
+      :sidecar-names="Object.fromEntries((data?.sidecars || []).map((row) => [row.id, row.name]))"
+      :show-app-link="false"
+    />
+
     <h2 class="mt-8 mb-3 text-lg font-medium text-white">Sidecars</h2>
     <div class="overflow-x-auto rounded-xl border border-[var(--bros-border)]">
       <table class="min-w-full text-left text-sm">
@@ -124,7 +141,6 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
             </td>
             <td class="px-3 py-2 font-mono text-[var(--bros-muted)]">
               {{ row.hostPort ?? '—' }}
-              <span v-if="row.id === 'ollama' && row.hostOllama"> · host :{{ row.hostOllama.port }}</span>
             </td>
             <td class="px-3 py-2">
               <UBadge :color="row.running ? 'success' : 'neutral'" variant="subtle">

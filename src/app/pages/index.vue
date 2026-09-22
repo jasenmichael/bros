@@ -20,6 +20,19 @@ type StatusPayload = {
   docker: { ok: boolean; error?: string }
   disk: { path: string; freeBytes: number | null; totalBytes: number | null; freeLabel: string | null; totalLabel: string | null }
   gpu: { available: boolean; name?: string; vramMb?: number }
+  enableHostOllama?: boolean
+  containers?: Array<{
+    id: string
+    name: string
+    service: string
+    project: string
+    kind: 'app' | 'sidecar'
+    sidecarId: string | null
+    state: string
+    status: string
+    running: boolean
+    ports: number[]
+  }>
   sidecars: Array<{
     id: string
     name: string
@@ -31,6 +44,7 @@ type StatusPayload = {
     error?: string
     hasContainer: boolean
     hostOllama?: { port: number; version: string } | null
+    hostOllamaError?: string | null
   }>
 }
 
@@ -42,10 +56,6 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
 
 const widgets = computed(() => {
   const s = data.value
-  const sidecarSnippets = (s?.sidecars || []).filter((row) => row.id !== 'cloudflared').slice(0, 4).map((row) => {
-    const state = row.error ? 'error' : row.running ? 'up' : 'stopped'
-    return `${row.name}: ${state}`
-  })
   return [
     {
       to: '/status',
@@ -71,14 +81,50 @@ const widgets = computed(() => {
         ? `${s.gpu.name || 'NVIDIA GPU'}${s.gpu.vramMb ? ` · ${s.gpu.vramMb} MB` : ''}`
         : 'None detected',
     },
-    {
-      to: '/status',
-      title: 'Sidecars',
-      body: sidecarSnippets.length ? sidecarSnippets.join(' · ') : 'Core + custom Compose projects',
-      extra: '/sidecars',
-    },
   ]
 })
+
+const ollamaSidecar = computed(() => (data.value?.sidecars || []).find((row) => row.id === 'ollama'))
+const sidecarOllamaUrl = computed(() => {
+  const port = ollamaSidecar.value?.hostPort || 11435
+  return `http://127.0.0.1:${port}/`
+})
+const sidecarOllamaState = computed(() => {
+  const row = ollamaSidecar.value
+  if (!row) return 'down'
+  if (row.error) return 'unreachable'
+  return row.running ? 'up' : 'down'
+})
+const showHostOllama = computed(() => Boolean(data.value?.enableHostOllama))
+const hostOllamaHit = computed(() => ollamaSidecar.value?.hostOllama || null)
+const hostOllamaUrl = computed(() => {
+  const port = hostOllamaHit.value?.port
+  return port ? `http://127.0.0.1:${port}/` : null
+})
+const hostOllamaState = computed(() => {
+  if (hostOllamaHit.value) return 'up'
+  if (ollamaSidecar.value?.hostOllamaError) return 'unreachable'
+  return 'down'
+})
+
+const copiedUrl = ref('')
+
+async function copyUrl(url: string) {
+  try {
+    await navigator.clipboard.writeText(url)
+    copiedUrl.value = url
+    window.setTimeout(() => {
+      if (copiedUrl.value === url) copiedUrl.value = ''
+    }, 1500)
+  }
+  catch {
+    copiedUrl.value = ''
+  }
+}
+
+const sidecarNames = computed(() =>
+  Object.fromEntries((data.value?.sidecars || []).map((row) => [row.id, row.name])),
+)
 
 const tunnel = computed(() => data.value?.tunnel)
 const tunnelRunning = computed(() => Boolean(tunnel.value?.running))
@@ -185,13 +231,43 @@ onUnmounted(() => setLogPoll(false))
         <p class="mt-2 text-sm text-[var(--bros-muted)]">{{ card.body }}</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <UButton :to="card.to" size="xs" color="neutral" variant="soft">Details</UButton>
-          <UButton
-            v-if="card.title === 'Sidecars'"
-            to="/sidecars"
-            size="xs"
-            color="primary"
-            variant="soft"
-          >Manage</UButton>
+        </div>
+      </article>
+
+      <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
+        <h2 class="text-lg font-medium text-white">Ollama</h2>
+        <ul class="mt-2 space-y-2 text-sm text-[var(--bros-muted)]">
+          <li class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span class="text-white">Sidecar (core):</span>
+            <span>{{ sidecarOllamaState }}</span>
+            <span class="font-mono text-xs">{{ sidecarOllamaUrl }}</span>
+            <UButton
+              :icon="copiedUrl === sidecarOllamaUrl ? 'i-lucide-check' : 'i-lucide-copy'"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="copiedUrl === sidecarOllamaUrl ? 'Copied' : `Copy ${sidecarOllamaUrl}`"
+              @click="copyUrl(sidecarOllamaUrl)"
+            />
+          </li>
+          <li v-if="showHostOllama" class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span class="text-white">Host:</span>
+            <span>{{ hostOllamaState }}</span>
+            <template v-if="hostOllamaUrl">
+              <span class="font-mono text-xs">{{ hostOllamaUrl }}</span>
+              <UButton
+                :icon="copiedUrl === hostOllamaUrl ? 'i-lucide-check' : 'i-lucide-copy'"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="copiedUrl === hostOllamaUrl ? 'Copied' : `Copy ${hostOllamaUrl}`"
+                @click="copyUrl(hostOllamaUrl)"
+              />
+            </template>
+          </li>
+        </ul>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <UButton to="/providers" size="xs" color="neutral" variant="soft">Details</UButton>
         </div>
       </article>
 
@@ -245,6 +321,12 @@ onUnmounted(() => setLogPoll(false))
       </article>
     </div>
 
+    <BrosServiceGroups
+      class="mt-8"
+      :containers="data?.containers || []"
+      :sidecar-names="sidecarNames"
+    />
+
     <section v-if="data?.sidecars?.length" class="mt-8">
       <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--bros-muted)]">Sidecar snippets</h2>
       <div class="grid gap-3 sm:grid-cols-2">
@@ -261,7 +343,6 @@ onUnmounted(() => setLogPoll(false))
           </div>
           <p class="mt-1 text-xs text-[var(--bros-muted)]">
             {{ row.hostPort ? `:${row.hostPort}` : '' }}
-            <span v-if="row.id === 'ollama' && row.hostOllama"> · host :{{ row.hostOllama.port }}</span>
           </p>
           <p v-if="row.warning || row.error" class="mt-1 text-xs text-amber-300">{{ row.error || row.warning }}</p>
           <div class="mt-2 flex flex-wrap gap-2">

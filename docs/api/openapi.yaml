@@ -1,0 +1,793 @@
+openapi: 3.1.0
+info:
+  title: Bros HTTP API
+  version: 1.0.0
+  description: |
+    Local Bros control plane. Base URL `http://127.0.0.1:3055`.
+    Authenticate with session cookie `bros_session` from POST /api/auth/login.
+    Machine-readable source: this file (also GET /openapi.yaml).
+servers:
+  - url: http://127.0.0.1:3055
+security:
+  - SessionCookie: []
+tags:
+  - name: Auth
+  - name: Health
+  - name: Providers
+  - name: Chat
+  - name: Sidecars
+  - name: Settings
+  - name: Tunnel
+  - name: Spec
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: bros_session
+  schemas:
+    Error:
+      type: object
+      properties:
+        statusCode: { type: integer }
+        statusMessage: { type: string }
+        message: { type: string }
+    ProviderModel:
+      type: object
+      required: [name, enabled]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        enabled: { type: boolean }
+        size: { type: integer }
+    PullJob:
+      type: object
+      properties:
+        providerId: { type: string }
+        model: { type: string }
+        status: { type: string }
+        percent: { type: [number, 'null'] }
+        completed: { type: integer }
+        total: { type: integer }
+        error: { type: [string, 'null'] }
+        phase: { type: string, enum: [queued, running, stopped, done] }
+        startedAt: { type: integer }
+    Provider:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [ollama, openai, anthropic] }
+        baseUrl: { type: [string, 'null'] }
+        enabled: { type: boolean }
+        hasApiKey: { type: boolean }
+        config: { type: object, additionalProperties: true }
+        status: { type: string }
+        statusLabel: { type: string }
+        statusMessage: { type: [string, 'null'] }
+        port: { type: [integer, 'null'] }
+        popular: { type: boolean }
+        siteUrl: { type: [string, 'null'] }
+        models:
+          type: array
+          items: { $ref: '#/components/schemas/ProviderModel' }
+    Conversation:
+      type: object
+      additionalProperties: true
+  parameters:
+    ProviderId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: Provider slug (`ollama`, `ollama-host`, popular id, or custom).
+    SidecarId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    ChatId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    Unauthorized:
+      description: Missing or invalid session
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: Invalid body or locked action
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Missing resource
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Via-tunnel stop lock
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+paths:
+  /openapi.yaml:
+    get:
+      tags: [Spec]
+      security: []
+      summary: OpenAPI 3.1 document
+      responses:
+        '200':
+          description: YAML
+          content:
+            application/yaml:
+              schema: { type: string }
+  /api/health:
+    get:
+      tags: [Health]
+      security: []
+      summary: Liveness
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  milestone: { type: string }
+  /api/status:
+    get:
+      tags: [Health]
+      summary: App, Docker, disk, GPU, sidecars, containers, tunnel, enableHostOllama
+      responses:
+        '200':
+          description: Status payload including viaTunnel, enableHostOllama, containers (Bros-managed Docker), and ollamaRestartNotice
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/auth/status:
+    get:
+      tags: [Auth]
+      security: []
+      summary: Setup and session flags
+      responses:
+        '200':
+          description: hasPasscode, authenticated, paths
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Create session cookie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passcode]
+              properties:
+                passcode: { type: string }
+      responses:
+        '200': { description: '{ ok: true } plus Set-Cookie' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Clear session cookie
+      responses:
+        '200': { description: '{ ok: true }' }
+  /api/auth/setup:
+    post:
+      tags: [Auth]
+      security: []
+      summary: First-run passcode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passcode]
+              properties:
+                passcode: { type: string }
+      responses:
+        '200': { description: Session cookie }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/providers:
+    get:
+      tags: [Providers]
+      summary: List providers with health and models
+      responses:
+        '200':
+          description: providers, activePulls, sidecar/host meta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items: { $ref: '#/components/schemas/Provider' }
+                  activePulls: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Providers]
+      summary: Create or upsert a provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, name, kind]
+              properties:
+                id: { type: string }
+                name: { type: string }
+                kind: { type: string, enum: [ollama, openai, anthropic] }
+                baseUrl: { type: [string, 'null'] }
+                apiKey: { type: [string, 'null'] }
+                enabled: { type: boolean }
+                config: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Provider row }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: One provider
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider: { $ref: '#/components/schemas/Provider' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Providers]
+      summary: Chat switch, name, key, config (not per-model)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                name: { type: string }
+                apiKey: { type: [string, 'null'] }
+                baseUrl: { type: [string, 'null'] }
+                config: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Provider row }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Providers]
+      summary: Delete a custom provider
+      responses:
+        '200': { description: '{ ok: true }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}/scan:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    post:
+      tags: [Providers]
+      summary: Bust host Ollama scan cache
+      description: Only `id=ollama-host`. 404 when Settings enable host Ollama is off.
+      responses:
+        '200':
+          description: Scan hit or miss
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  port: { type: [integer, 'null'] }
+                  version: { type: [string, 'null'] }
+                  host: { type: [string, 'null'] }
+                  error: { type: [string, 'null'] }
+                  manual: { type: boolean }
+                  hostOllama:
+                    type: [object, 'null']
+                    properties:
+                      port: { type: integer }
+                      version: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}/models:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Models for one provider
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  models:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProviderModel' }
+                  activePulls:
+                    type: array
+                    items: { $ref: '#/components/schemas/PullJob' }
+                  error: { type: [string, 'null'] }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Providers]
+      summary: Per-model Chat enable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, enabled]
+              properties:
+                name: { type: string }
+                enabled: { type: boolean }
+      responses:
+        '200': { description: models plus disabledModels }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Providers]
+      summary: Uninstall an Ollama model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '200': { description: delete result }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/providers/{id}/models/library:
+    get:
+      tags: [Providers]
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+      summary: Ollama pull catalog
+      responses:
+        '200': { description: gpu, disk, sections }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}/models/pull:
+    parameters:
+      - $ref: '#/components/parameters/ProviderId'
+    get:
+      tags: [Providers]
+      summary: Pull jobs for one Ollama provider
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items: { $ref: '#/components/schemas/PullJob' }
+                  activePulls: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Providers]
+      summary: Start or resume a pull
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model: { type: string }
+                name: { type: string, description: Alias for model }
+      responses:
+        '200':
+          description: '{ ok, job }'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}/models/pull/stop:
+    post:
+      tags: [Providers]
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+      summary: Stop a running or queued pull
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model: { type: string }
+                name: { type: string }
+      responses:
+        '200': { description: '{ ok, job }' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}/models/context:
+    get:
+      tags: [Providers]
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+        - name: model
+          in: query
+          schema: { type: string }
+        - name: modelId
+          in: query
+          schema: { type: string }
+      summary: Ollama context length
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  modelId: { type: string }
+                  contextLength: { type: [integer, 'null'] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/providers/{id}/gpu:
+    post:
+      tags: [Providers]
+      parameters:
+        - $ref: '#/components/parameters/ProviderId'
+      summary: Sidecar GPU preference (`id` must be ollama; host 400)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                useGpu: { type: boolean }
+                restart: { type: boolean }
+      responses:
+        '200': { description: useGpu, gpu, restarted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/chat:
+    get:
+      tags: [Chat]
+      summary: List conversations
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Chat]
+      summary: Create a conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modelId]
+              properties:
+                modelId: { type: string }
+                title: { type: string }
+      responses:
+        '200': { description: Conversation }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/chat/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ChatId'
+    get:
+      tags: [Chat]
+      summary: Get a conversation
+      responses:
+        '200': { description: Conversation }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Chat]
+      summary: Update modelId or title
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                modelId: { type: string }
+                title: { type: string }
+      responses:
+        '200': { description: Conversation }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Chat]
+      summary: Delete a conversation
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/chat/{id}/stream:
+    post:
+      tags: [Chat]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      summary: Stream an assistant reply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                modelId: { type: string }
+      responses:
+        '200':
+          description: text/plain token stream
+          content:
+            text/plain:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/chat/{id}/truncate:
+    post:
+      tags: [Chat]
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      summary: Drop a user turn and later messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fromMessageId: { type: string }
+                fromIndex: { type: integer }
+      responses:
+        '200': { description: Conversation }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars:
+    get:
+      tags: [Sidecars]
+      summary: List sidecars
+      responses:
+        '200': { description: sidecars, errors, viaTunnel, ollamaRestartNotice }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Sidecars]
+      summary: Write an additional sidecar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, sidecarYml, composeYml]
+              properties:
+                id: { type: string }
+                sidecarYml: { type: string }
+                composeYml: { type: string }
+      responses:
+        '200': { description: Created sidecar }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/from-repo:
+    post:
+      tags: [Sidecars]
+      summary: Clone a sidecar repo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+                name: { type: string }
+      responses:
+        '200': { description: Clone result }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/start:
+    post:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Start (ollama 400)
+      responses:
+        '200': { description: Runtime }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/stop:
+    post:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Stop (ollama 400; via-tunnel may 403)
+      responses:
+        '200': { description: Runtime }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/restart:
+    post:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Restart (ollama 400)
+      responses:
+        '200': { description: Runtime }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/settings:
+    patch:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Autostart, pin, hostMode, hostProbePort
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                autostart: { type: boolean }
+                navPinned: { type: boolean }
+                hostMode: { type: string, enum: [auto, sidecar, host] }
+                hostProbePort: { type: [integer, 'null'] }
+      responses:
+        '200': { description: Settings }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/logs:
+    get:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Container logs
+      responses:
+        '200': { description: Log text or JSON }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/files:
+    get:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Editable sidecar files
+      responses:
+        '200': { description: File map }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: Write sidecar files
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Saved }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/sidecars/{id}/update:
+    post:
+      tags: [Sidecars]
+      parameters:
+        - $ref: '#/components/parameters/SidecarId'
+      summary: git pull for a cloned sidecar
+      responses:
+        '200': { description: Update result }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/settings:
+    get:
+      tags: [Settings]
+      summary: Paths and Chat fields
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workingDir: { type: string }
+                  dataDir: { type: string }
+                  hasPasscode: { type: boolean }
+                  chatPrepend: { type: string }
+                  chatAssistantDescription: { type: string }
+                  enableHostOllama: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Settings]
+      summary: Chat prepend, assistant description, enableHostOllama
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chatPrepend: { type: string }
+                chatAssistantDescription: { type: string }
+                enableHostOllama: { type: boolean }
+      responses:
+        '200': { description: Saved Chat fields and host Ollama gate }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/settings/passcode:
+    post:
+      tags: [Settings]
+      summary: Change passcode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passcode]
+              properties:
+                passcode: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/tunnel:
+    get:
+      tags: [Tunnel]
+      summary: Host cloudflared status
+      responses:
+        '200': { description: viaTunnel, tunnelHost, tunnel }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/tunnel/start:
+    post:
+      tags: [Tunnel]
+      summary: Start host tunnel
+      responses:
+        '200': { description: Tunnel payload }
+        '503': { description: Helper not running }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/tunnel/stop:
+    post:
+      tags: [Tunnel]
+      summary: Stop host tunnel
+      responses:
+        '200': { description: Tunnel payload }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/tunnel/logs:
+    get:
+      tags: [Tunnel]
+      summary: Tunnel helper logs
+      responses:
+        '200': { description: Logs }
+        '401': { $ref: '#/components/responses/Unauthorized' }
