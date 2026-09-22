@@ -1,4 +1,3 @@
-import { isHostMode } from '../../../utils/hostProbe'
 import { assertOllamaAutostartLocked } from '../../../utils/ollamaMustRun'
 
 export default defineEventHandler(async (event) => {
@@ -7,18 +6,21 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{
     autostart?: boolean
     navPinned?: boolean
-    hostMode?: string
     hostProbePort?: number | null
   }>(event)
   assertOllamaAutostartLocked(id, body?.autostart)
-  if (body?.hostMode != null && !isHostMode(body.hostMode)) {
-    throw createError({ statusCode: 400, statusMessage: 'hostMode must be auto, sidecar, or host' })
+  if (body?.navPinned) {
+    const { getSidecar } = await import('../../../utils/sidecars')
+    const sidecar = getSidecar(id)
+    const hasWebUi = sidecar?.interfaces.some((iface) => iface.type === 'webui' && typeof iface.publish === 'number' && iface.publish > 0)
+    if (!hasWebUi) {
+      throw createError({ statusCode: 400, statusMessage: 'Pin requires a published web UI' })
+    }
   }
   const { setSidecarSetting } = await import('../../../utils/docker')
   return setSidecarSetting(id, {
     autostart: body?.autostart,
     navPinned: body?.navPinned,
-    hostMode: body?.hostMode && isHostMode(body.hostMode) ? body.hostMode : undefined,
     hostProbePort: body && 'hostProbePort' in body ? body.hostProbePort : undefined,
   })
 })

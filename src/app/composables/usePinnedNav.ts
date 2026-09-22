@@ -1,4 +1,4 @@
-import { sidecarOpenLinks } from '../utils/sidecarHostLinks'
+import { sidecarWebUiLinks } from '../utils/sidecarHostLinks'
 
 export type PinnedNavItem = {
   label: string
@@ -16,7 +16,7 @@ type SidecarNavRow = {
 }
 
 /**
- * Shared fetch for nav-pinned sidecar web UIs and published APIs.
+ * Shared fetch for nav-pinned sidecar web UIs.
  * Refresh after pin toggles: `await refreshPinnedNav()`.
  */
 export function usePinnedNav() {
@@ -46,7 +46,7 @@ export function usePinnedNav() {
     const out: PinnedNavItem[] = []
     for (const s of rows) {
       if (!s.settings?.navPinned) continue
-      for (const link of sidecarOpenLinks(s)) {
+      for (const link of sidecarWebUiLinks(s)) {
         out.push({
           label: link.label,
           to: link.to,

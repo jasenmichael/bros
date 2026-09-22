@@ -69,7 +69,7 @@ UI conversations (SQLite). Not an OpenAI drop-in.
 | POST | `/api/sidecars/{id}/start` | Core Ollama 400 |
 | POST | `/api/sidecars/{id}/stop` | Core Ollama 400; via-tunnel may 403 |
 | POST | `/api/sidecars/{id}/restart` | Core Ollama 400 |
-| PATCH | `/api/sidecars/{id}/settings` | `autostart`, `navPinned`, `hostMode`, `hostProbePort` |
+| PATCH | `/api/sidecars/{id}/settings` | `autostart`, `navPinned`, `hostProbePort` |
 | GET | `/api/sidecars/{id}/logs` | Container logs |
 | GET, PUT | `/api/sidecars/{id}/files` | Editable additional files |
 | POST | `/api/sidecars/{id}/update` | `git pull` |

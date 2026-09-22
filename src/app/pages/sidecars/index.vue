@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { sidecarApiCopyUrls, sidecarOpenLinks } from '../../utils/sidecarHostLinks'
+import { sidecarApiCopyUrls, sidecarOpenLinks, sidecarWebUiLinks } from '../../utils/sidecarHostLinks'
 import { sidecarSourceLabel } from '../../utils/sidecarSourceLabel'
 
 useSeoMeta({ title: 'Sidecars' })
@@ -25,12 +25,9 @@ type SidecarRow = {
     publish?: number
     basePath?: string
   }>
-  settings: { autostart: boolean; navPinned: boolean; hostMode?: 'auto' | 'sidecar' | 'host'; hostProbePort?: number | null }
+  settings: { autostart: boolean; navPinned: boolean; hostProbePort?: number | null }
   status: { running: boolean; services: Array<{ name: string; state: string }> }
   hostPort?: number
-  hostMode?: 'auto' | 'sidecar' | 'host'
-  effectiveMode?: 'sidecar' | 'host'
-  hostManaged?: boolean
   warning?: string
   hasContainer?: boolean
 }
@@ -77,6 +74,10 @@ function sourceLabel(s: SidecarRow) {
 
 function openLinks(s: SidecarRow) {
   return sidecarOpenLinks(s)
+}
+
+function pinLinks(s: SidecarRow) {
+  return sidecarWebUiLinks(s)
 }
 
 /** OpenAI-compatible base URLs for tools that speak /v1 (or sidecar basePath). */
@@ -132,16 +133,9 @@ async function act(id: string, action: 'start' | 'stop' | 'restart') {
 
 const { refreshPinnedNav } = usePinnedNav()
 
-const hostModes = [
-  { label: 'Auto', value: 'auto' },
-  { label: 'Sidecar', value: 'sidecar' },
-  { label: 'Host', value: 'host' },
-]
-
 async function patchSettings(id: string, body: {
   autostart?: boolean
   navPinned?: boolean
-  hostMode?: 'auto' | 'sidecar' | 'host'
   hostProbePort?: number | null
 }) {
   busy.value = busyKey(id, 'settings')
@@ -606,24 +600,13 @@ function cardControlsClass(count: number) {
                     />
                     Autostart
                   </label>
-                  <label class="flex items-center gap-2 text-[var(--bros-muted)]">
+                  <label v-if="pinLinks(s).length" class="flex items-center gap-2 text-[var(--bros-muted)]">
                     <USwitch
                       :model-value="s.settings.navPinned"
-                      :disabled="rowBusy(s.id) || !openLinks(s).length"
+                      :disabled="rowBusy(s.id)"
                       @update:model-value="(v: boolean) => patchSettings(s.id, { navPinned: v })"
                     />
                     Pin in nav
-                  </label>
-                  <label class="flex items-center gap-2 text-[var(--bros-muted)]">
-                    Mode
-                    <select
-                      class="rounded-md border border-[var(--bros-border)] bg-[#0e141c] px-2 py-1 text-sm text-white"
-                      :value="s.settings.hostMode || 'auto'"
-                      :disabled="rowBusy(s.id)"
-                      @change="(e: Event) => patchSettings(s.id, { hostMode: (e.target as HTMLSelectElement).value as 'auto' | 'sidecar' | 'host' })"
-                    >
-                      <option v-for="opt in hostModes" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                    </select>
                   </label>
                 </div>
               </div>

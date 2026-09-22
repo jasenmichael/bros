@@ -4,7 +4,7 @@ import Docker from 'dockerode'
 import { eq } from 'drizzle-orm'
 import { hostDataDirForBinds } from './config'
 import { getDb, sidecarSettings } from './db'
-import { firstPublishPort, isHostMode, probeHostPort, resolveHostRuntime, type HostMode } from './hostProbe'
+import { firstPublishPort, probeHostPort } from './hostProbe'
 import { CORE_SIDECAR_ID, defaultSidecarAutostart, getSidecar, projectName, shouldAutostartSidecar, type SidecarMeta } from './sidecars'
 
 const NETWORK = process.env.BROS_NETWORK || 'bros'
@@ -283,12 +283,8 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
       // docker inspect failed — fall back to compose status
     }
   }
-  const runtime = resolveHostRuntime({
-    hostMode: settings.hostMode,
-    portOccupied,
-    ours,
-  })
-  const warning = runtime.warnPortTaken && hostPort && !ours
+  const warnPortTaken = portOccupied && !ours
+  const warning = warnPortTaken && hostPort
     ? `Port ${hostPort} is already in use. Bros sidecar cannot start until it is free.`
     : undefined
   let hostOllama: { port: number; version: string } | null = null
@@ -299,7 +295,7 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
     hostOllama = hit.port != null && hit.version ? { port: hit.port, version: hit.version } : null
     hostOllamaError = hit.error
   }
-  return { settings, status, hostPort, portOccupied, ours, warning, hostOllama, hostOllamaError, ...runtime }
+  return { settings, status, hostPort, portOccupied, ours, warnPortTaken, warning, hostOllama, hostOllamaError }
 }
 
 export async function execInSidecar(
@@ -323,16 +319,6 @@ export async function startSidecar(id: string) {
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
   if (sidecar.error) throw createError({ statusCode: 400, statusMessage: sidecar.error })
   const probed = await sidecarRuntime(sidecar)
-  if (probed.skipStart && id !== 'ollama') {
-    return {
-      ...probed.status,
-      hostMode: probed.settings.hostMode,
-      effectiveMode: probed.effectiveMode,
-      hostManaged: probed.hostManaged,
-      skipped: true,
-      warning: 'Skipped compose up: host mode.',
-    }
-  }
   if (probed.portOccupied && !probed.ours && probed.hostPort) {
     throw createError({
       statusCode: 409,
@@ -427,9 +413,6 @@ export async function startSidecar(id: string) {
   }
   return {
     ...status,
-    hostMode: probed.settings.hostMode,
-    effectiveMode: probed.effectiveMode,
-    hostManaged: probed.hostManaged,
     skipped: false,
     warning: undefined,
   }
@@ -480,7 +463,6 @@ export function getSidecarSetting(id: string) {
   return {
     autostart: id === CORE_SIDECAR_ID ? true : (row?.autostart ?? defaultSidecarAutostart(id)),
     navPinned: row?.navPinned ?? false,
-    hostMode: (isHostMode(row?.hostMode) ? row.hostMode : 'auto') as HostMode,
     hostProbePort: typeof row?.hostProbePort === 'number' && row.hostProbePort > 0 ? row.hostProbePort : null,
   }
 }
@@ -488,7 +470,6 @@ export function getSidecarSetting(id: string) {
 export function setSidecarSetting(id: string, patch: {
   autostart?: boolean
   navPinned?: boolean
-  hostMode?: HostMode
   hostProbePort?: number | null
 }) {
   const current = getSidecarSetting(id)
@@ -496,7 +477,7 @@ export function setSidecarSetting(id: string, patch: {
     sidecarId: id,
     autostart: id === CORE_SIDECAR_ID ? true : (patch.autostart ?? current.autostart),
     navPinned: patch.navPinned ?? current.navPinned,
-    hostMode: patch.hostMode && isHostMode(patch.hostMode) ? patch.hostMode : current.hostMode,
+    hostMode: 'auto',
     hostProbePort: id === CORE_SIDECAR_ID
       ? (patch.hostProbePort === undefined ? current.hostProbePort : patch.hostProbePort)
       : null,
@@ -508,7 +489,12 @@ export function setSidecarSetting(id: string, patch: {
   if (id === CORE_SIDECAR_ID && patch.hostProbePort !== undefined) {
     void import('./ollamaHost').then((m) => m.resetOllamaHostCache())
   }
-  return next
+  return {
+    sidecarId: next.sidecarId,
+    autostart: next.autostart,
+    navPinned: next.navPinned,
+    hostProbePort: next.hostProbePort,
+  }
 }
 
 export async function autostartSidecars() {

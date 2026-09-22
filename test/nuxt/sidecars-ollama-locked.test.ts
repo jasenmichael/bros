@@ -15,7 +15,7 @@ const { payload, refreshMock } = vi.hoisted(() => ({
         kind: 'core' as const,
         packageSlug: 'ollama',
         interfaces: [],
-        settings: { autostart: true, navPinned: false, hostMode: 'auto' as const },
+        settings: { autostart: true, navPinned: false },
         status: { running: true, services: [] },
         hasContainer: true,
       },
@@ -27,7 +27,7 @@ const { payload, refreshMock } = vi.hoisted(() => ({
         kind: 'addon' as const,
         packageSlug: 'opencode',
         interfaces: [],
-        settings: { autostart: false, navPinned: false, hostMode: 'auto' as const },
+        settings: { autostart: false, navPinned: false },
         status: { running: true, services: [] },
         hasContainer: true,
       },
@@ -39,7 +39,7 @@ const { payload, refreshMock } = vi.hoisted(() => ({
         kind: 'addon' as const,
         packageSlug: 'firecrawl',
         interfaces: [{ type: 'api', service: 'firecrawl', containerPort: 3002, publish: 3002, basePath: '/v2' }],
-        settings: { autostart: false, navPinned: false, hostMode: 'auto' as const },
+        settings: { autostart: false, navPinned: false },
         status: { running: true, services: [] },
         hasContainer: true,
         hostPort: 3002,
@@ -52,7 +52,7 @@ const { payload, refreshMock } = vi.hoisted(() => ({
         kind: 'addon' as const,
         packageSlug: 'firecrawl-ui',
         interfaces: [{ type: 'webui', service: 'firecrawl-ui', containerPort: 8080, publish: 3081 }],
-        settings: { autostart: false, navPinned: false, hostMode: 'auto' as const },
+        settings: { autostart: false, navPinned: false },
         status: { running: true, services: [] },
         hasContainer: true,
         hostPort: 3081,
@@ -91,6 +91,7 @@ describe('Ollama sidecar lock', () => {
     expect(ollamaButtons).not.toContain('Stop')
     expect(ollamaButtons).not.toContain('Restart')
     expect(ollama!.text()).not.toContain('Autostart')
+    expect(ollama!.text()).not.toContain('Pin in nav')
     expect(ollama!.text()).toContain('bros')
     expect(ollama!.text()).not.toContain('shipped')
 
@@ -99,6 +100,8 @@ describe('Ollama sidecar lock', () => {
     expect(otherButtons).toContain('Stop')
     expect(otherButtons).toContain('Restart')
     expect(opencode!.text()).toContain('Autostart')
+    expect(opencode!.text()).not.toContain('Mode')
+    expect(wrapper.find('select').exists()).toBe(false)
     expect(opencode!.text()).toContain('bros')
     expect(opencode!.text()).not.toContain('shipped')
     expect(wrapper.text()).toContain('Add sidecar')
@@ -116,7 +119,7 @@ describe('Ollama sidecar lock', () => {
     expect(firecrawl.text()).toContain('http://firecrawl:3002/')
     expect(firecrawl.text()).toContain('http://firecrawl:3002/v2')
     expect(firecrawl.text()).toContain('Bros Docker network')
-    expect(firecrawl.text()).toContain('Pin in nav')
+    expect(firecrawl.text()).not.toContain('Pin in nav')
   })
 
   it('opens published Firecrawl UI webui', async () => {

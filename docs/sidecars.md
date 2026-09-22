@@ -15,7 +15,7 @@ Compose project name is `bros-sc-<id>` on shared external Docker network `bros`.
 
 Interfaces may include `webui`, `api`, `openai`, and `cli`.
 
-There is **no path proxy**. A `webui` must declare `publish` in `sidecar.yml` and map `publish:containerPort` in Compose. A published `api` is Open/Pin the same way. Bros Open/Pin always opens `http://127.0.0.1:<publish>/`. Other containers keep using `http://<service>:<containerPort>` on network `bros`. Do not publish host ports **3000** or **8080**. Compose env overrides (`BROS_OLLAMA_PORT`, `BROS_OPENCODE_PORT`, `BROS_OPENWEBUI_PORT`, `BROS_FIRECRAWL_PORT`, `BROS_FIRECRAWL_UI_PORT`) are escape hatches.
+There is **no path proxy**. A `webui` must declare `publish` in `sidecar.yml` and map `publish:containerPort` in Compose. A published `api` is Open the same way. Pin in nav is only for a published `webui`. Open/Pin always opens `http://127.0.0.1:<publish>/`. Other containers keep using `http://<service>:<containerPort>` on network `bros`. Do not publish host ports **3000** or **8080**. Compose env overrides (`BROS_OLLAMA_PORT`, `BROS_OPENCODE_PORT`, `BROS_OPENWEBUI_PORT`, `BROS_FIRECRAWL_PORT`, `BROS_FIRECRAWL_UI_PORT`) are escape hatches.
 
 ## Kinds
 
@@ -36,14 +36,9 @@ Discover merges:
 
 Shipped ids win. Custom cannot reuse `ollama`, addon slugs, app routes, or Popular slugs.
 
-## Host vs sidecar
+## Ports
 
-`containerPort` is the process listen port inside Docker. `publish` is the host port.
-
-`hostMode` is stored per sidecar (`auto`, `sidecar`, `host`).
-
-- **Auto** / **Sidecar**: `compose up` on the Bros **publish** port. Fails if that port is already taken.
-- **Host**: never start the Bros sidecar stack, except core Ollama.
+`containerPort` is the process listen port inside Docker. `publish` is the host port. Bros always starts the sidecar stack on that **publish** port. Start fails if the port is already taken.
 
 Additional web UIs must set `publish` **and** stay on network `bros`.
 
@@ -56,7 +51,7 @@ On `/sidecars` → Addon sidecars:
 
 ## Status
 
-`/status` lists each sidecar’s mode, sidecar publish port, state, error, autostart, and pin. On `/sidecars`, a refresh icon on each card re-fetches `/api/sidecars` so running/stopped updates without a full reload. Dashboard **Bros services** lists every container in those compose projects (app `bros` plus internals). **Sidecar snippets** (below that) link to Status and Logs when a container exists. Home and Status show the sidecar publish only (Ollama **11435**). Host Ollama is not a sidecar and is not labeled on those cards. The dashboard **Ollama** card (not a Sidecars rollup) is the place for sidecar + host provider URLs. There is no Sidecars summary card in the widget grid.
+`/status` lists each sidecar’s publish port, state, error, autostart, and pin. On `/sidecars`, a refresh icon on each card re-fetches `/api/sidecars` so running/stopped updates without a full reload. Dashboard **Bros services** lists every container in those compose projects (app `bros` plus internals). **Sidecar snippets** (below that) link to Status and Logs when a container exists. Home and Status show the sidecar publish only (Ollama **11435**). Host Ollama is not a sidecar and is not labeled on those cards. The dashboard **Ollama** card (not a Sidecars rollup) is the place for sidecar + host provider URLs. There is no Sidecars summary card in the widget grid.
 
 `bros start` (and `pnpm dev`) remove leftover `forgebox-sc-*` containers before up. `bros stop` and interactive Ctrl+C stop all `bros-sc-*` sidecars, then the core stack.
 

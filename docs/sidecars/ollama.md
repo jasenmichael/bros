@@ -33,7 +33,7 @@ GPU: if an NVIDIA GPU is present, open the sidecar card on Providers and enable 
 
 ## Host Ollama
 
-Host Ollama is a **separate** Chat/Providers provider (`ollama-host`). Settings **Enable host Ollama** is **off by default**. Off hides the row from Chat/Providers and 404s `/api/providers/ollama-host/*`. The SQLite row stays. Bros never starts the host daemon. Sidecar `hostMode` still only affects `bros-sc-ollama`.
+Host Ollama is a **separate** Chat/Providers provider (`ollama-host`). Settings **Enable host Ollama** is **off by default**. Off hides the row from Chat/Providers and 404s `/api/providers/ollama-host/*`. The SQLite row stays. Bros never starts the host daemon.
 
 When on, live scan looks for one daemon: optional Providers port override (`host_probe_port`, exclusive, no silent fallback); else probe default **11434** first via `dockerHostCandidates()` (`host.docker.internal` / `BROS_HOST_GATEWAY` from the app container, `127.0.0.1` on host Node). Skip if that port is sidecar publish **11435** or `bros-sc-ollama`. Then published host ports on running Docker Ollama containers (image `ollama/ollama` or name containing `ollama`; skip project/name `bros-sc-ollama` and publish **11435**). Then leftover `/proc/net/tcp`+`tcp6` LISTEN ports on `pnpm app:dev` and other published ports. In the app container, host `/proc` is invisible — still probe host-gateway **11434**, not only the container listen table. Verify with `GET /api/version` JSON `{ version }`. First `GET /api/version` hit wins. `POST /api/providers/ollama-host/scan` busts the 30s cache. Do not HTTP-probe 1–65535. No extra packages (dockerode + `/proc`). Docker socket is already required; host Node needs readable `/proc/net/tcp`.
 

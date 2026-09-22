@@ -22,7 +22,7 @@ Compose project name is `bros-sc-<id>` on network `bros`.
 ## Rules
 
 - Directory name must match `id` in `sidecar.yml`
-- A `webui` interface must set `publish` and map `publish:containerPort` in Compose. A published `api` is Open/Pin the same way.
+- A `webui` interface must set `publish` and map `publish:containerPort` in Compose. A published `api` is Open the same way. Pin in nav is only for a published `webui`.
 - Open/Pin always open `http://127.0.0.1:<publish>/`
 - Stay on Docker network `bros`
 - Do not publish host ports **3000** or **8080**

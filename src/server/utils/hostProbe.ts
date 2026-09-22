@@ -1,14 +1,6 @@
 import { existsSync } from 'node:fs'
 import { createConnection } from 'node:net'
 
-export type HostMode = 'auto' | 'sidecar' | 'host'
-
-export const HOST_MODES: HostMode[] = ['auto', 'sidecar', 'host']
-
-export function isHostMode(v: unknown): v is HostMode {
-  return v === 'auto' || v === 'sidecar' || v === 'host'
-}
-
 let testInDocker: boolean | undefined
 
 /** Test-only: force in-Docker vs host-Node URL selection. */
@@ -66,30 +58,4 @@ export const firstHostPort = firstPublishPort
 
 export function hostUiUrl(publish: number): string {
   return `http://127.0.0.1:${publish}/`
-}
-
-export type HostRuntime = {
-  effectiveMode: 'sidecar' | 'host'
-  skipStart: boolean
-  warnPortTaken: boolean
-  hostManaged: boolean
-}
-
-/** Decide start/skip from stored preference + live probe. */
-export function resolveHostRuntime(input: {
-  hostMode: HostMode
-  portOccupied: boolean
-  ours: boolean
-}): HostRuntime {
-  const foreign = input.portOccupied && !input.ours
-  if (input.hostMode === 'host') {
-    return { effectiveMode: 'host', skipStart: true, warnPortTaken: foreign, hostManaged: true }
-  }
-  if (input.hostMode === 'sidecar') {
-    return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: foreign, hostManaged: false }
-  }
-  if (foreign) {
-    return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: true, hostManaged: false }
-  }
-  return { effectiveMode: 'sidecar', skipStart: false, warnPortTaken: false, hostManaged: false }
 }

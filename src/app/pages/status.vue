@@ -34,9 +34,6 @@ type StatusPayload = {
     source: string
     error?: string
     hostPort?: number
-    hostMode: string
-    effectiveMode: string
-    hostManaged: boolean
     portOccupied: boolean
     warning?: string
     autostart: boolean
@@ -124,7 +121,6 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
         <thead class="bg-[#121820] text-[var(--bros-muted)]">
           <tr>
             <th class="px-3 py-2 font-medium">Name</th>
-            <th class="px-3 py-2 font-medium">Mode</th>
             <th class="px-3 py-2 font-medium">Port</th>
             <th class="px-3 py-2 font-medium">State</th>
             <th class="px-3 py-2 font-medium">Autostart</th>
@@ -136,9 +132,6 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
         <tbody>
           <tr v-for="row in (data?.sidecars || []).filter((row) => row.id !== 'cloudflared')" :key="row.id" class="border-t border-[var(--bros-border)]">
             <td class="px-3 py-2 text-white">{{ row.name }}</td>
-            <td class="px-3 py-2 text-[var(--bros-muted)]">
-              {{ row.hostMode }}{{ row.effectiveMode !== row.hostMode ? ` (${row.effectiveMode})` : '' }}
-            </td>
             <td class="px-3 py-2 font-mono text-[var(--bros-muted)]">
               {{ row.hostPort ?? '—' }}
             </td>

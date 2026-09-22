@@ -34,12 +34,11 @@ function withBasePath(origin: string, basePath?: string): string {
   return `${origin.replace(/\/$/, '')}${path}`
 }
 
-/** Open/Pin targets: published webui or api (Firecrawl has no product Web UI). */
-export function sidecarOpenLinks(s: SidecarHostRow): SidecarOpenLink[] {
+function sidecarLinksOfType(s: SidecarHostRow, types: Set<string>): SidecarOpenLink[] {
   const out: SidecarOpenLink[] = []
   const seen = new Set<number>()
   for (const iface of s.interfaces || []) {
-    if (iface.type !== 'webui' && iface.type !== 'api') continue
+    if (!types.has(iface.type)) continue
     const port = hostPort(iface)
     if (!port || seen.has(port)) continue
     seen.add(port)
@@ -51,6 +50,16 @@ export function sidecarOpenLinks(s: SidecarHostRow): SidecarOpenLink[] {
     })
   }
   return out
+}
+
+/** Open targets: published webui or api (Firecrawl API has no product Web UI). */
+export function sidecarOpenLinks(s: SidecarHostRow): SidecarOpenLink[] {
+  return sidecarLinksOfType(s, new Set(['webui', 'api']))
+}
+
+/** Pin in nav: published webui only. */
+export function sidecarWebUiLinks(s: SidecarHostRow): SidecarOpenLink[] {
+  return sidecarLinksOfType(s, new Set(['webui']))
 }
 
 /** Copyable API URLs: host publish, then Docker DNS on network bros. */

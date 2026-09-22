@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-describe('sidecar hostMode settings', () => {
+describe('sidecar settings', () => {
   let dataDir = ''
 
   beforeEach(async () => {
@@ -18,19 +18,6 @@ describe('sidecar hostMode settings', () => {
     const { resetDbForTests } = await import('../../src/server/utils/db')
     resetDbForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
-  })
-
-  it('defaults to auto and persists host override', async () => {
-    const { getSidecarSetting, setSidecarSetting } = await import('../../src/server/utils/docker')
-    expect(getSidecarSetting('ollama').hostMode).toBe('auto')
-    const next = setSidecarSetting('ollama', { hostMode: 'host' })
-    expect(next.hostMode).toBe('host')
-    expect(getSidecarSetting('ollama')).toEqual({
-      autostart: true,
-      navPinned: false,
-      hostMode: 'host',
-      hostProbePort: null,
-    })
   })
 
   it('keeps ollama autostart on', async () => {

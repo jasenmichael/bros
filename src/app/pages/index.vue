@@ -38,8 +38,6 @@ type StatusPayload = {
     name: string
     running: boolean
     hostPort?: number
-    effectiveMode: string
-    hostManaged: boolean
     warning?: string
     error?: string
     hasContainer: boolean

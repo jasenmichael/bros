@@ -15,7 +15,7 @@ const { payload } = vi.hoisted(() => ({
         kind: 'addon' as const,
         packageSlug: 'opencode',
         interfaces: [],
-        settings: { autostart: false, navPinned: false, hostMode: 'auto' as const },
+        settings: { autostart: false, navPinned: false },
         status: { running: true, services: [] },
         hasContainer: true,
       },
