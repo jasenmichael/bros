@@ -9,7 +9,7 @@ Implementation through **M7** complete. Install clones `BROS_HOME`, writes `~/.c
 1. **M0** — pnpm monorepo, theme + docs layers, app shell on :3055
 2. **M1** — bootstrap config, SQLite, passcode
 3. **M2** — sidecar engine + Sidecars page (`publish` Open/Pin; no path proxy)
-4. **M3** — shipped sidecars: core Ollama; addon OpenCode + Open WebUI + Firecrawl + Firecrawl UI (tunnel is host `cloudflared`, not a sidecar)
+4. **M3** — shipped sidecars: core Ollama; addon OpenCode + Open WebUI + Firecrawl + Firecrawl UI + Whisper (tunnel is host `cloudflared`, not a sidecar)
 5. **M4** — Providers page
 6. **M5** — Chat streaming + history
 7. **M6** — docs content, compose prod/dev, root docs
@@ -89,14 +89,18 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 
 ## Host tunnel
 
-`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_HOME/data/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. `pnpm dev` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
+`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_HOME/data/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `pnpm dev` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
+
+## Recent (internal Docker APIs)
+
+- Compose app reaches sidecar Ollama and Whisper via Docker DNS (`sidecarReachUrl`). Host publish is Open/Pin, host Node, and occupancy probes only. `BROS_OLLAMA_PORT` applies to host Node Chat the same way `BROS_WHISPER_PORT` does for STT. `appRunsInDocker` also treats `BROS_DATA_DIR=/data` / `BROS_WORKING_DIR=/app` as in-container.
 
 
 ## TODO:
 - sections: chat, providers, agents, mcp, skills, issues
 - data dirs structure for ollama, opencode, etc.
 - thinking plus stop, allow pick new model and start typing for next chat.
-- add voice to text for chat using whisper
+- [x] add voice to text for chat using whisper
 - providers/models, agents, mcp, acp, gateway, skills, tools(web research), loops????
 - # Enterprise Role Architecture and Comprehensive AI Model Distribution
 - implement ai agent roles.

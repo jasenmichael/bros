@@ -15,13 +15,13 @@ Compose project name is `bros-sc-<id>` on shared external Docker network `bros`.
 
 Interfaces may include `webui`, `api`, `openai`, and `cli`.
 
-There is **no path proxy**. A `webui` must declare `publish` in `sidecar.yml` and map `publish:containerPort` in Compose. A published `api` is Open the same way. Pin in nav is only for a published `webui`. Open/Pin always opens `http://127.0.0.1:<publish>/`. Other containers keep using `http://<service>:<containerPort>` on network `bros`. Do not publish host ports **3000** or **8080**. Compose env overrides (`BROS_OLLAMA_PORT`, `BROS_OPENCODE_PORT`, `BROS_OPENWEBUI_PORT`, `BROS_FIRECRAWL_PORT`, `BROS_FIRECRAWL_UI_PORT`) are escape hatches.
+There is **no path proxy**. A `webui` must declare `publish` in `sidecar.yml` and map `publish:containerPort` in Compose. A published `api` is Open the same way. Pin in nav is only for a published `webui`. Open/Pin always opens `http://127.0.0.1:<publish>/`. Compose-app Bros talks to sidecar APIs at `http://<service>:<containerPort>` on network `bros` (Ollama `http://ollama:11434`, Whisper `http://whisper:8000`), including when the session is via-tunnel. Host Node (`pnpm app:dev`) uses `http://127.0.0.1:<publish>`. Do not publish host ports **3000** or **8080**. Compose env overrides (`BROS_OLLAMA_PORT`, `BROS_OPENCODE_PORT`, `BROS_OPENWEBUI_PORT`, `BROS_FIRECRAWL_PORT`, `BROS_FIRECRAWL_UI_PORT`, `BROS_WHISPER_PORT`) are escape hatches for host publish / host Node.
 
 ## Kinds
 
 **Core** — must-run **Ollama** from repo `sidecars/ollama`. Always on. No Start, Stop, Restart, or Autostart on Sidecars / Status / Home. No disable env. `POST /api/sidecars/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast).
 
-**Addon** — other shipped packs under repo `sidecars/` (OpenCode, Open WebUI, Firecrawl, Firecrawl UI). Optional and **enabled by default**. Start/Stop/Restart, autostart, logs. Disable autostart with `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui`. Disabled addons stay listed.
+**Addon** — other shipped packs under repo `sidecars/` (OpenCode, Open WebUI, Firecrawl, Firecrawl UI, Whisper). Optional and **enabled by default**. Start/Stop/Restart, autostart, logs. Disable autostart with `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, `BROS_SIDECAR_WHISPER=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui,whisper`. Disabled addons stay listed.
 
 **Additional** — user-created and git-cloned. Same controls as addons.
 
@@ -64,4 +64,5 @@ Cloudflare tunnel is **not** a sidecar. See [Tunnel](/docs/tunnel).
 - [Open WebUI](/docs/sidecars/openwebui) — addon, publish **3080** → container 8080
 - [Firecrawl](/docs/sidecars/firecrawl) — addon, publish **3002** (Playwright internal)
 - [Firecrawl UI](/docs/sidecars/firecrawl-ui) — addon, publish **3081** → container 8080
+- [Whisper](/docs/sidecars/whisper) — addon, publish **8090** → container 8000 (Chat STT)
 - [Additional](/docs/sidecars/custom) — data dir + git clone

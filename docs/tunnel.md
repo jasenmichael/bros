@@ -7,7 +7,7 @@ description: Host cloudflared named vs quick tunnel, install, login, Status erro
 
 The Dashboard **Tunnel** card and `/status` control a **host** `cloudflared` process. Bros inside Docker cannot spawn it. It is not a sidecar.
 
-The tunnel exposes the Bros app at `http://127.0.0.1:<BROS_PORT>` (default **3055**). There is no path proxy. Sidecar Open/Pin still use `http://127.0.0.1:<publish>/`.
+The tunnel exposes the Bros app at `http://127.0.0.1:<BROS_PORT>` (default **3055**). There is no path proxy. Sidecar Open/Pin still use `http://127.0.0.1:<publish>/`. Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
 
 ## Prerequisites
 

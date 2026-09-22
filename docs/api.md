@@ -58,6 +58,7 @@ UI conversations (SQLite). Not an OpenAI drop-in.
 | GET, PATCH, DELETE | `/api/chat/{id}` | PATCH `modelId` and/or `title` |
 | POST | `/api/chat/{id}/stream` | `{ content, modelId? }` — `text/plain` token stream |
 | POST | `/api/chat/{id}/truncate` | `{ fromMessageId }` or `{ fromIndex }` — edit/resend |
+| POST | `/api/chat/transcribe` | multipart `file` — `{ text }` from Whisper sidecar |
 
 ## Sidecars
 

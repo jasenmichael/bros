@@ -112,6 +112,16 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    PayloadTooLarge:
+      description: Audio larger than 15MB
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unavailable:
+      description: Sidecar unreachable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
 paths:
   /openapi.yaml:
     get:
@@ -577,6 +587,34 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/chat/transcribe:
+    post:
+      tags: [Chat]
+      summary: Transcribe a short audio clip
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: '{ text }'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /api/sidecars:
     get:
       tags: [Sidecars]

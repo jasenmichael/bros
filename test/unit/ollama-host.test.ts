@@ -44,12 +44,6 @@ describe('ollama host probe', () => {
   })
 
   afterEach(async () => {
-    resetOllamaHostCache()
-    setAppRunsInDockerForTests(undefined)
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-    const { resetDbForTests } = await import('../../src/server/utils/db')
-    resetDbForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
@@ -284,6 +278,14 @@ describe('ollama host probe', () => {
     const called = vi.mocked(fetch).mock.calls.map((c) => String(c[0]))
     expect(called.some((u) => u.includes('host.docker.internal'))).toBe(false)
     expect(called.some((u) => u.includes('127.0.0.1:11434'))).toBe(true)
+  })
+
+  it('on host Node honors BROS_OLLAMA_PORT for sidecar Chat URL', () => {
+    setAppRunsInDockerForTests(false)
+    process.env.BROS_OLLAMA_PORT = '11490'
+    expect(sidecarOllamaUrl()).toBe('http://127.0.0.1:11490')
+    delete process.env.BROS_OLLAMA_PORT
+    expect(sidecarOllamaUrl()).toBe('http://127.0.0.1:11435')
   })
 
   it('in Docker uses sidecar DNS and host.docker.internal', async () => {

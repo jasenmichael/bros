@@ -40,7 +40,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     icon: 'i-lucide-layout-dashboard',
     body: 'Dashboard, dock, login, Docs.',
     children: [
-      { label: 'Chat', to: '/docs/chat', body: 'Provider then model, Stop, auto-title.' },
+      { label: 'Chat', to: '/docs/chat', body: 'Provider then model, Stop, mic, auto-title.' },
       {
         label: 'Models',
         to: '/docs/models',
@@ -48,6 +48,13 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
         children: [
           { label: 'Ollama', to: '/docs/models-ollama', body: 'Pull menu, GPU, Yours.' },
           { label: 'Custom providers', to: '/docs/models-custom', body: 'Add custom, slug rules, paste-ins.' },
+        ],
+      },
+      {
+        label: 'Providers',
+        children: [
+          { label: 'Ollama', to: '/docs/providers/ollama', body: 'Sidecar and host Ollama.' },
+          { label: 'Custom providers', to: '/docs/providers/custom', body: 'Add custom, slug rules.' },
         ],
       },
       { label: 'Status', to: '/docs/status', body: 'App, Docker, disk, GPU, tunnel, sidecars.' },
@@ -66,6 +73,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Open WebUI', to: '/docs/sidecars/openwebui', body: 'Publish 3080, never 3000/8080.' },
       { label: 'Firecrawl', to: '/docs/sidecars/firecrawl', body: 'Publish 3002, scrape API; UI is Firecrawl UI.' },
       { label: 'Firecrawl UI', to: '/docs/sidecars/firecrawl-ui', body: 'Publish 3081, scrape UI, never 3000/8080.' },
+      { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Publish 8090, chat voice to text.' },
       { label: 'Custom', to: '/docs/sidecars/custom', body: 'Drop-in under data/sidecars.' },
     ],
   },
@@ -83,6 +91,12 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Development', to: '/docs/development', body: 'pnpm dev bind-mount, tests.' },
       { label: 'Docs site', to: '/docs/website', body: 'Pages /bros/, same docs/.' },
     ],
+  },
+  {
+    label: 'API',
+    to: '/docs/api',
+    icon: 'i-lucide-braces',
+    body: 'HTTP API, OpenAPI 3.1.',
   },
 ]
 

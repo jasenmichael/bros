@@ -24,6 +24,8 @@ Context size shows on the tools row **only for Ollama** when the runtime reports
 
 While a reply is in flight, the composer shows **Stop** (aborts the stream) instead of send. Centered **thinking…** stays until the first assistant token or the request ends.
 
+A round **Voice to text** mic sits left of Send/Stop. Click starts recording; click again stops and uploads to `POST /api/chat/transcribe`. Transcribed text appends to the composer and does not auto-send. Recording is allowed while a reply streams (next prompt). Microphone needs a secure context (localhost HTTP or HTTPS). The Whisper sidecar is STT only — not a Chat provider. See [Whisper sidecar](/docs/sidecars/whisper).
+
 Assistant and user bodies render as markdown with the same theme prose as Docs (`.bros-prose` + `ProsePre`). Each assistant message stores the `modelId` used for that request. The UI shows `ASSISTANT · <modelId>` **under** the assistant body, plus duration and token counts on the right when the provider sent them. A copy icon next to that meta copies the stored raw markdown of the whole reply (fences included). Fenced snippets still have their own `ProsePre` copy.
 
 User turns show **Copy** and **Edit** under the bubble. Edit + **Resend** stops any in-flight stream (same abort as composer Stop), deletes that user turn and every later row (`POST /api/chat/:id/truncate` with `fromMessageId` / `fromIndex`), then sends the edited text with the same Chat settings prepend/description as a normal send. Title still auto-titles only the first successful reply of a New chat.

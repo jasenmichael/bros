@@ -64,6 +64,19 @@ describe('sidecar project naming', () => {
     })
   })
 
+  it('parses shipped whisper api publish 8090', () => {
+    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../sidecars/whisper/sidecar.yml'), 'utf8'))
+    const meta = parseSidecarMeta(raw)
+    expect(meta.id).toBe('whisper')
+    expect(meta.interfaces[0]).toMatchObject({
+      type: 'api',
+      service: 'whisper',
+      containerPort: 8000,
+      publish: 8090,
+      basePath: '/v1',
+    })
+  })
+
   it('parses ollama publish 11435', () => {
     const meta = parseSidecarMeta({
       id: 'ollama',
@@ -92,6 +105,7 @@ describe('sidecar data binds', () => {
       'sidecars/opencode/docker-compose.yml',
       'sidecars/firecrawl/docker-compose.yml',
       'sidecars/firecrawl-ui/docker-compose.yml',
+      'sidecars/whisper/docker-compose.yml',
     ]) {
       const yml = readFileSync(join(root, rel), 'utf8')
       expect(yml).toMatch(/\n\s+bros:\s*\n\s+external:\s*true/m)
@@ -145,6 +159,7 @@ describe('sidecar data binds', () => {
       'sidecars/openwebui/docker-compose.yml',
       'sidecars/opencode/docker-compose.yml',
       'sidecars/firecrawl/docker-compose.yml',
+      'sidecars/whisper/docker-compose.yml',
     ]) {
       const yml = readFileSync(join(root, rel), 'utf8')
       expect(yml).toContain('${BROS_HOST_DATA_DIR:?unset}')
