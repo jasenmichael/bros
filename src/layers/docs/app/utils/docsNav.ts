@@ -41,6 +41,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     body: 'Dashboard, dock, login, Docs.',
     children: [
       { label: 'Chat', to: '/docs/chat', body: 'Provider then model, Stop, mic, auto-title.' },
+      { label: 'Agent', to: '/docs/agent', body: 'Web search and scrape through Firecrawl.' },
       {
         label: 'Models',
         to: '/docs/models',

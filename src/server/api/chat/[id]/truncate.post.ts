@@ -1,4 +1,4 @@
-import { abortConversationStream, getConversation, truncateConversationMessages } from '../../../utils/chat'
+import { abortConversationStream, getChatConversation, truncateConversationMessages } from '../../../utils/chat'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!body?.fromMessageId && (body?.fromIndex == null || !Number.isFinite(body.fromIndex))) {
     throw createError({ statusCode: 400, statusMessage: 'fromMessageId or fromIndex required' })
   }
-  if (!getConversation(id)) throw createError({ statusCode: 404, statusMessage: 'Not found' })
+  if (!getChatConversation(id)) throw createError({ statusCode: 404, statusMessage: 'Not found' })
   abortConversationStream(id)
   const next = truncateConversationMessages(id, {
     fromMessageId: body.fromMessageId,

@@ -7,6 +7,7 @@ import { getProvider, getProviderSecret, isChatSelectionEnabled, ollamaBaseUrlFo
 import { getProviderPreset } from './providerPresets'
 import { applyChatSettings, getChatSettings } from './chatSettings'
 import {
+  DEFAULT_AGENT_TITLE,
   DEFAULT_CHAT_TITLE,
   fallbackTitleFromPrompt,
   labelRequestContent,
@@ -22,7 +23,11 @@ import {
 } from './chatStats'
 
 export function listConversations() {
-  return getDb().select().from(conversations).orderBy(desc(conversations.updatedAt)).all()
+  return getDb().select().from(conversations).where(eq(conversations.kind, 'chat')).orderBy(desc(conversations.updatedAt)).all()
+}
+
+export function listAgentConversations() {
+  return getDb().select().from(conversations).where(eq(conversations.kind, 'agent')).orderBy(desc(conversations.updatedAt)).all()
 }
 
 export function getConversation(id: string) {
@@ -37,17 +42,30 @@ export function getConversation(id: string) {
   return { ...convo, messages: msgs }
 }
 
-export function createConversation(modelId: string, title = DEFAULT_CHAT_TITLE) {
+export function createConversation(modelId: string, title = DEFAULT_CHAT_TITLE, kind: 'chat' | 'agent' = 'chat') {
   const id = randomUUID()
   const now = Date.now()
   getDb().insert(conversations).values({
     id,
     title,
     modelId,
+    kind,
     createdAt: now,
     updatedAt: now,
   }).run()
   return getConversation(id)
+}
+
+export function getChatConversation(id: string) {
+  const convo = getConversation(id)
+  if (!convo || convo.kind === 'agent') return null
+  return convo
+}
+
+export function getAgentConversation(id: string) {
+  const convo = getConversation(id)
+  if (!convo || convo.kind !== 'agent') return null
+  return convo
 }
 
 export type MessageStats = {
@@ -62,6 +80,7 @@ export function addMessage(
   content: string,
   modelId?: string,
   stats?: MessageStats,
+  traceJson?: string | null,
 ) {
   const id = randomUUID()
   getDb().insert(messages).values({
@@ -73,6 +92,7 @@ export function addMessage(
     durationMs: stats?.durationMs ?? null,
     promptTokens: stats?.promptTokens ?? null,
     completionTokens: stats?.completionTokens ?? null,
+    traceJson: traceJson ?? null,
     createdAt: Date.now(),
   }).run()
   getDb().update(conversations).set({ updatedAt: Date.now() }).where(eq(conversations.id, conversationId)).run()
@@ -179,7 +199,8 @@ export async function maybeAutoTitle(
   const assistantCount = convo.messages.filter((m) => m.role === 'assistant').length
   if (!shouldAutoTitle(convo.title, assistantCount)) return convo.title
   const firstUser = convo.messages.find((m) => m.role === 'user')?.content || ''
-  const fallback = fallbackTitleFromPrompt(firstUser)
+  const emptyTitle = convo.kind === 'agent' ? DEFAULT_AGENT_TITLE : DEFAULT_CHAT_TITLE
+  const fallback = fallbackTitleFromPrompt(firstUser, emptyTitle)
   try {
     const raw = await generate(convo.modelId, firstUser)
     const title = sanitizeGeneratedTitle(raw, fallback)

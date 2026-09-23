@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useChatRecents } from '../../composables/useChatRecents'
+import { readChatModelMemory, rememberChatModel, rememberChatProvider } from '../../composables/useChatModelMemory'
 import { formatContextLabel, formatDurationMs, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
 import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
 
@@ -35,8 +36,11 @@ const thinking = ref(false)
 const streamAbort = ref<AbortController | null>(null)
 const streamStartedAt = ref(0)
 const liveElapsedMs = ref(0)
-const providerId = ref('ollama')
-const modelName = ref('llama3.2')
+const bootMemory = readChatModelMemory()
+const providerId = ref(bootMemory.lastProviderId || 'ollama')
+const modelName = ref(bootMemory.models[providerId.value] || 'llama3.2')
+let applyingThread = false
+let restoringProviderModel = false
 const lastPersistedModel = ref<string | null>(null)
 const pageTitle = ref('Chat')
 const loadingThread = ref(false)
@@ -132,11 +136,39 @@ function splitModelId(id: string) {
   return { providerId: id.slice(0, idx), model: id.slice(idx + 1) }
 }
 
+function preferredModel(pid: string, names: string[]) {
+  const remembered = readChatModelMemory().models[pid]
+  if (remembered && names.includes(remembered)) return remembered
+  return names[0] || ''
+}
+
+function assignModel(next: string, save: boolean) {
+  if (modelName.value === next) return
+  if (!save) restoringProviderModel = true
+  modelName.value = next
+  if (!save) restoringProviderModel = false
+}
+
+function applyNewChatSelection() {
+  const memory = readChatModelMemory()
+  const rows = orderedProviders.value
+  const pid = rows.some((p) => p.id === memory.lastProviderId)
+    ? memory.lastProviderId
+    : (rows[0]?.id || memory.lastProviderId || 'ollama')
+  const names = modelsForProvider(pid)
+  applyingThread = true
+  providerId.value = pid
+  assignModel(names.length ? preferredModel(pid, names) : (memory.models[pid] || 'llama3.2'), false)
+  applyingThread = false
+}
+
 function applyModelId(next: string) {
   const parsed = splitModelId(next)
+  applyingThread = true
   providerId.value = parsed.providerId
   const names = modelsForProvider(parsed.providerId)
-  modelName.value = names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model)
+  assignModel(names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model), false)
+  applyingThread = false
 }
 
 const { data: modelContext } = await useFetch<{ contextLength: number | null }>(
@@ -163,31 +195,42 @@ async function persistOpenModel(next = modelId.value) {
 }
 
 watch(providerId, (pid) => {
+  if (!pid) return
   const names = modelsForProvider(pid)
-  if (names.length && !names.includes(modelName.value)) {
-    modelName.value = names[0] || ''
-  }
-})
+  if (names.length) assignModel(preferredModel(pid, names), false)
+  if (!applyingThread) rememberChatProvider(pid)
+}, { flush: 'sync' })
+
+watch(modelName, (name) => {
+  if (applyingThread || restoringProviderModel) return
+  if (!providerId.value || !name) return
+  rememberChatModel(providerId.value, name)
+}, { flush: 'sync' })
 
 watch(modelItems, (names) => {
   if (names.length && !names.includes(modelName.value)) {
-    modelName.value = names[0] || ''
+    assignModel(preferredModel(providerId.value, names), false)
   }
-}, { immediate: true })
+}, { immediate: true, flush: 'sync' })
 
 watch([providerId, orderedProviders], () => {
   const rows = orderedProviders.value
   if (!rows.length) {
+    applyingThread = true
     providerId.value = ''
-    modelName.value = ''
+    assignModel('', false)
+    applyingThread = false
     return
   }
   if (rows.some((p) => p.id === providerId.value)) return
-  const first = rows[0]
-  providerId.value = first.id
-  const names = modelsForProvider(first.id)
-  modelName.value = names[0] || ''
-}, { immediate: true })
+  const memory = readChatModelMemory()
+  const preferred = rows.find((p) => p.id === memory.lastProviderId) || rows[0]
+  if (!preferred) return
+  applyingThread = true
+  providerId.value = preferred.id
+  assignModel(preferredModel(preferred.id, modelsForProvider(preferred.id)), false)
+  applyingThread = false
+}, { immediate: true, flush: 'sync' })
 
 watch(modelId, (next) => {
   void persistOpenModel(next).catch(() => {})
@@ -266,6 +309,7 @@ function resetEmpty() {
   lastPersistedModel.value = null
   loadingThread.value = false
   stopElapsed()
+  applyNewChatSelection()
 }
 
 const isThread = computed(() =>
@@ -520,6 +564,7 @@ async function send() {
 
 async function sendText(text: string) {
   if (!text.trim() || !providerId.value || !modelName.value) return
+  rememberChatModel(providerId.value, modelName.value)
   let id = convoId.value
   if (!id) {
     const convo = await $fetch<{ id: string }>('/api/chat', {

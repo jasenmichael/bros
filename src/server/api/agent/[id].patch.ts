@@ -1,9 +1,9 @@
-import { getChatConversation, resolveConversationModel, updateConversationTitle } from '../../utils/chat'
+import { getAgentConversation, resolveConversationModel, updateConversationTitle } from '../../utils/chat'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id required' })
-  if (!getChatConversation(id)) throw createError({ statusCode: 404, statusMessage: 'Not found' })
+  if (!getAgentConversation(id)) throw createError({ statusCode: 404, statusMessage: 'Not found' })
   const body = await readBody<{ modelId?: string; title?: string }>(event)
   const modelId = body?.modelId?.trim()
   const title = body?.title
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     const resolved = resolveConversationModel(id, modelId)
     if (!resolved) throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
-  const convo = getChatConversation(id)
+  const convo = getAgentConversation(id)
   if (!convo) throw createError({ statusCode: 404, statusMessage: 'Not found' })
   return convo
 })

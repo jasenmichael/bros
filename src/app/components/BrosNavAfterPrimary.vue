@@ -3,4 +3,5 @@
 
 <template>
   <BrosChatRecents />
+  <BrosAgentRecents />
 </template>

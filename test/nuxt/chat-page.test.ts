@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { CHAT_MODEL_MEMORY_KEY } from '../../src/app/composables/useChatModelMemory'
 
 mockNuxtImport('useFetch', () => {
   return (url?: string) => {
@@ -46,7 +47,27 @@ mockNuxtImport('useFetch', () => {
 
 mockNuxtImport('useSeoMeta', () => () => {})
 
+function installChatModelStorage() {
+  const store = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    clear: () => {
+      store.clear()
+    },
+  })
+}
+
 describe('Chat page', () => {
+  beforeEach(() => {
+    installChatModelStorage()
+  })
+
   it('centers greeting and composer on empty /chat', async () => {
     const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
@@ -96,6 +117,43 @@ describe('Chat page', () => {
     const vm = wrapper.vm as unknown as { modelsForProvider: (id: string) => string[] }
     expect(vm.modelsForProvider('openai')).toEqual(['gpt-4o-mini'])
     expect(vm.modelsForProvider('my-proxy')).toEqual(['qwen2.5'])
+  })
+
+  it('restores the last provider and model on a new chat', async () => {
+    localStorage.setItem(CHAT_MODEL_MEMORY_KEY, JSON.stringify({
+      lastProviderId: 'openai',
+      models: { openai: 'gpt-4o-mini', ollama: 'llama3.2' },
+    }))
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as { providerId: string; modelName: string }
+    expect(vm.providerId).toBe('openai')
+    expect(vm.modelName).toBe('gpt-4o-mini')
+  })
+
+  it('selects that provider’s remembered model when the provider changes', async () => {
+    localStorage.setItem(CHAT_MODEL_MEMORY_KEY, JSON.stringify({
+      lastProviderId: 'ollama',
+      models: { ollama: 'llama3.2', 'my-proxy': 'qwen2.5' },
+    }))
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as { providerId: string; modelName: string }
+    vm.providerId = 'my-proxy'
+    await wrapper.vm.$nextTick()
+    expect(vm.modelName).toBe('qwen2.5')
+  })
+
+  it('falls back to the first enabled model when the remembered one is missing', async () => {
+    localStorage.setItem(CHAT_MODEL_MEMORY_KEY, JSON.stringify({
+      lastProviderId: 'openai',
+      models: { openai: 'not-a-model' },
+    }))
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as { providerId: string; modelName: string }
+    expect(vm.providerId).toBe('openai')
+    expect(vm.modelName).toBe('gpt-4o-mini')
   })
 
   it('orders providers sidecar, host, popular, then custom', async () => {

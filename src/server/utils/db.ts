@@ -38,6 +38,7 @@ export const conversations = sqliteTable('conversations', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   modelId: text('model_id').notNull(),
+  kind: text('kind').notNull().default('chat'), // chat | agent
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
 })
@@ -51,6 +52,7 @@ export const messages = sqliteTable('messages', {
   durationMs: integer('duration_ms', { mode: 'number' }),
   promptTokens: integer('prompt_tokens', { mode: 'number' }),
   completionTokens: integer('completion_tokens', { mode: 'number' }),
+  traceJson: text('trace_json'),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
 })
 
@@ -168,5 +170,12 @@ function migrate(sqlite: Database.Database) {
   }
   if (!msgCols.some((c) => c.name === 'completion_tokens')) {
     sqlite.exec(`ALTER TABLE messages ADD COLUMN completion_tokens INTEGER`)
+  }
+  if (!msgCols.some((c) => c.name === 'trace_json')) {
+    sqlite.exec(`ALTER TABLE messages ADD COLUMN trace_json TEXT`)
+  }
+  const convoCols = sqlite.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>
+  if (!convoCols.some((c) => c.name === 'kind')) {
+    sqlite.exec(`ALTER TABLE conversations ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'`)
   }
 }

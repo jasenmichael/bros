@@ -1,13 +1,14 @@
 export const DEFAULT_CHAT_TITLE = 'New chat'
+export const DEFAULT_AGENT_TITLE = 'New agent'
 
 /** Sidecar `bros` Label: skill. Tag must match the specialist training data. */
 export function labelRequestContent(userPrompt: string): string {
   return `Label: ${userPrompt}`
 }
 
-export function fallbackTitleFromPrompt(prompt: string): string {
+export function fallbackTitleFromPrompt(prompt: string, emptyTitle = DEFAULT_CHAT_TITLE): string {
   const line = prompt.trim().split(/\r?\n/, 1)[0]?.replace(/\s+/g, ' ').trim() || ''
-  if (!line) return DEFAULT_CHAT_TITLE
+  if (!line) return emptyTitle
   return line.length > 60 ? `${line.slice(0, 57)}…` : line
 }
 
@@ -28,5 +29,5 @@ export function sanitizeGeneratedTitle(raw: string, fallback: string): string {
 }
 
 export function shouldAutoTitle(title: string, assistantCount: number): boolean {
-  return assistantCount === 1 && title === DEFAULT_CHAT_TITLE
+  return assistantCount === 1 && (title === DEFAULT_CHAT_TITLE || title === DEFAULT_AGENT_TITLE)
 }

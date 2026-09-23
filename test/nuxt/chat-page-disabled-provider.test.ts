@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 
@@ -36,6 +36,19 @@ mockNuxtImport('useFetch', () => {
 mockNuxtImport('useSeoMeta', () => () => {})
 
 describe('Chat page with a disabled provider', () => {
+  beforeEach(() => {
+    const store = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value)
+      },
+      removeItem: (key: string) => {
+        store.delete(key)
+      },
+    })
+  })
+
   it('omits the disabled provider and falls back to the next enabled one', async () => {
     const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat' })

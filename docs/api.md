@@ -62,6 +62,17 @@ UI conversations (SQLite). Not an OpenAI drop-in.
 | POST | `/api/chat/{id}/truncate` | `{ fromMessageId }` or `{ fromIndex }` — edit/resend |
 | POST | `/api/chat/transcribe` | multipart `file` — `{ text }` from Whisper sidecar |
 
+## Agent
+
+Research threads (SQLite `conversations.kind = agent`). Not returned by `GET /api/chat`.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/agent` | `{ conversations }` |
+| POST | `/api/agent` | `{ modelId }` required |
+| GET, PATCH, DELETE | `/api/agent/{id}` | PATCH `modelId` and/or `title` |
+| POST | `/api/agent/{id}/stream` | `{ content, modelId? }` — SSE `status`, `token`, `sources`, `stats`, `error` |
+
 ## Sidecars
 
 | Method | Path | Notes |

@@ -102,7 +102,8 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 - data dirs structure for ollama, opencode, etc.
 - [x] thinking plus stop, allow pick new model and start typing for next chat.
 - [x] add voice to text for chat using whisper
-- providers/models, agents, mcp, acp, gateway, skills, tools(web research), loops????
+- [x] Agent page (`/agent`): Bros `web_search` + `web_scrape` on the Firecrawl sidecar. The model picks calls when its API returns `tool_calls`; otherwise Bros searches and scrapes, then the model writes. Chat stays one completion.
+- providers/models, mcp, acp, gateway, skills, roles — still open
 - # Enterprise Role Architecture and Comprehensive AI Model Distribution
 - implement ai agent roles.
 roles:

@@ -15,6 +15,7 @@ tags:
   - name: Health
   - name: Providers
   - name: Chat
+  - name: Agent
   - name: Sidecars
   - name: Settings
   - name: Tunnel
@@ -87,6 +88,11 @@ components:
       required: true
       schema: { type: string }
     ChatId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    AgentId:
       name: id
       in: path
       required: true
@@ -615,6 +621,97 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '413': { $ref: '#/components/responses/PayloadTooLarge' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /api/agent:
+    get:
+      tags: [Agent]
+      summary: List agent conversations
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items: { $ref: '#/components/schemas/Conversation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Agent]
+      summary: Create an agent conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modelId]
+              properties:
+                modelId: { type: string }
+                title: { type: string }
+      responses:
+        '200': { description: Conversation }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agent/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AgentId'
+    get:
+      tags: [Agent]
+      summary: Get an agent conversation
+      responses:
+        '200': { description: Conversation }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Agent]
+      summary: Update modelId or title
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                modelId: { type: string }
+                title: { type: string }
+      responses:
+        '200': { description: Conversation }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Agent]
+      summary: Delete an agent conversation
+      responses:
+        '200': { description: '{ ok: true }' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agent/{id}/stream:
+    post:
+      tags: [Agent]
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      summary: Stream an agent research reply (SSE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                modelId: { type: string }
+      responses:
+        '200':
+          description: text/event-stream (status, token, sources, stats, error)
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/sidecars:
     get:
       tags: [Sidecars]
