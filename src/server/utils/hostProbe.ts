@@ -8,10 +8,36 @@ export function setAppRunsInDockerForTests(value: boolean | undefined) {
   testInDocker = value
 }
 
+/** Compose sets `BROS_DATA_DIR=/data` and `BROS_WORKING_DIR=/app` in the app container. */
+export function composeAppSignals(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.BROS_DATA_DIR === '/data' || env.BROS_WORKING_DIR === '/app'
+}
+
 /** True when the Nuxt process is the Compose app container, not `pnpm app:dev`. */
 export function appRunsInDocker(): boolean {
   if (testInDocker !== undefined) return testInDocker
-  return existsSync('/.dockerenv')
+  return existsSync('/.dockerenv') || composeAppSignals()
+}
+
+export type SidecarReachOpts = {
+  service: string
+  containerPort: number
+  publish: number
+  envPortKey?: string
+}
+
+/**
+ * Bros → sidecar HTTP: Docker DNS in-container, host publish on `pnpm app:dev`.
+ * Open/Pin stay `hostUiUrl` (`127.0.0.1:<publish>`).
+ */
+export function sidecarReachUrl(opts: SidecarReachOpts, env: NodeJS.ProcessEnv = process.env): string {
+  if (appRunsInDocker()) return `http://${opts.service}:${opts.containerPort}`
+  let publish = opts.publish
+  if (opts.envPortKey) {
+    const parsed = Number.parseInt(env[opts.envPortKey] || '', 10)
+    if (Number.isInteger(parsed) && parsed > 0) publish = parsed
+  }
+  return `http://127.0.0.1:${publish}`
 }
 
 /** Host as seen from the Bros container (Linux Docker needs host-gateway). */

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { eq } from 'drizzle-orm'
 import { getDb, sidecarSettings } from './db'
-import { appRunsInDocker, dockerHostCandidates } from './hostProbe'
+import { appRunsInDocker, dockerHostCandidates, sidecarReachUrl } from './hostProbe'
 import { projectName } from './sidecars'
 
 export type PublishedHostPort = {
@@ -78,8 +78,12 @@ export function hostOllamaUrl(port: number, host?: string | null): string {
 
 /** Reachable sidecar Ollama: Docker DNS in-container, publish port on host Node. */
 export function sidecarOllamaUrl(): string {
-  if (appRunsInDocker()) return OLLAMA_SIDECAR_DNS
-  return `http://127.0.0.1:${OLLAMA_SIDECAR_PUBLISH}`
+  return sidecarReachUrl({
+    service: 'ollama',
+    containerPort: 11434,
+    publish: OLLAMA_SIDECAR_PUBLISH,
+    envPortKey: 'BROS_OLLAMA_PORT',
+  })
 }
 
 export async function probeOllamaVersion(port: number, timeoutMs = 800): Promise<{ version: string; host: string } | null> {

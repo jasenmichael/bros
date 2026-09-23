@@ -75,6 +75,7 @@ describe('Chat page', () => {
     expect(wrapper.find('.bros-chat__composer').exists()).toBe(true)
     expect(wrapper.html()).toContain('Message…')
     expect(wrapper.find('[aria-label="Send"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Voice to text"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="Stop"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('thinking…')
     expect(wrapper.find('.bros-chat__tools-left').exists()).toBe(true)
@@ -112,9 +113,25 @@ describe('Chat page', () => {
     vm.thinking = true
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('thinking…')
+    expect(wrapper.text()).toContain('0.0s')
     expect(wrapper.find('[aria-label="Stop"]').exists()).toBe(true)
-    expect(wrapper.find('[aria-label="Send"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Send"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Send"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('textarea').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[aria-label="Voice to text"]').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__send').attributes('data-loading')).toBeUndefined()
+  })
+
+  it('shows the mic when the composer is docked in a thread', async () => {
+    const ChatPage = await import('../../src/app/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
+    const vm = wrapper.vm as unknown as {
+      messages: Array<{ id: string; role: string; content: string }>
+    }
+    vm.messages = [{ id: 'u1', role: 'user', content: 'hello' }]
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.bros-chat--thread').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Voice to text"]').exists()).toBe(true)
   })
 
   it('renders assistant markdown with docs prose in the thread', async () => {

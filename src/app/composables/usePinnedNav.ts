@@ -11,7 +11,13 @@ type SidecarNavRow = {
   id: string
   name: string
   packageSlug: string
-  interfaces: Array<{ type: string; slug?: string; publish?: number; hostPort?: number }>
+  interfaces: Array<{
+    type: string
+    slug?: string
+    publish?: number
+    hostPort?: number
+    proxy?: { public?: boolean }
+  }>
   settings: { navPinned: boolean }
 }
 
@@ -23,7 +29,7 @@ export function usePinnedNav() {
   const route = useRoute()
   const skip = computed(() => route.path === '/login' || route.path === '/setup')
 
-  const { data, refresh, pending, error } = useFetch<{ sidecars: SidecarNavRow[] }>('/api/sidecars', {
+  const { data, refresh, pending, error } = useFetch<{ sidecars: SidecarNavRow[]; viaTunnel?: boolean }>('/api/sidecars', {
     key: 'bros-sidecars-nav',
     lazy: true,
     server: false,
@@ -43,10 +49,11 @@ export function usePinnedNav() {
 
   const pinnedItems = computed<PinnedNavItem[]>(() => {
     const rows = data.value?.sidecars || []
+    const viaTunnel = Boolean(data.value?.viaTunnel)
     const out: PinnedNavItem[] = []
     for (const s of rows) {
       if (!s.settings?.navPinned) continue
-      for (const link of sidecarWebUiLinks(s)) {
+      for (const link of sidecarWebUiLinks(s, { viaTunnel })) {
         out.push({
           label: link.label,
           to: link.to,

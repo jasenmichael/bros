@@ -24,6 +24,8 @@ curl -sS -b cookies http://127.0.0.1:3055/api/providers
 
 401 = missing/invalid session or setup required. 403 = via-tunnel stop lock (tunnel stop, some sidecar stops). 400 = bad body. 404 = missing id.
 
+Public sidecar path prefixes (`/${id}/` when that webui sets `proxy.public`) use the same session cookie as `/chat`. They are not `/api/*` routes. No shipped pack opts in today.
+
 ## Providers
 
 List and configure Chat providers (Ollama sidecar `ollama`, host `ollama-host` when Settings enable host Ollama is on, 12 Popular services, custom OpenAI-compat rows). Host routes 404 when that toggle is off.
@@ -58,6 +60,7 @@ UI conversations (SQLite). Not an OpenAI drop-in.
 | GET, PATCH, DELETE | `/api/chat/{id}` | PATCH `modelId` and/or `title` |
 | POST | `/api/chat/{id}/stream` | `{ content, modelId? }` — `text/plain` token stream |
 | POST | `/api/chat/{id}/truncate` | `{ fromMessageId }` or `{ fromIndex }` — edit/resend |
+| POST | `/api/chat/transcribe` | multipart `file` — `{ text }` from Whisper sidecar |
 
 ## Sidecars
 

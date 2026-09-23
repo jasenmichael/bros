@@ -11,7 +11,8 @@ Must-run **core** package `sidecars/ollama`. Local model runtime. Independent of
 
 - Container listen: **11434**
 - Host publish: **11435** (`BROS_OLLAMA_PORT` override)
-- Docker DNS for other containers: `http://ollama:11434`
+- Docker DNS for other containers **and** Compose-app Bros (Chat/Providers): `http://ollama:11434`
+- Host Node (`pnpm app:dev`): `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT` override)
 
 Host publish stays **11435** so a host Ollama on 11434 can coexist. Chat/Providers sidecar provider id is `ollama`. Home, Status, and Sidecars cards show that publish port only. Host Ollama is not labeled on sidecar surfaces.
 

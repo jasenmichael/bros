@@ -17,6 +17,7 @@
     "better-sqlite3": "^12.11.1",
     "defu": "^6.1.4",
     "dockerode": "^4.0.6",
+    "httpxy": "^0.5.5",
     "drizzle-orm": "^0.44.2",
     "nuxt": "^4.5.0",
     "ofetch": "^1.4.1",

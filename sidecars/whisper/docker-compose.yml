@@ -1,0 +1,25 @@
+services:
+  whisper:
+    image: ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu@sha256:2163775b6df5e451a71200e8f675fed68dbd8ab184fc604453d549e486f22fd2
+    # Docker creates empty bind dirs as root; Speaches image USER is ubuntu.
+    user: "0:0"
+    environment:
+      HOME: /home/ubuntu
+      HF_HOME: /home/ubuntu/.cache/huggingface
+      WHISPER__MODEL: Systran/faster-whisper-base
+      WHISPER__COMPUTE_TYPE: int8
+      WHISPER__INFERENCE_DEVICE: cpu
+      STT_MODEL_TTL: "-1"
+      ENABLE_UI: "false"
+      PRELOAD_MODELS: '["Systran/faster-whisper-base"]'
+    ports:
+      - "${BROS_WHISPER_PORT:-8090}:8000"
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/whisper:/home/ubuntu/.cache/huggingface/hub
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

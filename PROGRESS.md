@@ -2,7 +2,7 @@
 
 ## Current: M0–M7 on `main`
 
-Product brand is **Bros**. Sidecars remain sidecars (routes, APIs, `sidecar.yml`, `sidecars/`). Host `cloudflared` tunnel, passkey sessions, and no path proxy landed on `main` (`d4bf952`). **M7** is the install and runner CLI. Leftover gaps are unplanned follow-ups in [PLAN.md](./PLAN.md).
+Product brand is **Bros**. Sidecars remain sidecars (routes, APIs, `sidecar.yml`, `sidecars/`). Host `cloudflared` tunnel, passkey sessions, and optional `proxy.public` path proxy live in the tree. No shipped pack opts in today (OpenCode still serves `/`). **M7** is the install and runner CLI. Leftover gaps are unplanned follow-ups in [PLAN.md](./PLAN.md).
 
 Docs markdown in **`docs/`**. Both apps extend theme + docs. `/docs` is identical. App **`/` = dashboard**; website **`/` = marketing**. Static site: `src/website` (`pnpm docs:generate`) → https://jasenmichael.github.io/bros/
 
@@ -41,5 +41,5 @@ pnpm --filter @bros/website preview
 |-----------|--------|
 | M0–M6 | done |
 | Rename → Bros | done |
-| Host tunnel + auth + no path proxy | done (`main`) |
+| Host tunnel + auth + `proxy.public` path proxy | done |
 | M7 | done — install + runner CLI |

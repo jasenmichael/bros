@@ -1,0 +1,11 @@
+id: whisper
+slug: whisper
+name: Whisper
+description: Local speech-to-text for Chat (Speaches faster-whisper). Bros publishes host port 8090. Open is the HTTP API; no Pin.
+
+interfaces:
+  - type: api
+    service: whisper
+    containerPort: 8000
+    publish: 8090
+    basePath: /v1

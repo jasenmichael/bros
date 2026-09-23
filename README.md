@@ -41,6 +41,7 @@ Host needs Docker only — no host Node for the app. Optional host `cloudflared`
 - `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
 - `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
 - `$BROS_HOST_DATA_DIR/firecrawl-pg` → Firecrawl Postgres
+- `$BROS_HOST_DATA_DIR/whisper` → Whisper sidecar Hugging Face cache
 
 In-container `BROS_DATA_DIR` stays `/data`. Do not commit `data/`, `.env`, `.nuxt`, or `node_modules`.
 
@@ -50,7 +51,7 @@ On **Providers**: **Ollama** (sidecar + host, cards load collapsed; Chat on by d
 
 **Settings** Chat fields (prepend + assistant description) persist in SQLite `meta`, not YAML or env. They apply on user Chat sends only — never on internal `bros` titles. Details: [docs/settings.md](docs/settings.md), [docs/chat.md](docs/chat.md).
 
-Pull on an Ollama card, or type any valid Ollama name. Progress stays on that provider’s model list (survives leaving the page). **Yours** keeps names you add. Recommended tags are **≤ 16 GB**. Sidecar DNS is `http://ollama:11434` (host publish **11435**). Sidecar compose sets `OLLAMA_NOPRUNE=1`; run host Ollama with the same env so incomplete pulls are not pruned. Host Ollama is a separate Chat/Providers row, **off by default** (Settings → Enable host Ollama). Host pull/chat use the host Ollama disk.
+Pull on an Ollama card, or type any valid Ollama name. Progress stays on that provider’s model list (survives leaving the page). **Yours** keeps names you add. Recommended tags are **≤ 16 GB**. Sidecar DNS is `http://ollama:11434` (host publish **11435**; Compose-app Chat uses DNS, not the publish port). Sidecar compose sets `OLLAMA_NOPRUNE=1`; run host Ollama with the same env so incomplete pulls are not pruned. Host Ollama is a separate Chat/Providers row, **off by default** (Settings → Enable host Ollama). Host pull/chat use the host Ollama disk.
 
 ### Internal specialist (`bros`)
 

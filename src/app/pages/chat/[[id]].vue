@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useChatRecents } from '../../composables/useChatRecents'
-import { formatContextLabel, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
+import { formatContextLabel, formatDurationMs, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
 import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
 
 type Msg = {
@@ -24,6 +24,9 @@ const convoId = computed(() => {
 
 const messages = ref<Msg[]>([])
 const input = ref('')
+const toast = useToast()
+const voiceRecording = ref(false)
+const voiceBusy = ref(false)
 const streaming = ref('')
 const streamingModelId = ref('')
 const streamingStats = ref<ChatMetaStats>({})
@@ -232,6 +235,8 @@ const liveMetaLabel = computed(() => formatMetaStats({
   completionTokens: streamingStats.value.completionTokens,
 }))
 
+const thinkingElapsed = computed(() => formatDurationMs(liveElapsedMs.value))
+
 async function loadConversation(id: string) {
   try {
     const convo = await $fetch<{ messages: Msg[]; modelId: string; title: string }>(`/api/chat/${id}`)
@@ -328,6 +333,110 @@ function onComposerKeydown(event: KeyboardEvent) {
 
 function stop() {
   streamAbort.value?.abort()
+}
+
+function voiceMime() {
+  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+  for (const t of types) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t
+  }
+  return ''
+}
+
+let voiceRecorder: MediaRecorder | null = null
+let voiceChunks: Blob[] = []
+let voiceStream: MediaStream | null = null
+
+function stopVoiceTracks() {
+  voiceStream?.getTracks().forEach((t) => t.stop())
+  voiceStream = null
+  voiceRecorder = null
+  voiceChunks = []
+  voiceRecording.value = false
+}
+
+function appendVoiceText(text: string) {
+  const t = text.trim()
+  if (!t) return
+  const cur = input.value
+  input.value = cur && !/\s$/.test(cur) ? `${cur} ${t}` : `${cur}${t}`
+}
+
+async function startVoice() {
+  if (!import.meta.client) return
+  if (!window.isSecureContext) {
+    toast.add({
+      title: 'Microphone needs HTTPS',
+      description: 'Voice to text works on localhost or HTTPS (tunnel).',
+      color: 'warning',
+      icon: 'i-lucide-mic-off',
+    })
+    return
+  }
+  try {
+    const mime = voiceMime()
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    voiceChunks = []
+    voiceRecorder = mime ? new MediaRecorder(voiceStream, { mimeType: mime }) : new MediaRecorder(voiceStream)
+    voiceRecorder.ondataavailable = (e) => {
+      if (e.data.size) voiceChunks.push(e.data)
+    }
+    voiceRecorder.start()
+    voiceRecording.value = true
+  } catch {
+    stopVoiceTracks()
+    toast.add({
+      title: 'Microphone blocked',
+      description: 'Allow microphone access to use voice to text.',
+      color: 'warning',
+      icon: 'i-lucide-mic-off',
+    })
+  }
+}
+
+function stopVoiceRecorder(): Promise<Blob | null> {
+  const rec = voiceRecorder
+  if (!rec || rec.state === 'inactive') {
+    stopVoiceTracks()
+    return Promise.resolve(null)
+  }
+  return new Promise((resolve) => {
+    rec.onstop = () => {
+      const type = rec.mimeType || 'audio/webm'
+      const blob = voiceChunks.length ? new Blob(voiceChunks, { type }) : null
+      stopVoiceTracks()
+      resolve(blob)
+    }
+    rec.stop()
+  })
+}
+
+async function toggleVoice() {
+  if (voiceBusy.value) return
+  if (voiceRecording.value) {
+    voiceBusy.value = true
+    try {
+      const blob = await stopVoiceRecorder()
+      if (!blob || blob.size === 0) return
+      const form = new FormData()
+      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+      form.append('file', blob, `voice.${ext}`)
+      const row = await $fetch<{ text?: string }>('/api/chat/transcribe', { method: 'POST', body: form })
+      appendVoiceText(row?.text || '')
+    } catch (err: unknown) {
+      const row = err as { data?: { statusMessage?: string }; statusMessage?: string }
+      toast.add({
+        title: 'Transcription failed',
+        description: row.data?.statusMessage || row.statusMessage || 'Whisper sidecar did not return text.',
+        color: 'error',
+        icon: 'i-lucide-mic-off',
+      })
+    } finally {
+      voiceBusy.value = false
+    }
+    return
+  }
+  await startVoice()
 }
 
 function waitWhileBusy() {
@@ -511,6 +620,8 @@ onUnmounted(() => {
   stopElapsed()
   streamAbort.value?.abort()
   if (copiedTimer) clearTimeout(copiedTimer)
+  if (voiceRecorder && voiceRecorder.state !== 'inactive') voiceRecorder.stop()
+  stopVoiceTracks()
 })
 
 defineExpose({
@@ -625,10 +736,34 @@ defineExpose({
           <span class="bros-chat__meta-id">
             ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
           </span>
-          <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
+          <span class="bros-chat__meta-right">
+            <UButton
+              type="button"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              label="Stop"
+              aria-label="Stop"
+              class="bros-chat__stop"
+              @click="stop"
+            />
+            <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
+          </span>
         </p>
       </div>
-      <p v-if="thinking" class="bros-chat__thinking">thinking…</p>
+      <p v-if="thinking" class="bros-chat__thinking">
+        <span>thinking… {{ thinkingElapsed }}</span>
+        <UButton
+          type="button"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          label="Stop"
+          aria-label="Stop"
+          class="bros-chat__stop"
+          @click="stop"
+        />
+      </p>
       <div ref="threadEnd" />
     </div>
 
@@ -660,7 +795,6 @@ defineExpose({
           v-model="input"
           class="bros-chat__input"
           placeholder="Message…"
-          :disabled="busy"
           :rows="1"
           :maxrows="8"
           autoresize
@@ -669,20 +803,20 @@ defineExpose({
           @keydown="onComposerKeydown"
         />
         <UButton
-          v-if="!busy"
+          type="button"
+          icon="i-lucide-mic"
+          :aria-label="voiceRecording ? 'Stop recording' : 'Voice to text'"
+          :disabled="voiceBusy"
+          class="bros-chat__send bros-chat__mic"
+          :class="{ 'bros-chat__mic--recording': voiceRecording }"
+          @click="toggleVoice"
+        />
+        <UButton
           type="submit"
-          :disabled="!input.trim()"
+          :disabled="busy || !input.trim()"
           icon="i-lucide-arrow-up"
           aria-label="Send"
           class="bros-chat__send"
-        />
-        <UButton
-          v-else
-          type="button"
-          icon="i-lucide-square"
-          aria-label="Stop"
-          class="bros-chat__send"
-          @click="stop"
         />
       </form>
     </div>
@@ -741,9 +875,12 @@ defineExpose({
 }
 
 .bros-chat__thinking {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   width: min(48rem, 100%);
   margin: 1.25rem auto;
-  text-align: center;
   font-size: 0.95rem;
   color: var(--bros-muted);
 }
@@ -905,5 +1042,14 @@ defineExpose({
 
 .bros-chat__send {
   border-radius: 999px;
+}
+
+.bros-chat__mic--recording {
+  animation: bros-mic-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes bros-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bros-accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--bros-accent) 0%, transparent); }
 }
 </style>

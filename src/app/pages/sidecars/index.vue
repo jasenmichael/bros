@@ -24,6 +24,7 @@ type SidecarRow = {
     containerPort?: number
     publish?: number
     basePath?: string
+    proxy?: { public?: boolean }
   }>
   settings: { autostart: boolean; navPinned: boolean; hostProbePort?: number | null }
   status: { running: boolean; services: Array<{ name: string; state: string }> }
@@ -73,11 +74,11 @@ function sourceLabel(s: SidecarRow) {
 }
 
 function openLinks(s: SidecarRow) {
-  return sidecarOpenLinks(s)
+  return sidecarOpenLinks(s, { viaTunnel: data.value?.viaTunnel })
 }
 
 function pinLinks(s: SidecarRow) {
-  return sidecarWebUiLinks(s)
+  return sidecarWebUiLinks(s, { viaTunnel: data.value?.viaTunnel })
 }
 
 /** OpenAI-compatible base URLs for tools that speak /v1 (or sidecar basePath). */

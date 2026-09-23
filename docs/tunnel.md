@@ -7,7 +7,11 @@ description: Host cloudflared named vs quick tunnel, install, login, Status erro
 
 The Dashboard **Tunnel** card and `/status` control a **host** `cloudflared` process. Bros inside Docker cannot spawn it. It is not a sidecar.
 
-The tunnel exposes the Bros app at `http://127.0.0.1:<BROS_PORT>` (default **3055**). There is no path proxy. Sidecar Open/Pin still use `http://127.0.0.1:<publish>/`.
+The tunnel exposes the Bros app at `http://127.0.0.1:<BROS_PORT>` (default **3055**). One hostname. Catch-all is `http_status:404`. Sidecar Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
+
+## Sidecar UIs
+
+Do **not** add extra Cloudflare hostnames or tunnels for sidecars. Path proxy exists only for native-base UIs that set `proxy.public` in `sidecar.yml`. No shipped pack does that until OpenCode honors a base path. Open WebUI and the Ollama API stay LAN — they assume `/` and are not public-proxied. See [Sidecars](/docs/sidecars).
 
 ## Prerequisites
 
