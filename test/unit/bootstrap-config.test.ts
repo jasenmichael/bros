@@ -116,13 +116,14 @@ describe('hostDataDirForBinds', () => {
 })
 
 describe('ensureDataLayout', () => {
-  it('creates sidecars, sidecar-repos, and logs under the data dir', () => {
+  it('creates logs and tunnel under the data dir', () => {
     const dir = mkdtempSync(join(tmpdir(), 'bros-data-'))
     try {
       ensureDataLayout(dir)
-      expect(existsSync(join(dir, 'sidecars'))).toBe(true)
-      expect(existsSync(join(dir, 'sidecar-repos'))).toBe(true)
+      expect(existsSync(join(dir, 'sidecars'))).toBe(false)
+      expect(existsSync(join(dir, 'sidecar-repos'))).toBe(false)
       expect(existsSync(join(dir, 'logs'))).toBe(true)
+      expect(existsSync(join(dir, 'tunnel'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

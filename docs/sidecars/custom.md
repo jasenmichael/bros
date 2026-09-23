@@ -5,11 +5,11 @@ description: User-created and git-cloned Compose packages.
 
 # Additional sidecars
 
-Everything that is not core Ollama or a shipped addon. Listed on `/sidecars` under **Addon sidecars**. Source badge is **custom** (data dir) or **repo** (git clone).
+Everything that is not core (Ollama, Whisper) or a shipped addon. Listed on `/sidecars` under **Addon sidecars**. Source badge is **custom** (`sidecars/custom`) or **repo** (git clone).
 
 ## Add in the UI
 
-`/sidecars` → Addon sidecars → **Add sidecar**. Bros writes `$BROS_HOST_DATA_DIR/sidecars/<id>/` with `sidecar.yml` plus `docker-compose.yml` (in-container `/data/sidecars/<id>/`). Edit those files in the UI. Saving prompts a restart confirm so compose changes take effect.
+`/sidecars` → Addon sidecars → **Add sidecar**. Bros writes `$BROS_HOME/sidecars/custom/<id>/` with `sidecar.yml` plus `docker-compose.yml`. That directory is gitignored. Edit those files in the UI. Saving prompts a restart confirm so compose changes take effect.
 
 You can still drop the same files on disk.
 
@@ -17,7 +17,7 @@ Compose project name is `bros-sc-<id>` on network `bros`.
 
 ## From a repo
 
-**From a repo** clones into `$BROS_HOST_DATA_DIR/sidecar-repos/<name>/` and loads that tree’s `sidecars/` directory (same rules as repo `sidecars/`). Source badge is **repo**. **Update** is `git pull`; if `docker-compose.yml` changed, Bros prompts a restart.
+**From a repo** clones into `$BROS_HOME/sidecars/custom/<name>/` and loads that tree’s `sidecars/` directory. Source badge is **repo**. **Update** is `git pull`; if `docker-compose.yml` changed, Bros prompts a restart.
 
 ## Rules
 

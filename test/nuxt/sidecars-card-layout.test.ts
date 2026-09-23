@@ -45,7 +45,7 @@ describe('Sidecar card layout', () => {
       sidecar({ id: 'ollama', name: 'Ollama', kind: 'core' }),
       sidecar({ id: 'opencode', name: 'OpenCode', kind: 'addon' }),
       sidecar({ id: 'openwebui', name: 'Open WebUI', kind: 'addon' }),
-      sidecar({ id: 'extra', name: 'Extra', kind: 'additional', source: 'data dir' }),
+      sidecar({ id: 'extra', name: 'Extra', kind: 'additional', source: 'custom' }),
     ]
 
     const SidecarsPage = await import('../../src/app/pages/sidecars/index.vue').then((m) => m.default)

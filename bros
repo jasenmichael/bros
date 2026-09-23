@@ -160,19 +160,88 @@ resolve_default_config() {
   return 1
 }
 
+move_if_missing() {
+  local from="$1" to="$2"
+  [[ -e "$from" ]] || return 0
+  if [[ -e "$to" ]]; then
+    # Empty dir from a failed copy is not a finished migration.
+    if [[ -d "$to" ]] && [[ -z "$(find "$to" -mindepth 1 -print -quit)" ]]; then
+      rmdir "$to" || return 0
+    else
+      return 0
+    fi
+  fi
+  mkdir -p "$(dirname "$to")"
+  mv "$from" "$to"
+}
+
+# Flat volume dir becomes data/<id>/<container path> when the new path is absent.
+nest_volume() {
+  local dir="$1" rel="$2"
+  [[ -d "$dir" ]] || return 0
+  [[ -e "$dir/$rel" ]] && return 0
+  local top="${rel%%/*}"
+  [[ -n "$top" && -e "$dir/$top" ]] && return 0
+  if ! find "$dir" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    return 0
+  fi
+  local parent base tmp
+  parent="$(dirname "$dir")"
+  base="$(basename "$dir")"
+  tmp="$parent/.migrate-$base"
+  [[ -e "$tmp" ]] && tmp="$parent/.migrate-$base-$$"
+  mv "$dir" "$tmp"
+  mkdir -p "$(dirname "$dir/$rel")"
+  mv "$tmp" "$dir/$rel"
+}
+
+migrate_sidecar_data() {
+  local d="$BROS_HOST_DATA_DIR"
+  local custom="${SIDECARS_DIR:-$REPO_ROOT/sidecars}/custom"
+  local child name
+  nest_volume "$d/ollama" "root/.ollama"
+  move_if_missing "$d/ollama-config" "$d/ollama/root/.config/ollama"
+  move_if_missing "$d/bros-model" "$d/ollama/bros-model"
+  nest_volume "$d/opencode" "workspace"
+  move_if_missing "$d/opencode-config" "$d/opencode/root/.config/opencode"
+  move_if_missing "$d/opencode-share" "$d/opencode/root/.local/share/opencode"
+  nest_volume "$d/openwebui" "app/backend/data"
+  move_if_missing "$d/firecrawl-redis" "$d/firecrawl/data"
+  move_if_missing "$d/firecrawl-rabbitmq" "$d/firecrawl/var/lib/rabbitmq"
+  move_if_missing "$d/firecrawl-pg" "$d/firecrawl/var/lib/postgresql/data"
+  nest_volume "$d/whisper" "home/ubuntu/.cache/huggingface/hub"
+  mkdir -p "$custom"
+  if [[ -d "$d/sidecars" ]]; then
+    for child in "$d/sidecars"/*; do
+      [[ -e "$child" ]] || continue
+      name="$(basename "$child")"
+      move_if_missing "$child" "$custom/$name"
+    done
+  fi
+  if [[ -d "$d/sidecar-repos" ]]; then
+    for child in "$d/sidecar-repos"/*; do
+      [[ -e "$child" ]] || continue
+      name="$(basename "$child")"
+      move_if_missing "$child" "$custom/$name"
+    done
+  fi
+}
+
 ensure_host_data_dir() {
+  migrate_sidecar_data
   mkdir -p \
     "$BROS_HOST_DATA_DIR" \
-    "$BROS_HOST_DATA_DIR/ollama" \
-    "$BROS_HOST_DATA_DIR/ollama-config" \
-    "$BROS_HOST_DATA_DIR/openwebui" \
-    "$BROS_HOST_DATA_DIR/opencode" \
-    "$BROS_HOST_DATA_DIR/opencode-config" \
-    "$BROS_HOST_DATA_DIR/opencode-share" \
-    "$BROS_HOST_DATA_DIR/sidecars" \
+    "$BROS_HOST_DATA_DIR/ollama/root/.ollama" \
+    "$BROS_HOST_DATA_DIR/ollama/root/.config/ollama" \
+    "$BROS_HOST_DATA_DIR/ollama/bros-model" \
+    "$BROS_HOST_DATA_DIR/openwebui/app/backend/data" \
+    "$BROS_HOST_DATA_DIR/opencode/workspace" \
+    "$BROS_HOST_DATA_DIR/opencode/root/.config/opencode" \
+    "$BROS_HOST_DATA_DIR/opencode/root/.local/share/opencode" \
+    "$BROS_HOST_DATA_DIR/whisper/home/ubuntu/.cache/huggingface/hub" \
     "$BROS_HOST_DATA_DIR/logs" \
     "$BROS_HOST_DATA_DIR/tunnel" \
-    "$BROS_HOST_DATA_DIR/bros-model"
+    "${SIDECARS_DIR:-$REPO_ROOT/sidecars}/custom"
 }
 
 compose_files() {
@@ -200,9 +269,9 @@ compose_up() {
   fi
 }
 
-# Core sidecars live under ./sidecars/<id>/ with compose project bros-sc-<id>.
+# Core sidecars live under ./sidecars/core/<id>/ with compose project bros-sc-<id>.
 SIDECARS_DIR="$REPO_ROOT/sidecars"
-OLLAMA_COMPOSE="$SIDECARS_DIR/ollama/docker-compose.yml"
+OLLAMA_COMPOSE="$SIDECARS_DIR/core/ollama/docker-compose.yml"
 VENDOR_MODEL_DIR="$REPO_ROOT/vendor/bros-model"
 GGUF_REL="models/bros-q4_k_m.gguf"
 STAMP_NAME=".bros-gguf-stamp.json"
@@ -218,16 +287,36 @@ compose_project_down() {
   fi
 }
 
+# Compose files under sidecars/{core,addon,custom} and custom/<repo>/sidecars/.
+each_sidecar_compose() {
+  local root="$1"
+  local kind dir nested
+  [[ -d "$root" ]] || return 0
+  for kind in core addon custom; do
+    [[ -d "$root/$kind" ]] || continue
+    for dir in "$root/$kind"/*/; do
+      [[ -d "$dir" ]] || continue
+      if [[ -f "${dir}docker-compose.yml" ]]; then
+        printf '%s\n' "${dir}docker-compose.yml"
+      fi
+      if [[ -d "${dir}sidecars" ]]; then
+        for nested in "${dir}sidecars"/*/; do
+          [[ -f "${nested}docker-compose.yml" ]] || continue
+          printf '%s\n' "${nested}docker-compose.yml"
+        done
+      fi
+    done
+  done
+}
+
 # Stop all Bros sidecar projects (bros-sc-*) discovered under sidecars/.
 stop_bros_sidecars() {
-  local dir id
-  if [[ -d "$SIDECARS_DIR" ]]; then
-    for dir in "$SIDECARS_DIR"/*/; do
-      [[ -f "${dir}docker-compose.yml" ]] || continue
-      id="$(basename "$dir")"
-      compose_project_down "bros-sc-${id}" "${dir}docker-compose.yml"
-    done
-  fi
+  local file id
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    id="$(basename "$(dirname "$file")")"
+    compose_project_down "bros-sc-${id}" "$file"
+  done < <(each_sidecar_compose "$SIDECARS_DIR")
   # Catch any leftover bros-sc-* containers (custom data_dir sidecars, stale names).
   local leftover
   leftover="$(docker ps -aq --filter 'name=bros-sc-' 2>/dev/null || true)"
@@ -241,14 +330,12 @@ stop_bros_sidecars() {
 
 # One-shot cleanup of pre-rename forgebox-sc-* stacks so they never run beside bros-sc-*.
 cleanup_legacy_sidecar_projects() {
-  local dir id leftover
-  if [[ -d "$SIDECARS_DIR" ]]; then
-    for dir in "$SIDECARS_DIR"/*/; do
-      [[ -f "${dir}docker-compose.yml" ]] || continue
-      id="$(basename "$dir")"
-      compose_project_down "forgebox-sc-${id}" "${dir}docker-compose.yml"
-    done
-  fi
+  local file id leftover
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    id="$(basename "$(dirname "$file")")"
+    compose_project_down "forgebox-sc-${id}" "$file"
+  done < <(each_sidecar_compose "$SIDECARS_DIR")
   leftover="$(docker ps -aq --filter 'name=forgebox-sc-' 2>/dev/null || true)"
   if [[ -n "$leftover" ]]; then
     echo "Removing legacy forgebox-sc-* containers…"
@@ -311,7 +398,7 @@ gguf_path() {
 }
 
 stamp_path() {
-  printf '%s\n' "${BROS_HOST_DATA_DIR}/bros-model/${STAMP_NAME}"
+  printf '%s\n' "${BROS_HOST_DATA_DIR}/ollama/bros-model/${STAMP_NAME}"
 }
 
 vendor_stamp_json() {
@@ -371,7 +458,7 @@ ensure_vendor_submodule() {
 }
 
 copy_vendor_bros_model() {
-  local dest="$BROS_HOST_DATA_DIR/bros-model"
+  local dest="$BROS_HOST_DATA_DIR/ollama/bros-model"
   local part
   mkdir -p "$dest"
   for part in models ollama scripts; do
@@ -416,7 +503,7 @@ start_ollama_sidecar() {
 
 install_internal_bros_model() {
   local dest gguf identity
-  dest="$BROS_HOST_DATA_DIR/bros-model"
+  dest="$BROS_HOST_DATA_DIR/ollama/bros-model"
   gguf="$(gguf_path)"
   copy_vendor_bros_model
   echo "Creating Ollama model bros…"

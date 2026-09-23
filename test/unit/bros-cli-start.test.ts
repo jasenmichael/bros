@@ -184,7 +184,7 @@ describe('internal model stamp skip', () => {
     const dir = mkdtempSync(join(tmpdir(), 'bros-stamp-'))
     const vendor = join(dir, 'vendor', 'bros-model', 'models')
     mkdirSync(vendor, { recursive: true })
-    mkdirSync(join(dir, 'data', 'bros-model'), { recursive: true })
+    mkdirSync(join(dir, 'data', 'ollama', 'bros-model'), { recursive: true })
     const gguf = join(vendor, 'bros-q4_k_m.gguf')
     writeFileSync(gguf, 'gguf-bytes')
     const identity = bash(
@@ -192,7 +192,7 @@ describe('internal model stamp skip', () => {
        ${vendorStamp}
        vendor_stamp_json '${gguf}'`,
     ).trim()
-    writeFileSync(join(dir, 'data', 'bros-model', '.bros-gguf-stamp.json'), `${identity}\n`)
+    writeFileSync(join(dir, 'data', 'ollama', 'bros-model', '.bros-gguf-stamp.json'), `${identity}\n`)
     const out = bash(
       `set -euo pipefail
        VENDOR_MODEL_DIR='${join(dir, 'vendor', 'bros-model')}'

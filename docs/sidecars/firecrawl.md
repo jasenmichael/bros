@@ -5,7 +5,7 @@ description: Self-hosted Firecrawl scrape API on host port 3002.
 
 # Firecrawl sidecar
 
-Shipped **addon** package `sidecars/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. Still listed under Addon sidecars with source **bros**.
+Shipped **addon** package `sidecars/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. Still listed under Addon sidecars with source **bros**.
 
 There is **no** Firecrawl Cloud Web UI on this pack. Open is `http://127.0.0.1:3002/` (HTTP API). There is no Pin in nav on this card. Copy also offers `/v2` and the Docker DNS URLs `http://firecrawl:3002/` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/sidecars/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this sidecar.
 
@@ -51,9 +51,9 @@ A success body has `"success": true` and `data.markdown`.
 
 ## Binds
 
-- `$BROS_HOST_DATA_DIR/firecrawl-pg` → Postgres
-- `$BROS_HOST_DATA_DIR/firecrawl-redis` → Redis
-- `$BROS_HOST_DATA_DIR/firecrawl-rabbitmq` → RabbitMQ
+- `$BROS_HOST_DATA_DIR/firecrawl/var/lib/postgresql/data` → Postgres
+- `$BROS_HOST_DATA_DIR/firecrawl/data` → Redis `/data`
+- `$BROS_HOST_DATA_DIR/firecrawl/var/lib/rabbitmq` → RabbitMQ `/var/lib/rabbitmq`
 
 Postgres password: `BROS_FIRECRAWL_POSTGRES_PASSWORD` (default is a long local-only string). The database is not published to the host.
 

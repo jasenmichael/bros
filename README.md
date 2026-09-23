@@ -35,13 +35,13 @@ Host needs Docker only — no host Node for the app. Optional host `cloudflared`
 
 `BROS_HOME` is the checkout when the CLI sits next to `docker-compose.yml` + `sidecars/`. The installed clone is `~/.bros`. Override with `BROS_HOME` or `BROS_DIR`. Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
 
-- `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, additional sidecars, sidecar-repos, logs)
-- `$BROS_HOST_DATA_DIR/ollama` → Ollama sidecar `/root/.ollama`
-- `$BROS_HOST_DATA_DIR/bros-model` → Ollama sidecar `/bros-model` (packaged specialist, read-only)
-- `$BROS_HOST_DATA_DIR/openwebui` → Open WebUI data
-- `$BROS_HOST_DATA_DIR/opencode` → OpenCode workspace
-- `$BROS_HOST_DATA_DIR/firecrawl-pg` → Firecrawl Postgres
-- `$BROS_HOST_DATA_DIR/whisper` → Whisper sidecar Hugging Face cache
+- `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, logs). Sidecar runtime data is `data/<id>/` mirroring container paths.
+- `$BROS_HOST_DATA_DIR/ollama/root/.ollama` → Ollama `/root/.ollama`
+- `$BROS_HOST_DATA_DIR/ollama/bros-model` → Ollama `/bros-model` (packaged specialist, read-only)
+- `$BROS_HOST_DATA_DIR/openwebui/app/backend/data` → Open WebUI data
+- `$BROS_HOST_DATA_DIR/opencode/workspace` → OpenCode workspace
+- `$BROS_HOST_DATA_DIR/firecrawl/var/lib/postgresql/data` → Firecrawl Postgres
+- `$BROS_HOST_DATA_DIR/whisper/home/ubuntu/.cache/huggingface/hub` → Whisper Hugging Face cache
 
 In-container `BROS_DATA_DIR` stays `/data`. Do not commit `data/`, `.env`, `.nuxt`, or `node_modules`.
 

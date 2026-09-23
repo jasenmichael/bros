@@ -14,6 +14,7 @@ services:
       # Host path for bind (set by ./bros); inside container scan uses /host-home
       - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
       - ./sidecars:/app/sidecars:ro
+      - ./sidecars/custom:/app/sidecars/custom
       - ${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml:ro
     environment:
       BROS_WORKING_DIR: /app
@@ -23,7 +24,6 @@ services:
       BROS_SIDECAR_OPENCODE: ${BROS_SIDECAR_OPENCODE:-}
       BROS_SIDECAR_OPENWEBUI: ${BROS_SIDECAR_OPENWEBUI:-}
       BROS_SIDECAR_FIRECRAWL: ${BROS_SIDECAR_FIRECRAWL:-}
-      BROS_SIDECAR_WHISPER: ${BROS_SIDECAR_WHISPER:-}
       BROS_WHISPER_PORT: ${BROS_WHISPER_PORT:-}
       BROS_FIRECRAWL_PORT: ${BROS_FIRECRAWL_PORT:-}
       BROS_FIRECRAWL_POSTGRES_PASSWORD: ${BROS_FIRECRAWL_POSTGRES_PASSWORD:-}
@@ -33,7 +33,7 @@ services:
       BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:-}
       BROS_HOST_HOME: /host-home
       BROS_HOST_HOME_BIND: ${BROS_HOST_HOME_BIND:-${HOME}}
-      BROS_OLLAMA_MODELS_DIR: /data/ollama/models
+      BROS_OLLAMA_MODELS_DIR: /data/ollama/root/.ollama/models
       HOST: 0.0.0.0
       PORT: "3055"
       NITRO_HOST: 0.0.0.0

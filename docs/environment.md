@@ -34,14 +34,13 @@ Bros uses the `BROS_*` prefix. YAML holds `working_dir`, `data_dir`, and optiona
 | Variable | Default | Role |
 | --- | --- | --- |
 | `BROS_WORKING_DIR` | `/app` | App root inside the container |
-| `BROS_DATA_DIR` | `/data` | SQLite, additional sidecars, sidecar-repos, logs |
-| `BROS_SIDECARS_DIR` | `/app/sidecars` | Shipped sidecar packages (core Ollama + addons) |
-| `BROS_SIDECARS_DISABLE` | unset | Comma list of shipped addon ids to skip at autostart (`opencode,openwebui,firecrawl,firecrawl-ui,whisper`). Cannot disable `ollama`. |
+| `BROS_DATA_DIR` | `/data` | SQLite, sidecar volume dirs, logs |
+| `BROS_SIDECARS_DIR` | `/app/sidecars` | Sidecar packages (`core/`, `addon/`, `custom/`) |
+| `BROS_SIDECARS_DISABLE` | unset | Comma list of shipped addon ids to skip at autostart (`opencode,openwebui,firecrawl,firecrawl-ui`). Does not disable `ollama` or `whisper`. |
 | `BROS_SIDECAR_OPENCODE` | unset | `0` / `false` / `off` skips OpenCode autostart |
 | `BROS_SIDECAR_OPENWEBUI` | unset | `0` / `false` / `off` skips Open WebUI autostart |
 | `BROS_SIDECAR_FIRECRAWL` | unset | `0` / `false` / `off` skips Firecrawl autostart |
 | `BROS_SIDECAR_FIRECRAWL_UI` | unset | `0` / `false` / `off` skips Firecrawl UI autostart (`firecrawl-ui`) |
-| `BROS_SIDECAR_WHISPER` | unset | `0` / `false` / `off` skips Whisper autostart |
 | `BROS_NETWORK` | `bros` | Shared external Docker network (CLI/dockerode create if missing) |
 | `BROS_OLLAMA_PORT` | `11435` | Host publish for sidecar Ollama; host Node Chat/Providers URL |
 | `BROS_OPENCODE_PORT` | `4097` | Host publish for OpenCode |

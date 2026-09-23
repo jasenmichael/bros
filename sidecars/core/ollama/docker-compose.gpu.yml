@@ -7,4 +7,4 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
       OLLAMA_NOPRUNE: "1"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/bros-model:/bros-model:ro
+      - ${BROS_HOST_DATA_DIR:?unset}/ollama/bros-model:/bros-model:ro

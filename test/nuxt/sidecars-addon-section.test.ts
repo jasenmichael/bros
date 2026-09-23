@@ -47,7 +47,7 @@ const { payload } = vi.hoisted(() => ({
         id: 'my-pack',
         name: 'My pack',
         description: 'Data dir pack',
-        source: 'data dir' as const,
+        source: 'custom' as const,
         kind: 'additional' as const,
         packageSlug: 'my-pack',
         editable: true,

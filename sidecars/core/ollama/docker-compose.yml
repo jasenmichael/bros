@@ -6,9 +6,9 @@ services:
     environment:
       OLLAMA_NOPRUNE: "1"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/ollama:/root/.ollama
-      - ${BROS_HOST_DATA_DIR:?unset}/ollama-config:/root/.config/ollama
-      - ${BROS_HOST_DATA_DIR:?unset}/bros-model:/bros-model:ro
+      - ${BROS_HOST_DATA_DIR:?unset}/ollama/root/.ollama:/root/.ollama
+      - ${BROS_HOST_DATA_DIR:?unset}/ollama/root/.config/ollama:/root/.config/ollama
+      - ${BROS_HOST_DATA_DIR:?unset}/ollama/bros-model:/bros-model:ro
       # Same host path as app so symlink imports resolve inside Ollama
       - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:ro
     restart: unless-stopped

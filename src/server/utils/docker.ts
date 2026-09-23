@@ -2,10 +2,12 @@ import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import Docker from 'dockerode'
 import { eq } from 'drizzle-orm'
-import { hostDataDirForBinds } from './config'
+import { hostDataDirForBinds, loadBootstrapConfig } from './config'
 import { getDb, sidecarSettings } from './db'
 import { firstPublishPort, probeHostPort } from './hostProbe'
-import { CORE_SIDECAR_ID, defaultSidecarAutostart, getSidecar, projectName, shouldAutostartSidecar, type SidecarMeta } from './sidecars'
+import { seedSidecarData } from './sidecarData'
+import { CORE_SIDECAR_ID, WHISPER_SIDECAR_ID, defaultSidecarAutostart, getSidecar, projectName, shouldAutostartSidecar, type SidecarMeta } from './sidecars'
+import { isWhisperEnabled } from './whisperSettings'
 
 const NETWORK = process.env.BROS_NETWORK || 'bros'
 
@@ -314,10 +316,30 @@ export async function execInSidecar(
   )
 }
 
+export async function pullSidecarImages(id: string) {
+  const sidecar = getSidecar(id)
+  if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
+  if (sidecar.error) throw createError({ statusCode: 400, statusMessage: sidecar.error })
+  const name = projectName(id)
+  const res = await run(
+    'docker',
+    ['compose', '-p', name, '-f', join(sidecar.dir, 'docker-compose.yml'), 'pull'],
+    sidecar.dir,
+    600_000,
+  )
+  if (res.code !== 0) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: res.stderr || res.stdout || 'Failed to pull sidecar images',
+    })
+  }
+}
+
 export async function startSidecar(id: string) {
   const sidecar = getSidecar(id)
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
   if (sidecar.error) throw createError({ statusCode: 400, statusMessage: sidecar.error })
+  seedSidecarData(sidecar.dir, join(loadBootstrapConfig().dataDir, sidecar.id))
   const probed = await sidecarRuntime(sidecar)
   if (probed.portOccupied && !probed.ours && probed.hostPort) {
     throw createError({
@@ -461,7 +483,11 @@ export async function restartSidecar(id: string) {
 export function getSidecarSetting(id: string) {
   const row = getDb().select().from(sidecarSettings).where(eq(sidecarSettings.sidecarId, id)).get()
   return {
-    autostart: id === CORE_SIDECAR_ID ? true : (row?.autostart ?? defaultSidecarAutostart(id)),
+    autostart: id === CORE_SIDECAR_ID
+      ? true
+      : id === WHISPER_SIDECAR_ID
+        ? isWhisperEnabled()
+        : (row?.autostart ?? defaultSidecarAutostart(id)),
     navPinned: row?.navPinned ?? false,
     hostProbePort: typeof row?.hostProbePort === 'number' && row.hostProbePort > 0 ? row.hostProbePort : null,
   }
@@ -475,7 +501,11 @@ export function setSidecarSetting(id: string, patch: {
   const current = getSidecarSetting(id)
   const next = {
     sidecarId: id,
-    autostart: id === CORE_SIDECAR_ID ? true : (patch.autostart ?? current.autostart),
+    autostart: id === CORE_SIDECAR_ID
+      ? true
+      : id === WHISPER_SIDECAR_ID
+        ? current.autostart
+        : (patch.autostart ?? current.autostart),
     navPinned: patch.navPinned ?? current.navPinned,
     hostMode: 'auto',
     hostProbePort: id === CORE_SIDECAR_ID
@@ -502,6 +532,15 @@ export async function autostartSidecars() {
   const { sidecars } = discoverSidecars()
   for (const s of sidecars) {
     if (s.error) continue
+    if (s.id === WHISPER_SIDECAR_ID) {
+      if (!isWhisperEnabled()) continue
+      try {
+        await startSidecar(s.id)
+      } catch (err) {
+        console.error('autostart failed', s.id, err)
+      }
+      continue
+    }
     const settings = getSidecarSetting(s.id)
     if (shouldAutostartSidecar(s, settings)) {
       try {

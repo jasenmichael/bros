@@ -14,6 +14,9 @@ export const OLLAMA_RESTART_LOCKED_MESSAGE =
 export const OLLAMA_AUTOSTART_LOCKED_MESSAGE =
   'Ollama always runs; autostart cannot be turned off.'
 
+export const WHISPER_UI_LOCKED_MESSAGE =
+  'Enable Whisper in Settings. Start, stop, and restart are not sidecar actions.'
+
 export const OLLAMA_HEALTH_DEBOUNCE_MS = 30_000
 
 export type OllamaRestartReason = 'process-down' | 'probe-fail'
@@ -39,6 +42,9 @@ export function isMustRunSidecar(id: string): boolean {
 }
 
 export function assertSidecarUiActionAllowed(id: string, action: 'start' | 'stop' | 'restart') {
+  if (id === 'whisper') {
+    throw createError({ statusCode: 400, statusMessage: WHISPER_UI_LOCKED_MESSAGE })
+  }
   if (!isMustRunSidecar(id)) return
   const statusMessage = action === 'stop'
     ? OLLAMA_STOP_LOCKED_MESSAGE

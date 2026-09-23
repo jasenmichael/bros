@@ -15,7 +15,7 @@ services:
     ports:
       - "${BROS_WHISPER_PORT:-8090}:8000"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/whisper:/home/ubuntu/.cache/huggingface/hub
+      - ${BROS_HOST_DATA_DIR:?unset}/whisper/home/ubuntu/.cache/huggingface/hub:/home/ubuntu/.cache/huggingface/hub
     restart: unless-stopped
     networks:
       - bros

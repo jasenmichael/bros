@@ -35,15 +35,15 @@ describe('sidecar discover merge', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-discover-'))
     const shipped = join(root, 'sidecars')
     const dataDir = join(root, 'data')
-    writePackage(shipped, 'ollama')
-    writePackage(shipped, 'opencode')
-    writePackage(shipped, 'openwebui')
-    writePackage(join(dataDir, 'sidecars'), 'opencode')
-    writePackage(join(dataDir, 'sidecars'), 'mine')
-    const repoSidecars = join(dataDir, 'sidecar-repos', 'extra', 'sidecars')
+    writePackage(join(shipped, 'core'), 'ollama')
+    writePackage(join(shipped, 'addon'), 'opencode')
+    writePackage(join(shipped, 'addon'), 'openwebui')
+    writePackage(join(shipped, 'custom'), 'opencode')
+    writePackage(join(shipped, 'custom'), 'mine')
+    const repoSidecars = join(shipped, 'custom', 'extra', 'sidecars')
     writePackage(repoSidecars, 'fromgit')
-    mkdirSync(join(dataDir, 'sidecar-repos', 'extra', '.git'), { recursive: true })
-    writeFileSync(join(dataDir, 'sidecar-repos', 'extra', '.git', 'config'), [
+    mkdirSync(join(shipped, 'custom', 'extra', '.git'), { recursive: true })
+    writeFileSync(join(shipped, 'custom', 'extra', '.git', 'config'), [
       '[remote "origin"]',
       '  url = https://github.com/example/extra.git',
       '',
@@ -57,9 +57,10 @@ describe('sidecar discover merge', () => {
     expect(byId.ollama.disabled).toBe(false)
     expect(byId.opencode.kind).toBe('addon')
     expect(byId.opencode.source).toBe('shipped')
-    expect(byId.opencode.dir).toBe(join(shipped, 'opencode'))
+    expect(byId.opencode.dir).toBe(join(shipped, 'addon', 'opencode'))
     expect(byId.mine.kind).toBe('additional')
-    expect(byId.mine.source).toBe('data dir')
+    expect(byId.mine.source).toBe('custom')
+    expect(byId.mine.dir).toBe(join(shipped, 'custom', 'mine'))
     expect(byId.mine.editable).toBe(true)
     expect(byId.fromgit.kind).toBe('additional')
     expect(byId.fromgit.source).toBe('https://github.com/example/extra.git')
@@ -72,11 +73,12 @@ describe('sidecar discover merge', () => {
     expect(disabledAddonIds({ BROS_SIDECAR_OPENCODE: '0' })).toEqual(new Set(['opencode']))
     expect(disabledAddonIds({ BROS_SIDECAR_FIRECRAWL_UI: '0' })).toEqual(new Set(['firecrawl_ui', 'firecrawl-ui']))
     expect(disabledAddonIds({ BROS_SIDECAR_OLLAMA: '0', BROS_SIDECARS_DISABLE: 'ollama,opencode' })).toEqual(new Set(['opencode']))
+    expect(disabledAddonIds({ BROS_SIDECAR_WHISPER: '0', BROS_SIDECARS_DISABLE: 'whisper,opencode' })).toEqual(new Set(['opencode']))
 
     root = mkdtempSync(join(tmpdir(), 'bros-disable-'))
     const shipped = join(root, 'sidecars')
-    writePackage(shipped, 'ollama')
-    writePackage(shipped, 'opencode')
+    writePackage(join(shipped, 'core'), 'ollama')
+    writePackage(join(shipped, 'addon'), 'opencode')
     const { sidecars } = discoverSidecars({
       shippedRoot: shipped,
       dataDir: join(root, 'data'),
@@ -87,16 +89,18 @@ describe('sidecar discover merge', () => {
     expect(shouldAutostartSidecar(opencode!, { autostart: true })).toBe(false)
     expect(shouldAutostartSidecar({ id: CORE_SIDECAR_ID }, { autostart: false })).toBe(true)
     expect(shouldAutostartSidecar({ id: 'mine', disabled: false }, { autostart: true })).toBe(true)
+    expect(shouldAutostartSidecar({ id: 'whisper', disabled: false }, { autostart: true })).toBe(false)
   })
 
-  it('writes custom sidecars under the data dir and rejects reserved ids', () => {
+  it('writes custom sidecars under sidecars/custom and rejects reserved ids', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-custom-'))
     const shipped = join(root, 'sidecars')
     const dataDir = join(root, 'data')
-    writePackage(shipped, 'ollama')
-    writePackage(shipped, 'opencode')
+    writePackage(join(shipped, 'core'), 'ollama')
+    writePackage(join(shipped, 'addon'), 'opencode')
 
     expect(isReservedSidecarId('ollama', { shippedRoot: shipped, dataDir })).toBe(true)
+    expect(isReservedSidecarId('whisper', { shippedRoot: shipped, dataDir })).toBe(true)
     expect(isReservedSidecarId('opencode', { shippedRoot: shipped, dataDir })).toBe(true)
     expect(isReservedSidecarId('chat', { shippedRoot: shipped, dataDir })).toBe(true)
 
@@ -116,10 +120,10 @@ describe('sidecar discover merge', () => {
       sidecarYml: 'id: mine\nname: Mine\ninterfaces: []\n',
       composeYml: 'services:\n  mine:\n    image: nginx:alpine\n',
     }, { shippedRoot: shipped, dataDir })
-    expect(created.source).toBe('data dir')
+    expect(created.source).toBe('custom')
     expect(created.kind).toBe('additional')
-    expect(readFileSync(join(dataDir, 'sidecars', 'mine', 'sidecar.yml'), 'utf8')).toContain('id: mine')
-    expect(readFileSync(join(dataDir, 'sidecars', 'mine', 'docker-compose.yml'), 'utf8')).toContain('nginx:alpine')
+    expect(readFileSync(join(shipped, 'custom', 'mine', 'sidecar.yml'), 'utf8')).toContain('id: mine')
+    expect(readFileSync(join(shipped, 'custom', 'mine', 'docker-compose.yml'), 'utf8')).toContain('nginx:alpine')
   })
 
   it('derives a repo folder name from a git URL', () => {

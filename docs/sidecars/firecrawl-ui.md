@@ -5,7 +5,7 @@ description: Firecrawl scrape UI on host port 3081.
 
 # Firecrawl UI sidecar
 
-Shipped **addon** package `sidecars/firecrawl-ui`. Vue UI for the [Firecrawl](https://firecrawl.dev/) scrape API ([obeone/firecrawl-ui](https://github.com/obeone/firecrawl-ui)). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL_UI=0` or `BROS_SIDECARS_DISABLE=firecrawl-ui`. Still listed under Addon sidecars with source **bros**.
+Shipped **addon** package `sidecars/addon/firecrawl-ui`. Vue UI for the [Firecrawl](https://firecrawl.dev/) scrape API ([obeone/firecrawl-ui](https://github.com/obeone/firecrawl-ui)). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL_UI=0` or `BROS_SIDECARS_DISABLE=firecrawl-ui`. Still listed under Addon sidecars with source **bros**.
 
 Image `obeoneorg/firecrawl-ui` is wrapped with Bros nginx: the SPA and `/v2` share host **3081**, and nginx proxies `/v2` (and `/v0`) to sidecar `firecrawl:3002`. That avoids cross-port axios `Network Error` in Cursor preview and other locked browsers. The page sets API base URL to this origin (browser `localStorage`). Point the settings URL at Firecrawl Cloud only if you want the hosted API instead.
 

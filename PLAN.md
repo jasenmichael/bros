@@ -9,7 +9,7 @@ Implementation through **M7** complete. Install clones `BROS_HOME`, writes `~/.c
 1. **M0** — pnpm monorepo, theme + docs layers, app shell on :3055
 2. **M1** — bootstrap config, SQLite, passcode
 3. **M2** — sidecar engine + Sidecars page (`publish` Open/Pin; path proxy later for `proxy.public`)
-4. **M3** — shipped sidecars: core Ollama; addon OpenCode + Open WebUI + Firecrawl + Firecrawl UI + Whisper (tunnel is host `cloudflared`, not a sidecar)
+4. **M3** — shipped sidecars: core Ollama + Whisper (Whisper off until Settings); addon OpenCode + Open WebUI + Firecrawl + Firecrawl UI (tunnel is host `cloudflared`, not a sidecar)
 5. **M4** — Providers page
 6. **M5** — Chat streaming + history
 7. **M6** — docs content, compose prod/dev, root docs
@@ -25,7 +25,7 @@ Not a milestone. Pick when needed:
 
 - CI: add test + typecheck jobs (Pages workflow only today)
 - Tests: chat stream coverage; e2e beyond `/api/health`
-- Additional sidecars: Add in the UI (`$BROS_HOME/data/sidecars/<id>/`) or clone a repo (`$BROS_HOME/data/sidecar-repos/<name>/`)
+- Additional sidecars: Add in the UI (`$BROS_HOME/sidecars/custom/<id>/`) or clone a repo (`$BROS_HOME/sidecars/custom/<name>/`)
 - OpenCode `proxy.public` / `/opencode/`: wait for `ghcr.io/anomalyco/opencode` to ship base-path ([PR 28326](https://github.com/anomalyco/opencode/pull/28326)). 1.18.30 ignores `OPENCODE_SERVER_BASE_PATH`; `--base-path` exits. Do not fake a Bros-side prefix.
 - Settings: Chat prepend + assistant description (SQLite `meta`), plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes
@@ -44,7 +44,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 
 ## Recent (internal specialist)
 
-- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). Sidecar ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/bros-model` and runs `ollama create bros` inside `bros-sc-ollama`. Name is reserved (not listed; `Label:` titles only).
+- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). Sidecar ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/ollama/bros-model` and runs `ollama create bros` inside `bros-sc-ollama`. Name is reserved (not listed; `Label:` titles only).
 - Model updates: bump the pinned submodule to the new bros-model tag/commit, then release a new Bros version. Checkout: `git submodule update --remote` (or pin a SHA) + `./bros update` when the GGUF size/mtime stamp differs. Do not treat host `ollama create` as the operator path.
 
 ## Recent (Chat thread)
@@ -70,7 +70,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 
 ## Recent (Sidecars UI)
 
-- `/sidecars` lists **Core** (Ollama) then one **Addon sidecars** section. Shipped OpenCode / Open WebUI / Firecrawl / Firecrawl UI and additional (data dir / git) share that list. Card source badges: **bros**, **repo**, **custom**. Each card has a refresh icon next to running/stopped. Add sidecar and From a repo stay on that section.
+- `/sidecars` lists **Core** (Ollama always on, Whisper off until Settings) then one **Addon sidecars** section. Shipped OpenCode / Open WebUI / Firecrawl / Firecrawl UI and additional (`sidecars/custom` / git) share that list. Card source badges: **bros**, **repo**, **custom**. Each card has a refresh icon next to running/stopped. Add sidecar and From a repo stay on that section.
 - Dashboard widget grid has no Sidecars summary card (Details/Manage). An **Ollama** card lists sidecar + host provider status (Details → `/providers`). **Bros services** lists every Bros-managed Docker container (app + sidecar stack services). Sidecar snippet rows stay below and show publish port only.
 
 ## Recent (Providers)
@@ -99,7 +99,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 
 ## TODO:
 - sections: chat, providers, agents, mcp, skills, issues
-- data dirs structure for ollama, opencode, etc.
+- [x] data dirs: one `$BROS_HOME/data/<id>/` per sidecar, subpaths mirror container paths (`sidecars/core`, `sidecars/addon`, gitignored `sidecars/custom`)
 - [x] thinking plus stop, allow pick new model and start typing for next chat.
 - [x] add voice to text for chat using whisper
 - [x] Agent page (`/agent`): Bros `web_search` + `web_scrape` on the Firecrawl sidecar. The model picks calls when its API returns `tool_calls`; otherwise Bros searches and scrapes, then the model writes. Chat stays one completion.

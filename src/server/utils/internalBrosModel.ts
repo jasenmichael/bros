@@ -52,7 +52,7 @@ export function vendorGgufPath(workingDir: string) {
 }
 
 export function destBrosModelDir(dataDir: string) {
-  return join(dataDir, 'bros-model')
+  return join(dataDir, 'ollama', 'bros-model')
 }
 
 function readStamp(destDir: string): GgufStamp | null {

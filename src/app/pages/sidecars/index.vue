@@ -327,13 +327,13 @@ const sections = computed(() => [
   {
     key: 'core' as const,
     title: 'Core',
-    blurb: 'Must-run. Always on. Bros health-checks Ollama and restarts it only when necessary.',
+    blurb: 'Ollama always runs. Whisper stays stopped until Settings enables it.',
     rows: rowsOf('core'),
   },
   {
     key: 'addon' as const,
     title: 'Addon sidecars',
-    blurb: 'Shipped packs plus user packs from the data dir or a git clone. Disable shipped addons with BROS_SIDECAR_<ID>=0 or BROS_SIDECARS_DISABLE.',
+    blurb: 'Shipped packs plus user packs from sidecars/custom or a git clone. Disable shipped addons with BROS_SIDECAR_<ID>=0 or BROS_SIDECARS_DISABLE.',
     rows: [...rowsOf('addon'), ...rowsOf('additional')],
   },
 ])
@@ -361,7 +361,7 @@ function cardControlsClass(count: number) {
 </script>
 
 <template>
-  <BrosPageShell title="Sidecars" description="Core Ollama, then addon sidecars (shipped, git clone, or data dir).">
+  <BrosPageShell title="Sidecars" description="Core Ollama and Whisper, then addon sidecars (shipped, git clone, or custom).">
     <div v-if="data?.errors?.length" class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
       <p v-for="(err, i) in data.errors" :key="i">{{ err }}</p>
     </div>
@@ -391,7 +391,7 @@ function cardControlsClass(count: number) {
         </div>
 
         <div v-if="sec.key === 'addon' && addOpen" class="mb-4 space-y-3 rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
-          <UInput v-model="addForm.id" placeholder="id slug (not ollama / opencode / openwebui / firecrawl / firecrawl-ui)" aria-label="Sidecar id" />
+          <UInput v-model="addForm.id" placeholder="id slug (not ollama / whisper / opencode / openwebui / firecrawl / firecrawl-ui)" aria-label="Sidecar id" />
           <UTextarea v-model="addForm.sidecarYml" placeholder="sidecar.yml" aria-label="sidecar.yml" :rows="8" class="font-mono text-xs" />
           <UTextarea v-model="addForm.composeYml" placeholder="docker-compose.yml" aria-label="docker-compose.yml" :rows="10" class="font-mono text-xs" />
           <div class="flex gap-2">
@@ -403,7 +403,7 @@ function cardControlsClass(count: number) {
         <div v-if="sec.key === 'addon' && repoOpen" class="mb-4 space-y-3 rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
           <UInput v-model="repoForm.url" placeholder="https://github.com/org/sidecars.git" aria-label="Git repo URL" />
           <UInput v-model="repoForm.name" placeholder="folder name (optional)" aria-label="Repo folder name" />
-          <p class="text-xs text-[var(--bros-muted)]">Clones into $BROS_HOME/data/sidecar-repos/&lt;name&gt;/ and loads that tree’s sidecars/ dir.</p>
+          <p class="text-xs text-[var(--bros-muted)]">Clones into $BROS_HOME/sidecars/custom/&lt;name&gt;/ and loads that tree’s sidecars/ dir.</p>
           <div class="flex gap-2">
             <UButton size="sm" color="primary" :loading="busy === 'clone'" @click="cloneRepo">Clone</UButton>
             <UButton size="sm" color="neutral" variant="ghost" @click="repoOpen = false">Cancel</UButton>
@@ -583,7 +583,7 @@ function cardControlsClass(count: number) {
                     @click="openEdit(s)"
                   >Edit</UButton>
                   <UButton
-                    v-if="s.gitUrl || (s.source !== 'shipped' && s.source !== 'data dir')"
+                    v-if="s.gitUrl || (s.source !== 'shipped' && s.source !== 'custom')"
                     size="sm"
                     color="neutral"
                     variant="ghost"

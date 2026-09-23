@@ -24,7 +24,7 @@ Jobs persist in SQLite table `ollama_pull_jobs` (`$BROS_HOME/data/bros.sqlite`).
 
 Sidecar compose sets **`OLLAMA_NOPRUNE=1`** so incomplete pulls are not pruned. Host Ollama is operator-owned: run the daemon with `OLLAMA_NOPRUNE=1` (systemd/env). Bros cannot set host daemon env.
 
-Sidecar pull keeps a **5 GB** disk margin on `$BROS_HOME/data/ollama`. Host pull/chat use the host Ollama disk — no Bros disk-fit check.
+Sidecar pull keeps a **5 GB** disk margin on `$BROS_HOME/data/ollama/root/.ollama`. Host pull/chat use the host Ollama disk — no Bros disk-fit check.
 
 Pull HTTP (`:id` is `ollama` or `ollama-host`) lives in [API](/docs/api): `POST /api/providers/:id/models/pull`, `GET` the same path, `POST …/pull/stop`, `DELETE /api/providers/:id/models`. Old `/api/models/ollama/*` paths 301/308 to these.
 

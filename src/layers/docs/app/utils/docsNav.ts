@@ -74,8 +74,8 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Open WebUI', to: '/docs/sidecars/openwebui', body: 'Publish 3080, never 3000/8080.' },
       { label: 'Firecrawl', to: '/docs/sidecars/firecrawl', body: 'Publish 3002, scrape API; UI is Firecrawl UI.' },
       { label: 'Firecrawl UI', to: '/docs/sidecars/firecrawl-ui', body: 'Publish 3081, scrape UI, never 3000/8080.' },
-      { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Publish 8090, chat voice to text.' },
-      { label: 'Custom', to: '/docs/sidecars/custom', body: 'Drop-in under data/sidecars.' },
+      { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Core. Settings enable, off by default. Publish 8090.' },
+      { label: 'Custom', to: '/docs/sidecars/custom', body: 'Drop-in under sidecars/custom.' },
     ],
   },
   {

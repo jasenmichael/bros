@@ -126,8 +126,6 @@ export function shouldAutostartFromPublicUrl(publicUrl: string | null | undefine
 
 export function ensureDataLayout(dataDir: string) {
   mkdirSync(dataDir, { recursive: true })
-  mkdirSync(join(dataDir, 'sidecars'), { recursive: true })
-  mkdirSync(join(dataDir, 'sidecar-repos'), { recursive: true })
   mkdirSync(join(dataDir, 'logs'), { recursive: true })
   mkdirSync(join(dataDir, 'tunnel'), { recursive: true })
 }

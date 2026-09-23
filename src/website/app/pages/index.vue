@@ -18,7 +18,7 @@ const features = [
   {
     title: 'Sidecars',
     to: '/docs/sidecars',
-    body: 'Core Ollama, then addon sidecars from shipped packs, a git clone, or the data dir.',
+    body: 'Core Ollama and Whisper, then addon sidecars from shipped packs, a git clone, or sidecars/custom.',
   },
   {
     title: 'Development',

@@ -8,6 +8,7 @@ const { data } = await useFetch<{
   chatPrepend: string
   chatAssistantDescription: string
   enableHostOllama: boolean
+  enableWhisper: boolean
 }>('/api/settings')
 const passcode = ref('')
 const confirm = ref('')
@@ -16,6 +17,9 @@ const pending = ref(false)
 const prepend = ref(data.value?.chatPrepend ?? '')
 const assistantDescription = ref(data.value?.chatAssistantDescription ?? '')
 const enableHostOllama = ref(data.value?.enableHostOllama ?? false)
+const enableWhisper = ref(data.value?.enableWhisper ?? false)
+const whisperPending = ref(false)
+const whisperMsg = ref('')
 const chatMsg = ref('')
 const chatPending = ref(false)
 
@@ -53,6 +57,24 @@ async function saveHostOllama(value: boolean) {
   }
 }
 
+async function saveWhisper(value: boolean) {
+  enableWhisper.value = value
+  whisperMsg.value = ''
+  whisperPending.value = true
+  try {
+    const saved = await $fetch<{ enableWhisper: boolean }>('/api/settings', {
+      method: 'PATCH',
+      body: { enableWhisper: value },
+    })
+    enableWhisper.value = saved.enableWhisper
+  } catch (e: unknown) {
+    enableWhisper.value = !value
+    whisperMsg.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Save failed'
+  } finally {
+    whisperPending.value = false
+  }
+}
+
 async function changePasscode() {
   msg.value = ''
   if (passcode.value.length < 4 || passcode.value !== confirm.value) {
@@ -79,7 +101,7 @@ async function logout() {
 </script>
 
 <template>
-  <BrosPageShell title="Settings" description="Chat extras, bootstrap paths (read-only), and passkey (writes data/passkey).">
+  <BrosPageShell title="Settings" description="Chat extras, Whisper, bootstrap paths (read-only), and passkey (writes data/passkey).">
     <div class="max-w-xl space-y-6">
       <form class="space-y-3" @submit.prevent="saveChat">
         <h2 class="text-lg font-medium text-white">Chat</h2>
@@ -96,6 +118,26 @@ async function logout() {
         <p v-if="chatMsg" class="text-sm text-[var(--bros-muted)]">{{ chatMsg }}</p>
         <UButton type="submit" :loading="chatPending">Save</UButton>
       </form>
+
+      <div class="space-y-2">
+        <h2 class="text-lg font-medium text-white">Whisper</h2>
+        <label class="flex items-start justify-between gap-4">
+          <span class="space-y-1">
+            <span class="block text-sm text-white">Enable Whisper</span>
+            <p class="text-sm text-[var(--bros-muted)]">
+              Speech-to-text for Chat. Off by default. Turning this on pulls the Whisper images, then starts the sidecar.
+            </p>
+          </span>
+          <USwitch
+            :model-value="enableWhisper"
+            :loading="whisperPending"
+            :disabled="whisperPending"
+            aria-label="Enable Whisper"
+            @update:model-value="saveWhisper"
+          />
+        </label>
+        <p v-if="whisperMsg" class="text-sm text-[var(--bros-muted)]">{{ whisperMsg }}</p>
+      </div>
 
       <div class="space-y-2">
         <h2 class="text-lg font-medium text-white">Host Ollama</h2>

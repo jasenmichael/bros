@@ -80,9 +80,9 @@ Research threads (SQLite `conversations.kind = agent`). Not returned by `GET /ap
 | GET | `/api/sidecars` | List + `ollamaRestartNotice` |
 | POST | `/api/sidecars` | Additional pack (`id`, `sidecarYml`, `composeYml`) |
 | POST | `/api/sidecars/from-repo` | `{ url, name? }` |
-| POST | `/api/sidecars/{id}/start` | Core Ollama 400 |
-| POST | `/api/sidecars/{id}/stop` | Core Ollama 400; via-tunnel may 403 |
-| POST | `/api/sidecars/{id}/restart` | Core Ollama 400 |
+| POST | `/api/sidecars/{id}/start` | Core Ollama and Whisper 400 |
+| POST | `/api/sidecars/{id}/stop` | Core Ollama and Whisper 400; via-tunnel may 403 |
+| POST | `/api/sidecars/{id}/restart` | Core Ollama and Whisper 400 |
 | PATCH | `/api/sidecars/{id}/settings` | `autostart`, `navPinned`, `hostProbePort` |
 | GET | `/api/sidecars/{id}/logs` | Container logs |
 | GET, PUT | `/api/sidecars/{id}/files` | Editable additional files |

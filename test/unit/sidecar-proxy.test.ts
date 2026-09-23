@@ -197,7 +197,7 @@ describe('Open/Pin URLs', () => {
 
 describe('shipped OpenCode fixture', () => {
   it('keeps base-path env, skips proxy.public, and does not pass --base-path', () => {
-    const raw = parseYaml(readFileSync(join(root, 'sidecars/opencode/sidecar.yml'), 'utf8'))
+    const raw = parseYaml(readFileSync(join(root, 'sidecars/addon/opencode/sidecar.yml'), 'utf8'))
     const meta = parseSidecarMeta(raw)
     expect(meta.id).toBe('opencode')
     const webui = meta.interfaces.find((iface) => iface.type === 'webui')
@@ -208,7 +208,7 @@ describe('shipped OpenCode fixture', () => {
       publish: 4097,
     })
     expect(webui?.proxy?.public).not.toBe(true)
-    const compose = readFileSync(join(root, 'sidecars/opencode/docker-compose.yml'), 'utf8')
+    const compose = readFileSync(join(root, 'sidecars/addon/opencode/docker-compose.yml'), 'utf8')
     expect(compose).toMatch(/OPENCODE_SERVER_BASE_PATH:\s*\/opencode/)
     expect(compose).toContain('["web", "--hostname", "0.0.0.0", "--port", "4096"]')
     expect(compose).not.toMatch(/command:.*--base-path/)

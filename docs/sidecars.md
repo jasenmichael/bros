@@ -1,6 +1,6 @@
 ---
 title: Sidecars
-description: Core Ollama, then addon sidecars from shipped packs, git clones, or the data dir.
+description: Core Ollama and Whisper, then addon sidecars from shipped packs, git clones, or sidecars/custom.
 ---
 
 # Sidecars
@@ -10,6 +10,7 @@ Each sidecar is a directory with:
 - `sidecar.yml` — identity and interfaces
 - `docker-compose.yml` — one or more services
 - optional `Dockerfile`
+- optional `data/` — files that mirror container paths. Before `compose up`, Bros copies each file into `$BROS_HOME/data/<id>/` when that destination is missing. Existing volume files stay.
 
 Compose project name is `bros-sc-<id>` on shared external Docker network `bros`. Core compose uses the same network (`external: true`). The CLI creates it if missing.
 
@@ -23,20 +24,20 @@ Do **not** add extra Cloudflare hostnames. Path proxy exists only for native-bas
 
 ## Kinds
 
-**Core** — must-run **Ollama** from repo `sidecars/ollama`. Always on. No Start, Stop, Restart, or Autostart on Sidecars / Status / Home. No disable env. `POST /api/sidecars/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast).
+**Core** — `sidecars/core/`. Must-run **Ollama** (`sidecars/core/ollama`) is always on. No Start, Stop, Restart, or Autostart on Sidecars / Status / Home. No disable env. `POST /api/sidecars/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast). **Whisper** (`sidecars/core/whisper`) is core and stopped until Settings **Enable Whisper**. That switch pulls images, then starts the sidecar. Off stops it and skips autostart. The same pages hide Start, Stop, Restart, and Autostart. `POST /api/sidecars/whisper/start`, `…/stop`, and `…/restart` return 400.
 
-**Addon** — other shipped packs under repo `sidecars/` (OpenCode, Open WebUI, Firecrawl, Firecrawl UI, Whisper). Optional and **enabled by default**. Start/Stop/Restart, autostart, logs. Disable autostart with `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, `BROS_SIDECAR_WHISPER=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui,whisper`. Disabled addons stay listed.
+**Addon** — shipped packs under `sidecars/addon/` (OpenCode, Open WebUI, Firecrawl, Firecrawl UI). Optional and **enabled by default**. Start/Stop/Restart, autostart, logs. Disable autostart with `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui`. Disabled addons stay listed. Env disable does not apply to core.
 
 **Additional** — user-created and git-cloned. Same controls as addons.
 
-On `/sidecars`, **Core** is Ollama only. Everything else is one **Addon sidecars** list. Each card’s source badge is **bros** (shipped), **repo** (git clone), or **custom** (data dir). A section with one card uses the wide (horizontal) layout. Two or more cards stay compact in a two-column grid on large screens. Mobile is always one wide card per row.
+On `/sidecars`, **Core** is Ollama and Whisper. Everything else is one **Addon sidecars** list. Each card’s source badge is **bros** (shipped), **repo** (git clone), or **custom** (`sidecars/custom`). A section with one card uses the wide (horizontal) layout. Two or more cards stay compact in a two-column grid on large screens. Mobile is always one wide card per row.
 
 Discover merges:
 
-1. Core Ollama from the shipped tree (locked)
-2. Shipped addons (unless env-disabled)
-3. `$BROS_HOME/data/sidecars/*`
-4. `$BROS_HOME/data/sidecar-repos/<name>/sidecars/*`
+1. `sidecars/core/*` (Ollama locked; Whisper follows Settings)
+2. `sidecars/addon/*` (unless env-disabled)
+3. `$BROS_HOME/sidecars/custom/<id>/` when that directory is a sidecar package
+4. `$BROS_HOME/sidecars/custom/<name>/sidecars/*` (git clone)
 
 Shipped ids win. Custom cannot reuse `ollama`, addon slugs, app routes, or Popular slugs.
 
@@ -50,8 +51,8 @@ Additional web UIs must set `publish` **and** stay on network `bros`.
 
 On `/sidecars` → Addon sidecars:
 
-- **Add sidecar** writes `$BROS_HOME/data/sidecars/<id>/` (`sidecar.yml` + `docker-compose.yml`). Editable in the UI. Saving prompts a restart confirm.
-- **From a repo** clones into `$BROS_HOME/data/sidecar-repos/<name>/` and loads that tree’s `sidecars/` dir. Source badge is **repo**. **Update** runs `git pull` and prompts restart when compose changed.
+- **Add sidecar** writes `$BROS_HOME/sidecars/custom/<id>/` (`sidecar.yml` + `docker-compose.yml`). That directory is gitignored. Editable in the UI. Saving prompts a restart confirm.
+- **From a repo** clones into `$BROS_HOME/sidecars/custom/<name>/` and loads that tree’s `sidecars/` dir. Source badge is **repo**. **Update** runs `git pull` and prompts restart when compose changed.
 
 ## Status
 
@@ -63,10 +64,10 @@ Cloudflare tunnel is **not** a sidecar. See [Tunnel](/docs/tunnel).
 
 ## Packages
 
-- [Ollama](/docs/sidecars/ollama) — core, publish **11435**, container 11434
+- [Ollama](/docs/sidecars/ollama) — core, always on, publish **11435**, container 11434
 - [OpenCode](/docs/sidecars/opencode) — addon, publish **4097**, LAN `/` (no public proxy until upstream base-path)
 - [Open WebUI](/docs/sidecars/openwebui) — addon, publish **3080** → container 8080
 - [Firecrawl](/docs/sidecars/firecrawl) — addon, publish **3002** (Playwright internal)
 - [Firecrawl UI](/docs/sidecars/firecrawl-ui) — addon, publish **3081** → container 8080
-- [Whisper](/docs/sidecars/whisper) — addon, publish **8090** → container 8000 (Chat STT)
-- [Additional](/docs/sidecars/custom) — data dir + git clone
+- [Whisper](/docs/sidecars/whisper) — core, Settings enable (off by default), publish **8090** → container 8000 (Chat STT)
+- [Additional](/docs/sidecars/custom) — `sidecars/custom` + git clone

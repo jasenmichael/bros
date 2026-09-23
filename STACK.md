@@ -19,7 +19,7 @@
 | Path proxy | Nitro allowlist middleware + h3 `proxyRequest` (HTTP/SSE) and httpxy `proxyUpgrade` (WebSocket). Only `sidecar.yml` `proxy.public` webuis that natively listen under `/${id}/`. No shipped pack opts in today. |
 | Env prefix | `BROS_*` |
 | Host tunnel | `cloudflared` on the host. `public_url` in bootstrap YAML starts a named tunnel via `cloudflared tunnel route dns` + `run --protocol http2`; otherwise a quick tunnel. `bros` runs a helper that writes `$BROS_HOME/data/tunnel`. |
-| Network / data | `bros` / host `$BROS_HOME/data` binds (`$BROS_HOST_DATA_DIR`), including `$BROS_HOME/data/whisper` (Speaches HF cache; compose `user: "0:0"` so a Docker-created root bind is writable). Compose-app sidecar APIs use Docker DNS on that network. |
+| Network / data | `bros` / host `$BROS_HOME/data` binds (`$BROS_HOST_DATA_DIR`), including `$BROS_HOME/data/whisper/home/ubuntu/.cache/huggingface/hub` (Speaches HF cache; compose `user: "0:0"` so a Docker-created root bind is writable). Packages live in `sidecars/core`, `sidecars/addon`, and gitignored `sidecars/custom`. Compose-app sidecar APIs use Docker DNS on that network. |
 | Internal specialist | Git submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)); packaged GGUF + Modelfile installed into the Ollama sidecar (`ollama create bros`), not a host daemon |
 
 ## Layout

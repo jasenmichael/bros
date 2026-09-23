@@ -2,6 +2,9 @@ import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret, ensurePas
 import { ensureDefaultProviders } from '../utils/providers'
 import { getDb } from '../utils/db'
 import { autostartSidecars } from '../utils/docker'
+import { loadBootstrapConfig } from '../utils/config'
+import { migrateSidecarDataLayout } from '../utils/sidecarData'
+import { shippedSidecarsRoot } from '../utils/sidecars'
 import { needsAuthGate, publicProxyIds } from '../utils/sidecarProxy'
 
 let bootstrapped = false
@@ -13,6 +16,12 @@ function bootstrapOnce() {
   ensureAppSecret()
   ensurePasskey()
   ensureDefaultProviders()
+  const cfg = loadBootstrapConfig()
+  try {
+    migrateSidecarDataLayout(cfg.dataDir, shippedSidecarsRoot())
+  } catch (err) {
+    console.error('sidecar data migrate failed', err instanceof Error ? err.message : err)
+  }
   bootstrapped = true
 }
 

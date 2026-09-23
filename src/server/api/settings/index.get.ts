@@ -2,6 +2,7 @@ import { loadBootstrapConfig } from '../../utils/config'
 import { hasPasscode } from '../../utils/auth'
 import { getChatSettings } from '../../utils/chatSettings'
 import { isHostOllamaEnabled } from '../../utils/hostOllamaSettings'
+import { isWhisperEnabled } from '../../utils/whisperSettings'
 
 export default defineEventHandler(() => {
   const cfg = loadBootstrapConfig()
@@ -13,5 +14,6 @@ export default defineEventHandler(() => {
     chatPrepend: chat.prepend,
     chatAssistantDescription: chat.assistantDescription,
     enableHostOllama: isHostOllamaEnabled(),
+    enableWhisper: isWhisperEnabled(),
   }
 })

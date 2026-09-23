@@ -24,6 +24,10 @@ src/app/.output
 coverage
 graphify-out
 
+# User sidecar packs (Add sidecar / From a repo). Keep the directory.
+sidecars/custom/*
+!sidecars/custom/.gitkeep
+
 # Node compile cache (often root-owned from Docker)
 **/node-compile-cache/
 .cursor/
