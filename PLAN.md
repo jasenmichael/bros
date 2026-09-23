@@ -100,7 +100,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 ## TODO:
 - sections: chat, providers, agents, mcp, skills, issues
 - data dirs structure for ollama, opencode, etc.
-- thinking plus stop, allow pick new model and start typing for next chat.
+- [x] thinking plus stop, allow pick new model and start typing for next chat.
 - [x] add voice to text for chat using whisper
 - providers/models, agents, mcp, acp, gateway, skills, tools(web research), loops????
 - # Enterprise Role Architecture and Comprehensive AI Model Distribution

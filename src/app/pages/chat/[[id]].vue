@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useChatRecents } from '../../composables/useChatRecents'
-import { formatContextLabel, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
+import { formatContextLabel, formatDurationMs, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
 import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
 
 type Msg = {
@@ -234,6 +234,8 @@ const liveMetaLabel = computed(() => formatMetaStats({
   promptTokens: streamingStats.value.promptTokens,
   completionTokens: streamingStats.value.completionTokens,
 }))
+
+const thinkingElapsed = computed(() => formatDurationMs(liveElapsedMs.value))
 
 async function loadConversation(id: string) {
   try {
@@ -734,10 +736,34 @@ defineExpose({
           <span class="bros-chat__meta-id">
             ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
           </span>
-          <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
+          <span class="bros-chat__meta-right">
+            <UButton
+              type="button"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              label="Stop"
+              aria-label="Stop"
+              class="bros-chat__stop"
+              @click="stop"
+            />
+            <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
+          </span>
         </p>
       </div>
-      <p v-if="thinking" class="bros-chat__thinking">thinking…</p>
+      <p v-if="thinking" class="bros-chat__thinking">
+        <span>thinking… {{ thinkingElapsed }}</span>
+        <UButton
+          type="button"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          label="Stop"
+          aria-label="Stop"
+          class="bros-chat__stop"
+          @click="stop"
+        />
+      </p>
       <div ref="threadEnd" />
     </div>
 
@@ -769,7 +795,6 @@ defineExpose({
           v-model="input"
           class="bros-chat__input"
           placeholder="Message…"
-          :disabled="busy"
           :rows="1"
           :maxrows="8"
           autoresize
@@ -787,20 +812,11 @@ defineExpose({
           @click="toggleVoice"
         />
         <UButton
-          v-if="!busy"
           type="submit"
-          :disabled="!input.trim()"
+          :disabled="busy || !input.trim()"
           icon="i-lucide-arrow-up"
           aria-label="Send"
           class="bros-chat__send"
-        />
-        <UButton
-          v-else
-          type="button"
-          icon="i-lucide-square"
-          aria-label="Stop"
-          class="bros-chat__send"
-          @click="stop"
         />
       </form>
     </div>
@@ -859,9 +875,12 @@ defineExpose({
 }
 
 .bros-chat__thinking {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   width: min(48rem, 100%);
   margin: 1.25rem auto;
-  text-align: center;
   font-size: 0.95rem;
   color: var(--bros-muted);
 }

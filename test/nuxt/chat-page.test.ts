@@ -113,8 +113,11 @@ describe('Chat page', () => {
     vm.thinking = true
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('thinking…')
+    expect(wrapper.text()).toContain('0.0s')
     expect(wrapper.find('[aria-label="Stop"]').exists()).toBe(true)
-    expect(wrapper.find('[aria-label="Send"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Send"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Send"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('textarea').attributes('disabled')).toBeUndefined()
     expect(wrapper.find('[aria-label="Voice to text"]').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__send').attributes('data-loading')).toBeUndefined()
   })
