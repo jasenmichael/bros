@@ -5,6 +5,7 @@ import {
   firecrawlBaseUrl,
   parseScrapeMarkdown,
   parseSearchHits,
+  readableExcerpt,
   scrapeAllowed,
 } from '../../src/server/utils/firecrawl'
 
@@ -54,6 +55,21 @@ describe('parseScrapeMarkdown', () => {
     const markdown = parseScrapeMarkdown({ data: { markdown: 'x'.repeat(12_050) } })
     expect(markdown.endsWith('[truncated]')).toBe(true)
     expect(markdown.length).toBeLessThan(12_080)
+  })
+})
+
+describe('readableExcerpt', () => {
+  it('keeps the article lead and drops the search-box lines', () => {
+    const excerpt = readableExcerpt([
+      '[](https://en.wikipedia.org/wiki/Example.com#)',
+      '',
+      'Find sources: ["Example.com"](https://www.google.com/search?q=example)',
+      '',
+      'The domain names **example.com**, **example.net**, and **example.org** are reserved by IANA for documentation. They are used in books and sample configurations.',
+    ].join('\n'))
+    expect(excerpt).toContain('reserved by IANA')
+    expect(excerpt).not.toContain('Find sources')
+    expect(excerpt).not.toContain('https://www.google.com')
   })
 })
 

@@ -76,7 +76,6 @@ export function getDb() {
   if (_db) return _db
   const { dataDir } = loadBootstrapConfig()
   mkdirSync(dataDir, { recursive: true })
-  mkdirSync(join(dataDir, 'sidecars'), { recursive: true })
   mkdirSync(join(dataDir, 'logs'), { recursive: true })
   mkdirSync(join(dataDir, 'tunnel'), { recursive: true })
   const dbPath = join(dataDir, 'bros.sqlite')

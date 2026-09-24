@@ -712,6 +712,25 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/Unavailable' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agent/{id}/truncate:
+    post:
+      tags: [Agent]
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      summary: Drop a user turn and later messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fromMessageId: { type: string }
+                fromIndex: { type: integer }
+      responses:
+        '200': { description: Conversation }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/sidecars:
     get:
       tags: [Sidecars]

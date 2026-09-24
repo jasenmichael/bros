@@ -72,6 +72,7 @@ Research threads (SQLite `conversations.kind = agent`). Not returned by `GET /ap
 | POST | `/api/agent` | `{ modelId }` required |
 | GET, PATCH, DELETE | `/api/agent/{id}` | PATCH `modelId` and/or `title` |
 | POST | `/api/agent/{id}/stream` | `{ content, modelId? }` — SSE `status`, `token`, `sources`, `stats`, `error` |
+| POST | `/api/agent/{id}/truncate` | `{ fromMessageId }` or `{ fromIndex }` — edit/resend |
 
 ## Sidecars
 

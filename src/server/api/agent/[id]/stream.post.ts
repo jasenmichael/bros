@@ -64,13 +64,15 @@ export default defineEventHandler(async (event) => {
           return
         }
         const durationMs = Date.now() - started
+        const text = result.text.trim() ? result.text : 'The model returned an empty reply.'
+        if (!result.text.trim()) send('token', { text })
         const stats = {
           durationMs,
           promptTokens: result.usage.promptTokens ?? null,
           completionTokens: result.usage.completionTokens ?? null,
         }
-        addMessage(id, 'assistant', result.text, modelId, stats, encodeTrace(result.trace))
-        if (result.text.trim()) {
+        addMessage(id, 'assistant', text, modelId, stats, encodeTrace(result.trace))
+        if (text.trim()) {
           try {
             await maybeAutoTitle(id)
           } catch {
@@ -87,7 +89,8 @@ export default defineEventHandler(async (event) => {
         }
         const message = err instanceof FirecrawlDownError
           ? err.message
-          : (err instanceof Error ? err.message : String(err))
+          : (err instanceof Error ? (err.message || 'Agent failed') : String(err))
+        addMessage(id, 'assistant', message, modelId)
         send('error', { message })
         controller.close()
       } finally {

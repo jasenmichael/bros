@@ -60,6 +60,19 @@ function isPrivateHost(hostname: string): boolean {
   return false
 }
 
+/** Public http(s) URL, or null when the host is private or the string is not a URL. */
+export function publicHttpUrl(raw: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+  if (isPrivateHost(parsed.hostname)) return null
+  return parsed.toString()
+}
+
 /** Scrape only public http(s) URLs that this turn's search already returned. */
 export function scrapeAllowed(url: string, allowed: ReadonlySet<string>): { ok: true; url: string } | { ok: false; reason: string } {
   let parsed: URL
@@ -125,6 +138,21 @@ export function parseSearchHits(body: unknown): SearchHit[] {
   return hits
 }
 
+/** Drop link chrome so a small model sees the article, not the search box. */
+export function readableExcerpt(markdown: string): string {
+  const cleaned = markdown
+    .replace(/!\[[^\]]*]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  const paragraphs = cleaned
+    .split(/\n{2,}/)
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .filter((part) => part.length > 80)
+    .filter((part) => !/find sources|search bar|retrieved from|cite this page/i.test(part))
+  const body = paragraphs.slice(0, 4).join('\n\n')
+  const excerpt = body || cleaned.replace(/\s+/g, ' ').trim()
+  return excerpt.length > 4000 ? `${excerpt.slice(0, 4000)}\n\n[truncated]` : excerpt
+}
+
 export function parseScrapeMarkdown(body: unknown): string {
   const root = asRecord(body)
   const data = asRecord(root?.data) || root
@@ -139,16 +167,21 @@ function isAbort(err: unknown): boolean {
 }
 
 async function postJson(path: string, payload: unknown, signal?: AbortSignal, fetchImpl: typeof fetch = fetch): Promise<unknown> {
+  const timeout = AbortSignal.timeout(20000)
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
   let res: Response
   try {
     res = await fetchImpl(`${firecrawlBaseUrl()}${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
-      signal,
+      signal: combined,
     })
   } catch (err) {
-    if (isAbort(err)) throw err
+    if (isAbort(err)) {
+      if (signal?.aborted) throw err
+      throw new Error('Firecrawl timed out')
+    }
     throw new FirecrawlDownError()
   }
   if (!res.ok) {
@@ -164,6 +197,11 @@ export async function firecrawlSearch(query: string, signal?: AbortSignal, fetch
 }
 
 export async function firecrawlScrape(url: string, signal?: AbortSignal, fetchImpl: typeof fetch = fetch): Promise<string> {
-  const body = await postJson('/v2/scrape', { url, formats: ['markdown'], timeout: 60000 }, signal, fetchImpl)
+  const body = await postJson('/v2/scrape', {
+    url,
+    formats: ['markdown'],
+    onlyMainContent: true,
+    timeout: 60000,
+  }, signal, fetchImpl)
   return parseScrapeMarkdown(body)
 }

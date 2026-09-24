@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAgentRecents } from '../../composables/useAgentRecents'
+import { readChatModelMemory, rememberChatModel, rememberChatProvider } from '../../composables/useChatModelMemory'
 import { formatContextLabel, formatDurationMs, formatMetaStats, type ChatMetaStats } from '../../utils/chatMeta'
 import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
 
@@ -15,8 +17,6 @@ type Msg = {
   traceJson?: string | null
   sources?: Source[]
 }
-
-type AgentRecent = { id: string; title: string; modelId: string; updatedAt: number }
 
 const route = useRoute()
 const router = useRouter()
@@ -36,10 +36,14 @@ const activity = ref('')
 const busy = ref(false)
 const thinking = ref(false)
 const streamAbort = ref<AbortController | null>(null)
+let discardInFlight = false
 const streamStartedAt = ref(0)
 const liveElapsedMs = ref(0)
-const providerId = ref('ollama')
-const modelName = ref('llama3.2')
+const bootMemory = readChatModelMemory()
+const providerId = ref(bootMemory.lastProviderId || 'ollama')
+const modelName = ref(bootMemory.models[providerId.value] || 'llama3.2')
+let applyingThread = false
+let restoringProviderModel = false
 const lastPersistedModel = ref<string | null>(null)
 const pageTitle = ref('Agent')
 const threadEl = ref<HTMLElement | null>(null)
@@ -61,14 +65,7 @@ const { data: modelsData } = await useFetch<{
   }>
 }>('/api/providers')
 
-const { data: recentsData, refresh: refreshRecents } = useFetch<{ conversations: AgentRecent[] }>('/api/agent', {
-  key: 'bros-agent-recents',
-  lazy: true,
-  server: false,
-  default: () => ({ conversations: [] }),
-})
-
-const recents = computed(() => recentsData.value?.conversations || [])
+const { refreshAgentRecents } = useAgentRecents()
 
 const orderedProviders = computed(() => {
   const rows = (modelsData.value?.providers || []).filter((p) => p.enabled !== false)
@@ -132,11 +129,39 @@ function splitModelId(id: string) {
   return { providerId: id.slice(0, idx), model: id.slice(idx + 1) }
 }
 
+function preferredModel(pid: string, names: string[]) {
+  const remembered = readChatModelMemory().models[pid]
+  if (remembered && names.includes(remembered)) return remembered
+  return names[0] || ''
+}
+
+function assignModel(next: string, save: boolean) {
+  if (modelName.value === next) return
+  if (!save) restoringProviderModel = true
+  modelName.value = next
+  if (!save) restoringProviderModel = false
+}
+
+function applyNewChatSelection() {
+  const memory = readChatModelMemory()
+  const rows = orderedProviders.value
+  const pid = rows.some((p) => p.id === memory.lastProviderId)
+    ? memory.lastProviderId
+    : (rows[0]?.id || memory.lastProviderId || 'ollama')
+  const names = modelsForProvider(pid)
+  applyingThread = true
+  providerId.value = pid
+  assignModel(names.length ? preferredModel(pid, names) : (memory.models[pid] || 'llama3.2'), false)
+  applyingThread = false
+}
+
 function applyModelId(next: string) {
   const parsed = splitModelId(next)
+  applyingThread = true
   providerId.value = parsed.providerId
   const names = modelsForProvider(parsed.providerId)
-  modelName.value = names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model)
+  assignModel(names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model), false)
+  applyingThread = false
 }
 
 const { data: modelContext } = await useFetch<{ contextLength: number | null }>(
@@ -223,35 +248,58 @@ async function loadConversation(id: string) {
 }
 
 watch(providerId, (pid) => {
+  if (!pid) return
   const names = modelsForProvider(pid)
-  if (names.length && !names.includes(modelName.value)) modelName.value = names[0] || ''
-})
+  if (names.length) assignModel(preferredModel(pid, names), false)
+  if (!applyingThread) rememberChatProvider(pid)
+}, { flush: 'sync' })
+
+watch(modelName, (name) => {
+  if (applyingThread || restoringProviderModel) return
+  if (!providerId.value || !name) return
+  rememberChatModel(providerId.value, name)
+}, { flush: 'sync' })
 
 watch(modelItems, (names) => {
-  if (names.length && !names.includes(modelName.value)) modelName.value = names[0] || ''
-}, { immediate: true })
+  if (names.length && !names.includes(modelName.value)) {
+    assignModel(preferredModel(providerId.value, names), false)
+  }
+}, { immediate: true, flush: 'sync' })
 
 watch([providerId, orderedProviders], () => {
   const rows = orderedProviders.value
   if (!rows.length) {
+    applyingThread = true
     providerId.value = ''
-    modelName.value = ''
+    assignModel('', false)
+    applyingThread = false
     return
   }
   if (rows.some((p) => p.id === providerId.value)) return
-  const first = rows[0]
-  providerId.value = first.id
-  modelName.value = modelsForProvider(first.id)[0] || ''
-}, { immediate: true })
+  const memory = readChatModelMemory()
+  const preferred = rows.find((p) => p.id === memory.lastProviderId) || rows[0]
+  if (!preferred) return
+  applyingThread = true
+  providerId.value = preferred.id
+  assignModel(preferredModel(preferred.id, modelsForProvider(preferred.id)), false)
+  applyingThread = false
+}, { immediate: true, flush: 'sync' })
 
 watch(modelId, (next) => {
   void persistOpenModel(next).catch(() => {})
 })
 
+let skipThreadReload = false
+
 watch(convoId, (id) => {
+  if (skipThreadReload) {
+    skipThreadReload = false
+    return
+  }
   if (!id) {
     messages.value = []
     pageTitle.value = 'Agent'
+    applyNewChatSelection()
     return
   }
   void loadConversation(id).catch(() => {
@@ -267,6 +315,18 @@ function onComposerKeydown(event: KeyboardEvent) {
 
 function stop() {
   streamAbort.value?.abort()
+}
+
+function waitWhileBusy() {
+  if (!busy.value) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const stopWatch = watch(busy, (v) => {
+      if (!v) {
+        stopWatch()
+        resolve()
+      }
+    })
+  })
 }
 
 function isAbortError(e: unknown) {
@@ -350,6 +410,12 @@ async function send() {
   if (busy.value || !input.value.trim() || !providerId.value || !modelName.value) return
   const text = input.value.trim()
   input.value = ''
+  await sendText(text)
+}
+
+async function sendText(text: string) {
+  if (!text.trim() || !providerId.value || !modelName.value) return
+  rememberChatModel(providerId.value, modelName.value)
   let id = convoId.value
   if (!id) {
     const convo = await $fetch<{ id: string }>('/api/agent', {
@@ -390,12 +456,12 @@ async function send() {
     applySse('', true)
     if (streaming.value) finalizeAssistant(usedModel, streaming.value)
     streaming.value = ''
-    await refreshRecents()
+    await refreshAgentRecents()
     if (!convoId.value) await router.replace(`/agent/${id}`)
   } catch (e: unknown) {
     if (isAbortError(e)) {
-      if (streaming.value) finalizeAssistant(usedModel, streaming.value)
-    } else {
+      if (!discardInFlight && streaming.value) finalizeAssistant(usedModel, streaming.value)
+    } else if (!discardInFlight) {
       const errText = e instanceof Error ? e.message : String(e)
       messages.value.push({
         id: crypto.randomUUID(),
@@ -405,7 +471,10 @@ async function send() {
       })
     }
     streaming.value = ''
-    if (!convoId.value && id) await router.replace(`/agent/${id}`)
+    if (!convoId.value && id) {
+      skipThreadReload = true
+      await router.replace(`/agent/${id}`)
+    }
   } finally {
     thinking.value = false
     activity.value = ''
@@ -416,17 +485,43 @@ async function send() {
     scrollThread()
   }
 }
+
+async function resendFrom(message: Msg, text: string) {
+  const edited = text.trim()
+  if (!edited || !providerId.value || !modelName.value) return
+  const fromIndex = messages.value.findIndex((m) => m.id === message.id)
+  if (fromIndex === -1) return
+  discardInFlight = true
+  stop()
+  await waitWhileBusy()
+  discardInFlight = false
+  const id = convoId.value
+  if (id) {
+    await $fetch(`/api/agent/${id}/truncate`, {
+      method: 'POST',
+      body: { fromMessageId: message.id, fromIndex },
+    })
+  }
+  messages.value = messages.value.slice(0, fromIndex)
+  streaming.value = ''
+  streamingSources.value = []
+  streamingStats.value = {}
+  streamingModelId.value = ''
+  activity.value = ''
+  thinking.value = false
+  await sendText(edited)
+}
+
+onUnmounted(() => {
+  stopElapsed()
+  streamAbort.value?.abort()
+})
 </script>
 
 <template>
   <div class="bros-chat" :class="isThread ? 'bros-chat--thread' : 'bros-chat--empty'">
     <div v-if="!isThread" class="bros-chat__hero">
       <h1 class="bros-chat__greet">What should we look up?</h1>
-      <ul v-if="recents.length" class="bros-agent__recents">
-        <li v-for="row in recents" :key="row.id">
-          <NuxtLink :to="`/agent/${row.id}`">{{ row.title }}</NuxtLink>
-        </li>
-      </ul>
     </div>
 
     <div v-else ref="threadEl" class="bros-chat__thread" aria-live="polite">
@@ -436,11 +531,12 @@ async function send() {
         class="bros-chat__turn"
         :class="m.role === 'user' ? 'bros-chat__turn--user' : 'bros-chat__turn--assistant'"
       >
-        <div v-if="m.role === 'user'" class="bros-chat__user">
-          <div class="bros-chat__bubble bros-chat__bubble--user">
-            <BrosChatMarkdown :text="m.content" />
-          </div>
-        </div>
+        <BrosChatUserTurn
+          v-if="m.role === 'user'"
+          :message-id="m.id"
+          :content="m.content"
+          @resend="(text) => resendFrom(m, text)"
+        />
         <template v-else>
           <div class="bros-chat__bubble bros-chat__bubble--assistant">
             <BrosChatMarkdown :text="m.content" />
@@ -450,12 +546,11 @@ async function send() {
               <a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a>
             </li>
           </ul>
-          <p class="bros-chat__meta">
-            <span class="bros-chat__meta-id">
-              ASSISTANT<span v-if="m.modelId"> · {{ m.modelId }}</span>
-            </span>
-            <span v-if="metaLabel(m)" class="bros-chat__meta-stats">{{ metaLabel(m) }}</span>
-          </p>
+          <BrosChatAssistantMeta
+            :model-id="m.modelId"
+            :copy-text="m.content"
+            :stats-label="metaLabel(m)"
+          />
         </template>
       </div>
       <div v-if="streaming" class="bros-chat__turn bros-chat__turn--assistant">
@@ -467,15 +562,12 @@ async function send() {
             <a :href="source.url" target="_blank" rel="noopener noreferrer">{{ source.title }}</a>
           </li>
         </ul>
-        <p class="bros-chat__meta">
-          <span class="bros-chat__meta-id">
-            ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
-          </span>
-          <span class="bros-chat__meta-right">
-            <UButton type="button" size="xs" color="neutral" variant="ghost" label="Stop" aria-label="Stop" @click="stop" />
-            <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
-          </span>
-        </p>
+        <BrosChatAssistantMeta
+          :model-id="streamingModelId"
+          :show-stop="true"
+          :stats-label="liveMetaLabel"
+          @stop="stop"
+        />
       </div>
       <p v-if="thinking && !streaming" class="bros-chat__thinking">
         <span>{{ activity || `thinking… ${thinkingElapsed}` }}</span>
@@ -507,6 +599,7 @@ async function send() {
           :ui="{ base: 'resize-none bg-transparent ring-0' }"
           @keydown="onComposerKeydown"
         />
+        <BrosChatMic v-model="input" />
         <UButton
           type="submit"
           :disabled="busy || !input.trim()"
@@ -542,13 +635,6 @@ async function send() {
   letter-spacing: -0.03em;
   color: #f2f6fb;
 }
-.bros-agent__recents {
-  margin: 1.25rem 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--bros-muted);
-}
-.bros-agent__recents a { color: inherit; }
 .bros-chat__thread {
   flex: 1;
   min-height: 0;
@@ -568,13 +654,6 @@ async function send() {
   font-size: 0.95rem;
   color: var(--bros-muted);
 }
-.bros-chat__user { max-width: min(36rem, 85%); }
-.bros-chat__bubble--user {
-  padding: 0.7rem 1rem;
-  border-radius: 1.25rem 1.25rem 0.4rem 1.25rem;
-  background: color-mix(in srgb, var(--bros-accent) 18%, var(--bros-surface));
-  color: var(--bros-text);
-}
 .bros-chat__bubble--assistant { color: var(--bros-text); }
 .bros-agent__sources {
   margin: 0.4rem 0 0;
@@ -583,16 +662,6 @@ async function send() {
   font-size: 0.75rem;
 }
 .bros-agent__sources a { color: var(--bros-muted); }
-.bros-chat__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0.35rem 0 0;
-  font-size: 0.7rem;
-  color: var(--bros-muted);
-}
-.bros-chat__meta-right { display: flex; align-items: center; gap: 0.2rem; margin-left: auto; }
 .bros-chat__dock {
   width: min(48rem, 100%);
   margin: 0 auto;
@@ -608,20 +677,22 @@ async function send() {
   gap: 0.5rem 0.75rem;
   margin-bottom: 0.55rem;
 }
-.bros-chat__tools-left { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; min-width: 0; }
-.bros-chat__provider-wrap { display: inline-grid; width: max-content; max-width: 100%; }
+.bros-chat__tools-left { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; min-width: 0; flex: 1 1 auto; }
+.bros-chat__provider-wrap { display: inline-grid; align-items: start; width: max-content; height: fit-content; max-width: 100%; }
 .bros-chat__provider-sizer {
   grid-area: 1 / 1;
   visibility: hidden;
+  pointer-events: none;
   white-space: nowrap;
   height: 0;
   overflow: hidden;
   font-size: 0.75rem;
+  line-height: 0;
   padding: 0 1.75rem 0 0.5rem;
 }
-:deep(.bros-chat__provider) { grid-area: 1 / 1; width: 100%; min-width: 0; }
+:deep(.bros-chat__provider) { grid-area: 1 / 1; align-self: start; width: 100%; min-width: 0; max-width: 100%; height: auto; }
 .bros-chat__model { min-width: 10rem; max-width: 16rem; }
-.bros-chat__ctx { margin: 0 0 0 auto; font-size: 0.7rem; color: var(--bros-muted); }
+.bros-chat__ctx { margin: 0 0 0 auto; font-size: 0.7rem; color: var(--bros-muted); flex-shrink: 0; }
 .bros-chat__composer {
   display: flex;
   align-items: flex-end;
