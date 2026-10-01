@@ -1,0 +1,26 @@
+# Custom pack — candidate for lib/sidecars/addon later.
+# Upstream: https://github.com/diegosouzapw/OmniRoute
+# Image: diegosouzapw/omniroute (Docker Hub; :latest = latest stable SemVer)
+services:
+  omniroute:
+    image: ${OMNIROUTE_IMAGE:-diegosouzapw/omniroute:latest}
+    stop_grace_period: 40s
+    environment:
+      DATA_DIR: /app/data
+      PORT: "20128"
+      DASHBOARD_PORT: "20128"
+      # Image default 1024 is enough for dashboard/light chat.
+      # Coding agents: raise OMNIROUTE_MEMORY_MB (e.g. 8192) and Docker memory.
+      OMNIROUTE_MEMORY_MB: ${OMNIROUTE_MEMORY_MB:-1024}
+      OMNIROUTE_BASE_PATH: ${OMNIROUTE_BASE_PATH:-}
+    ports:
+      - "${BROS_OMNIROUTE_PORT:-20128}:20128"
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/omniroute/app/data:/app/data
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

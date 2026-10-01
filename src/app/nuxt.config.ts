@@ -30,12 +30,9 @@ export default defineNuxtConfig({
     port: 3055,
   },
   runtimeConfig: {
-    brosWorkingDir: process.env.BROS_WORKING_DIR || '',
+    brosDir: process.env.BROS_DIR || process.env.BROS_HOME || '',
     brosDataDir: process.env.BROS_DATA_DIR || '',
-    brosConfig: process.env.BROS_CONFIG || '',
-    brosSidecarsDir: process.env.BROS_SIDECARS_DIR || '',
-    brosNetwork: process.env.BROS_NETWORK || 'bros',
-    sessionSecret: process.env.BROS_SESSION_SECRET || 'bros-dev-secret-change-me',
+    brosNetwork: 'bros',
     public: {
       appName: 'Bros',
     },

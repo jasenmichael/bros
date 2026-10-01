@@ -8,7 +8,7 @@ import {
   setAppRunsInDockerForTests,
   sidecarReachUrl,
 } from '../../src/server/utils/hostProbe'
-import { sidecarOllamaUrl } from '../../src/server/utils/ollamaHost'
+import { sidecarOllamaUrl } from '../../src/server/utils/providers/ollamaHost'
 import { sidecarWhisperUrl } from '../../src/server/utils/whisperHost'
 
 describe('dockerHostCandidates', () => {
@@ -43,9 +43,8 @@ describe('firstPublishPort / hostUiUrl', () => {
 
 describe('composeAppSignals', () => {
   it('treats Compose in-container paths as in-Docker', () => {
-    expect(composeAppSignals({ BROS_DATA_DIR: '/data' })).toBe(true)
-    expect(composeAppSignals({ BROS_WORKING_DIR: '/app' })).toBe(true)
-    expect(composeAppSignals({ BROS_DATA_DIR: '/tmp/bros-data', BROS_WORKING_DIR: '/home/me/dev/bros' })).toBe(false)
+    expect(composeAppSignals({ BROS_DIR: '/app' })).toBe(true)
+    expect(composeAppSignals({ BROS_DIR: '/home/me/dev/bros' })).toBe(false)
     expect(composeAppSignals({})).toBe(false)
   })
 })

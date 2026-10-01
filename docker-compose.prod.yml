@@ -5,5 +5,9 @@ services:
       target: production
     image: bros:latest
     restart: unless-stopped
+    volumes:
+      - ./lib/sidecars/core:/app/sidecars/core:ro
+      - ./lib/sidecars/addon:/app/sidecars/addon:ro
+      - ${BROS_SIDECARS_DIR:-./sidecars}:/app/sidecars/custom
     environment:
       NODE_ENV: production

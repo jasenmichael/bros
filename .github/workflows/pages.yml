@@ -7,9 +7,9 @@ on:
       - 'src/website/**'
       - 'src/layers/**'
       - 'docs/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
+      - 'src/package.json'
+      - 'src/pnpm-lock.yaml'
+      - 'src/pnpm-workspace.yaml'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -28,12 +28,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: src/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+          cache-dependency-path: src/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+        working-directory: src
       - run: pnpm --filter @bros/website generate
+        working-directory: src
       - uses: actions/upload-pages-artifact@v3
         with:
           path: src/website/.output/public

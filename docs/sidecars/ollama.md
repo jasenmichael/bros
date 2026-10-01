@@ -5,14 +5,14 @@ description: Core Ollama package, ports, GPU, host provider, internal bros model
 
 # Ollama sidecar
 
-Must-run **core** package `sidecars/core/ollama`. Local model runtime. Independent of the Bros app container.
+Must-run **core** package `lib/sidecars/core/ollama`. Local model runtime. Independent of the Bros app container.
 
 ## Ports and DNS
 
 - Container listen: **11434**
 - Host publish: **11435** (`BROS_OLLAMA_PORT` override)
 - Docker DNS for other containers **and** Compose-app Bros (Chat/Providers): `http://ollama:11434`
-- Host Node (`pnpm app:dev`): `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT` override)
+- Host Node (`pnpm --dir src app:dev`): `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT` override)
 
 Host publish stays **11435** so a host Ollama on 11434 can coexist. Chat/Providers sidecar provider id is `ollama`. Home, Status, and Sidecars cards show that publish port only. Host Ollama is not labeled on sidecar surfaces.
 
@@ -36,7 +36,7 @@ GPU: if an NVIDIA GPU is present, open the sidecar card on Providers and enable 
 
 Host Ollama is a **separate** Chat/Providers provider (`ollama-host`). Settings **Enable host Ollama** is **off by default**. Off hides the row from Chat/Providers and 404s `/api/providers/ollama-host/*`. The SQLite row stays. Bros never starts the host daemon.
 
-When on, live scan looks for one daemon: optional Providers port override (`host_probe_port`, exclusive, no silent fallback); else probe default **11434** first via `dockerHostCandidates()` (`host.docker.internal` / `BROS_HOST_GATEWAY` from the app container, `127.0.0.1` on host Node). Skip if that port is sidecar publish **11435** or `bros-sc-ollama`. Then published host ports on running Docker Ollama containers (image `ollama/ollama` or name containing `ollama`; skip project/name `bros-sc-ollama` and publish **11435**). Then leftover `/proc/net/tcp`+`tcp6` LISTEN ports on `pnpm app:dev` and other published ports. In the app container, host `/proc` is invisible — still probe host-gateway **11434**, not only the container listen table. Verify with `GET /api/version` JSON `{ version }`. First `GET /api/version` hit wins. `POST /api/providers/ollama-host/scan` busts the 30s cache. Do not HTTP-probe 1–65535. No extra packages (dockerode + `/proc`). Docker socket is already required; host Node needs readable `/proc/net/tcp`.
+When on, live scan looks for one daemon: optional Providers port override (`host_probe_port`, exclusive, no silent fallback); else probe default **11434** first via `dockerHostCandidates()` (`host.docker.internal` / `BROS_HOST_GATEWAY` from the app container, `127.0.0.1` on host Node). Skip if that port is sidecar publish **11435** or `bros-sc-ollama`. Then published host ports on running Docker Ollama containers (image `ollama/ollama` or name containing `ollama`; skip project/name `bros-sc-ollama` and publish **11435**). Then leftover `/proc/net/tcp`+`tcp6` LISTEN ports on `pnpm --dir src app:dev` and other published ports. In the app container, host `/proc` is invisible — still probe host-gateway **11434**, not only the container listen table. Verify with `GET /api/version` JSON `{ version }`. First `GET /api/version` hit wins. `POST /api/providers/ollama-host/scan` busts the 30s cache. Do not HTTP-probe 1–65535. No extra packages (dockerode + `/proc`). Docker socket is already required; host Node needs readable `/proc/net/tcp`.
 
 Pull and chat on the host provider use the **host Ollama disk**, not `$BROS_HOME/data/ollama/root/.ollama`. Sidecar pull/chat use the sidecar bind (still on the host under `$BROS_HOME/data/ollama/root/.ollama`). Run the host daemon with `OLLAMA_NOPRUNE=1` (Bros cannot set host daemon env) so incomplete host pulls are not pruned.
 

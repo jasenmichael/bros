@@ -1,0 +1,31 @@
+# Custom pack — candidate for lib/sidecars/addon later.
+# Upstream: https://github.com/every-app/open-seo
+# Image: ghcr.io/every-app/open-seo (AUTH_MODE=local_noauth; LAN / Bros auth only).
+services:
+  open-seo:
+    image: ${OPEN_SEO_IMAGE:-ghcr.io/every-app/open-seo:latest}
+    environment:
+      CLOUDFLARE_INCLUDE_PROCESS_ENV: "true"
+      PORT: "3001"
+      AUTH_MODE: local_noauth
+      OPENSEO_TELEMETRY_DISABLED: ${OPENSEO_TELEMETRY_DISABLED:-1}
+      DO_NOT_TRACK: ${DO_NOT_TRACK:-1}
+      DATAFORSEO_API_KEY: ${DATAFORSEO_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      ALLOWED_HOST: ${ALLOWED_HOST:-}
+      VITE_SHOW_DEVTOOLS: "false"
+    ports:
+      - "${BROS_OPEN_SEO_PORT:-3001}:3001"
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/open-seo/app/.wrangler:/app/.wrangler
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true

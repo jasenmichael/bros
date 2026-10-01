@@ -1,19 +1,21 @@
 import { loadBootstrapConfig } from '../../utils/config'
-import { hasPasscode } from '../../utils/auth'
-import { getChatSettings } from '../../utils/chatSettings'
-import { isHostOllamaEnabled } from '../../utils/hostOllamaSettings'
-import { isWhisperEnabled } from '../../utils/whisperSettings'
+import { ensureProxyKey, hasPasscode, proxyPublicOrigin } from '../../utils/auth'
+import { isHostOllamaEnabled, isWhisperEnabled } from '../../utils/settings'
+import { listApiProxyPaths } from '../../utils/sidecars/sidecarProxy'
 
 export default defineEventHandler(() => {
   const cfg = loadBootstrapConfig()
-  const chat = getChatSettings()
+  const origin = proxyPublicOrigin(cfg.publicUrl)
+  const proxyPaths = listApiProxyPaths()
   return {
-    workingDir: cfg.workingDir,
+    appDir: cfg.workingDir,
     dataDir: cfg.dataDir,
+    publicUrl: cfg.publicUrl,
     hasPasscode: hasPasscode(),
-    chatPrepend: chat.prepend,
-    chatAssistantDescription: chat.assistantDescription,
     enableHostOllama: isHostOllamaEnabled(),
     enableWhisper: isWhisperEnabled(),
+    proxyKey: ensureProxyKey(),
+    proxyPaths,
+    proxyUrls: proxyPaths.map((path) => (origin ? `${origin}${path}` : path)),
   }
 })

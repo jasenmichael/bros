@@ -1,4 +1,4 @@
-import { createConversation } from '../../utils/chat'
+import { createConversation } from '../../utils/chat/chat'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ modelId?: string; title?: string }>(event)

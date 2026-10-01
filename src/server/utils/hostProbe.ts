@@ -8,12 +8,12 @@ export function setAppRunsInDockerForTests(value: boolean | undefined) {
   testInDocker = value
 }
 
-/** Compose sets `BROS_DATA_DIR=/data` and `BROS_WORKING_DIR=/app` in the app container. */
+/** Image sets `BROS_DIR=/app` in the Compose app container. */
 export function composeAppSignals(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.BROS_DATA_DIR === '/data' || env.BROS_WORKING_DIR === '/app'
+  return env.BROS_DIR === '/app'
 }
 
-/** True when the Nuxt process is the Compose app container, not `pnpm app:dev`. */
+/** True when the Nuxt process is the Compose app container, not `pnpm --dir src app:dev`. */
 export function appRunsInDocker(): boolean {
   if (testInDocker !== undefined) return testInDocker
   return existsSync('/.dockerenv') || composeAppSignals()
@@ -27,7 +27,7 @@ export type SidecarReachOpts = {
 }
 
 /**
- * Bros → sidecar HTTP: Docker DNS in-container, host publish on `pnpm app:dev`.
+ * Bros → sidecar HTTP: Docker DNS in-container, host publish on `pnpm --dir src app:dev`.
  * Open/Pin stay `hostUiUrl` (`127.0.0.1:<publish>`).
  */
 export function sidecarReachUrl(opts: SidecarReachOpts, env: NodeJS.ProcessEnv = process.env): string {

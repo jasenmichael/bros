@@ -5,7 +5,7 @@ description: Provider then model, streaming, thinking, Stop, and auto-title.
 
 # Chat
 
-`/chat` is a new empty conversation: provider dropdown then model dropdown, centered greeting and composer. `/chat/:id` opens a saved thread and pins the scroller to the latest turn after render (every conversation id). A conversation is created on the first send, not when opening `/chat`.
+`/chat` is one direct completion: a provider and a model, centered greeting, and composer. A thread is created on the first send. Saved threads open at `/chat/:id` and pin the scroller to the latest turn after render. A send without a provider and model returns 400. There is no tool loop. Public `/v1` is later.
 
 ## Provider then model
 
@@ -22,22 +22,17 @@ Context size shows on the tools row **only for Ollama** when the runtime reports
 
 ## Send and Stop
 
-While a reply is in flight, Send stays the arrow and is disabled until the stream ends. The composer stays editable (type the next prompt; cannot send yet). Centered **thinking…** shows elapsed time (`1.2s`) and **Stop** until the first assistant token. After tokens start, **Stop** sits on the live assistant meta line. **Stop** aborts the stream.
+While a reply is in flight, Send stays the arrow and is disabled until the stream ends. The composer stays editable (type the next prompt; cannot send yet). Centered **thinking…** shows elapsed time plus **Stop**, until the first assistant token. After tokens start, **Stop** sits on the live assistant meta line. **Stop** aborts the stream.
 
 A round **Voice to text** mic sits left of Send. Click starts recording; click again stops and uploads to `POST /api/chat/transcribe`. Transcribed text appends to the composer and does not auto-send. Recording is allowed while a reply streams (next prompt). Microphone needs a secure context (localhost HTTP or HTTPS). The Whisper sidecar is STT only — not a Chat provider. It stays stopped until Settings **Enable Whisper**. While that switch is off, transcribe returns an error and does not pull images. See [Whisper sidecar](/docs/sidecars/whisper).
 
 Assistant and user bodies render as markdown with the same theme prose as Docs (`.bros-prose` + `ProsePre`). Each assistant message stores the `modelId` used for that request. The UI shows `ASSISTANT · <modelId>` **under** the assistant body, plus duration and token counts on the right when the provider sent them. A copy icon next to that meta copies the stored raw markdown of the whole reply (fences included). Fenced snippets still have their own `ProsePre` copy.
 
-User turns show **Copy** and **Edit** under the bubble. Edit + **Resend** stops any in-flight stream (same abort as **Stop**), deletes that user turn and every later row (`POST /api/chat/:id/truncate` with `fromMessageId` / `fromIndex`), then sends the edited text with the same Chat settings prepend/description as a normal send. Title still auto-titles only the first successful reply of a New chat.
+User turns show **Copy** and **Edit** under the bubble. Edit + **Resend** stops any in-flight stream (same abort as **Stop**), deletes that user turn and every later row (`POST /api/chat/:id/truncate` with `fromMessageId` / `fromIndex`), then sends the edited text. Personality and rules skills load the same way as a normal send. Title still auto-titles only the first successful reply of a New chat.
 
 Popular services and custom providers both use OpenAI-compatible `POST /chat/completions`. Bros sends `stream_options.include_usage` when the body allows it, and reads `delta.content` or `delta.reasoning_content` (DeepSeek reasoner otherwise streams empty). OpenRouter requests add `HTTP-Referer` and `X-Title: Bros`.
 
-Settings Chat extras apply on each user send (stateless providers need them every request). Stored turns stay as typed. Empty fields are omitted.
-
-- one `system` message = assistant description (merged into an existing first system if the client already sent one; never a second system every turn)
-- last `user` = `{prepend}\n\n{user text}` when prepend is set
-
-Ollama and OpenAI-compat send that array. Anthropic uses the same description as `system` and the same user prefix. Internal `bros` title generate is unchanged (`Label:` only).
+Personality and rules skills load on each user send as one system message. The rules skill says the model has no tools and must not pretend to browse, read files, or run commands. The request has no tool schemas. Stored turns stay as typed. Empty skill bodies are omitted. Internal `bros` title generate is unchanged (`Label:` only).
 
 ## Auto-title
 

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { seedSidecarData } from '../../src/server/utils/sidecarData'
+import { seedSidecarData } from '../../src/server/utils/sidecars/sidecarData'
 
 describe('sidecar data layout', () => {
   let root = ''

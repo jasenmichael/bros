@@ -12,7 +12,7 @@ describe('upsertProvider config merge', () => {
     process.env.BROS_WORKING_DIR = dataDir
     const { resetDbForTests } = await import('../../src/server/utils/db')
     resetDbForTests()
-    const { resetOllamaHostCache, setDockerPublishedPortsForTests, setHostListenPortsForTests, setOllamaManualPortForTests } = await import('../../src/server/utils/ollamaHost')
+    const { resetOllamaHostCache, setDockerPublishedPortsForTests, setHostListenPortsForTests, setOllamaManualPortForTests } = await import('../../src/server/utils/providers/ollamaHost')
     resetOllamaHostCache()
     setOllamaManualPortForTests(null)
     setHostListenPortsForTests([])
@@ -22,7 +22,7 @@ describe('upsertProvider config merge', () => {
   afterEach(async () => {
     const { resetDbForTests } = await import('../../src/server/utils/db')
     resetDbForTests()
-    const { resetOllamaHostCache } = await import('../../src/server/utils/ollamaHost')
+    const { resetOllamaHostCache } = await import('../../src/server/utils/providers/ollamaHost')
     resetOllamaHostCache()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
@@ -169,7 +169,7 @@ describe('upsertProvider config merge', () => {
       deleteProvider,
       upsertProvider,
     } = await import('../../src/server/utils/providers')
-    const { PROVIDER_PRESETS, isPopularProvider } = await import('../../src/server/utils/providerPresets')
+    const { PROVIDER_PRESETS, isPopularProvider } = await import('../../src/server/utils/providers/presets')
 
     ensureDefaultProviders()
     expect(PROVIDER_PRESETS).toHaveLength(12)
@@ -202,7 +202,7 @@ describe('upsertProvider config merge', () => {
 
   it('treats popular slugs as reserved so custom cannot reuse openai', async () => {
     const { ensureDefaultProviders, isReservedProviderId } = await import('../../src/server/utils/providers')
-    const { isPopularProvider } = await import('../../src/server/utils/providerPresets')
+    const { isPopularProvider } = await import('../../src/server/utils/providers/presets')
     ensureDefaultProviders()
     expect(isReservedProviderId('openai')).toBe(true)
     expect(isReservedProviderId('gemini')).toBe(true)
@@ -475,7 +475,7 @@ describe('upsertProvider config merge', () => {
 
   it('skips remote GET /models when no API key is saved', async () => {
     const { ensureDefaultProviders, listOpenAIModelIds } = await import('../../src/server/utils/providers')
-    const { getProviderPreset } = await import('../../src/server/utils/providerPresets')
+    const { getProviderPreset } = await import('../../src/server/utils/providers/presets')
     ensureDefaultProviders()
     const originalFetch = globalThis.fetch
     const fetchMock = vi.fn()

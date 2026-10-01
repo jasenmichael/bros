@@ -1,0 +1,22 @@
+id: openjev
+slug: openjev
+name: OpenJEV
+description: Jev-compatible System One decision API (razorback16/openjev). Bros publishes host port 8092 (container 8080). Needs NVIDIA GPU (DiffusionGemma NVFP4).
+
+interfaces:
+  # FastAPI Swagger — Open/Pin target (API has no other product UI).
+  - type: webui
+    service: openjev
+    containerPort: 8080
+    publish: 8092
+    basePath: /docs
+  - type: api
+    service: openjev
+    containerPort: 8080
+    publish: 8092
+    basePath: /v1
+  - type: openai
+    service: openjev
+    containerPort: 8080
+    publish: 8092
+    basePath: /v1

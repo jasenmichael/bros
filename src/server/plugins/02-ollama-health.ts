@@ -1,4 +1,4 @@
-import { runOllamaHealthCheck } from '../utils/ollamaMustRun'
+import { runOllamaHealthCheck } from '../utils/sidecars/ollamaMustRun'
 
 const INTERVAL_MS = 15_000
 const FIRST_TICK_MS = 5_000

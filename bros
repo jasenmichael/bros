@@ -18,14 +18,14 @@ REPO_ROOT="$SCRIPT_DIR"
 cd "$REPO_ROOT"
 
 VERSION="0.1.0"
-if [[ -f "$REPO_ROOT/package.json" ]]; then
-  _pkg_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$REPO_ROOT/package.json" | head -1)"
+if [[ -f "$REPO_ROOT/src/package.json" ]]; then
+  _pkg_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$REPO_ROOT/src/package.json" | head -1)"
   [[ -n "${_pkg_ver:-}" ]] && VERSION="$_pkg_ver"
 fi
 [[ -f "$REPO_ROOT/VERSION" ]] && VERSION="$(tr -d '[:space:]' <"$REPO_ROOT/VERSION")"
 
 # Defaults: prod compose files, interactive (foreground) up.
-# BROS_DEV=1 selects docker-compose.dev.yml (pnpm dev). Not a CLI flag.
+# BROS_DEV=1 selects docker-compose.dev.yml. Not a CLI flag.
 DEV=0
 [[ "${BROS_DEV:-}" == "1" ]] && DEV=1
 DAEMON=0
@@ -59,18 +59,17 @@ Options:
   -D, --daemon       Background: docker compose up --build -d
                      (ignored when BROS_DEV=1; dev is always interactive)
   -i, --interactive  Foreground (default). Ctrl+C / SIGTERM runs compose down
-  -c, --config PATH  Bootstrap YAML; sets BROS_CONFIG (mounted into container)
+  -c, --config PATH  Host bros.yml to mount at /app/bros.yml
   -h, --help         Show this help
   -v, --version      Show version
 
 Env:
-  BROS_HOME          Checkout dir (default: this script's repo, else ~/.bros)
-  BROS_DIR           Alias for BROS_HOME
-  BROS_CONFIG        Host bootstrap YAML (default: ~/.config/bros.yml)
+  BROS_DIR           App directory (default: directory of this script, symlink-resolved)
+  BROS_HOME          Alias for BROS_DIR
   BROS_BIN           PATH symlink (default: ~/.local/bin/bros)
   BROS_HOST_DATA_DIR Persistent binds; default \$BROS_HOME/data
   BROS_PORT          App host port (default 3055); tunnel helper targets this
-  BROS_DEV=1         Dev compose (pnpm dev); not a CLI flag
+  BROS_DEV=1         Dev compose. Run: BROS_DEV=1 ./bros. Not a CLI flag
 
 Examples:
   bros
@@ -120,41 +119,31 @@ preflight() {
   export BROS_PORT="${BROS_PORT:-3055}"
 }
 
-# Repo checkout (compose + sidecars next to this script) vs installed (~/.bros).
+# App dir = directory of this script (symlink-resolved) unless overridden.
+# Install layout: ~/.local/bin/bros → $BROS_DIR/bros. BROS_HOME is an alias.
 resolve_bros_dir() {
-  if [[ -n "${BROS_HOME:-}" ]]; then
-    :
-  elif [[ -n "${BROS_DIR:-}" ]]; then
-    BROS_HOME="$BROS_DIR"
-  elif [[ -f "$SCRIPT_DIR/docker-compose.yml" && -d "$SCRIPT_DIR/sidecars" ]]; then
+  if [[ -z "${BROS_DIR:-}" && -z "${BROS_HOME:-}" ]]; then
+    BROS_DIR="$SCRIPT_DIR"
     BROS_HOME="$SCRIPT_DIR"
-  else
-    BROS_HOME="${HOME}/.bros"
+  elif [[ -z "${BROS_DIR:-}" ]]; then
+    BROS_DIR="$BROS_HOME"
+  elif [[ -z "${BROS_HOME:-}" ]]; then
+    BROS_HOME="$BROS_DIR"
   fi
   export BROS_HOME
-  export BROS_DIR="${BROS_DIR:-$BROS_HOME}"
+  export BROS_DIR
   export BROS_HOST_DATA_DIR="${BROS_HOST_DATA_DIR:-${BROS_HOME}/data}"
   export BROS_BIN="${BROS_BIN:-${HOME}/.local/bin/bros}"
 }
 
-xdg_config_path() {
-  printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml"
-}
-
-# Host YAML: -c, else BROS_CONFIG file, else ~/.config/bros.yml, else $BROS_HOME/bros.yml.
+# Host YAML is $BROS_DIR/bros.yml. -c overrides the file mounted at /app/bros.yml.
 resolve_default_config() {
-  if [[ -n "${BROS_CONFIG:-}" && "$BROS_CONFIG" != "/app/bros.yml" && -f "$BROS_CONFIG" ]]; then
-    printf '%s\n' "$BROS_CONFIG"
+  if [[ -n "${CONFIG_PATH:-}" && -f "$CONFIG_PATH" ]]; then
+    printf '%s\n' "$CONFIG_PATH"
     return 0
   fi
-  local xdg
-  xdg="$(xdg_config_path)"
-  if [[ -f "$xdg" ]]; then
-    printf '%s\n' "$xdg"
-    return 0
-  fi
-  if [[ -f "${BROS_HOME:-}/bros.yml" ]]; then
-    printf '%s\n' "${BROS_HOME}/bros.yml"
+  if [[ -f "${BROS_DIR:-${BROS_HOME:-}}/bros.yml" ]]; then
+    printf '%s\n' "${BROS_DIR:-$BROS_HOME}/bros.yml"
     return 0
   fi
   return 1
@@ -197,7 +186,8 @@ nest_volume() {
 
 migrate_sidecar_data() {
   local d="$BROS_HOST_DATA_DIR"
-  local custom="${SIDECARS_DIR:-$REPO_ROOT/sidecars}/custom"
+  local custom="${BROS_SIDECARS_DIR:-$REPO_ROOT/sidecars}"
+  local legacy="$REPO_ROOT/sidecars/custom"
   local child name
   nest_volume "$d/ollama" "root/.ollama"
   move_if_missing "$d/ollama-config" "$d/ollama/root/.config/ollama"
@@ -211,6 +201,14 @@ migrate_sidecar_data() {
   move_if_missing "$d/firecrawl-pg" "$d/firecrawl/var/lib/postgresql/data"
   nest_volume "$d/whisper" "home/ubuntu/.cache/huggingface/hub"
   mkdir -p "$custom"
+  if [[ -d "$legacy" ]]; then
+    for child in "$legacy"/* "$legacy"/.[!.]*; do
+      [[ -e "$child" ]] || continue
+      name="$(basename "$child")"
+      [[ "$name" == ".gitkeep" ]] && continue
+      move_if_missing "$child" "$custom/$name"
+    done
+  fi
   if [[ -d "$d/sidecars" ]]; then
     for child in "$d/sidecars"/*; do
       [[ -e "$child" ]] || continue
@@ -241,7 +239,7 @@ ensure_host_data_dir() {
     "$BROS_HOST_DATA_DIR/whisper/home/ubuntu/.cache/huggingface/hub" \
     "$BROS_HOST_DATA_DIR/logs" \
     "$BROS_HOST_DATA_DIR/tunnel" \
-    "${SIDECARS_DIR:-$REPO_ROOT/sidecars}/custom"
+    "${BROS_SIDECARS_DIR:-$REPO_ROOT/sidecars}"
 }
 
 compose_files() {
@@ -260,7 +258,7 @@ compose() {
 
 # Dev start skips --build (bind-mount; compose builds only if bros:dev is missing).
 # Prod always --build so the baked image stays current.
-# Explicit rebuild/pull: BROS_DEV=1 ./bros update  (pnpm dev:update)
+# Explicit rebuild/pull: BROS_DEV=1 ./bros update
 compose_up() {
   if [[ "$DEV" -eq 1 ]]; then
     compose up "$@"
@@ -269,9 +267,10 @@ compose_up() {
   fi
 }
 
-# Core sidecars live under ./sidecars/core/<id>/ with compose project bros-sc-<id>.
-SIDECARS_DIR="$REPO_ROOT/sidecars"
-OLLAMA_COMPOSE="$SIDECARS_DIR/core/ollama/docker-compose.yml"
+# Shipped packs: lib/sidecars/{core,addon}. Custom packs: $BROS_SIDECARS_DIR (default ./sidecars).
+SHIPPED_SIDECARS_DIR="$REPO_ROOT/lib/sidecars"
+BROS_SIDECARS_DIR="${BROS_SIDECARS_DIR:-$REPO_ROOT/sidecars}"
+OLLAMA_COMPOSE="$SHIPPED_SIDECARS_DIR/core/ollama/docker-compose.yml"
 VENDOR_MODEL_DIR="$REPO_ROOT/vendor/bros-model"
 GGUF_REL="models/bros-q4_k_m.gguf"
 STAMP_NAME=".bros-gguf-stamp.json"
@@ -287,25 +286,33 @@ compose_project_down() {
   fi
 }
 
-# Compose files under sidecars/{core,addon,custom} and custom/<repo>/sidecars/.
-each_sidecar_compose() {
-  local root="$1"
-  local kind dir nested
-  [[ -d "$root" ]] || return 0
-  for kind in core addon custom; do
-    [[ -d "$root/$kind" ]] || continue
-    for dir in "$root/$kind"/*/; do
-      [[ -d "$dir" ]] || continue
-      if [[ -f "${dir}docker-compose.yml" ]]; then
-        printf '%s\n' "${dir}docker-compose.yml"
-      fi
-      if [[ -d "${dir}sidecars" ]]; then
-        for nested in "${dir}sidecars"/*/; do
-          [[ -f "${nested}docker-compose.yml" ]] || continue
-          printf '%s\n' "${nested}docker-compose.yml"
-        done
-      fi
+# Compose files under lib/sidecars/{core,addon} and $BROS_SIDECARS_DIR (direct or <repo>/sidecars/).
+print_compose_files() {
+  local dir="$1"
+  local nested
+  [[ -d "$dir" ]] || return 0
+  if [[ -f "${dir}docker-compose.yml" ]]; then
+    printf '%s\n' "${dir}docker-compose.yml"
+  fi
+  if [[ -d "${dir}sidecars" ]]; then
+    for nested in "${dir}sidecars"/*/; do
+      [[ -f "${nested}docker-compose.yml" ]] || continue
+      printf '%s\n' "${nested}docker-compose.yml"
     done
+  fi
+}
+
+each_sidecar_compose() {
+  local kind dir
+  for kind in core addon; do
+    [[ -d "$SHIPPED_SIDECARS_DIR/$kind" ]] || continue
+    for dir in "$SHIPPED_SIDECARS_DIR/$kind"/*/; do
+      print_compose_files "$dir"
+    done
+  done
+  [[ -d "$BROS_SIDECARS_DIR" ]] || return 0
+  for dir in "$BROS_SIDECARS_DIR"/*/; do
+    print_compose_files "$dir"
   done
 }
 
@@ -316,29 +323,11 @@ stop_bros_sidecars() {
     [[ -n "$file" ]] || continue
     id="$(basename "$(dirname "$file")")"
     compose_project_down "bros-sc-${id}" "$file"
-  done < <(each_sidecar_compose "$SIDECARS_DIR")
+  done < <(each_sidecar_compose)
   # Catch any leftover bros-sc-* containers (custom data_dir sidecars, stale names).
   local leftover
   leftover="$(docker ps -aq --filter 'name=bros-sc-' 2>/dev/null || true)"
   if [[ -n "$leftover" ]]; then
-    # shellcheck disable=SC2086
-    docker stop $leftover >/dev/null 2>&1 || true
-    # shellcheck disable=SC2086
-    docker rm $leftover >/dev/null 2>&1 || true
-  fi
-}
-
-# One-shot cleanup of pre-rename forgebox-sc-* stacks so they never run beside bros-sc-*.
-cleanup_legacy_sidecar_projects() {
-  local file id leftover
-  while IFS= read -r file; do
-    [[ -n "$file" ]] || continue
-    id="$(basename "$(dirname "$file")")"
-    compose_project_down "forgebox-sc-${id}" "$file"
-  done < <(each_sidecar_compose "$SIDECARS_DIR")
-  leftover="$(docker ps -aq --filter 'name=forgebox-sc-' 2>/dev/null || true)"
-  if [[ -n "$leftover" ]]; then
-    echo "Removing legacy forgebox-sc-* containers…"
     # shellcheck disable=SC2086
     docker stop $leftover >/dev/null 2>&1 || true
     # shellcheck disable=SC2086
@@ -352,7 +341,6 @@ stop_full_stack() {
   bros_tunnel_cleanup_sidecar
   echo "Stopping sidecars (bros-sc-*)…"
   stop_bros_sidecars
-  cleanup_legacy_sidecar_projects
   echo "Stopping Bros core…"
   compose down || true
 }
@@ -556,8 +544,6 @@ model_needs_update() {
 
 cmd_start() {
   apply_config_env
-  # Never run forgebox-era sidecars beside bros-sc-*.
-  cleanup_legacy_sidecar_projects
   bros_tunnel_cleanup_sidecar
   bros_tunnel_startup
   local mode
@@ -627,7 +613,7 @@ cmd_restart() {
 
 update_hint() {
   if [[ "$DEV" -eq 1 ]]; then
-    echo "pnpm dev:update"
+    echo "BROS_DEV=1 ./bros update"
   else
     echo "bros update"
   fi
@@ -635,7 +621,7 @@ update_hint() {
 
 restart_hint() {
   if [[ "$DEV" -eq 1 ]]; then
-    echo "pnpm dev"
+    echo "BROS_DEV=1 ./bros"
   else
     local flags=""
     [[ "$DAEMON" -eq 1 ]] && flags=" -D"
@@ -851,7 +837,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     --dev)
-      die "--dev removed. Use: pnpm dev"
+      die "--dev removed. Use: BROS_DEV=1 ./bros"
       ;;
     -D|--daemon)
       DAEMON=1

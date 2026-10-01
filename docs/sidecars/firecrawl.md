@@ -5,7 +5,7 @@ description: Self-hosted Firecrawl scrape API on host port 3002.
 
 # Firecrawl sidecar
 
-Shipped **addon** package `sidecars/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. Still listed under Addon sidecars with source **bros**.
+Shipped **addon** package `lib/sidecars/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. Still listed under Addon sidecars as **Firecrawl (addon)**.
 
 There is **no** Firecrawl Cloud Web UI on this pack. Open is `http://127.0.0.1:3002/` (HTTP API). There is no Pin in nav on this card. Copy also offers `/v2` and the Docker DNS URLs `http://firecrawl:3002/` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/sidecars/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this sidecar.
 

@@ -1,4 +1,4 @@
-import { resumeInterruptedPulls } from '../utils/ollamaPullJobs'
+import { resumeInterruptedPulls } from '../utils/providers/ollamaPullJobs'
 
 /** Resume SQLite pull jobs after Bros / container restart. */
 export default defineNitroPlugin(() => {

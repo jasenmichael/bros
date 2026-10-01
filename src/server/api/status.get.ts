@@ -1,13 +1,13 @@
 import { getRequestHost } from 'h3'
 import { getDiskSpace } from '../utils/disk'
-import { listBrosManagedContainers, pingDocker, projectHasContainers, sidecarRuntime } from '../utils/docker'
+import { listBrosManagedContainers, pingDocker, projectHasContainers, sidecarPhase, sidecarRuntime } from '../utils/docker'
 import { detectGpuCached } from '../utils/gpu'
-import { formatSizeBytes } from '../utils/ollamaLibrary'
-import { discoverSidecars } from '../utils/sidecars'
+import { formatSizeBytes } from '../utils/providers/ollamaLibrary'
+import { discoverSidecars } from '../utils/sidecars/sidecars'
 import { loadBootstrapConfig } from '../utils/config'
 import { readTunnelStatus, tunnelPublicPayload } from '../utils/tunnel'
-import { peekOllamaRestartNotice } from '../utils/ollamaMustRun'
-import { isHostOllamaEnabled } from '../utils/hostOllamaSettings'
+import { peekOllamaRestartNotice } from '../utils/sidecars/ollamaMustRun'
+import { isHostOllamaEnabled } from '../utils/settings'
 import { advertisedTunnelHost, tunnelHostname, viaTunnelFromEvent } from '../utils/viaTunnel'
 
 export default defineEventHandler(async (event) => {
@@ -17,30 +17,48 @@ export default defineEventHandler(async (event) => {
   const containers = await listBrosManagedContainers()
   const { sidecars, errors } = discoverSidecars()
   const items = await Promise.all(sidecars.map(async (s) => {
-    const runtime = await sidecarRuntime(s)
-    let hasContainer = false
     try {
-      hasContainer = await projectHasContainers(s.id)
-    } catch {
-      hasContainer = runtime.status.running
+      const runtime = await sidecarRuntime(s)
+      let hasContainer = false
+      try {
+        hasContainer = await projectHasContainers(s.id)
+      } catch {
+        hasContainer = runtime.status.running
+      }
+      const problem = s.error || (!runtime.status.running ? runtime.warning : undefined)
+      return {
+        id: s.id,
+        name: s.name,
+        source: s.source,
+        kind: s.kind,
+        disabled: s.disabled,
+        error: s.error,
+        hostPort: runtime.hostPort,
+        portOccupied: runtime.portOccupied,
+        warning: runtime.warning,
+        hostOllama: runtime.hostOllama,
+        hostOllamaError: runtime.hostOllamaError,
+        autostart: runtime.settings.autostart,
+        navPinned: runtime.settings.navPinned,
+        running: runtime.status.running,
+        services: runtime.status.services,
+        hasContainer,
+        phase: sidecarPhase(s.id, runtime.status.running, problem),
+      }
     }
-    return {
-      id: s.id,
-      name: s.name,
-      source: s.source,
-      kind: s.kind,
-      disabled: s.disabled,
-      error: s.error,
-      hostPort: runtime.hostPort,
-      portOccupied: runtime.portOccupied,
-      warning: runtime.warning,
-      hostOllama: runtime.hostOllama,
-      hostOllamaError: runtime.hostOllamaError,
-      autostart: runtime.settings.autostart,
-      navPinned: runtime.settings.navPinned,
-      running: runtime.status.running,
-      services: runtime.status.services,
-      hasContainer,
+    catch (err) {
+      return {
+        id: s.id,
+        name: s.name,
+        source: s.source,
+        kind: s.kind,
+        disabled: s.disabled,
+        error: err instanceof Error ? err.message : 'status failed',
+        running: false,
+        hasContainer: false,
+        services: [],
+        phase: sidecarPhase(s.id, false, err instanceof Error ? err.message : 'status failed'),
+      }
     }
   }))
   const cfg = loadBootstrapConfig()

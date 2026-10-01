@@ -1,41 +1,69 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Settings' })
 
-const { data } = await useFetch<{
-  workingDir: string
+const { data, refresh } = await useFetch<{
+  appDir: string
   dataDir: string
+  publicUrl: string | null
   hasPasscode: boolean
-  chatPrepend: string
-  chatAssistantDescription: string
   enableHostOllama: boolean
   enableWhisper: boolean
+  proxyKey?: string
+  proxyUrls?: string[]
 }>('/api/settings')
 const passcode = ref('')
 const confirm = ref('')
 const msg = ref('')
 const pending = ref(false)
-const prepend = ref(data.value?.chatPrepend ?? '')
-const assistantDescription = ref(data.value?.chatAssistantDescription ?? '')
+const proxyMsg = ref('')
+const proxyPending = ref(false)
+const { data: rulesSkill } = await useFetch<{ body: string }>('/api/skills/rules')
+const { data: personalitySkill } = await useFetch<{ body: string }>('/api/skills/personality')
+const prepend = ref(rulesSkill.value?.body || '')
+const assistantDescription = ref(personalitySkill.value?.body || '')
 const enableHostOllama = ref(data.value?.enableHostOllama ?? false)
 const enableWhisper = ref(data.value?.enableWhisper ?? false)
 const whisperPending = ref(false)
 const whisperMsg = ref('')
 const chatMsg = ref('')
 const chatPending = ref(false)
+const mcpServers = ref<Array<{ id: string; url: string; enabled: boolean }>>([])
+const mcpId = ref('')
+const mcpUrl = ref('')
+
+async function loadMcp() {
+  const mcp = await $fetch<{ servers: Array<{ id: string; url: string; enabled: boolean }> }>('/api/mcp')
+  mcpServers.value = mcp.servers
+}
+
+async function addMcp() {
+  if (!mcpId.value.trim() || !mcpUrl.value.trim()) return
+  const saved = await $fetch<{ servers: Array<{ id: string; url: string; enabled: boolean }> }>('/api/mcp', {
+    method: 'POST',
+    body: { id: mcpId.value.trim(), url: mcpUrl.value.trim() },
+  })
+  mcpServers.value = saved.servers
+  mcpId.value = ''
+  mcpUrl.value = ''
+}
+
+async function toggleMcp(id: string, enabled: boolean) {
+  const saved = await $fetch<{ servers: Array<{ id: string; url: string; enabled: boolean }> }>(`/api/mcp/${id}`, {
+    method: 'PATCH',
+    body: { enabled },
+  })
+  mcpServers.value = saved.servers
+}
+
+onMounted(() => { loadMcp().catch(() => {}) })
 
 async function saveChat() {
   chatMsg.value = ''
   chatPending.value = true
   try {
-    await $fetch('/api/settings', {
-      method: 'PATCH',
-      body: {
-        chatPrepend: prepend.value,
-        chatAssistantDescription: assistantDescription.value,
-        enableHostOllama: enableHostOllama.value,
-      },
-    })
-    chatMsg.value = 'Chat settings saved.'
+    await $fetch('/api/skills/rules', { method: 'PUT', body: { body: prepend.value } })
+    await $fetch('/api/skills/personality', { method: 'PUT', body: { body: assistantDescription.value } })
+    chatMsg.value = 'Saved.'
   } catch (e: unknown) {
     chatMsg.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Save failed'
   } finally {
@@ -94,6 +122,20 @@ async function changePasscode() {
   }
 }
 
+async function rotateProxyKey() {
+  proxyPending.value = true
+  proxyMsg.value = ''
+  try {
+    await $fetch('/api/settings/proxy-key', { method: 'POST' })
+    await refresh()
+    proxyMsg.value = 'Proxy key rotated. Update clients that send the old key.'
+  } catch (e: unknown) {
+    proxyMsg.value = (e as { data?: { statusMessage?: string } })?.data?.statusMessage || 'Rotate failed'
+  } finally {
+    proxyPending.value = false
+  }
+}
+
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await navigateTo('/login')
@@ -101,18 +143,18 @@ async function logout() {
 </script>
 
 <template>
-  <BrosPageShell title="Settings" description="Chat extras, Whisper, bootstrap paths (read-only), and passkey (writes data/passkey).">
+  <BrosPageShell title="Settings" description="Personality and rules skills, Whisper, bootstrap paths (read-only), proxy key, and passkey.">
     <div class="max-w-xl space-y-6">
       <form class="space-y-3" @submit.prevent="saveChat">
         <h2 class="text-lg font-medium text-white">Chat</h2>
         <label class="block space-y-1">
           <span class="text-sm text-white">Prepend to every message</span>
-          <p class="text-sm text-[var(--bros-muted)]">Extra context added before each send</p>
+          <p class="text-sm text-[var(--bros-muted)]">Rules skill. Loaded on every Chat turn.</p>
           <UTextarea v-model="prepend" class="w-full" :rows="3" placeholder="Optional context for every send" />
         </label>
         <label class="block space-y-1">
           <span class="text-sm text-white">Assistant description</span>
-          <p class="text-sm text-[var(--bros-muted)]">How the assistant should sound</p>
+          <p class="text-sm text-[var(--bros-muted)]">Personality skill. How the assistant should sound.</p>
           <UTextarea v-model="assistantDescription" class="w-full" :rows="3" placeholder="Optional personality or role" />
         </label>
         <p v-if="chatMsg" class="text-sm text-[var(--bros-muted)]">{{ chatMsg }}</p>
@@ -156,13 +198,40 @@ async function logout() {
         </label>
       </div>
 
+      <form class="space-y-3" @submit.prevent="addMcp">
+        <h2 class="text-lg font-medium text-white">MCP</h2>
+        <p class="text-sm text-[var(--bros-muted)]">Stored for a later tool engine. Chat does not call these servers.</p>
+        <div v-for="server in mcpServers" :key="server.id" class="flex items-center justify-between gap-3 text-sm text-white">
+          <span class="font-mono">{{ server.id }}</span>
+          <USwitch :model-value="server.enabled" :aria-label="`Enable ${server.id}`" @update:model-value="(v: boolean) => toggleMcp(server.id, v)" />
+        </div>
+        <UInput v-model="mcpId" class="w-full" placeholder="Server id" />
+        <UInput v-model="mcpUrl" class="w-full" placeholder="http://host:port/mcp" />
+        <UButton type="submit">Add MCP server</UButton>
+      </form>
+
       <div class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-4 text-sm">
-        <div class="text-[var(--bros-muted)]">working_dir</div>
-        <div class="font-mono text-white">{{ data?.workingDir }}</div>
-        <div class="mt-3 text-[var(--bros-muted)]">data_dir</div>
+        <div class="text-[var(--bros-muted)]">BROS_DIR</div>
+        <div class="font-mono text-white">{{ data?.appDir }}</div>
+        <div class="mt-3 text-[var(--bros-muted)]">BROS_DATA_DIR</div>
         <div class="font-mono text-white">{{ data?.dataDir }}</div>
         <div class="mt-3 text-[var(--bros-muted)]">passkey file</div>
         <div class="font-mono text-white">{{ data?.dataDir ? `${data.dataDir}/passkey` : '…/passkey' }}</div>
+      </div>
+
+      <div class="space-y-3">
+        <h2 class="text-lg font-medium text-white">Proxy key</h2>
+        <p class="text-sm text-[var(--bros-muted)]">
+          External clients send <span class="font-mono">Authorization: Bearer</span> this key on tunneled sidecar APIs.
+          It does not log into Bros. Cursor uses the URL as Override OpenAI Base URL and this key as the OpenAI API key.
+        </p>
+        <div class="font-mono text-sm text-white break-all">{{ data?.proxyKey || '…' }}</div>
+        <ul v-if="data?.proxyUrls?.length" class="space-y-1 font-mono text-sm text-white">
+          <li v-for="url in data.proxyUrls" :key="url">{{ url }}</li>
+        </ul>
+        <p v-else class="text-sm text-[var(--bros-muted)]">No api or openai sidecar is proxied yet.</p>
+        <p v-if="proxyMsg" class="text-sm text-[var(--bros-muted)]">{{ proxyMsg }}</p>
+        <UButton type="button" :loading="proxyPending" @click="rotateProxyKey">Rotate proxy key</UButton>
       </div>
 
       <form class="space-y-3" @submit.prevent="changePasscode">

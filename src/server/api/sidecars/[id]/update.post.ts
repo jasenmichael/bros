@@ -1,4 +1,4 @@
-import { pullSidecarRepo } from '../../../utils/sidecars'
+import { pullSidecarRepo } from '../../../utils/sidecars/sidecars'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

@@ -1,0 +1,19 @@
+id: octop
+slug: octop
+name: Octop
+description: Self-hosted multi-user AI assistant (TencentCloud/Octop). Bros publishes host port 8088. First boot writes admin creds under data/octop.
+
+interfaces:
+  - type: webui
+    service: octop
+    containerPort: 8088
+    publish: 8088
+    slug: octop
+  - type: api
+    service: octop
+    containerPort: 8088
+    publish: 8088
+    basePath: /api
+  - type: cli
+    service: octop
+    command: octop

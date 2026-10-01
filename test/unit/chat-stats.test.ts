@@ -3,7 +3,7 @@ import {
   ollamaNameFromModelId,
   parseOllamaContextLength,
   usageFromOllamaObject,
-} from '../../src/server/utils/chatStats'
+} from '../../src/server/utils/chat/chatStats'
 import { formatContextLabel, formatMetaStats, splitStreamBody } from '../../src/app/utils/chatMeta'
 
 describe('chat stats parse', () => {

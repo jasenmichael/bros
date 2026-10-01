@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ollamaProviderDisplayName } from '../../src/app/utils/ollamaProviderLabel'
+import { ollamaProviderDisplayName } from '../../src/app/utils/providers/ollamaProviderLabel'
 
 describe('ollamaProviderDisplayName', () => {
   it('labels sidecar as Ollama (core)', () => {

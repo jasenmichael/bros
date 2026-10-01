@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import { join } from 'pathe'
 import { loadBootstrapConfig } from './config'
-import { sidecarOllamaUrl } from './ollamaHost'
+import { sidecarOllamaUrl } from './providers/ollamaHost'
 
 export const INTERNAL_BROS_MODEL = 'bros'
 export const VENDOR_BROS_MODEL_REL = 'vendor/bros-model'

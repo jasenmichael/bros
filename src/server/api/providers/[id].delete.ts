@@ -1,6 +1,6 @@
-import { isPopularProvider } from '../../utils/providerPresets'
+import { isPopularProvider } from '../../utils/providers/presets'
 import { deleteProvider, isSystemProvider } from '../../utils/providers'
-import { requireProviderId } from '../../utils/providersView'
+import { requireProviderId } from '../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = requireProviderId(event)

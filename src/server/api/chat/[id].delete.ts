@@ -1,4 +1,4 @@
-import { deleteConversation, getConversation } from '../../utils/chat'
+import { deleteConversation, getConversation } from '../../utils/chat/chat'
 
 export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id')

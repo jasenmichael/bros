@@ -28,7 +28,7 @@ describe('agent conversations', () => {
       getChatConversation,
       listAgentConversations,
       listConversations,
-    } = await import('../../src/server/utils/chat')
+    } = await import('../../src/server/utils/chat/chat')
     const chat = createConversation('ollama/llama3.2')
     const agent = createConversation('ollama/llama3.2', 'New chat', 'agent')
     const trace = JSON.stringify({ queries: ['example'], sources: [{ title: 'One', url: 'https://example.com/one' }] })

@@ -1,4 +1,4 @@
-import { saveSidecarFiles } from '../../../utils/sidecars'
+import { saveSidecarFiles } from '../../../utils/sidecars/sidecars'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

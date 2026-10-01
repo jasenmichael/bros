@@ -1,7 +1,7 @@
 import { refuseInternalBrosModel } from '../../../utils/internalBrosModel'
-import { getPullJob, removePullJob, stopPullJob } from '../../../utils/ollamaPullJobs'
+import { getPullJob, removePullJob, stopPullJob } from '../../../utils/providers/ollamaPullJobs'
 import { deleteOllamaModel, ollamaBaseUrlFor } from '../../../utils/providers'
-import { requireOllamaProvider } from '../../../utils/providersView'
+import { requireOllamaProvider } from '../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

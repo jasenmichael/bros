@@ -1,0 +1,75 @@
+# OpenJEV — https://github.com/razorback16/openjev
+# Images: razorback16/openjev:0.5.0 (+ laya/verdict) from Docker Hub.
+# Upstream listens on container 8080; Bros never publishes host 8080 (use 8092).
+# NVIDIA GPU + DiffusionGemma NVFP4 via vLLM. Default util 0.80 reserves KV headroom after weights.
+# Encoders default OPENJEV_DEVICE=cpu so ~16 GB cards can load the main model; set cuda on 24 GB.
+# Ampere needs OPENJEV_VLLM_ARGS --kv-cache-dtype bfloat16. Disable with BROS_SIDECAR_OPENJEV=0.
+services:
+  openjev:
+    image: razorback16/openjev:0.5.0
+    environment:
+      # Image default is 0.0.0.0; set explicitly so host publish 8092→8080 works.
+      OPENJEV_HOST: "0.0.0.0"
+      OPENJEV_PORT: "8080"
+      OPENJEV_CANVAS: "64"
+      OPENJEV_MAX_NUM_SEQS: ${OPENJEV_MAX_NUM_SEQS:-64}
+      OPENJEV_MAX_MODEL_LEN: ${OPENJEV_MAX_MODEL_LEN:-65536}
+      # 0.80 leaves KV headroom after ~14 GiB weights on 16 GB; override 0.9 on 24 GB.
+      OPENJEV_GPU_UTIL: ${OPENJEV_GPU_UTIL:-0.80}
+      # Ampere (SM86) cannot use FP8 KV with TRITON_ATTN; Ada SM89+ may override.
+      OPENJEV_VLLM_ARGS: ${OPENJEV_VLLM_ARGS:---kv-cache-dtype bfloat16}
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      OPENJEV_API_KEY: ${OPENJEV_API_KEY:-}
+      OPENJEV_ORIGIN_SECRET: ${OPENJEV_ORIGIN_SECRET:-}
+      OPENJEV_MODEL_ROUTES: ${OPENJEV_MODEL_ROUTES:-laya-1.0=http://laya:8080,verdict-1.4=http://verdict:8080}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/openjev/root/.cache/huggingface:/root/.cache/huggingface
+      - ${BROS_HOST_DATA_DIR:?unset}/openjev/root/.cache/vllm:/root/.cache/vllm
+      - ${BROS_HOST_DATA_DIR:?unset}/openjev/root/.cache/flashinfer:/root/.cache/flashinfer
+    ports:
+      - "${BROS_OPENJEV_PORT:-8092}:8080"
+    ipc: host
+    gpus: all
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 900s
+    restart: unless-stopped
+    networks:
+      - openjev
+      - bros
+
+  # Small encoder models (upstream default compose). Routed via OPENJEV_MODEL_ROUTES.
+  # CPU by default: GPU encoders + DiffusionGemma weights do not fit a 16 GB card together.
+  laya:
+    image: razorback16/openjev-laya:0.5.0
+    environment: &encoder-env
+      OPENJEV_API_KEY: ${OPENJEV_API_KEY:-}
+      OPENJEV_ORIGIN_SECRET: ${OPENJEV_ORIGIN_SECRET:-}
+      OPENJEV_DEVICE: ${OPENJEV_DEVICE:-cpu}
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes: &hf
+      - ${BROS_HOST_DATA_DIR:?unset}/openjev/root/.cache/huggingface:/root/.cache/huggingface
+    gpus: all
+    restart: unless-stopped
+    networks:
+      - openjev
+
+  verdict:
+    image: razorback16/openjev-verdict:0.5.0
+    environment: *encoder-env
+    volumes: *hf
+    gpus: all
+    restart: unless-stopped
+    networks:
+      - openjev
+
+networks:
+  openjev:
+    driver: bridge
+  bros:
+    external: true

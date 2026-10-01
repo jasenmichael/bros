@@ -1,4 +1,4 @@
-import { assertOllamaAutostartLocked } from '../../../utils/ollamaMustRun'
+import { assertOllamaAutostartLocked } from '../../../utils/sidecars/ollamaMustRun'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }>(event)
   assertOllamaAutostartLocked(id, body?.autostart)
   if (body?.navPinned) {
-    const { getSidecar } = await import('../../../utils/sidecars')
+    const { getSidecar } = await import('../../../utils/sidecars/sidecars')
     const sidecar = getSidecar(id)
     const hasWebUi = sidecar?.interfaces.some((iface) => iface.type === 'webui' && typeof iface.publish === 'number' && iface.publish > 0)
     if (!hasWebUi) {

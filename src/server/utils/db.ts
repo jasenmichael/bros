@@ -39,6 +39,7 @@ export const conversations = sqliteTable('conversations', {
   title: text('title').notNull(),
   modelId: text('model_id').notNull(),
   kind: text('kind').notNull().default('chat'), // chat | agent
+  tools: integer('tools', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
 })
@@ -176,5 +177,10 @@ function migrate(sqlite: Database.Database) {
   const convoCols = sqlite.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>
   if (!convoCols.some((c) => c.name === 'kind')) {
     sqlite.exec(`ALTER TABLE conversations ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'`)
+  }
+  const convoColsNow = sqlite.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>
+  if (!convoColsNow.some((c) => c.name === 'tools')) {
+    sqlite.exec(`ALTER TABLE conversations ADD COLUMN tools INTEGER NOT NULL DEFAULT 0`)
+    sqlite.exec(`UPDATE conversations SET tools = 1 WHERE kind = 'agent'`)
   }
 }

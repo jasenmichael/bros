@@ -5,7 +5,7 @@ description: Alternate chat UI on host port 3080.
 
 # Open WebUI sidecar
 
-Shipped **addon** package `sidecars/addon/openwebui`. Alternate chat UI, separate from Bros Chat. Enabled by default. Disable autostart with `BROS_SIDECAR_OPENWEBUI=0` or `BROS_SIDECARS_DISABLE=openwebui`. Still listed under Addon sidecars with source **bros**.
+Shipped **addon** package `lib/sidecars/addon/openwebui`. Alternate chat UI, separate from Bros Chat. Enabled by default. Disable autostart with `BROS_SIDECAR_OPENWEBUI=0` or `BROS_SIDECARS_DISABLE=openwebui`. Still listed under Addon sidecars as **Open WebUI (addon)**.
 
 ## Ports
 

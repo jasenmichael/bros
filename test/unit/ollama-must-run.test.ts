@@ -12,7 +12,7 @@ import {
   peekOllamaRestartNotice,
   resetOllamaHealthForTests,
   runOllamaHealthCheck,
-} from '../../src/server/utils/ollamaMustRun'
+} from '../../src/server/utils/sidecars/ollamaMustRun'
 
 describe('ollama must-run sidecar', () => {
   afterEach(() => {

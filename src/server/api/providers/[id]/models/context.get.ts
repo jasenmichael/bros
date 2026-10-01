@@ -1,11 +1,12 @@
 import { isInternalBrosModel } from '../../../../utils/internalBrosModel'
 import { ollamaBaseUrlFor, OLLAMA_HOST_ID } from '../../../../utils/providers'
-import { ollamaNameFromModelId, parseOllamaContextLength } from '../../../../utils/chatStats'
-import { requireOllamaProvider } from '../../../../utils/providersView'
+import { ollamaNameFromModelId, parseOllamaContextLength } from '../../../../utils/chat/chatStats'
+import { requireOllamaProvider } from '../../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id required' })
+  if (id === 'gateway') throw createError({ statusCode: 400, statusMessage: 'provider and model required' })
   requireOllamaProvider(id)
   const query = getQuery(event)
   const model = String(query.model || query.modelId || '').trim()

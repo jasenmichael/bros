@@ -8,20 +8,31 @@ import {
   maybeAutoTitle,
   resolveConversationModel,
   streamChat,
-} from '../../../utils/chat'
-import { STREAM_STATS_MARK } from '../../../utils/chatStats'
+} from '../../../utils/chat/chat'
+import { STREAM_STATS_MARK } from '../../../utils/chat/chatStats'
+import { applyChatSettings, chatSettingsFromBody } from '../../../utils/chat/chatSettings'
+import { withPersona } from '../../../utils/skills'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id required' })
-  const body = await readBody<{ content?: string; modelId?: string }>(event)
+  const body = await readBody<{
+    content?: string
+    modelId?: string
+    chatPrepend?: string
+    chatAssistantDescription?: string
+  }>(event)
   if (!body?.content?.trim()) throw createError({ statusCode: 400, statusMessage: 'content required' })
 
   const convo = getChatConversation(id)
   if (!convo) throw createError({ statusCode: 404, statusMessage: 'Not found' })
 
-  const modelId = resolveConversationModel(id, body.modelId) || convo.modelId
-  assertChatProviderEnabled(modelId)
+  const requested = resolveConversationModel(id, body.modelId) || convo.modelId
+  if (!requested || requested === 'gateway' || !requested.includes('/')) {
+    throw createError({ statusCode: 400, statusMessage: 'provider and model required' })
+  }
+  assertChatProviderEnabled(requested)
+  const modelId = requested
 
   const job = beginConversationStream(id)
   const onClose = () => {
@@ -44,7 +55,8 @@ export default defineEventHandler(async (event) => {
       try {
         const usage = await streamChat({
           modelId,
-          history,
+          history: withPersona(applyChatSettings(history, chatSettingsFromBody(body))),
+          chat: { prepend: '', assistantDescription: '' },
           signal: job.signal,
           onToken: (t) => {
             full += t

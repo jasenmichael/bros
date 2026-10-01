@@ -1,4 +1,4 @@
-import { abortConversationStream, getChatConversation, truncateConversationMessages } from '../../../utils/chat'
+import { abortConversationStream, getChatConversation, truncateConversationMessages } from '../../../utils/chat/chat'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

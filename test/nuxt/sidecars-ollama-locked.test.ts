@@ -92,7 +92,7 @@ describe('Ollama sidecar lock', () => {
     expect(ollamaButtons).not.toContain('Restart')
     expect(ollama!.text()).not.toContain('Autostart')
     expect(ollama!.text()).not.toContain('Pin in nav')
-    expect(ollama!.text()).toContain('bros')
+    expect(ollama!.text()).toContain('Ollama (core)')
     expect(ollama!.text()).not.toContain('shipped')
 
     const otherButtons = opencode!.findAll('button').map((b) => b.text())
@@ -102,22 +102,23 @@ describe('Ollama sidecar lock', () => {
     expect(opencode!.text()).toContain('Autostart')
     expect(opencode!.text()).not.toContain('Mode')
     expect(wrapper.find('select').exists()).toBe(false)
-    expect(opencode!.text()).toContain('bros')
+    expect(opencode!.text()).toContain('OpenCode (addon)')
     expect(opencode!.text()).not.toContain('shipped')
     expect(wrapper.text()).toContain('Add sidecar')
     expect(wrapper.text()).toContain('From a repo')
   })
 
-  it('opens and copies published Firecrawl api', async () => {
+  it('copies published Firecrawl api without an Open button', async () => {
     const SidecarsPage = await import('../../src/app/pages/sidecars/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(SidecarsPage)
     const firecrawl = wrapper.find('[data-sidecar-card="firecrawl"]')
     expect(firecrawl.exists()).toBe(true)
-    expect(firecrawl.text()).toContain('Open Firecrawl (:3002)')
-    expect(firecrawl.text()).toContain('http://127.0.0.1:3002/')
-    expect(firecrawl.text()).toContain('http://127.0.0.1:3002/v2')
-    expect(firecrawl.text()).toContain('http://firecrawl:3002/')
-    expect(firecrawl.text()).toContain('http://firecrawl:3002/v2')
+    expect(firecrawl.text()).not.toContain('Open Firecrawl (:3002)')
+    const urls = firecrawl.findAll('.font-mono').map((node) => node.text())
+    expect(urls).toEqual([
+      'http://127.0.0.1:3002/v2',
+      'http://firecrawl:3002/v2',
+    ])
     expect(firecrawl.text()).toContain('Bros Docker network')
     expect(firecrawl.text()).not.toContain('Pin in nav')
   })

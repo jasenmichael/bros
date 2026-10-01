@@ -47,4 +47,4 @@ Ctrl+C on an interactive start stops the **full stack**. First start brings up t
 - [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_HOME`
 - [Environment](/docs/environment) — `BROS_*` catalog
 - [Tunnel](/docs/tunnel) — host `cloudflared`, install, login
-- [Development](/docs/development) — `pnpm dev` for contributors
+- [Development](/docs/development) — `BROS_DEV=1 ./bros` for contributors

@@ -10,13 +10,13 @@ Package `@bros/website`. `baseURL` `/bros/`. Same repo-root `docs/` as the app `
 ## Local
 
 ```bash
-pnpm docs:dev
+pnpm --dir src docs:dev
 # http://127.0.0.1:3056/bros/
 ```
 
 ```bash
-pnpm docs:generate
-pnpm --filter @bros/website preview
+pnpm --dir src docs:generate
+pnpm --dir src --filter @bros/website preview
 ```
 
 GitHub Pages: https://jasenmichael.github.io/bros/

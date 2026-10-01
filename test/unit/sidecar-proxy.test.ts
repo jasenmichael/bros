@@ -10,15 +10,16 @@ import {
   matchPublicProxyTarget,
   needsAuthGate,
   pathMatchesSidecarPrefix,
+  proxyRequestPath,
   rewriteProxyLocation,
   sidecarEnvPortKey,
   sidecarProxyTargetUrl,
   sidecarProxyUpstreamOrigin,
   stripNamedCookie,
   stripSessionCookie,
-} from '../../src/server/utils/sidecarProxy'
-import { parseSidecarMeta, type SidecarMeta } from '../../src/server/utils/sidecars'
-import { sidecarOpenLinks, sidecarWebUiLinks } from '../../src/app/utils/sidecarHostLinks'
+} from '../../src/server/utils/sidecars/sidecarProxy'
+import { parseSidecarMeta, type SidecarMeta } from '../../src/server/utils/sidecars/sidecars'
+import { sidecarOpenLinks, sidecarWebUiLinks } from '../../src/app/utils/sidecars/sidecarHostLinks'
 
 const root = join(import.meta.dirname, '../..')
 
@@ -158,6 +159,64 @@ describe('proxy upstream URL helper', () => {
   it('maps sidecar id to BROS_*_PORT', () => {
     expect(sidecarEnvPortKey('opencode')).toBe('BROS_OPENCODE_PORT')
     expect(sidecarEnvPortKey('firecrawl-ui')).toBe('BROS_FIRECRAWL_UI_PORT')
+    expect(sidecarEnvPortKey('openjev')).toBe('BROS_OPENJEV_PORT')
+  })
+})
+
+function shippedSidecar(rel: string, kind: SidecarMeta['kind'] = 'core'): SidecarMeta {
+  const raw = parseYaml(readFileSync(join(root, rel), 'utf8'))
+  const meta = parseSidecarMeta(raw)
+  return {
+    ...meta,
+    source: 'shipped',
+    kind,
+    dir: rel,
+    packageSlug: meta.slug || meta.id,
+    disabled: false,
+    editable: false,
+  }
+}
+
+describe('api and openai strip-prefix proxy', () => {
+  const targets = collectPublicProxyTargets([
+    shippedSidecar('lib/sidecars/core/ollama/sidecar.yml'),
+    shippedSidecar('lib/sidecars/core/whisper/sidecar.yml'),
+    shippedSidecar('lib/sidecars/addon/firecrawl/sidecar.yml', 'addon'),
+    shippedSidecar('lib/sidecars/addon/openwebui/sidecar.yml', 'addon'),
+    fixtureSidecar('opencode'),
+  ])
+
+  it('strips /ollama before /v1 and /api and ignores other paths', () => {
+    const v1 = matchPublicProxyTarget('/ollama/v1/chat/completions', targets)
+    expect(v1?.iface.type).toBe('openai')
+    expect(v1?.stripPrefix).toBe(true)
+    expect(proxyRequestPath(v1!, '/ollama/v1/chat/completions')).toBe('/v1/chat/completions')
+    expect(sidecarProxyTargetUrl('http://ollama:11434', proxyRequestPath(v1!, '/ollama/v1/chat/completions')))
+      .toBe('http://ollama:11434/v1/chat/completions')
+
+    const api = matchPublicProxyTarget('/ollama/api/tags', targets)
+    expect(api?.iface.type).toBe('api')
+    expect(proxyRequestPath(api!, '/ollama/api/tags')).toBe('/api/tags')
+    expect(matchPublicProxyTarget('/ollama', targets)).toBeNull()
+    expect(matchPublicProxyTarget('/ollama/api-extra', targets)).toBeNull()
+  })
+
+  it('strips whisper and firecrawl base paths', () => {
+    const whisper = matchPublicProxyTarget('/whisper/v1/audio/transcriptions', targets)
+    expect(proxyRequestPath(whisper!, '/whisper/v1/audio/transcriptions')).toBe('/v1/audio/transcriptions')
+    const firecrawl = matchPublicProxyTarget('/firecrawl/v2/scrape', targets)
+    expect(proxyRequestPath(firecrawl!, '/firecrawl/v2/scrape')).toBe('/v2/scrape')
+  })
+
+  it('prefers the longest api base path and leaves a public webui prefix in place', () => {
+    const openai = matchPublicProxyTarget('/openwebui/openai/v1/chat/completions', targets)
+    expect(openai?.iface.type).toBe('openai')
+    expect(proxyRequestPath(openai!, '/openwebui/openai/v1/chat/completions')).toBe('/openai/v1/chat/completions')
+    expect(matchPublicProxyTarget('/openwebui/', targets)).toBeNull()
+
+    const web = matchPublicProxyTarget('/opencode/foo', targets)
+    expect(web?.stripPrefix).toBe(false)
+    expect(proxyRequestPath(web!, '/opencode/foo')).toBe('/opencode/foo')
   })
 })
 
@@ -197,7 +256,7 @@ describe('Open/Pin URLs', () => {
 
 describe('shipped OpenCode fixture', () => {
   it('keeps base-path env, skips proxy.public, and does not pass --base-path', () => {
-    const raw = parseYaml(readFileSync(join(root, 'sidecars/addon/opencode/sidecar.yml'), 'utf8'))
+    const raw = parseYaml(readFileSync(join(root, 'lib/sidecars/addon/opencode/sidecar.yml'), 'utf8'))
     const meta = parseSidecarMeta(raw)
     expect(meta.id).toBe('opencode')
     const webui = meta.interfaces.find((iface) => iface.type === 'webui')
@@ -208,7 +267,7 @@ describe('shipped OpenCode fixture', () => {
       publish: 4097,
     })
     expect(webui?.proxy?.public).not.toBe(true)
-    const compose = readFileSync(join(root, 'sidecars/addon/opencode/docker-compose.yml'), 'utf8')
+    const compose = readFileSync(join(root, 'lib/sidecars/addon/opencode/docker-compose.yml'), 'utf8')
     expect(compose).toMatch(/OPENCODE_SERVER_BASE_PATH:\s*\/opencode/)
     expect(compose).toContain('["web", "--hostname", "0.0.0.0", "--port", "4096"]')
     expect(compose).not.toMatch(/command:.*--base-path/)

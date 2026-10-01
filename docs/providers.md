@@ -11,7 +11,7 @@ description: Ollama, Popular services, and Custom providers.
 2. **Popular services** — 12 built-in OpenAI-compatible cloud cards. Always listed, even with no key.
 3. **Custom providers** — Add custom + your rows. See [Custom](/docs/providers/custom).
 
-Keys live in SQLite. There is no `OPENAI_API_KEY` env bootstrap. HTTP for this page is documented in [API](/docs/api).
+Keys live in SQLite. There is no `OPENAI_API_KEY` env bootstrap. HTTP for this page is documented in [API](/docs/api). Models are rows on a provider. There is no `/models` page.
 
 ## Status, Chat switch, and dropdown
 

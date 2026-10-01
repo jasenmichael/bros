@@ -129,6 +129,20 @@ onUnmounted(() => {
   width: min(36rem, 85%);
 }
 
+.bros-chat__bubble--edit {
+  align-self: stretch;
+  width: 100%;
+}
+
+.bros-chat__edit {
+  display: block;
+  width: 100%;
+}
+
+.bros-chat__edit :deep(textarea) {
+  width: 100%;
+}
+
 .bros-chat__user-actions {
   display: flex;
   align-items: center;
@@ -149,7 +163,4 @@ onUnmounted(() => {
   color: var(--bros-text);
 }
 
-.bros-chat__edit {
-  width: 100%;
-}
 </style>

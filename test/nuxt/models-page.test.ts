@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { PROVIDER_PRESETS } from '../../src/server/utils/providerPresets'
+import { PROVIDER_PRESETS } from '../../src/server/utils/providers/presets'
 
 const siteUrlById = Object.fromEntries(PROVIDER_PRESETS.map((p) => [p.id, p.siteUrl]))
 

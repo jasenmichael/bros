@@ -2,7 +2,7 @@
 import { useChatRecents } from '../../composables/useChatRecents'
 import { readChatModelMemory, rememberChatModel, rememberChatProvider } from '../../composables/useChatModelMemory'
 import { formatContextLabel, formatDurationMs, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
-import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
+import { ollamaProviderDisplayName } from '../../utils/providers/ollamaProviderLabel'
 
 type Msg = {
   id: string
@@ -34,7 +34,7 @@ const streamAbort = ref<AbortController | null>(null)
 const streamStartedAt = ref(0)
 const liveElapsedMs = ref(0)
 const bootMemory = readChatModelMemory()
-const providerId = ref(bootMemory.lastProviderId || 'ollama')
+const providerId = ref(bootMemory.lastProviderId && bootMemory.lastProviderId !== 'gateway' ? bootMemory.lastProviderId : 'ollama')
 const modelName = ref(bootMemory.models[providerId.value] || 'llama3.2')
 let applyingThread = false
 let restoringProviderModel = false
@@ -67,7 +67,12 @@ const orderedProviders = computed(() => {
   const host = rows.filter((p) => p.id === 'ollama-host')
   const popular = rows.filter((p) => p.popular)
   const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular)
-  return [...sidecar, ...host, ...popular, ...rest]
+  return [
+    ...sidecar,
+    ...host,
+    ...popular,
+    ...rest,
+  ]
 })
 
 const providerItems = computed(() => orderedProviders.value.map((p) => ({
@@ -430,7 +435,10 @@ async function sendText(text: string) {
     const res = await fetch(`/api/chat/${id}/stream`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ content: text, modelId: usedModel }),
+      body: JSON.stringify({
+        content: text,
+        modelId: usedModel,
+      }),
       signal: ac.signal,
     })
     if (!res.ok || !res.body) throw new Error(await res.text())

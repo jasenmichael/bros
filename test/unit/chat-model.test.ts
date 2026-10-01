@@ -21,14 +21,14 @@ describe('conversation modelId', () => {
   })
 
   it('keeps create-time modelId when stream body omits modelId', async () => {
-    const { createConversation, resolveConversationModel } = await import('../../src/server/utils/chat')
+    const { createConversation, resolveConversationModel } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/freehuntx/qwen3-coder:14b')
     expect(convo?.id).toBeTruthy()
     expect(resolveConversationModel(convo!.id)).toBe('ollama/freehuntx/qwen3-coder:14b')
   })
 
   it('stream/send uses updated modelId after change', async () => {
-    const { createConversation, getConversation, resolveConversationModel } = await import('../../src/server/utils/chat')
+    const { createConversation, getConversation, resolveConversationModel } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/freehuntx/qwen3-coder:14b')
     const used = resolveConversationModel(convo!.id, 'ollama/qwen3.8:27b')
     expect(used).toBe('ollama/qwen3.8:27b')
@@ -36,12 +36,12 @@ describe('conversation modelId', () => {
   })
 
   it('returns null for a missing conversation', async () => {
-    const { resolveConversationModel } = await import('../../src/server/utils/chat')
+    const { resolveConversationModel } = await import('../../src/server/utils/chat/chat')
     expect(resolveConversationModel('missing', 'ollama/qwen3.8:27b')).toBeNull()
   })
 
   it('stores modelId on the assistant message used for that request', async () => {
-    const { addMessage, createConversation, getConversation, resolveConversationModel } = await import('../../src/server/utils/chat')
+    const { addMessage, createConversation, getConversation, resolveConversationModel } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     const used = resolveConversationModel(convo!.id, 'ollama/qwen3.8:27b')
     addMessage(convo!.id, 'user', 'hello')
@@ -52,14 +52,14 @@ describe('conversation modelId', () => {
   })
 
   it('leaves historical assistant rows without modelId as null', async () => {
-    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat')
+    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'assistant', 'old reply')
     expect(getConversation(convo!.id)?.messages[0]?.modelId).toBeNull()
   })
 
   it('stores duration and token counts on the assistant message', async () => {
-    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat')
+    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'assistant', 'ok', 'ollama/llama3.2', {
       durationMs: 1400,
@@ -73,7 +73,7 @@ describe('conversation modelId', () => {
   })
 
   it('leaves historical assistant rows without stats as null', async () => {
-    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat')
+    const { addMessage, createConversation, getConversation } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'assistant', 'old reply')
     const row = getConversation(convo!.id)?.messages[0]

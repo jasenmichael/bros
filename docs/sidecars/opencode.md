@@ -5,7 +5,7 @@ description: CLI coding agent with web UI on host port 4097.
 
 # OpenCode sidecar
 
-Shipped **addon** package `sidecars/addon/opencode`. CLI coding agent with web UI (anomalyco/opencode). Enabled by default. Disable autostart with `BROS_SIDECAR_OPENCODE=0` or `BROS_SIDECARS_DISABLE=opencode`. Still listed under Addon sidecars with source **bros**.
+Shipped **addon** package `lib/sidecars/addon/opencode`. CLI coding agent with web UI (anomalyco/opencode). Enabled by default. Disable autostart with `BROS_SIDECAR_OPENCODE=0` or `BROS_SIDECARS_DISABLE=opencode`. Still listed under Addon sidecars as **OpenCode (addon)**.
 
 OpenCode **1.18.30** (`ghcr.io/anomalyco/opencode`) has no base-path support. `OPENCODE_SERVER_BASE_PATH=/opencode` is set in compose for when upstream ships it (unmerged [PR 28326](https://github.com/anomalyco/opencode/pull/28326)). The running image ignores that env; `opencode web --base-path` is unknown and exits; `OPENCODE_BASE_PATH` and `server.basePath` also do nothing. The UI listens at `/` and assets stay `/assets/…`. Bros does not invent a fake prefix.
 

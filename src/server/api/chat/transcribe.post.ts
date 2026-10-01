@@ -1,7 +1,7 @@
 import { ofetch } from 'ofetch'
 import { startSidecar } from '../../utils/docker'
-import { WHISPER_SIDECAR_ID } from '../../utils/sidecars'
-import { isWhisperEnabled } from '../../utils/whisperSettings'
+import { WHISPER_SIDECAR_ID } from '../../utils/sidecars/sidecars'
+import { isWhisperEnabled } from '../../utils/settings'
 import {
   WHISPER_MODEL,
   WHISPER_TRANSCRIBE_TIMEOUT_MS,

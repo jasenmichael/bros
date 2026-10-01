@@ -29,7 +29,6 @@ function walk(dir: string, prefix = ''): string[] {
 }
 
 function nitroOp(rel: string): { method: string; path: string } | null {
-  if (rel.startsWith('models/') || rel.startsWith('models\\')) return null
   const match = rel.match(/^(.*)\.(get|post|patch|put|delete)\.ts$/)
   if (!match) return null
   const [, filePath, method] = match
@@ -59,7 +58,7 @@ function openApiOps(yaml: string): Set<string> {
 }
 
 describe('OpenAPI covers Nitro routes', () => {
-  it('lists every src/server/api handler except /api/models 301 shims', () => {
+  it('lists every src/server/api handler', () => {
     const yaml = readFileSync(yamlPath, 'utf8')
     const documented = openApiOps(yaml)
     const nitro = walk(apiRoot)

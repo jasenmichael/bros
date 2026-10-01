@@ -1,7 +1,7 @@
-import { isValidOllamaPullName } from '../../../../../utils/ollamaLibrary'
+import { isValidOllamaPullName } from '../../../../../utils/providers/ollamaLibrary'
 import { refuseInternalBrosModel } from '../../../../../utils/internalBrosModel'
-import { getPullJob, stopPullJob } from '../../../../../utils/ollamaPullJobs'
-import { requireOllamaProvider } from '../../../../../utils/providersView'
+import { getPullJob, stopPullJob } from '../../../../../utils/providers/ollamaPullJobs'
+import { requireOllamaProvider } from '../../../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

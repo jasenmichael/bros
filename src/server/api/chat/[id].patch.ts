@@ -1,4 +1,4 @@
-import { getChatConversation, resolveConversationModel, updateConversationTitle } from '../../utils/chat'
+import { getChatConversation, resolveConversationModel, updateConversationTitle } from '../../utils/chat/chat'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

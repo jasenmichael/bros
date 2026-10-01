@@ -1,0 +1,21 @@
+id: omniroute
+slug: omniroute
+name: OmniRoute
+description: Multi-provider LLM gateway + dashboard (diegosouzapw/OmniRoute). Bros publishes host port 20128.
+
+interfaces:
+  - type: webui
+    service: omniroute
+    containerPort: 20128
+    publish: 20128
+    slug: omniroute
+  - type: api
+    service: omniroute
+    containerPort: 20128
+    publish: 20128
+    basePath: /v1
+  - type: openai
+    service: omniroute
+    containerPort: 20128
+    publish: 20128
+    basePath: /v1

@@ -5,13 +5,24 @@ import { eq } from 'drizzle-orm'
 import { hostDataDirForBinds, loadBootstrapConfig } from './config'
 import { getDb, sidecarSettings } from './db'
 import { firstPublishPort, probeHostPort } from './hostProbe'
-import { seedSidecarData } from './sidecarData'
-import { CORE_SIDECAR_ID, WHISPER_SIDECAR_ID, defaultSidecarAutostart, getSidecar, projectName, shouldAutostartSidecar, type SidecarMeta } from './sidecars'
-import { isWhisperEnabled } from './whisperSettings'
+import { seedSidecarData } from './sidecars/sidecarData'
+import { CORE_SIDECAR_ID, WHISPER_SIDECAR_ID, defaultSidecarAutostart, discoverSidecars, getSidecar, projectName, shouldAutostartSidecar, type SidecarMeta } from './sidecars/sidecars'
+import { isWhisperEnabled } from './settings'
 
 const NETWORK = process.env.BROS_NETWORK || 'bros'
 
 let docker: Docker | null = null
+const startingSidecarIds = new Set<string>()
+
+export function isSidecarStarting(id: string) {
+  return startingSidecarIds.has(id)
+}
+
+export function sidecarPhase(id: string, running: boolean, error?: string): 'starting' | 'running' | 'stopped' | 'error' {
+  if (isSidecarStarting(id) && !running) return 'starting'
+  if (error) return 'error'
+  return running ? 'running' : 'stopped'
+}
 
 export function getDocker() {
   if (!docker) docker = new Docker({ socketPath: '/var/run/docker.sock' })
@@ -292,7 +303,7 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
   let hostOllama: { port: number; version: string } | null = null
   let hostOllamaError: string | null = null
   if (sidecar.id === 'ollama') {
-    const { findHostOllama } = await import('./ollamaHost')
+    const { findHostOllama } = await import('./providers/ollamaHost')
     const hit = await findHostOllama()
     hostOllama = hit.port != null && hit.version ? { port: hit.port, version: hit.version } : null
     hostOllamaError = hit.error
@@ -339,6 +350,8 @@ export async function startSidecar(id: string) {
   const sidecar = getSidecar(id)
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
   if (sidecar.error) throw createError({ statusCode: 400, statusMessage: sidecar.error })
+  startingSidecarIds.add(id)
+  try {
   seedSidecarData(sidecar.dir, join(loadBootstrapConfig().dataDir, sidecar.id))
   const probed = await sidecarRuntime(sidecar)
   if (probed.portOccupied && !probed.ours && probed.hostPort) {
@@ -438,6 +451,10 @@ export async function startSidecar(id: string) {
     skipped: false,
     warning: undefined,
   }
+  }
+  finally {
+    startingSidecarIds.delete(id)
+  }
 }
 
 export async function sidecarLogs(id: string, tail = 200) {
@@ -517,7 +534,7 @@ export function setSidecarSetting(id: string, patch: {
   if (existing) db.update(sidecarSettings).set(next).where(eq(sidecarSettings.sidecarId, id)).run()
   else db.insert(sidecarSettings).values(next).run()
   if (id === CORE_SIDECAR_ID && patch.hostProbePort !== undefined) {
-    void import('./ollamaHost').then((m) => m.resetOllamaHostCache())
+    void import('./providers/ollamaHost').then((m) => m.resetOllamaHostCache())
   }
   return {
     sidecarId: next.sidecarId,
@@ -528,26 +545,29 @@ export function setSidecarSetting(id: string, patch: {
 }
 
 export async function autostartSidecars() {
-  const { discoverSidecars } = await import('./sidecars')
   const { sidecars } = discoverSidecars()
+  const queue: SidecarMeta[] = []
   for (const s of sidecars) {
     if (s.error) continue
     if (s.id === WHISPER_SIDECAR_ID) {
       if (!isWhisperEnabled()) continue
-      try {
-        await startSidecar(s.id)
-      } catch (err) {
-        console.error('autostart failed', s.id, err)
-      }
-      continue
     }
-    const settings = getSidecarSetting(s.id)
-    if (shouldAutostartSidecar(s, settings)) {
-      try {
-        await startSidecar(s.id)
-      } catch (err) {
-        console.error('autostart failed', s.id, err)
-      }
-    }
+    else if (!shouldAutostartSidecar(s, getSidecarSetting(s.id))) continue
+    startingSidecarIds.add(s.id)
+    queue.push(s)
   }
+  await Promise.all(queue.map(async (s) => {
+    try {
+      const runtime = await sidecarRuntime(s)
+      if (runtime.status.running || (runtime.portOccupied && !runtime.ours)) {
+        startingSidecarIds.delete(s.id)
+        return
+      }
+      await startSidecar(s.id)
+    }
+    catch (err) {
+      startingSidecarIds.delete(s.id)
+      console.error('autostart failed', s.id, err)
+    }
+  }))
 }

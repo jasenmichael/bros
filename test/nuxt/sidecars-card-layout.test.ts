@@ -57,17 +57,18 @@ describe('Sidecar card layout', () => {
 
     expect(core.attributes('data-sidecar-grid')).toBe('single')
     expect(core.classes()).toContain('grid-cols-1')
-    expect(core.classes()).not.toContain('lg:grid-cols-2')
+    expect(core.classes()).not.toContain('@3xl/sidecar:grid-cols-2')
     expect(wrapper.find('[data-sidecar-card="ollama"]').attributes('data-card-layout')).toBe('wide')
 
     expect(addon.attributes('data-sidecar-grid')).toBe('multi')
-    expect(addon.classes()).toContain('lg:grid-cols-2')
-    expect(wrapper.find('[data-sidecar-card="opencode"]').attributes('data-card-layout')).toBe('compact-lg')
-    expect(wrapper.find('[data-sidecar-card="openwebui"]').attributes('data-card-layout')).toBe('compact-lg')
+    expect(addon.classes()).toContain('@3xl/sidecar:grid-cols-2')
+    expect(addon.classes()).not.toContain('lg:grid-cols-2')
+    expect(wrapper.find('[data-sidecar-card="opencode"]').attributes('data-card-layout')).toBe('compact')
+    expect(wrapper.find('[data-sidecar-card="openwebui"]').attributes('data-card-layout')).toBe('compact')
 
     expect(additional.attributes('data-sidecar-grid')).toBe('single')
     expect(additional.classes()).toContain('grid-cols-1')
-    expect(additional.classes()).not.toContain('lg:grid-cols-2')
+    expect(additional.classes()).not.toContain('@3xl/sidecar:grid-cols-2')
     expect(wrapper.find('[data-sidecar-card="extra"]').attributes('data-card-layout')).toBe('wide')
   })
 

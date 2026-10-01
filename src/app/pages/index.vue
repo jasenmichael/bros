@@ -4,9 +4,38 @@ useSeoMeta({
   description: 'Bros control plane',
 })
 
-type StatusPayload = {
+type AttentionItem = { id: string; text: string; href: string }
+
+type Summary = {
   viaTunnel?: boolean
   tunnelHost?: string | null
+  attention?: AttentionItem[]
+  chats?: Array<{
+    id: string
+    title: string
+    modelId: string
+    updatedAt: number
+  }>
+  providers?: {
+    ready: number
+    items: Array<{ id: string; name: string; chatOn: boolean; detail: string }>
+    pulls: Array<{
+      providerId: string
+      model: string
+      phase: 'queued' | 'running'
+      percent: number | null
+    }>
+  }
+  sidecars?: {
+    running: number
+    total: number
+    items: Array<{
+      id: string
+      name: string
+      phase: 'starting' | 'running' | 'stopped' | 'error'
+      openUrl: string | null
+    }>
+  }
   tunnel?: {
     running: boolean
     hostname?: string | null
@@ -16,345 +45,64 @@ type StatusPayload = {
     helperAlive?: boolean
     error?: string | null
   }
-  app: { ok: boolean; service: string; port: number }
-  docker: { ok: boolean; error?: string }
-  disk: { path: string; freeBytes: number | null; totalBytes: number | null; freeLabel: string | null; totalLabel: string | null }
-  gpu: { available: boolean; name?: string; vramMb?: number }
-  enableHostOllama?: boolean
-  containers?: Array<{
-    id: string
-    name: string
-    service: string
-    project: string
-    kind: 'app' | 'sidecar'
-    sidecarId: string | null
-    state: string
-    status: string
-    running: boolean
-    ports: number[]
-  }>
-  sidecars: Array<{
-    id: string
-    name: string
-    running: boolean
-    hostPort?: number
-    warning?: string
-    error?: string
-    hasContainer: boolean
-    hostOllama?: { port: number; version: string } | null
-    hostOllamaError?: string | null
-  }>
 }
 
-const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', {
-  key: 'bros-status-dash',
+const { data: summary, refresh } = await useFetch<Summary>('/api/dashboard/summary', {
+  key: 'bros-dashboard-summary',
   lazy: true,
+  server: false,
   refreshInterval: 5000,
 })
-
-const widgets = computed(() => {
-  const s = data.value
-  return [
-    {
-      to: '/status',
-      title: 'Bros',
-      body: s ? `App up on :${s.app.port}` : 'Control plane',
-    },
-    {
-      to: '/status',
-      title: 'Docker',
-      body: s ? (s.docker.ok ? 'Socket reachable' : (s.docker.error || 'Unreachable')) : 'Checking…',
-    },
-    {
-      to: '/status',
-      title: 'Disk',
-      body: s?.disk.freeLabel
-        ? `${s.disk.freeLabel} free${s.disk.totalLabel ? ` / ${s.disk.totalLabel}` : ''}`
-        : 'Data volume',
-    },
-    {
-      to: '/status',
-      title: 'GPU',
-      body: s?.gpu.available
-        ? `${s.gpu.name || 'NVIDIA GPU'}${s.gpu.vramMb ? ` · ${s.gpu.vramMb} MB` : ''}`
-        : 'None detected',
-    },
-  ]
-})
-
-const ollamaSidecar = computed(() => (data.value?.sidecars || []).find((row) => row.id === 'ollama'))
-const sidecarOllamaUrl = computed(() => {
-  const port = ollamaSidecar.value?.hostPort || 11435
-  return `http://127.0.0.1:${port}/`
-})
-const sidecarOllamaState = computed(() => {
-  const row = ollamaSidecar.value
-  if (!row) return 'down'
-  if (row.error) return 'unreachable'
-  return row.running ? 'up' : 'down'
-})
-const showHostOllama = computed(() => Boolean(data.value?.enableHostOllama))
-const hostOllamaHit = computed(() => ollamaSidecar.value?.hostOllama || null)
-const hostOllamaUrl = computed(() => {
-  const port = hostOllamaHit.value?.port
-  return port ? `http://127.0.0.1:${port}/` : null
-})
-const hostOllamaState = computed(() => {
-  if (hostOllamaHit.value) return 'up'
-  if (ollamaSidecar.value?.hostOllamaError) return 'unreachable'
-  return 'down'
-})
-
-const copiedUrl = ref('')
-
-async function copyUrl(url: string) {
-  try {
-    await navigator.clipboard.writeText(url)
-    copiedUrl.value = url
-    window.setTimeout(() => {
-      if (copiedUrl.value === url) copiedUrl.value = ''
-    }, 1500)
-  }
-  catch {
-    copiedUrl.value = ''
-  }
-}
-
-const sidecarNames = computed(() =>
-  Object.fromEntries((data.value?.sidecars || []).map((row) => [row.id, row.name])),
-)
-
-const tunnel = computed(() => data.value?.tunnel)
-const tunnelRunning = computed(() => Boolean(tunnel.value?.running))
-const tunnelLocked = computed(() => Boolean(data.value?.viaTunnel && tunnelRunning.value))
-const tunnelState = computed(() => (tunnelRunning.value ? 'running' : 'stopped'))
-/** Absolute URL when tunnel has a public host; otherwise null (show plain status text). */
-const tunnelLink = computed(() => {
-  const t = tunnel.value
-  if (!t || !t.helperAlive || !t.installed || !t.loggedIn) return null
-  const host = t.publicUrl || t.hostname || data.value?.tunnelHost
-  if (!host) return null
-  return /^https?:\/\//i.test(host) ? host : `https://${host}`
-})
-const tunnelSnippet = computed(() => {
-  const t = tunnel.value
-  if (!t) return 'host cloudflared · waiting for helper'
-  const state = tunnelState.value
-  if (t.error) return `${state} · ${t.error}`
-  if (!t.helperAlive) return `${state} · helper not running (start with ./bros)`
-  if (!t.installed) return `${state} · cloudflared not installed (run ./bros)`
-  if (!t.loggedIn) return `${state} · not logged in (run cloudflared login)`
-  return state
-})
-const tunnelToggleLabel = computed(() => {
-  if (tunnelLocked.value) return 'Cannot turn tunnel off while connected through it'
-  return tunnelRunning.value ? 'Turn Cloudflare tunnel off' : 'Turn Cloudflare tunnel on'
-})
-
-const tunnelBusy = ref(false)
-const tunnelNote = ref('')
-const logsOpen = ref(false)
-const logText = ref('')
-const logsPending = ref(false)
-let logTimer: ReturnType<typeof setInterval> | undefined
-
-async function loadTunnelLogs() {
-  logsPending.value = true
-  try {
-    const res = await $fetch<{ logs: string; error?: string }>('/api/tunnel/logs', {
-      query: { tail: 80 },
-    })
-    logText.value = res.error || res.logs || 'No logs.'
-  }
-  catch {
-    logText.value = 'Failed to load logs.'
-  }
-  finally {
-    logsPending.value = false
-  }
-}
-
-function setLogPoll(open: boolean) {
-  if (logTimer) clearInterval(logTimer)
-  logTimer = undefined
-  if (open) logTimer = setInterval(() => { void loadTunnelLogs() }, 4000)
-}
-
-async function toggleLogs() {
-  logsOpen.value = !logsOpen.value
-  if (logsOpen.value) await loadTunnelLogs()
-  setLogPoll(logsOpen.value)
-}
-
-async function toggleTunnel() {
-  if (tunnelLocked.value || tunnelBusy.value) return
-  tunnelBusy.value = true
-  tunnelNote.value = ''
-  try {
-    if (!tunnelRunning.value) {
-      await $fetch('/api/tunnel/start', { method: 'POST' })
-    }
-    else {
-      await $fetch('/api/tunnel/stop', { method: 'POST' })
-    }
-    await refresh()
-  }
-  catch (err: unknown) {
-    const statusMessage = typeof err === 'object' && err && 'data' in err
-      ? (err as { data?: { statusMessage?: string } }).data?.statusMessage
-      : undefined
-    tunnelNote.value = statusMessage || (err instanceof Error ? err.message : 'Tunnel action failed')
-  }
-  finally {
-    tunnelBusy.value = false
-  }
-}
-
-onUnmounted(() => setLogPoll(false))
 </script>
 
 <template>
   <BrosPageShell
     title="Dashboard"
-    description="Local AI control plane — chat, models, and Docker sidecars."
+    description="Recent chats, providers on for chat, sidecar state, and the host tunnel."
   >
-    <p v-if="pending && !data" class="mb-4 text-sm text-[var(--bros-muted)]">Loading live status…</p>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <article
-        v-for="card in widgets"
-        :key="card.title"
-        class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5"
-      >
-        <h2 class="text-lg font-medium text-white">{{ card.title }}</h2>
-        <p class="mt-2 text-sm text-[var(--bros-muted)]">{{ card.body }}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <UButton :to="card.to" size="xs" color="neutral" variant="soft">Details</UButton>
-        </div>
-      </article>
-
+    <section
+      v-if="summary?.attention?.length"
+      aria-label="Needs attention"
+      class="mb-4 space-y-2"
+    >
+      <NuxtLink
+        v-for="item in summary.attention"
+        :key="item.id"
+        :to="item.href"
+        class="block rounded-lg border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-sm text-amber-100"
+      >{{ item.text }}</NuxtLink>
+    </section>
+    <div class="grid items-start gap-4 lg:grid-cols-3">
+      <DashboardChats
+        class="lg:col-span-2"
+        :loading="!summary"
+        :chats="summary?.chats"
+      />
+      <DashboardProviders
+        :loading="!summary"
+        :providers="summary?.providers"
+      />
+      <DashboardSidecars
+        class="lg:col-span-2"
+        :loading="!summary"
+        :sidecars="summary?.sidecars"
+      />
       <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
-        <h2 class="text-lg font-medium text-white">Ollama</h2>
-        <ul class="mt-2 space-y-2 text-sm text-[var(--bros-muted)]">
-          <li class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="text-white">Sidecar (core):</span>
-            <span>{{ sidecarOllamaState }}</span>
-            <span class="font-mono text-xs">{{ sidecarOllamaUrl }}</span>
-            <UButton
-              :icon="copiedUrl === sidecarOllamaUrl ? 'i-lucide-check' : 'i-lucide-copy'"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="copiedUrl === sidecarOllamaUrl ? 'Copied' : `Copy ${sidecarOllamaUrl}`"
-              @click="copyUrl(sidecarOllamaUrl)"
-            />
-          </li>
-          <li v-if="showHostOllama" class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="text-white">Host:</span>
-            <span>{{ hostOllamaState }}</span>
-            <template v-if="hostOllamaUrl">
-              <span class="font-mono text-xs">{{ hostOllamaUrl }}</span>
-              <UButton
-                :icon="copiedUrl === hostOllamaUrl ? 'i-lucide-check' : 'i-lucide-copy'"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                :aria-label="copiedUrl === hostOllamaUrl ? 'Copied' : `Copy ${hostOllamaUrl}`"
-                @click="copyUrl(hostOllamaUrl)"
-              />
-            </template>
-          </li>
-        </ul>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <UButton to="/providers" size="xs" color="neutral" variant="soft">Details</UButton>
-        </div>
-      </article>
-
-      <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
-        <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center justify-between gap-3">
           <h2 class="text-lg font-medium text-white">Tunnel</h2>
-          <button
-            type="button"
-            class="h-9 w-9 shrink-0 rounded-full border-2 transition-colors"
-            :class="tunnelRunning
-              ? 'border-[var(--bros-ok)] bg-[var(--bros-ok)]'
-              : 'border-[var(--bros-muted)] bg-transparent'"
-            :disabled="tunnelLocked || tunnelBusy"
-            :aria-pressed="tunnelRunning"
-            :aria-label="tunnelToggleLabel"
-            :title="tunnelToggleLabel"
-            @click="toggleTunnel"
-          />
+          <NuxtLink
+            to="/status"
+            class="text-sm text-[var(--bros-accent)] underline-offset-2 hover:underline"
+          >Status</NuxtLink>
         </div>
-        <p class="mt-2 text-sm text-[var(--bros-muted)]">
-          <template v-if="tunnelLink">
-            {{ tunnelState }} ·
-            <a
-              :href="tunnelLink"
-              class="text-white underline-offset-2 hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >{{ tunnelLink }}</a>
-          </template>
-          <template v-else>{{ tunnelSnippet }}</template>
-        </p>
-        <p v-if="tunnel?.error && tunnelLink" class="mt-2 text-xs text-amber-300">{{ tunnel.error }}</p>
-        <p v-if="tunnelLocked" class="mt-2 text-xs text-amber-300">
-          Stop locked: this session is through the tunnel.
-        </p>
-        <p v-if="tunnelNote" class="mt-2 text-xs text-amber-300">{{ tunnelNote }}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <UButton to="/status" size="xs" color="neutral" variant="soft">Details</UButton>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="soft"
-            :loading="logsPending"
-            @click="toggleLogs"
-          >{{ logsOpen ? 'Hide logs' : 'Logs' }}</UButton>
-        </div>
-        <div v-if="logsOpen" class="mt-3">
-          <p class="mb-1 text-[0.65rem] uppercase tracking-wide text-[var(--bros-muted)]">host cloudflared</p>
-          <pre class="max-h-48 overflow-auto rounded-lg border border-[var(--bros-border)] bg-[#0b1016] p-3 font-mono text-[0.7rem] leading-5 text-[#d5deea]">{{ logText || (logsPending ? 'Loading…' : 'No logs.') }}</pre>
-        </div>
+        <DashboardTunnel
+          :loading="!summary"
+          :via-tunnel="summary?.viaTunnel"
+          :tunnel-host="summary?.tunnelHost"
+          :tunnel="summary?.tunnel"
+          @refresh="refresh()"
+        />
       </article>
     </div>
-
-    <BrosServiceGroups
-      class="mt-8"
-      :containers="data?.containers || []"
-      :sidecar-names="sidecarNames"
-    />
-
-    <section v-if="data?.sidecars?.length" class="mt-8">
-      <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--bros-muted)]">Sidecar snippets</h2>
-      <div class="grid gap-3 sm:grid-cols-2">
-        <article
-          v-for="row in data.sidecars.filter((row) => row.id !== 'cloudflared')"
-          :key="row.id"
-          class="rounded-lg border border-[var(--bros-border)] bg-[var(--bros-surface)]/50 p-4"
-        >
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="font-medium text-white">{{ row.name }}</h3>
-            <UBadge :color="row.running ? 'success' : 'neutral'" variant="subtle">
-              {{ row.running ? 'running' : 'stopped' }}
-            </UBadge>
-          </div>
-          <p class="mt-1 text-xs text-[var(--bros-muted)]">
-            {{ row.hostPort ? `:${row.hostPort}` : '' }}
-          </p>
-          <p v-if="row.warning || row.error" class="mt-1 text-xs text-amber-300">{{ row.error || row.warning }}</p>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <UButton to="/status" size="xs" color="neutral" variant="ghost">Status</UButton>
-            <UButton
-              v-if="row.hasContainer"
-              :to="`/sidecars/${row.id}/logs`"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-            >Logs</UButton>
-          </div>
-        </article>
-      </div>
-    </section>
   </BrosPageShell>
 </template>

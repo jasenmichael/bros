@@ -1,4 +1,4 @@
-import { listProviderModels, requireProviderId } from '../../../utils/providersView'
+import { listProviderModels, requireProviderId } from '../../../utils/providers/view'
 import { getProvider } from '../../../utils/providers'
 
 export default defineEventHandler(async (event) => {

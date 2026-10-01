@@ -1,0 +1,16 @@
+id: paperclip
+slug: paperclip
+name: Paperclip
+description: Open-source agent org/control plane (paperclipai/paperclip). Bros publishes host port 3100. local_trusted for LAN.
+
+interfaces:
+  - type: webui
+    service: paperclip
+    containerPort: 3100
+    publish: 3100
+    slug: paperclip
+  - type: api
+    service: paperclip
+    containerPort: 3100
+    publish: 3100
+    basePath: /api
