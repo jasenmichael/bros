@@ -12,11 +12,18 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14
 export const SESSION_COOKIE_MAX_AGE = SESSION_TTL_MS / 1000
 /** Plaintext passkey filename under dataDir — source of truth for login. */
 export const PASSKEY_FILENAME = 'passkey'
+/** Bearer token for tunneled api/openai proxies. Not a login secret. */
+export const PROXY_KEY_FILENAME = 'proxy-key'
 
 let printedPasskeyOnce = false
+let printedProxyKeyOnce = false
 
 export function passkeyPath(): string {
   return join(loadBootstrapConfig().dataDir, PASSKEY_FILENAME)
+}
+
+export function proxyKeyPath(): string {
+  return join(loadBootstrapConfig().dataDir, PROXY_KEY_FILENAME)
 }
 
 export function readPasskey(): string | null {
@@ -55,6 +62,77 @@ export function ensurePasskey(): string {
 /** Test helper — allow another ensurePasskey() log. */
 export function resetPasskeyPrintForTests() {
   printedPasskeyOnce = false
+}
+
+function readProxyKey(): string | null {
+  const path = proxyKeyPath()
+  if (!existsSync(path)) return null
+  const value = readFileSync(path, 'utf8').trim()
+  return value.length ? value : null
+}
+
+function writeProxyKeyFile(key: string) {
+  const { dataDir } = loadBootstrapConfig()
+  mkdirSync(dataDir, { recursive: true })
+  writeFileSync(proxyKeyPath(), `${key}\n`, { encoding: 'utf8', mode: 0o600 })
+}
+
+/**
+ * Ensure `{dataDir}/proxy-key` exists (generate if missing) and print once.
+ */
+export function ensureProxyKey(): string {
+  let key = readProxyKey()
+  let created = false
+  if (!key) {
+    key = randomBytes(24).toString('base64url')
+    writeProxyKeyFile(key)
+    created = true
+  }
+  if (!printedProxyKeyOnce) {
+    printedProxyKeyOnce = true
+    console.log(`[bros] proxy key${created ? ' (new)' : ''}: ${key}`)
+    console.log(`[bros] proxy key file: ${proxyKeyPath()}`)
+  }
+  return key
+}
+
+export function resetProxyKeyPrintForTests() {
+  printedProxyKeyOnce = false
+}
+
+export function rotateProxyKey(): string {
+  const key = randomBytes(24).toString('base64url')
+  writeProxyKeyFile(key)
+  console.log(`[bros] proxy key (rotated): ${key}`)
+  return key
+}
+
+export function verifyProxyKey(token: string): boolean {
+  const expected = readProxyKey()
+  if (!expected) return false
+  const a = Buffer.from(token.trim(), 'utf8')
+  const b = Buffer.from(expected, 'utf8')
+  if (a.length !== b.length) return false
+  try {
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
+
+/** `Authorization: Bearer <proxy-key>`. The passkey does not match. */
+export function verifyProxyAuthorization(header?: string | null): boolean {
+  if (!header) return false
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(header.trim())
+  if (!match?.[1]) return false
+  return verifyProxyKey(match[1])
+}
+
+export function proxyPublicOrigin(publicUrl: string | null | undefined): string | null {
+  const trimmed = (publicUrl || '').trim().replace(/\/$/, '')
+  if (!trimmed) return null
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
 }
 
 export function ensureAppSecret(): string {

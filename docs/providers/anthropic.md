@@ -5,7 +5,7 @@ description: Claude via Anthropic OpenAI-compat. Paid.
 
 # Anthropic
 
-Anthropic Claude via their OpenAI-compatible layer. Paid. Bros does not use the native Messages API and does not seed `kind: anthropic`.
+Anthropic Claude via their OpenAI-compatible layer. Paid. Popular Anthropic is seeded as `kind: openai`. Leftover `kind: anthropic` rows still use the native stream.
 
 ## Key
 
@@ -17,7 +17,7 @@ Create a key at [Anthropic Console](https://console.anthropic.com/settings/keys)
 2. Popular services → Anthropic → open the card
 3. Paste the key, Save
 
-Status is **running** when a key is saved.
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
 
 ## API
 

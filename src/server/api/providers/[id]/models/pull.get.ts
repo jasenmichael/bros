@@ -1,5 +1,5 @@
-import { pullJobsPayload } from '../../../../utils/ollamaPullJobs'
-import { requireOllamaProvider } from '../../../../utils/providersView'
+import { pullJobsPayload } from '../../../../utils/providers/ollamaPullJobs'
+import { requireOllamaProvider } from '../../../../utils/providers/view'
 
 export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id')

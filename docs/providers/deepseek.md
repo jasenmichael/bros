@@ -17,7 +17,7 @@ Create a key at [DeepSeek Platform](https://platform.deepseek.com/api_keys). Pas
 2. Popular services → DeepSeek → open the card
 3. Paste the key, Save
 
-Status is **running** when a key is saved.
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
 
 ## API
 

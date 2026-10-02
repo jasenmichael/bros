@@ -41,15 +41,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     body: 'Dashboard, dock, login, Docs.',
     children: [
       { label: 'Chat', to: '/docs/chat', body: 'Provider then model, Stop, mic, auto-title.' },
-      {
-        label: 'Models',
-        to: '/docs/models',
-        body: 'Ollama, Popular services, Custom.',
-        children: [
-          { label: 'Ollama', to: '/docs/models-ollama', body: 'Pull menu, GPU, Yours.' },
-          { label: 'Custom providers', to: '/docs/models-custom', body: 'Add custom, slug rules, paste-ins.' },
-        ],
-      },
+      { label: 'Agent', to: '/docs/agent', body: 'No agent page. Chat is one completion.' },
       {
         label: 'Providers',
         children: [
@@ -73,8 +65,9 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Open WebUI', to: '/docs/sidecars/openwebui', body: 'Publish 3080, never 3000/8080.' },
       { label: 'Firecrawl', to: '/docs/sidecars/firecrawl', body: 'Publish 3002, scrape API; UI is Firecrawl UI.' },
       { label: 'Firecrawl UI', to: '/docs/sidecars/firecrawl-ui', body: 'Publish 3081, scrape UI, never 3000/8080.' },
-      { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Publish 8090, chat voice to text.' },
-      { label: 'Custom', to: '/docs/sidecars/custom', body: 'Drop-in under data/sidecars.' },
+      { label: 'OpenJEV', to: '/docs/sidecars/openjev', body: 'Publish 8092, System One API, NVIDIA GPU (util leaves room for Laya/Verdict).' },
+      { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Core. Settings enable, off by default. Publish 8090.' },
+      { label: 'Custom', to: '/docs/sidecars/custom', body: 'Gitignored $BROS_SIDECARS_DIR. Not shipped.' },
     ],
   },
   {
@@ -88,7 +81,8 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     label: 'Contribute',
     icon: 'i-lucide-code',
     children: [
-      { label: 'Development', to: '/docs/development', body: 'pnpm dev bind-mount, tests.' },
+      { label: 'Development', to: '/docs/development', body: 'BROS_DEV=1 ./bros bind-mount, tests.' },
+      { label: 'CLI', to: '/docs/cli', body: 'bros commands, flags, paths.' },
       { label: 'Docs site', to: '/docs/website', body: 'Pages /bros/, same docs/.' },
     ],
   },

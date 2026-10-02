@@ -15,7 +15,7 @@ import {
   setHostListenPortsForTests,
   setOllamaManualPortForTests,
   sidecarOllamaUrl,
-} from '../../src/server/utils/ollamaHost'
+} from '../../src/server/utils/providers/ollamaHost'
 import { setAppRunsInDockerForTests } from '../../src/server/utils/hostProbe'
 
 const PROC_LISTEN_11436 = `
@@ -373,9 +373,9 @@ describe('ollama host probe', () => {
     }))
     const hit = await findHostOllama()
     expect(hit.port).toBeNull()
-    const { setHostOllamaEnabled } = await import('../../src/server/utils/hostOllamaSettings')
+    const { setHostOllamaEnabled } = await import('../../src/server/utils/settings')
     const { ensureDefaultProviders } = await import('../../src/server/utils/providers')
-    const { buildProvidersView } = await import('../../src/server/utils/providersView')
+    const { buildProvidersView } = await import('../../src/server/utils/providers/view')
     ensureDefaultProviders()
     setHostOllamaEnabled(true)
     const view = await buildProvidersView()
@@ -401,8 +401,8 @@ describe('ollama host probe', () => {
 
   it('omits ollama-host from the providers view when the Settings gate is off', async () => {
     const { ensureDefaultProviders } = await import('../../src/server/utils/providers')
-    const { isHostOllamaEnabled, setHostOllamaEnabled } = await import('../../src/server/utils/hostOllamaSettings')
-    const { buildProvidersView } = await import('../../src/server/utils/providersView')
+    const { isHostOllamaEnabled, setHostOllamaEnabled } = await import('../../src/server/utils/settings')
+    const { buildProvidersView } = await import('../../src/server/utils/providers/view')
     ensureDefaultProviders()
     expect(isHostOllamaEnabled()).toBe(false)
     const off = await buildProvidersView()
@@ -413,12 +413,12 @@ describe('ollama host probe', () => {
   })
 
   it('Scan API 404s when host Ollama is disabled', async () => {
-    const { scanHostOllamaApi } = await import('../../src/server/utils/ollamaHost')
+    const { scanHostOllamaApi } = await import('../../src/server/utils/providers/ollamaHost')
     await expect(scanHostOllamaApi()).rejects.toMatchObject({ statusCode: 404 })
   })
 
   it('Scan API returns a hit when enabled', async () => {
-    const { setHostOllamaEnabled } = await import('../../src/server/utils/hostOllamaSettings')
+    const { setHostOllamaEnabled } = await import('../../src/server/utils/settings')
     setHostOllamaEnabled(true)
     setHostListenPortsForTests([11434])
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
@@ -427,7 +427,7 @@ describe('ollama host probe', () => {
       }
       throw new Error('offline')
     }))
-    const { scanHostOllamaApi } = await import('../../src/server/utils/ollamaHost')
+    const { scanHostOllamaApi } = await import('../../src/server/utils/providers/ollamaHost')
     const result = await scanHostOllamaApi()
     expect(result).toMatchObject({ port: 11434, version: 'scanned' })
   })

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse as parseYaml } from 'yaml'
 import { isMissingHostDataBind } from '../../src/server/utils/docker'
-import { isReservedSidecarId, parseSidecarMeta, projectName, RESERVED_SLUGS } from '../../src/server/utils/sidecars'
+import { isReservedSidecarId, parseSidecarMeta, projectName, RESERVED_SLUGS } from '../../src/server/utils/sidecars/sidecars'
 
 describe('sidecar project naming', () => {
   it('prefixes compose projects with bros-sc-', () => {
@@ -51,7 +51,7 @@ describe('sidecar project naming', () => {
   })
 
   it('parses shipped firecrawl-ui webui publish 3081', () => {
-    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../sidecars/firecrawl-ui/sidecar.yml'), 'utf8'))
+    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../lib/sidecars/addon/firecrawl-ui/sidecar.yml'), 'utf8'))
     const meta = parseSidecarMeta(raw)
     expect(meta.id).toBe('firecrawl-ui')
     expect(meta.interfaces[0]).toMatchObject({
@@ -63,7 +63,7 @@ describe('sidecar project naming', () => {
   })
 
   it('parses shipped firecrawl api publish 3002', () => {
-    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../sidecars/firecrawl/sidecar.yml'), 'utf8'))
+    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../lib/sidecars/addon/firecrawl/sidecar.yml'), 'utf8'))
     const meta = parseSidecarMeta(raw)
     expect(meta.id).toBe('firecrawl')
     expect(meta.interfaces[0]).toMatchObject({
@@ -75,8 +75,35 @@ describe('sidecar project naming', () => {
     })
   })
 
+  it('parses shipped openjev api publish 8092', () => {
+    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../lib/sidecars/addon/openjev/sidecar.yml'), 'utf8'))
+    const meta = parseSidecarMeta(raw)
+    expect(meta.id).toBe('openjev')
+    expect(meta.interfaces[0]).toMatchObject({
+      type: 'webui',
+      service: 'openjev',
+      containerPort: 8080,
+      publish: 8092,
+      basePath: '/docs',
+    })
+    expect(meta.interfaces[1]).toMatchObject({
+      type: 'api',
+      service: 'openjev',
+      containerPort: 8080,
+      publish: 8092,
+      basePath: '/v1',
+    })
+    expect(meta.interfaces[2]).toMatchObject({
+      type: 'openai',
+      service: 'openjev',
+      containerPort: 8080,
+      publish: 8092,
+      basePath: '/v1',
+    })
+  })
+
   it('parses shipped whisper api publish 8090', () => {
-    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../sidecars/whisper/sidecar.yml'), 'utf8'))
+    const raw = parseYaml(readFileSync(join(import.meta.dirname, '../../lib/sidecars/core/whisper/sidecar.yml'), 'utf8'))
     const meta = parseSidecarMeta(raw)
     expect(meta.id).toBe('whisper')
     expect(meta.interfaces[0]).toMatchObject({
@@ -112,12 +139,13 @@ describe('sidecar data binds', () => {
   it('sidecars join external network bros', () => {
     const root = join(import.meta.dirname, '../..')
     for (const rel of [
-      'sidecars/ollama/docker-compose.yml',
-      'sidecars/openwebui/docker-compose.yml',
-      'sidecars/opencode/docker-compose.yml',
-      'sidecars/firecrawl/docker-compose.yml',
-      'sidecars/firecrawl-ui/docker-compose.yml',
-      'sidecars/whisper/docker-compose.yml',
+      'lib/sidecars/core/ollama/docker-compose.yml',
+      'lib/sidecars/addon/openwebui/docker-compose.yml',
+      'lib/sidecars/addon/opencode/docker-compose.yml',
+      'lib/sidecars/addon/firecrawl/docker-compose.yml',
+      'lib/sidecars/addon/firecrawl-ui/docker-compose.yml',
+      'lib/sidecars/addon/openjev/docker-compose.yml',
+      'lib/sidecars/core/whisper/docker-compose.yml',
     ]) {
       const yml = readFileSync(join(root, rel), 'utf8')
       expect(yml).toMatch(/\n\s+bros:\s*\n\s+external:\s*true/m)
@@ -127,19 +155,19 @@ describe('sidecar data binds', () => {
   it('sets OLLAMA_NOPRUNE=1 on sidecar Ollama compose', () => {
     const root = join(import.meta.dirname, '../..')
     for (const rel of [
-      'sidecars/ollama/docker-compose.yml',
-      'sidecars/ollama/docker-compose.gpu.yml',
+      'lib/sidecars/core/ollama/docker-compose.yml',
+      'lib/sidecars/core/ollama/docker-compose.gpu.yml',
     ]) {
       const yml = readFileSync(join(root, rel), 'utf8')
       expect(yml).toMatch(/OLLAMA_NOPRUNE:\s*"1"/)
       expect(yml).not.toMatch(/OLLAMA_NOPRUNE:\s*"true"/)
     }
-    expect(readFileSync(join(root, 'sidecars/ollama/sidecar.yml'), 'utf8')).toContain('OLLAMA_NOPRUNE=1')
+    expect(readFileSync(join(root, 'lib/sidecars/core/ollama/sidecar.yml'), 'utf8')).toContain('OLLAMA_NOPRUNE=1')
     expect(readFileSync(join(root, 'src/server/utils/docker.ts'), 'utf8')).toContain("OLLAMA_NOPRUNE: '1'")
   })
 
   it('firecrawl-ui compose publishes 3081 not 8080', () => {
-    const dir = join(import.meta.dirname, '../../sidecars/firecrawl-ui')
+    const dir = join(import.meta.dirname, '../../lib/sidecars/addon/firecrawl-ui')
     const yml = readFileSync(join(dir, 'docker-compose.yml'), 'utf8')
     expect(yml).toContain('${BROS_FIRECRAWL_UI_PORT:-3081}:8080')
     expect(yml).toContain('build: .')
@@ -153,7 +181,7 @@ describe('sidecar data binds', () => {
   })
 
   it('firecrawl compose publishes 3002 only and skips FoundationDB', () => {
-    const yml = readFileSync(join(import.meta.dirname, '../../sidecars/firecrawl/docker-compose.yml'), 'utf8')
+    const yml = readFileSync(join(import.meta.dirname, '../../lib/sidecars/addon/firecrawl/docker-compose.yml'), 'utf8')
     expect(yml).toContain('${BROS_FIRECRAWL_PORT:-3002}:3002')
     expect(yml).not.toMatch(/-\s+["']?3000:/)
     expect(yml).not.toContain('foundationdb')
@@ -163,15 +191,33 @@ describe('sidecar data binds', () => {
     expect(yml).toContain('OLLAMA_BASE_URL: http://ollama:11434')
   })
 
+  it('openjev compose publishes 8092 not 8080 and pins Hub images', () => {
+    const yml = readFileSync(join(import.meta.dirname, '../../lib/sidecars/addon/openjev/docker-compose.yml'), 'utf8')
+    expect(yml).toContain('${BROS_OPENJEV_PORT:-8092}:8080')
+    expect(yml).toContain('OPENJEV_HOST: "0.0.0.0"')
+    expect(yml).toContain('OPENJEV_GPU_UTIL: ${OPENJEV_GPU_UTIL:-0.80}')
+    expect(yml).toContain('OPENJEV_VLLM_ARGS: ${OPENJEV_VLLM_ARGS:---kv-cache-dtype bfloat16}')
+    expect(yml).toContain('OPENJEV_DEVICE: ${OPENJEV_DEVICE:-cpu}')
+    expect(yml).toContain('razorback16/openjev:0.5.0')
+    expect(yml).toContain('razorback16/openjev-laya:0.5.0')
+    expect(yml).toContain('razorback16/openjev-verdict:0.5.0')
+    expect(yml).toContain('gpus: all')
+    expect(yml).toContain('ipc: host')
+    expect(yml).toContain('http://127.0.0.1:8080/health')
+    expect(yml).not.toMatch(/-\s+["']?8080:/)
+    expect(yml).not.toMatch(/-\s+["']?3000:/)
+  })
+
   it('requires BROS_HOST_DATA_DIR in sidecar compose so empty env cannot bind /ollama', () => {
     const root = join(import.meta.dirname, '../..')
     for (const rel of [
-      'sidecars/ollama/docker-compose.yml',
-      'sidecars/ollama/docker-compose.gpu.yml',
-      'sidecars/openwebui/docker-compose.yml',
-      'sidecars/opencode/docker-compose.yml',
-      'sidecars/firecrawl/docker-compose.yml',
-      'sidecars/whisper/docker-compose.yml',
+      'lib/sidecars/core/ollama/docker-compose.yml',
+      'lib/sidecars/core/ollama/docker-compose.gpu.yml',
+      'lib/sidecars/addon/openwebui/docker-compose.yml',
+      'lib/sidecars/addon/opencode/docker-compose.yml',
+      'lib/sidecars/addon/firecrawl/docker-compose.yml',
+      'lib/sidecars/addon/openjev/docker-compose.yml',
+      'lib/sidecars/core/whisper/docker-compose.yml',
     ]) {
       const yml = readFileSync(join(root, rel), 'utf8')
       expect(yml).toContain('${BROS_HOST_DATA_DIR:?unset}')

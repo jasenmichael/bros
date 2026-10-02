@@ -1,32 +1,45 @@
 ---
 title: Settings
-description: Chat extras, host Ollama toggle, read-only bootstrap paths, and the passkey file.
+description: Personality and rules skills, Whisper and host Ollama, MCP, proxy key, paths, and the passkey.
 ---
 
 # Settings
 
-`/settings` shows Chat extras, the host Ollama toggle, bootstrap paths (read-only), and the login passkey.
+`/settings` shows the personality and rules skills, the Whisper and host Ollama toggles, MCP servers, bootstrap paths (read-only), the proxy key, and the login passkey.
 
 ## Chat
 
-Two fields persist in SQLite `meta` (same `bros.sqlite` as other UI settings), not YAML or env:
+Two fields read and write user skills. Save stores the body in `$BROS_HOME/data/skills/<id>/SKILL.md`. Chat loads those bodies on each user turn. They never apply to internal `bros` titles:
 
-- `chat_prepend` — extra context prepended to the last user text on each send
-- `chat_assistant_description` — short personality/role used as the system message
+- **Prepend to every message** — `rules` skill
+- **Assistant description** — `personality` skill
 
-Empty means off. Save writes both. They apply to user Chat only — never to internal specialist `bros` (`Label:` titles). Message shape: [Chat](/docs/chat).
+Empty means that skill adds no text. They apply to Chat turns only — never to internal specialist `bros` (`Label:`).
 
 Chat and passkey fields are full width in the `max-w-xl` column.
 
-## Host Ollama
+## Whisper and host Ollama
 
-**Enable host Ollama** (off by default) stores `enable_host_ollama` in SQLite `meta`. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Sidecars.
+**Enable Whisper** (off by default) stores `enable_whisper` in `$BROS_DIR/bros.yml`. On pulls the Whisper images, then starts the sidecar. Off stops it.
+
+**Enable host Ollama** (off by default) stores `enable_host_ollama` in the same file. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Sidecars.
+
+Those two toggles are the Settings module (`src/server/utils/settings`). Bootstrap paths stay in [Configuration](/docs/configuration).
+
+## MCP
+
+Add an HTTP server id and URL. Bros stores the list. Chat does not call these servers.
 
 ## Paths
 
-- `working_dir` — in-container app root (`/app`)
-- `data_dir` — in-container data (`/data`, host `$BROS_HOME/data`)
+- `BROS_DIR` — app directory (container `/app`)
+- `BROS_DATA_DIR` — `$BROS_DIR/data` (container `/app/data`)
 - passkey file — `{dataDir}/passkey`
+- session secret — `{dataDir}/session-secret`
+
+## Proxy key
+
+`{dataDir}/proxy-key` is the Bearer token for tunneled `api` and `openai` paths. Rotate on this page. The page also lists those proxy URLs when a sidecar exposes them.
 
 Host layout and YAML load order: [Configuration](/docs/configuration). Env catalog: [Environment](/docs/environment).
 

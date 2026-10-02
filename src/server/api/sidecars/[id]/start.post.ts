@@ -1,4 +1,4 @@
-import { assertSidecarUiActionAllowed } from '../../../utils/ollamaMustRun'
+import { assertSidecarUiActionAllowed } from '../../../utils/sidecars/ollamaMustRun'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

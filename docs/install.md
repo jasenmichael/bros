@@ -17,7 +17,7 @@ Optional systemd user service (Linux):
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 ```
 
-`install.sh` clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_HOME`). Writes `~/.config/bros.yml` if missing. Symlinks `~/.local/bin/bros` (`BROS_BIN`).
+`install.sh` clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias). The app reads `$BROS_DIR/bros.yml`. The installer still writes `~/.config/bros.yml` until a later pass; that file is not loaded. `BROS_BIN` is `~/.local/bin/bros`, a symlink to `$BROS_DIR/bros`.
 
 Overrides:
 
@@ -27,7 +27,7 @@ Overrides:
 - `BROS_CONFIG` — bootstrap YAML (default `~/.config/bros.yml`)
 - `BROS_BIN` — PATH symlink (default `~/.local/bin/bros`)
 
-A repo checkout (CLI next to `docker-compose.yml` + `sidecars/`) uses that directory as `BROS_HOME`. Persistent binds live under `$BROS_HOME/data` (`$BROS_HOST_DATA_DIR`).
+Running `bros` with `BROS_DIR` unset sets `BROS_DIR` to the real directory of the script (so a checkout `./bros` or a `BROS_BIN` symlink both resolve correctly). Persistent binds live under `$BROS_HOME/data` (`$BROS_HOST_DATA_DIR`).
 
 Docs site: https://jasenmichael.github.io/bros/
 
@@ -52,6 +52,6 @@ bros update
 bros service status
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Passkey is printed in the container logs (`[bros] passkey: …`).
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). Passkey is printed in the container logs (`[bros] passkey: …`).
 
-Contributor hot-reload is `pnpm dev`, not a user CLI flag. See [Development](/docs/development).
+Contributor hot-reload is `BROS_DEV=1 ./bros`, not a user CLI flag. See [Development](/docs/development).

@@ -1,4 +1,4 @@
-import { sidecarWebUiLinks } from '../utils/sidecarHostLinks'
+import { sidecarWebUiLinks } from '../utils/sidecars/sidecarHostLinks'
 
 export type PinnedNavItem = {
   label: string

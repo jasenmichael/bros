@@ -1,3 +1,2 @@
-working_dir: .
-data_dir: ./data
-public_url: "https://bros.jasenmichael.com"
+enable_host_ollama: true
+enable_whisper: false

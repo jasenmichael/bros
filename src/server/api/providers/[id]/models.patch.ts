@@ -1,5 +1,5 @@
 import { setOllamaModelChatEnabled } from '../../../utils/providers'
-import { listProviderModels, requireProviderId } from '../../../utils/providersView'
+import { listProviderModels, requireProviderId } from '../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = requireProviderId(event)

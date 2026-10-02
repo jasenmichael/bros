@@ -90,6 +90,91 @@ describe('bros CLI start build policy', () => {
     expect(yml).toMatch(/networks:\s*\n\s+bros:\s*\n\s+name: bros\s*\n\s+external: true\s*$/m)
   })
 
+  it('keeps sidecar pack mounts in prod compose only', () => {
+    const base = readFileSync(join(REPO, 'docker-compose.yml'), 'utf8')
+    const dev = readFileSync(join(REPO, 'docker-compose.dev.yml'), 'utf8')
+    const prod = readFileSync(join(REPO, 'docker-compose.prod.yml'), 'utf8')
+    const mounts = [
+      './lib/sidecars/core:/app/sidecars/core:ro',
+      './lib/sidecars/addon:/app/sidecars/addon:ro',
+      '${BROS_SIDECARS_DIR:-./sidecars}:/app/sidecars/custom',
+    ]
+    for (const line of mounts) {
+      expect(base).not.toContain(line)
+      expect(dev).not.toContain(line)
+      expect(prod).toContain(line)
+    }
+    expect(base).toContain('BROS_SIDECARS_DIR: /app/sidecars/custom')
+    expect(dev).toContain('BROS_SIDECARS_DIR: /app/sidecars')
+    expect(dev).not.toContain('BROS_SIDECARS_DISABLE')
+    expect(dev).not.toContain('extra_hosts')
+    expect(dev).not.toContain('/var/run/docker.sock')
+  })
+
+  it('merges the base file with one overlay', () => {
+    const fn = extractFn(readFileSync(BROS, 'utf8'), 'compose_files')
+    const prod = bash(`${fn}\nDEV=0\ncompose_files`).trim()
+    const dev = bash(`${fn}\nDEV=1\ncompose_files`).trim()
+    expect(prod).toBe('-f docker-compose.yml -f docker-compose.prod.yml')
+    expect(dev).toBe('-f docker-compose.yml -f docker-compose.dev.yml')
+  })
+
+  it('keeps listen env on BROS_PORT and BROS_HOST', () => {
+    const files = ['docker-compose.yml', 'docker-compose.dev.yml', 'docker-compose.prod.yml']
+    const banned = ['PORT', 'NUXT_PORT', 'NITRO_PORT', 'HOST', 'NUXT_HOST', 'NITRO_HOST']
+    for (const file of files) {
+      const yml = readFileSync(join(REPO, file), 'utf8')
+      for (const key of banned) {
+        expect(yml).not.toMatch(new RegExp(`^\\s+${key}:`, 'm'))
+      }
+    }
+    const base = readFileSync(join(REPO, 'docker-compose.yml'), 'utf8')
+    expect(base).toContain('BROS_PORT: ${BROS_PORT:-3055}')
+    expect(base).toContain('BROS_HOST: ${BROS_HOST:-127.0.0.1}')
+    expect(base).toContain('"${BROS_PORT:-3055}:${BROS_PORT:-3055}"')
+  })
+
+  it('load_listen_env uses command env, then .env, then defaults', () => {
+    const src = readFileSync(BROS, 'utf8')
+    const fns = `${extractFn(src, 'dotenv_key')}\n${extractFn(src, 'load_listen_env')}`
+    const dir = mkdtempSync(join(tmpdir(), 'bros-listen-'))
+    try {
+      writeFileSync(join(dir, '.env'), 'BROS_PORT=4000\nBROS_HOST=10.0.0.2\n')
+      const fromFile = bash(
+        `set -euo pipefail
+         REPO_ROOT=${dir}
+         unset BROS_PORT BROS_HOST
+         ${fns}
+         load_listen_env
+         printf '%s %s' "$BROS_PORT" "$BROS_HOST"`,
+      ).trim()
+      expect(fromFile).toBe('4000 10.0.0.2')
+      const fromEnv = bash(
+        `set -euo pipefail
+         REPO_ROOT=${dir}
+         BROS_PORT=4001
+         unset BROS_HOST
+         ${fns}
+         load_listen_env
+         printf '%s %s' "$BROS_PORT" "$BROS_HOST"`,
+      ).trim()
+      expect(fromEnv).toBe('4001 10.0.0.2')
+      writeFileSync(join(dir, '.env'), '# empty\n')
+      const defaults = bash(
+        `set -euo pipefail
+         REPO_ROOT=${dir}
+         unset BROS_PORT BROS_HOST
+         ${fns}
+         load_listen_env
+         printf '%s %s' "$BROS_PORT" "$BROS_HOST"`,
+      ).trim()
+      expect(defaults).toBe('3055 127.0.0.1')
+    }
+    finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('does not copy named Docker volumes on start', () => {
     const src = readFileSync(BROS, 'utf8')
     expect(src).not.toContain('try_copy_volumes')
@@ -121,13 +206,13 @@ describe('bros CLI flags and help', () => {
       const ex = e as { stderr?: string, stdout?: string }
       err = `${ex.stderr || ''}${ex.stdout || ''}`
     }
-    expect(err).toContain('--dev removed. Use: pnpm dev')
+    expect(err).toContain('--dev removed. Use: BROS_DEV=1 ./bros')
   })
 
-  it('help has no --dev flag and mentions pnpm dev', () => {
+  it('help has no --dev flag and mentions BROS_DEV=1 ./bros', () => {
     const out = execFileSync(BROS, ['--help'], { encoding: 'utf8' })
     expect(out).not.toMatch(/^\s+--dev\b/m)
-    expect(out).toContain('pnpm dev')
+    expect(out).toContain('BROS_DEV=1 ./bros')
     expect(out).toContain('service install')
     expect(out).toContain('BROS_HOME')
   })
@@ -154,25 +239,72 @@ describe('bros path helpers', () => {
     expect(out).toBe(join(dir, 'real'))
   })
 
-  it('resolve_default_config prefers ~/.config/bros.yml', () => {
-    const xdg = extractFn(src, 'xdg_config_path')
+  it('resolve_default_config uses $BROS_DIR/bros.yml', () => {
     const fn = extractFn(src, 'resolve_default_config')
     const dir = mkdtempSync(join(tmpdir(), 'bros-cfg-'))
-    const home = join(dir, 'home')
-    mkdirSync(join(home, '.config'), { recursive: true })
-    writeFileSync(join(home, '.config', 'bros.yml'), 'public_url: ""\n')
-    writeFileSync(join(dir, 'bros.yml'), 'public_url: "https://ignored.example"\n')
+    writeFileSync(join(dir, 'bros.yml'), 'public_url: "https://bros.example"\n')
     const out = bash(
       `set -euo pipefail
-       HOME='${home}'
-       unset BROS_CONFIG XDG_CONFIG_HOME
+       CONFIG_PATH=''
+       BROS_DIR='${dir}'
        BROS_HOME='${dir}'
-       ${xdg}
        ${fn}
        resolve_default_config`,
     ).trim()
     rmSync(dir, { recursive: true, force: true })
-    expect(out).toBe(join(home, '.config', 'bros.yml'))
+    expect(out).toBe(join(dir, 'bros.yml'))
+  })
+
+  it('resolve_bros_dir defaults to the script directory (symlink-aware)', () => {
+    const resolveScript = extractFn(src, 'resolve_script_dir')
+    const fn = extractFn(src, 'resolve_bros_dir')
+    const dir = mkdtempSync(join(tmpdir(), 'bros-dir-'))
+    const real = join(dir, 'real')
+    const bin = join(dir, 'bin')
+    mkdirSync(real, { recursive: true })
+    mkdirSync(bin, { recursive: true })
+    writeFileSync(join(real, 'bros'), '#!/bin/sh\n')
+    symlinkSync(join(real, 'bros'), join(bin, 'bros'))
+    const out = bash(
+      `set -euo pipefail
+       ${resolveScript}
+       ${fn}
+       SCRIPT_DIR="$(resolve_script_dir '${join(bin, 'bros')}')"
+       unset BROS_DIR BROS_HOME BROS_HOST_DATA_DIR BROS_BIN
+       HOME='${dir}'
+       resolve_bros_dir
+       printf '%s\\n' "$BROS_DIR"
+       printf '%s\\n' "$BROS_HOME"`,
+    ).trim()
+    rmSync(dir, { recursive: true, force: true })
+    const [brosDir, brosHome] = out.split('\n')
+    expect(brosDir).toBe(real)
+    expect(brosHome).toBe(real)
+  })
+
+  it('resolve_bros_dir keeps explicit BROS_DIR and aliases BROS_HOME alone', () => {
+    const fn = extractFn(src, 'resolve_bros_dir')
+    const out = bash(
+      `set -euo pipefail
+       SCRIPT_DIR='/tmp/script-should-not-win'
+       ${fn}
+       unset BROS_DIR BROS_HOME BROS_HOST_DATA_DIR BROS_BIN
+       BROS_DIR='/explicit/dir'
+       resolve_bros_dir
+       printf '%s\\n' "$BROS_DIR"
+       printf '%s\\n' "$BROS_HOME"
+       unset BROS_DIR BROS_HOME BROS_HOST_DATA_DIR BROS_BIN
+       BROS_HOME='/alias/home'
+       resolve_bros_dir
+       printf '%s\\n' "$BROS_DIR"
+       printf '%s\\n' "$BROS_HOME"`,
+    ).trim()
+    expect(out).toBe([
+      '/explicit/dir',
+      '/explicit/dir',
+      '/alias/home',
+      '/alias/home',
+    ].join('\n'))
   })
 })
 
@@ -184,7 +316,7 @@ describe('internal model stamp skip', () => {
     const dir = mkdtempSync(join(tmpdir(), 'bros-stamp-'))
     const vendor = join(dir, 'vendor', 'bros-model', 'models')
     mkdirSync(vendor, { recursive: true })
-    mkdirSync(join(dir, 'data', 'bros-model'), { recursive: true })
+    mkdirSync(join(dir, 'data', 'ollama', 'bros-model'), { recursive: true })
     const gguf = join(vendor, 'bros-q4_k_m.gguf')
     writeFileSync(gguf, 'gguf-bytes')
     const identity = bash(
@@ -192,7 +324,7 @@ describe('internal model stamp skip', () => {
        ${vendorStamp}
        vendor_stamp_json '${gguf}'`,
     ).trim()
-    writeFileSync(join(dir, 'data', 'bros-model', '.bros-gguf-stamp.json'), `${identity}\n`)
+    writeFileSync(join(dir, 'data', 'ollama', 'bros-model', '.bros-gguf-stamp.json'), `${identity}\n`)
     const out = bash(
       `set -euo pipefail
        VENDOR_MODEL_DIR='${join(dir, 'vendor', 'bros-model')}'
@@ -210,13 +342,13 @@ describe('internal model stamp skip', () => {
   })
 })
 
-describe('root package scripts', () => {
-  it('pnpm dev is BROS_DEV=1 ./bros', () => {
-    const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as {
+describe('workspace package scripts', () => {
+  it('app:dev runs the app filter from src/', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO, 'src/package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    expect(pkg.scripts.dev).toMatch(/^BROS_DEV=1 \.\/bros\b/)
-    expect(pkg.scripts['dev:update']).toBe('BROS_DEV=1 ./bros update')
+    expect(pkg.scripts.dev).toBeUndefined()
+    expect(pkg.scripts['dev:update']).toBeUndefined()
     expect(pkg.scripts['app:dev']).toBe('pnpm --filter @bros/app dev')
   })
 })

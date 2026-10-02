@@ -1,6 +1,6 @@
-import { customCatalogFromNames, getModelCatalog } from '../../../../utils/ollamaLibrary'
+import { customCatalogFromNames, getModelCatalog } from '../../../../utils/providers/ollamaLibrary'
 import { ensureDefaultUseGpu, getProvider, listCustomOllamaModels, OLLAMA_SIDECAR_ID } from '../../../../utils/providers'
-import { requireOllamaProvider } from '../../../../utils/providersView'
+import { requireOllamaProvider } from '../../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

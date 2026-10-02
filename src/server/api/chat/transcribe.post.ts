@@ -1,8 +1,9 @@
 import { ofetch } from 'ofetch'
 import { startSidecar } from '../../utils/docker'
+import { WHISPER_SIDECAR_ID } from '../../utils/sidecars/sidecars'
+import { isWhisperEnabled } from '../../utils/settings'
 import {
   WHISPER_MODEL,
-  WHISPER_SIDECAR_ID,
   WHISPER_TRANSCRIBE_TIMEOUT_MS,
   isWhisperUnreachable,
   parseWhisperText,
@@ -34,6 +35,9 @@ export default defineEventHandler(async (event) => {
   const bad = transcribeFileError(file, Number.isFinite(length) ? length : undefined)
   if (bad || !file?.data) {
     throw createError(bad || { statusCode: 400, statusMessage: 'file required' })
+  }
+  if (!isWhisperEnabled()) {
+    throw createError({ statusCode: 503, statusMessage: 'Enable Whisper in Settings' })
   }
 
   try {

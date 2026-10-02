@@ -1,4 +1,4 @@
-import { installSidecarWsProxy } from '../utils/sidecarProxy'
+import { installSidecarWsProxy } from '../utils/sidecars/sidecarProxy'
 
 /** Attach httpxy WS upgrade on the Node server. Vite-dev HMR may not reach this. */
 export default defineNitroPlugin((nitroApp) => {

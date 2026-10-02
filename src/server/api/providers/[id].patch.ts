@@ -1,5 +1,5 @@
 import { persistProviderAndSyncChat, setProviderEnabled, getProvider } from '../../utils/providers'
-import { requireProviderId } from '../../utils/providersView'
+import { requireProviderId } from '../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = requireProviderId(event)

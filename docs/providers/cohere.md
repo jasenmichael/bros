@@ -17,7 +17,7 @@ Create a key at [Cohere Dashboard](https://dashboard.cohere.com/api-keys). Paste
 2. Popular services → Cohere → open the card
 3. Paste the key, Save
 
-Status is **running** when a key is saved.
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
 
 ## API
 

@@ -1,4 +1,4 @@
-import { cloneSidecarRepo } from '../../utils/sidecars'
+import { cloneSidecarRepo } from '../../utils/sidecars/sidecars'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ url?: string; name?: string }>(event)

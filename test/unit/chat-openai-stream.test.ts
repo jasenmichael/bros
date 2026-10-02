@@ -25,8 +25,8 @@ describe('OpenAI-compat chat stream', () => {
 
   it('sends stream_options, reads reasoning_content, and adds OpenRouter headers', async () => {
     const { ensureDefaultProviders, upsertProvider } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat')
-    const { getProviderPreset } = await import('../../src/server/utils/providerPresets')
+    const { streamChat } = await import('../../src/server/utils/chat/chat')
+    const { getProviderPreset } = await import('../../src/server/utils/providers/presets')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -63,11 +63,13 @@ describe('OpenAI-compat chat stream', () => {
     expect(body.stream).toBe(true)
     expect(body.stream_options).toEqual({ include_usage: true })
     expect(body.model).toBe('openrouter/free')
+    expect(body.tools).toBeUndefined()
+    expect(body.tool_choice).toBeUndefined()
   })
 
   it('refuses a disabled provider and does not call that provider or others', async () => {
     const { ensureDefaultProviders, setProviderEnabled } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat')
+    const { streamChat } = await import('../../src/server/utils/chat/chat')
     ensureDefaultProviders()
     await setProviderEnabled('openrouter', false)
 

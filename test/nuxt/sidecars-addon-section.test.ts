@@ -47,7 +47,7 @@ const { payload } = vi.hoisted(() => ({
         id: 'my-pack',
         name: 'My pack',
         description: 'Data dir pack',
-        source: 'data dir' as const,
+        source: 'custom' as const,
         kind: 'additional' as const,
         packageSlug: 'my-pack',
         editable: true,
@@ -85,7 +85,7 @@ mockNuxtImport('useSeoMeta', () => () => {})
 mockNuxtImport('usePinnedNav', () => () => ({ refreshPinnedNav: async () => {} }))
 
 describe('Sidecars addon section', () => {
-  it('lists Core then one Addon sidecars section with bros/repo/custom badges', async () => {
+  it('lists Core then one Addon sidecars section with kind in the heading', async () => {
     const SidecarsPage = await import('../../src/app/pages/sidecars/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(SidecarsPage)
 
@@ -99,15 +99,16 @@ describe('Sidecars addon section', () => {
     expect(addonGrid.attributes('data-sidecar-grid')).toBe('multi')
     expect(wrapper.findAll('[data-sidecar-section="additional"]')).toHaveLength(0)
 
-    const src = (id: string) => wrapper.find(`[data-sidecar-card="${id}"] [data-sidecar-src]`).attributes('data-sidecar-src')
-    expect(src('ollama')).toBe('bros')
-    expect(src('opencode')).toBe('bros')
-    expect(src('openwebui')).toBe('bros')
-    expect(src('my-pack')).toBe('custom')
-    expect(src('cloned')).toBe('repo')
+    const heading = (id: string) => wrapper.find(`[data-sidecar-card="${id}"] h3`).text()
+    expect(heading('ollama')).toBe('Ollama (core)')
+    expect(heading('opencode')).toBe('OpenCode (addon)')
+    expect(heading('openwebui')).toBe('Open WebUI (addon)')
+    expect(heading('my-pack')).toBe('My pack (custom)')
+    expect(heading('cloned')).toBe('Cloned pack (repo)')
+    expect(wrapper.find('[data-sidecar-src]').exists()).toBe(false)
 
     expect(wrapper.find('[data-sidecar-card="ollama"]').attributes('data-card-layout')).toBe('wide')
-    expect(wrapper.find('[data-sidecar-card="opencode"]').attributes('data-card-layout')).toBe('compact-lg')
-    expect(wrapper.find('[data-sidecar-card="my-pack"]').attributes('data-card-layout')).toBe('compact-lg')
+    expect(wrapper.find('[data-sidecar-card="opencode"]').attributes('data-card-layout')).toBe('compact')
+    expect(wrapper.find('[data-sidecar-card="my-pack"]').attributes('data-card-layout')).toBe('compact')
   })
 })

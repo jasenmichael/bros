@@ -1,6 +1,6 @@
-import { discoverSidecars } from '../../utils/sidecars'
+import { discoverSidecars } from '../../utils/sidecars/sidecars'
 import { projectHasContainers, sidecarRuntime } from '../../utils/docker'
-import { peekOllamaRestartNotice } from '../../utils/ollamaMustRun'
+import { peekOllamaRestartNotice } from '../../utils/sidecars/ollamaMustRun'
 import { viaTunnelFromEvent } from '../../utils/viaTunnel'
 
 export default defineEventHandler(async (event) => {

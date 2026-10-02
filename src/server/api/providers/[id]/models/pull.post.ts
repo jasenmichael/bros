@@ -5,12 +5,12 @@ import {
   getModelCatalog,
   isValidOllamaPullName,
   modelFitsDisk,
-} from '../../../../utils/ollamaLibrary'
+} from '../../../../utils/providers/ollamaLibrary'
 import { getDiskSpace } from '../../../../utils/disk'
 import { refuseInternalBrosModel } from '../../../../utils/internalBrosModel'
-import { createOrReusePullJob, startPullRunner } from '../../../../utils/ollamaPullJobs'
+import { createOrReusePullJob, startPullRunner } from '../../../../utils/providers/ollamaPullJobs'
 import { rememberCustomOllamaModel, OLLAMA_HOST_ID } from '../../../../utils/providers'
-import { requireOllamaProvider } from '../../../../utils/providersView'
+import { requireOllamaProvider } from '../../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

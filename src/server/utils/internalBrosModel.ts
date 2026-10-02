@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import { join } from 'pathe'
 import { loadBootstrapConfig } from './config'
-import { sidecarOllamaUrl } from './ollamaHost'
+import { sidecarOllamaUrl } from './providers/ollamaHost'
 
 export const INTERNAL_BROS_MODEL = 'bros'
 export const VENDOR_BROS_MODEL_REL = 'vendor/bros-model'
@@ -52,7 +52,7 @@ export function vendorGgufPath(workingDir: string) {
 }
 
 export function destBrosModelDir(dataDir: string) {
-  return join(dataDir, 'bros-model')
+  return join(dataDir, 'ollama', 'bros-model')
 }
 
 function readStamp(destDir: string): GgufStamp | null {

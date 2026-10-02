@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { applyChatSettings } from '../../src/server/utils/chatSettings'
+import { applyChatSettings } from '../../src/server/utils/chat/chatSettings'
 
 describe('applyChatSettings', () => {
   const history = [
@@ -61,10 +61,9 @@ describe('chat settings persist and stream payload', () => {
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
-  it('stores keys in meta and applies them on OpenAI-compat send', async () => {
+  it('applies request chat prefs on OpenAI-compat send', async () => {
     const { ensureDefaultProviders, upsertProvider } = await import('../../src/server/utils/providers')
-    const { setChatSettings, getChatSettings } = await import('../../src/server/utils/chatSettings')
-    const { streamChat } = await import('../../src/server/utils/chat')
+    const { streamChat } = await import('../../src/server/utils/chat/chat')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -73,11 +72,6 @@ describe('chat settings persist and stream payload', () => {
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'sk-or-test',
       enabled: true,
-    })
-    setChatSettings({ prepend: 'Repo is Bros', assistantDescription: 'Terse engineer' })
-    expect(getChatSettings()).toEqual({
-      prepend: 'Repo is Bros',
-      assistantDescription: 'Terse engineer',
     })
 
     const calls: Array<{ url: string; init?: RequestInit }> = []
@@ -89,6 +83,7 @@ describe('chat settings persist and stream payload', () => {
     await streamChat({
       modelId: 'openrouter/openrouter/free',
       history: [{ role: 'user', content: 'hello' }],
+      chat: { prepend: 'Repo is Bros', assistantDescription: 'Terse engineer' },
       onToken: () => {},
     })
 
@@ -101,7 +96,7 @@ describe('chat settings persist and stream payload', () => {
 
   it('omits settings from the provider payload when empty', async () => {
     const { ensureDefaultProviders, upsertProvider } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat')
+    const { streamChat } = await import('../../src/server/utils/chat/chat')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -129,10 +124,8 @@ describe('chat settings persist and stream payload', () => {
   })
 
   it('does not inject chat settings into bros Label: title generate', async () => {
-    const { setChatSettings } = await import('../../src/server/utils/chatSettings')
-    const { generateChatTitle } = await import('../../src/server/utils/chat')
-    const { sidecarOllamaUrl } = await import('../../src/server/utils/ollamaHost')
-    setChatSettings({ prepend: 'Repo is Bros', assistantDescription: 'Terse engineer' })
+    const { generateChatTitle } = await import('../../src/server/utils/chat/chat')
+    const { sidecarOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       expect(String(url)).toBe(`${sidecarOllamaUrl()}/api/chat`)
       const body = JSON.parse(String(init?.body || '{}')) as { messages?: Array<{ role?: string; content?: string }> }

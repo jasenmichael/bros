@@ -1,6 +1,6 @@
-import { getProviderPreset, isPopularProvider } from '../../utils/providerPresets'
+import { getProviderPreset, isPopularProvider } from '../../utils/providers/presets'
 import { getProvider, isSystemProvider, persistProviderAndSyncChat, type ProviderKind } from '../../utils/providers'
-import { assertHostOllamaVisible } from '../../utils/hostOllamaSettings'
+import { assertHostOllamaVisible } from '../../utils/settings'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{

@@ -38,6 +38,8 @@ export const conversations = sqliteTable('conversations', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   modelId: text('model_id').notNull(),
+  kind: text('kind').notNull().default('chat'), // chat | agent
+  tools: integer('tools', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
 })
@@ -51,6 +53,7 @@ export const messages = sqliteTable('messages', {
   durationMs: integer('duration_ms', { mode: 'number' }),
   promptTokens: integer('prompt_tokens', { mode: 'number' }),
   completionTokens: integer('completion_tokens', { mode: 'number' }),
+  traceJson: text('trace_json'),
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
 })
 
@@ -74,7 +77,6 @@ export function getDb() {
   if (_db) return _db
   const { dataDir } = loadBootstrapConfig()
   mkdirSync(dataDir, { recursive: true })
-  mkdirSync(join(dataDir, 'sidecars'), { recursive: true })
   mkdirSync(join(dataDir, 'logs'), { recursive: true })
   mkdirSync(join(dataDir, 'tunnel'), { recursive: true })
   const dbPath = join(dataDir, 'bros.sqlite')
@@ -168,5 +170,17 @@ function migrate(sqlite: Database.Database) {
   }
   if (!msgCols.some((c) => c.name === 'completion_tokens')) {
     sqlite.exec(`ALTER TABLE messages ADD COLUMN completion_tokens INTEGER`)
+  }
+  if (!msgCols.some((c) => c.name === 'trace_json')) {
+    sqlite.exec(`ALTER TABLE messages ADD COLUMN trace_json TEXT`)
+  }
+  const convoCols = sqlite.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>
+  if (!convoCols.some((c) => c.name === 'kind')) {
+    sqlite.exec(`ALTER TABLE conversations ADD COLUMN kind TEXT NOT NULL DEFAULT 'chat'`)
+  }
+  const convoColsNow = sqlite.prepare('PRAGMA table_info(conversations)').all() as Array<{ name: string }>
+  if (!convoColsNow.some((c) => c.name === 'tools')) {
+    sqlite.exec(`ALTER TABLE conversations ADD COLUMN tools INTEGER NOT NULL DEFAULT 0`)
+    sqlite.exec(`UPDATE conversations SET tools = 1 WHERE kind = 'agent'`)
   }
 }

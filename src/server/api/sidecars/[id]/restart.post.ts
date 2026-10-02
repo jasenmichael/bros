@@ -1,4 +1,4 @@
-import { assertSidecarUiActionAllowed } from '../../../utils/ollamaMustRun'
+import { assertSidecarUiActionAllowed } from '../../../utils/sidecars/ollamaMustRun'
 import { cloudflaredStopBlocked, TUNNEL_STOP_LOCKED_MESSAGE, viaTunnelFromEvent } from '../../../utils/viaTunnel'
 
 export default defineEventHandler(async (event) => {

@@ -1,8 +1,8 @@
-import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret, ensurePasskey } from '../utils/auth'
+import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret, ensurePasskey, ensureProxyKey, verifyProxyAuthorization } from '../utils/auth'
 import { ensureDefaultProviders } from '../utils/providers'
 import { getDb } from '../utils/db'
 import { autostartSidecars } from '../utils/docker'
-import { needsAuthGate, publicProxyIds } from '../utils/sidecarProxy'
+import { matchPublicProxyTarget, needsAuthGate, publicProxyIds } from '../utils/sidecars/sidecarProxy'
 
 let bootstrapped = false
 let autostartDone = false
@@ -12,6 +12,7 @@ function bootstrapOnce() {
   getDb()
   ensureAppSecret()
   ensurePasskey()
+  ensureProxyKey()
   ensureDefaultProviders()
   bootstrapped = true
 }
@@ -38,9 +39,19 @@ export default defineEventHandler(async (event) => {
   if (path === '/login' || path === '/setup') return
 
   const needsGate = needsAuthGate(path, publicProxyIds())
+  const apiProxy = matchPublicProxyTarget(path)?.stripPrefix === true
 
   // In-app docs readable after unlock; allow without auth for local docs browsing
   if (path.startsWith('/docs')) return
+
+  if (apiProxy) {
+    if (!hasPasscode()) {
+      throw createError({ statusCode: 401, statusMessage: 'Setup required' })
+    }
+    if (isSessionValid(getCookie(event, SESSION_COOKIE))) return
+    if (verifyProxyAuthorization(getRequestHeader(event, 'authorization'))) return
+    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  }
 
   if (!needsGate) return
 

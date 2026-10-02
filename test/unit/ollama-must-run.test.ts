@@ -8,10 +8,11 @@ import {
   OLLAMA_START_LOCKED_MESSAGE,
   OLLAMA_RESTART_LOCKED_MESSAGE,
   OLLAMA_STOP_LOCKED_MESSAGE,
+  WHISPER_UI_LOCKED_MESSAGE,
   peekOllamaRestartNotice,
   resetOllamaHealthForTests,
   runOllamaHealthCheck,
-} from '../../src/server/utils/ollamaMustRun'
+} from '../../src/server/utils/sidecars/ollamaMustRun'
 
 describe('ollama must-run sidecar', () => {
   afterEach(() => {
@@ -39,6 +40,13 @@ describe('ollama must-run sidecar', () => {
     }
     catch (err) {
       expect(err).toMatchObject({ statusCode: 400, statusMessage: OLLAMA_RESTART_LOCKED_MESSAGE })
+    }
+    try {
+      assertSidecarUiActionAllowed('whisper', 'start')
+      expect.unreachable()
+    }
+    catch (err) {
+      expect(err).toMatchObject({ statusCode: 400, statusMessage: WHISPER_UI_LOCKED_MESSAGE })
     }
     expect(() => assertSidecarUiActionAllowed('opencode', 'stop')).not.toThrow()
     expect(() => assertSidecarUiActionAllowed('openwebui', 'restart')).not.toThrow()

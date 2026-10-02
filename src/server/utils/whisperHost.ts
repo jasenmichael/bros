@@ -1,6 +1,5 @@
 import { sidecarReachUrl } from './hostProbe'
 
-export const WHISPER_SIDECAR_ID = 'whisper'
 export const WHISPER_SIDECAR_DNS = 'http://whisper:8000'
 export const WHISPER_SIDECAR_PUBLISH = 8090
 export const WHISPER_MODEL = 'Systran/faster-whisper-base'

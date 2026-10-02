@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useChatRecents } from '../../composables/useChatRecents'
+import { readChatModelMemory, rememberChatModel, rememberChatProvider } from '../../composables/useChatModelMemory'
 import { formatContextLabel, formatDurationMs, formatMetaStats, splitStreamBody, type ChatMetaStats } from '../../utils/chatMeta'
-import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
+import { ollamaProviderDisplayName } from '../../utils/providers/ollamaProviderLabel'
 
 type Msg = {
   id: string
@@ -24,9 +25,6 @@ const convoId = computed(() => {
 
 const messages = ref<Msg[]>([])
 const input = ref('')
-const toast = useToast()
-const voiceRecording = ref(false)
-const voiceBusy = ref(false)
 const streaming = ref('')
 const streamingModelId = ref('')
 const streamingStats = ref<ChatMetaStats>({})
@@ -35,19 +33,17 @@ const thinking = ref(false)
 const streamAbort = ref<AbortController | null>(null)
 const streamStartedAt = ref(0)
 const liveElapsedMs = ref(0)
-const providerId = ref('ollama')
-const modelName = ref('llama3.2')
+const bootMemory = readChatModelMemory()
+const providerId = ref(bootMemory.lastProviderId && bootMemory.lastProviderId !== 'gateway' ? bootMemory.lastProviderId : 'ollama')
+const modelName = ref(bootMemory.models[providerId.value] || 'llama3.2')
+let applyingThread = false
+let restoringProviderModel = false
 const lastPersistedModel = ref<string | null>(null)
 const pageTitle = ref('Chat')
 const loadingThread = ref(false)
 const threadEl = ref<HTMLElement | null>(null)
 const threadEnd = ref<HTMLElement | null>(null)
-const copiedKey = ref('')
-const editingId = ref('')
-const editDraft = ref('')
-
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
-let copiedTimer: ReturnType<typeof setTimeout> | null = null
 let discardInFlight = false
 
 useSeoMeta({ title: () => pageTitle.value })
@@ -71,7 +67,12 @@ const orderedProviders = computed(() => {
   const host = rows.filter((p) => p.id === 'ollama-host')
   const popular = rows.filter((p) => p.popular)
   const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular)
-  return [...sidecar, ...host, ...popular, ...rest]
+  return [
+    ...sidecar,
+    ...host,
+    ...popular,
+    ...rest,
+  ]
 })
 
 const providerItems = computed(() => orderedProviders.value.map((p) => ({
@@ -132,11 +133,39 @@ function splitModelId(id: string) {
   return { providerId: id.slice(0, idx), model: id.slice(idx + 1) }
 }
 
+function preferredModel(pid: string, names: string[]) {
+  const remembered = readChatModelMemory().models[pid]
+  if (remembered && names.includes(remembered)) return remembered
+  return names[0] || ''
+}
+
+function assignModel(next: string, save: boolean) {
+  if (modelName.value === next) return
+  if (!save) restoringProviderModel = true
+  modelName.value = next
+  if (!save) restoringProviderModel = false
+}
+
+function applyNewChatSelection() {
+  const memory = readChatModelMemory()
+  const rows = orderedProviders.value
+  const pid = rows.some((p) => p.id === memory.lastProviderId)
+    ? memory.lastProviderId
+    : (rows[0]?.id || memory.lastProviderId || 'ollama')
+  const names = modelsForProvider(pid)
+  applyingThread = true
+  providerId.value = pid
+  assignModel(names.length ? preferredModel(pid, names) : (memory.models[pid] || 'llama3.2'), false)
+  applyingThread = false
+}
+
 function applyModelId(next: string) {
   const parsed = splitModelId(next)
+  applyingThread = true
   providerId.value = parsed.providerId
   const names = modelsForProvider(parsed.providerId)
-  modelName.value = names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model)
+  assignModel(names.includes(parsed.model) ? parsed.model : (names[0] || parsed.model), false)
+  applyingThread = false
 }
 
 const { data: modelContext } = await useFetch<{ contextLength: number | null }>(
@@ -163,31 +192,42 @@ async function persistOpenModel(next = modelId.value) {
 }
 
 watch(providerId, (pid) => {
+  if (!pid) return
   const names = modelsForProvider(pid)
-  if (names.length && !names.includes(modelName.value)) {
-    modelName.value = names[0] || ''
-  }
-})
+  if (names.length) assignModel(preferredModel(pid, names), false)
+  if (!applyingThread) rememberChatProvider(pid)
+}, { flush: 'sync' })
+
+watch(modelName, (name) => {
+  if (applyingThread || restoringProviderModel) return
+  if (!providerId.value || !name) return
+  rememberChatModel(providerId.value, name)
+}, { flush: 'sync' })
 
 watch(modelItems, (names) => {
   if (names.length && !names.includes(modelName.value)) {
-    modelName.value = names[0] || ''
+    assignModel(preferredModel(providerId.value, names), false)
   }
-}, { immediate: true })
+}, { immediate: true, flush: 'sync' })
 
 watch([providerId, orderedProviders], () => {
   const rows = orderedProviders.value
   if (!rows.length) {
+    applyingThread = true
     providerId.value = ''
-    modelName.value = ''
+    assignModel('', false)
+    applyingThread = false
     return
   }
   if (rows.some((p) => p.id === providerId.value)) return
-  const first = rows[0]
-  providerId.value = first.id
-  const names = modelsForProvider(first.id)
-  modelName.value = names[0] || ''
-}, { immediate: true })
+  const memory = readChatModelMemory()
+  const preferred = rows.find((p) => p.id === memory.lastProviderId) || rows[0]
+  if (!preferred) return
+  applyingThread = true
+  providerId.value = preferred.id
+  assignModel(preferredModel(preferred.id, modelsForProvider(preferred.id)), false)
+  applyingThread = false
+}, { immediate: true, flush: 'sync' })
 
 watch(modelId, (next) => {
   void persistOpenModel(next).catch(() => {})
@@ -246,7 +286,6 @@ async function loadConversation(id: string) {
     pageTitle.value = convo.title || 'Chat'
     streaming.value = ''
     thinking.value = false
-    cancelEdit()
     await pinThreadBottom()
   } catch {
     messages.value = []
@@ -266,6 +305,7 @@ function resetEmpty() {
   lastPersistedModel.value = null
   loadingThread.value = false
   stopElapsed()
+  applyNewChatSelection()
 }
 
 const isThread = computed(() =>
@@ -273,8 +313,6 @@ const isThread = computed(() =>
 )
 
 watch(convoId, (id) => {
-  cancelEdit()
-  copiedKey.value = ''
   if (id) {
     loadingThread.value = true
     void loadConversation(id).finally(() => {
@@ -335,110 +373,6 @@ function stop() {
   streamAbort.value?.abort()
 }
 
-function voiceMime() {
-  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
-  for (const t of types) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t
-  }
-  return ''
-}
-
-let voiceRecorder: MediaRecorder | null = null
-let voiceChunks: Blob[] = []
-let voiceStream: MediaStream | null = null
-
-function stopVoiceTracks() {
-  voiceStream?.getTracks().forEach((t) => t.stop())
-  voiceStream = null
-  voiceRecorder = null
-  voiceChunks = []
-  voiceRecording.value = false
-}
-
-function appendVoiceText(text: string) {
-  const t = text.trim()
-  if (!t) return
-  const cur = input.value
-  input.value = cur && !/\s$/.test(cur) ? `${cur} ${t}` : `${cur}${t}`
-}
-
-async function startVoice() {
-  if (!import.meta.client) return
-  if (!window.isSecureContext) {
-    toast.add({
-      title: 'Microphone needs HTTPS',
-      description: 'Voice to text works on localhost or HTTPS (tunnel).',
-      color: 'warning',
-      icon: 'i-lucide-mic-off',
-    })
-    return
-  }
-  try {
-    const mime = voiceMime()
-    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    voiceChunks = []
-    voiceRecorder = mime ? new MediaRecorder(voiceStream, { mimeType: mime }) : new MediaRecorder(voiceStream)
-    voiceRecorder.ondataavailable = (e) => {
-      if (e.data.size) voiceChunks.push(e.data)
-    }
-    voiceRecorder.start()
-    voiceRecording.value = true
-  } catch {
-    stopVoiceTracks()
-    toast.add({
-      title: 'Microphone blocked',
-      description: 'Allow microphone access to use voice to text.',
-      color: 'warning',
-      icon: 'i-lucide-mic-off',
-    })
-  }
-}
-
-function stopVoiceRecorder(): Promise<Blob | null> {
-  const rec = voiceRecorder
-  if (!rec || rec.state === 'inactive') {
-    stopVoiceTracks()
-    return Promise.resolve(null)
-  }
-  return new Promise((resolve) => {
-    rec.onstop = () => {
-      const type = rec.mimeType || 'audio/webm'
-      const blob = voiceChunks.length ? new Blob(voiceChunks, { type }) : null
-      stopVoiceTracks()
-      resolve(blob)
-    }
-    rec.stop()
-  })
-}
-
-async function toggleVoice() {
-  if (voiceBusy.value) return
-  if (voiceRecording.value) {
-    voiceBusy.value = true
-    try {
-      const blob = await stopVoiceRecorder()
-      if (!blob || blob.size === 0) return
-      const form = new FormData()
-      const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
-      form.append('file', blob, `voice.${ext}`)
-      const row = await $fetch<{ text?: string }>('/api/chat/transcribe', { method: 'POST', body: form })
-      appendVoiceText(row?.text || '')
-    } catch (err: unknown) {
-      const row = err as { data?: { statusMessage?: string }; statusMessage?: string }
-      toast.add({
-        title: 'Transcription failed',
-        description: row.data?.statusMessage || row.statusMessage || 'Whisper sidecar did not return text.',
-        color: 'error',
-        icon: 'i-lucide-mic-off',
-      })
-    } finally {
-      voiceBusy.value = false
-    }
-    return
-  }
-  await startVoice()
-}
-
 function waitWhileBusy() {
   if (!busy.value) return Promise.resolve()
   return new Promise<void>((resolve) => {
@@ -449,49 +383,6 @@ function waitWhileBusy() {
       }
     })
   })
-}
-
-async function copyRaw(key: string, text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-    const el = document.createElement('textarea')
-    el.value = text
-    el.setAttribute('readonly', '')
-    el.style.position = 'fixed'
-    el.style.left = '-9999px'
-    document.body.appendChild(el)
-    el.select()
-    document.execCommand('copy')
-    document.body.removeChild(el)
-  }
-  copiedKey.value = key
-  if (copiedTimer) clearTimeout(copiedTimer)
-  copiedTimer = setTimeout(() => {
-    if (copiedKey.value === key) copiedKey.value = ''
-  }, 1500)
-}
-
-function startEdit(m: Msg) {
-  editingId.value = m.id
-  editDraft.value = m.content
-}
-
-function cancelEdit() {
-  editingId.value = ''
-  editDraft.value = ''
-}
-
-function onEditKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    cancelEdit()
-    return
-  }
-  if (event.key !== 'Enter' || event.shiftKey) return
-  event.preventDefault()
-  const row = messages.value.find((m) => m.id === editingId.value)
-  if (row) void resendFrom(row, editDraft.value)
 }
 
 function isAbortError(e: unknown) {
@@ -520,6 +411,7 @@ async function send() {
 
 async function sendText(text: string) {
   if (!text.trim() || !providerId.value || !modelName.value) return
+  rememberChatModel(providerId.value, modelName.value)
   let id = convoId.value
   if (!id) {
     const convo = await $fetch<{ id: string }>('/api/chat', {
@@ -543,7 +435,10 @@ async function sendText(text: string) {
     const res = await fetch(`/api/chat/${id}/stream`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ content: text, modelId: usedModel }),
+      body: JSON.stringify({
+        content: text,
+        modelId: usedModel,
+      }),
       signal: ac.signal,
     })
     if (!res.ok || !res.body) throw new Error(await res.text())
@@ -612,16 +507,12 @@ async function resendFrom(message: Msg, text: string) {
   streamingModelId.value = ''
   streamingStats.value = {}
   thinking.value = false
-  cancelEdit()
   await sendText(edited)
 }
 
 onUnmounted(() => {
   stopElapsed()
   streamAbort.value?.abort()
-  if (copiedTimer) clearTimeout(copiedTimer)
-  if (voiceRecorder && voiceRecorder.state !== 'inactive') voiceRecorder.stop()
-  stopVoiceTracks()
 })
 
 defineExpose({
@@ -632,10 +523,7 @@ defineExpose({
   orderedProviders,
   providerId,
   messages,
-  copyRaw,
   resendFrom,
-  editingId,
-  startEdit,
   scrollThread,
   pinThreadBottom,
 })
@@ -657,99 +545,33 @@ defineExpose({
         class="bros-chat__turn"
         :class="m.role === 'user' ? 'bros-chat__turn--user' : 'bros-chat__turn--assistant'"
       >
-        <div
+        <BrosChatUserTurn
           v-if="m.role === 'user'"
-          class="bros-chat__user"
-          :class="{ 'bros-chat__user--editing': editingId === m.id }"
-        >
-          <div
-            v-if="editingId === m.id"
-            class="bros-chat__bubble bros-chat__bubble--user bros-chat__bubble--edit"
-          >
-            <UTextarea
-              v-model="editDraft"
-              class="bros-chat__edit"
-              :rows="2"
-              :maxrows="8"
-              autoresize
-              variant="none"
-              :ui="{ base: 'resize-none bg-transparent ring-0' }"
-              @keydown="onEditKeydown"
-            />
-          </div>
-          <div v-else class="bros-chat__bubble bros-chat__bubble--user">
-            <BrosChatMarkdown :text="m.content" />
-          </div>
-          <div class="bros-chat__user-actions">
-            <template v-if="editingId === m.id">
-              <UButton size="xs" color="neutral" variant="ghost" label="Cancel" @click="cancelEdit" />
-              <UButton size="xs" label="Resend" :disabled="!editDraft.trim()" @click="resendFrom(m, editDraft)" />
-            </template>
-            <template v-else>
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :icon="copiedKey === `user:${m.id}` ? 'i-lucide-check' : 'i-lucide-copy'"
-                :aria-label="copiedKey === `user:${m.id}` ? 'Copied' : 'Copy message'"
-                @click="copyRaw(`user:${m.id}`, m.content)"
-              />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                aria-label="Edit message"
-                @click="startEdit(m)"
-              />
-            </template>
-          </div>
-        </div>
+          :message-id="m.id"
+          :content="m.content"
+          @resend="(text) => resendFrom(m, text)"
+        />
         <template v-else>
           <div class="bros-chat__bubble bros-chat__bubble--assistant">
             <BrosChatMarkdown :text="m.content" />
           </div>
-          <p class="bros-chat__meta">
-            <span class="bros-chat__meta-id">
-              ASSISTANT<span v-if="m.modelId"> · {{ m.modelId }}</span>
-            </span>
-            <span class="bros-chat__meta-right">
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                class="bros-chat__copy"
-                :icon="copiedKey === `assistant:${m.id}` ? 'i-lucide-check' : 'i-lucide-copy'"
-                :aria-label="copiedKey === `assistant:${m.id}` ? 'Copied' : 'Copy reply'"
-                @click="copyRaw(`assistant:${m.id}`, m.content)"
-              />
-              <span v-if="metaLabel(m)" class="bros-chat__meta-stats">{{ metaLabel(m) }}</span>
-            </span>
-          </p>
+          <BrosChatAssistantMeta
+            :model-id="m.modelId"
+            :copy-text="m.content"
+            :stats-label="metaLabel(m)"
+          />
         </template>
       </div>
       <div v-if="streaming" class="bros-chat__turn bros-chat__turn--assistant">
         <div class="bros-chat__bubble bros-chat__bubble--assistant">
           <BrosChatMarkdown :text="streaming" />
         </div>
-        <p class="bros-chat__meta">
-          <span class="bros-chat__meta-id">
-            ASSISTANT<span v-if="streamingModelId"> · {{ streamingModelId }}</span>
-          </span>
-          <span class="bros-chat__meta-right">
-            <UButton
-              type="button"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              label="Stop"
-              aria-label="Stop"
-              class="bros-chat__stop"
-              @click="stop"
-            />
-            <span v-if="liveMetaLabel" class="bros-chat__meta-stats">{{ liveMetaLabel }}</span>
-          </span>
-        </p>
+        <BrosChatAssistantMeta
+          :model-id="streamingModelId"
+          :show-stop="true"
+          :stats-label="liveMetaLabel"
+          @stop="stop"
+        />
       </div>
       <p v-if="thinking" class="bros-chat__thinking">
         <span>thinking… {{ thinkingElapsed }}</span>
@@ -802,15 +624,7 @@ defineExpose({
           :ui="{ base: 'resize-none bg-transparent ring-0' }"
           @keydown="onComposerKeydown"
         />
-        <UButton
-          type="button"
-          icon="i-lucide-mic"
-          :aria-label="voiceRecording ? 'Stop recording' : 'Voice to text'"
-          :disabled="voiceBusy"
-          class="bros-chat__send bros-chat__mic"
-          :class="{ 'bros-chat__mic--recording': voiceRecording }"
-          @click="toggleVoice"
-        />
+        <BrosChatMic v-model="input" />
         <UButton
           type="submit"
           :disabled="busy || !input.trim()"
@@ -883,71 +697,6 @@ defineExpose({
   margin: 1.25rem auto;
   font-size: 0.95rem;
   color: var(--bros-muted);
-}
-
-.bros-chat__user {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  max-width: min(36rem, 85%);
-}
-
-.bros-chat__user--editing {
-  width: min(36rem, 85%);
-}
-
-.bros-chat__user-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-  margin-top: 0.2rem;
-}
-
-.bros-chat__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0.35rem 0 0;
-  font-size: 0.7rem;
-  color: var(--bros-muted);
-}
-
-.bros-chat__meta-id {
-  min-width: 0;
-}
-
-.bros-chat__meta-right {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.bros-chat__meta-stats {
-  flex-shrink: 0;
-}
-
-.bros-chat__copy {
-  min-width: 0;
-}
-
-.bros-chat__bubble {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.bros-chat__bubble--user {
-  max-width: 100%;
-  padding: 0.7rem 1rem;
-  border-radius: 1.25rem 1.25rem 0.4rem 1.25rem;
-  background: color-mix(in srgb, var(--bros-accent) 18%, var(--bros-surface));
-  color: var(--bros-text);
-}
-
-.bros-chat__edit {
-  width: 100%;
 }
 
 .bros-chat__bubble--assistant {
@@ -1042,14 +791,5 @@ defineExpose({
 
 .bros-chat__send {
   border-radius: 999px;
-}
-
-.bros-chat__mic--recording {
-  animation: bros-mic-pulse 1.1s ease-in-out infinite;
-}
-
-@keyframes bros-mic-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bros-accent) 45%, transparent); }
-  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--bros-accent) 0%, transparent); }
 }
 </style>

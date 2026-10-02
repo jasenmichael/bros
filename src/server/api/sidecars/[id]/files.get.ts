@@ -1,4 +1,4 @@
-import { getSidecar, readSidecarFiles } from '../../../utils/sidecars'
+import { getSidecar, readSidecarFiles } from '../../../utils/sidecars/sidecars'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')

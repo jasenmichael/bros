@@ -1,7 +1,7 @@
-import { handleSidecarRequest } from '../utils/sidecarProxy'
+import { handleSidecarRequest } from '../utils/sidecars/sidecarProxy'
 
 /**
- * Allowlist path proxy: first segment must be a discovered sidecar id with
- * `proxy.public`. `/chat` and other Bros routes fall through.
+ * Allowlist path proxy. Web UIs need `proxy.public`. `api` and `openai`
+ * interfaces strip `/${id}` and forward `basePath`. `/chat` falls through.
  */
 export default defineEventHandler((event) => handleSidecarRequest(event))

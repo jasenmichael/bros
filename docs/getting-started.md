@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install Bros with Docker, run bros, open port 3055.
+description: Install Bros with Docker, run bros, open the default address.
 ---
 
 # Getting started
@@ -29,7 +29,7 @@ Full install details: [Install](/docs/install).
 bros
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOME/data/passkey`.
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOME/data/passkey`.
 
 ```bash
 bros -D
@@ -43,8 +43,8 @@ Ctrl+C on an interactive start stops the **full stack**. First start brings up t
 
 - [App](/docs/app) — Dashboard, Chat, Providers, Sidecars, Status, Settings, Docs
 - [Providers](/docs/providers) — Ollama, Popular services, Custom providers
-- [Sidecars](/docs/sidecars) — Core Ollama, then Addon sidecars (bros / repo / custom)
+- [Sidecars](/docs/sidecars) — Core Ollama and Whisper, then addon, custom, and repo packs
 - [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_HOME`
 - [Environment](/docs/environment) — `BROS_*` catalog
 - [Tunnel](/docs/tunnel) — host `cloudflared`, install, login
-- [Development](/docs/development) — `pnpm dev` for contributors
+- [Development](/docs/development) — `BROS_DEV=1 ./bros` for contributors

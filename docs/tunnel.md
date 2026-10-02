@@ -7,11 +7,13 @@ description: Host cloudflared named vs quick tunnel, install, login, Status erro
 
 The Dashboard **Tunnel** card and `/status` control a **host** `cloudflared` process. Bros inside Docker cannot spawn it. It is not a sidecar.
 
-The tunnel exposes the Bros app at `http://127.0.0.1:<BROS_PORT>` (default **3055**). One hostname. Catch-all is `http_status:404`. Sidecar Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
+The tunnel exposes the Bros app at `http://<BROS_HOST>:<BROS_PORT>` (default `http://127.0.0.1:3055`). One hostname. Catch-all is `http_status:404`. Sidecar Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
+
+The same hostname proxies every `api` and `openai` interface. Bros strips `/<id>` and forwards the rest. `https://<tunnel>/ollama/api/...` reaches `http://ollama:11434/api/...`. `https://<tunnel>/ollama/v1/...` reaches `http://ollama:11434/v1/...`. Whisper (`/whisper/v1`), Firecrawl (`/firecrawl/v2`), Open WebUI (`/openwebui/api`, `/openwebui/openai/v1`), and OpenJEV (`/openjev/v1`) use the same rule. A logged-in browser session works. External clients send `Authorization: Bearer` the proxy key from Settings. That key does not log into Bros. Host Ollama is not on this path.
 
 ## Sidecar UIs
 
-Do **not** add extra Cloudflare hostnames or tunnels for sidecars. Path proxy exists only for native-base UIs that set `proxy.public` in `sidecar.yml`. No shipped pack does that until OpenCode honors a base path. Open WebUI and the Ollama API stay LAN — they assume `/` and are not public-proxied. See [Sidecars](/docs/sidecars).
+Do **not** add extra Cloudflare hostnames or tunnels for sidecars. Web UI path proxy exists only for native-base UIs that set `proxy.public` in `sidecar.yml`. No shipped pack does that until OpenCode honors a base path. OpenCode stays LAN. API proxies above do not require `proxy.public`. See [Sidecars](/docs/sidecars).
 
 ## Prerequisites
 
@@ -90,21 +92,21 @@ Opens a browser so Cloudflare can authorize this host. Success writes `~/.cloudf
 
 ## Named vs quick
 
-When `public_url` is set in `~/.config/bros.yml` (or `bros.yml`) or via `BROS_PUBLIC_URL`:
+When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel helper loads (`~/.config/bros.yml` when that file exists, otherwise `$BROS_DIR/bros.yml`):
 
 1. `cloudflared` on `PATH` (or `~/.local/bin/cloudflared`)
 2. Login via `~/.cloudflared/cert.pem` or `cloudflared tunnel list`
 3. Named tunnel `bros` (`BROS_TUNNEL_NAME`) with `cloudflared tunnel create bros` if missing, `cloudflared tunnel route dns bros <hostname>` (CNAME to `<id>.cfargotunnel.com`), then `cloudflared tunnel --config $BROS_HOME/data/tunnel/config.yml run bros`
 
-`config.yml` uses `protocol: http2` and `edge-ip-version: 4`, hostname ingress to `http://127.0.0.1:<BROS_PORT>`, and a catch-all `http_status:404`. Override with `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`.
+`config.yml` uses `protocol: http2` and `edge-ip-version: 4`, hostname ingress to `http://<BROS_HOST>:<BROS_PORT>`, and a catch-all `http_status:404`. Override with `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`.
 
 When `public_url` is unset, first interactive `bros` may ask:
 
 ```text
-Enable Cloudflare tunnel (host cloudflared quick tunnel to :3055)? [y/N]
+Enable Cloudflare tunnel (host cloudflared quick tunnel to 127.0.0.1:3055)? [y/N]
 ```
 
-The Dashboard card then starts a **quick** tunnel: `cloudflared tunnel --url http://127.0.0.1:<BROS_PORT>`. Hostname is `*.trycloudflare.com`. A `public_url` whose host is already `*.trycloudflare.com` stays quick (no `route dns`).
+The Dashboard card then starts a **quick** tunnel: `cloudflared tunnel --url http://<BROS_HOST>:<BROS_PORT>`. Hostname is `*.trycloudflare.com`. A `public_url` whose host is already `*.trycloudflare.com` stays quick (no `route dns`).
 
 Already-exists on `route dns` is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Status/Dashboard show the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json`.
 
@@ -124,7 +126,7 @@ Turning the card off stops the process until the next `bros` / helper start. `PO
 
 ## Helper files
 
-`bros` (and `pnpm dev`) start a small helper that writes:
+`bros` (and `BROS_DEV=1 ./bros`) start a small helper that writes:
 
 ```text
 $BROS_HOME/data/tunnel/
@@ -144,6 +146,7 @@ $BROS_HOME/data/tunnel/
 | --- | --- | --- |
 | `BROS_PUBLIC_URL` | unset | Named tunnel hostname (overrides YAML) |
 | `BROS_PORT` | `3055` | App port the helper targets |
+| `BROS_HOST` | `127.0.0.1` | App host the helper targets |
 | `BROS_TUNNEL_PROTOCOL` | `http2` | `http2` / `quic` / `auto` |
 | `BROS_TUNNEL_EDGE_IP_VERSION` | `4` | `4` / `6` / `auto` |
 | `BROS_TUNNEL_HOST` | unset | Extra Host match for via-tunnel detection |
@@ -157,6 +160,6 @@ Full `BROS_*` list: [Environment](/docs/environment).
 
 A request is via-tunnel when any of `cf-ray`, `cf-connecting-ip`, or `cf-visitor` is present, `cdn-loop` contains `cloudflare`, or Host matches `public_url` / `BROS_TUNNEL_HOST` / last advertised hostname. While via-tunnel, stop is refused (API 403) and the Dashboard toggle is disabled.
 
-## `pnpm dev` CSS-as-JS cache
+## Dev CSS-as-JS cache
 
-`pnpm dev` behind the tunnel must keep Vite client modules bootable. Vite serves one `.css` path as `text/css` (`<link>`) or `text/javascript` (JS import). Cloudflare caches that path (query string ignored), so a stylesheet body can be reused for the module import and Nuxt never hydrates. Dev rewrites CSS module imports to `/_nuxt/bros-mod/…*.js` and sends `CDN-Cache-Control: no-store` on Vite `/_nuxt` assets. Production hashed CSS is not affected.
+`BROS_DEV=1 ./bros` behind the tunnel must keep Vite client modules bootable. Vite serves one `.css` path as `text/css` (`<link>`) or `text/javascript` (JS import). Cloudflare caches that path (query string ignored), so a stylesheet body can be reused for the module import and Nuxt never hydrates. Dev rewrites CSS module imports to `/_nuxt/bros-mod/…*.js` and sends `CDN-Cache-Control: no-store` on Vite `/_nuxt` assets. Production hashed CSS is not affected.

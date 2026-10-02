@@ -17,7 +17,7 @@ Create a key at [Groq Console](https://console.groq.com/keys). Paste it on Provi
 2. Popular services → Groq → open the card
 3. Paste the key, Save
 
-Status is **running** when a key is saved.
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
 
 ## API
 

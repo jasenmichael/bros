@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { isOllamaModelChatEnabled, parseDisabledOllamaModels } from '../../utils/ollamaDisabledModels'
-import { isValidOllamaPullName, ollamaNameFromMenuValue } from '../../utils/ollamaPullName'
-import { ollamaProviderDisplayName } from '../../utils/ollamaProviderLabel'
+import { isOllamaModelChatEnabled, parseDisabledOllamaModels } from '../../utils/providers/ollamaDisabledModels'
+import { isValidOllamaPullName, ollamaNameFromMenuValue } from '../../utils/providers/ollamaPullName'
+import { ollamaProviderDisplayName } from '../../utils/providers/ollamaProviderLabel'
 
 useSeoMeta({ title: 'Providers' })
 
@@ -811,7 +811,6 @@ async function scanHost() {
               </UBadge>
               <label
                 class="flex flex-col items-center gap-0.5 text-[10px] leading-none text-[var(--bros-muted)]"
-                :title="chatSwitchTitle(p)"
                 @click.stop
               >
                 <span>Chat</span>
@@ -843,7 +842,7 @@ async function scanHost() {
                 {{ selected?.statusMessage || 'Host Ollama is unreachable. Pull and Chat need the host daemon.' }}
               </p>
               <p class="text-xs text-amber-200">
-                Pull and chat use the host Ollama disk, not $BROS_HOME/data/ollama.
+                Pull and chat use the host Ollama disk, not $BROS_HOME/data/ollama/root/.ollama.
               </p>
               <p class="text-xs text-[var(--bros-muted)]">
                 Run the host Ollama daemon with <span class="font-mono">OLLAMA_NOPRUNE=1</span> so incomplete pulls are not pruned. Bros cannot set host daemon env.
@@ -1061,7 +1060,6 @@ async function scanHost() {
               </UBadge>
               <label
                 class="flex flex-col items-center gap-0.5 text-[10px] leading-none text-[var(--bros-muted)]"
-                :title="chatSwitchTitle(p)"
                 @click.stop
               >
                 <span>Chat</span>

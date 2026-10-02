@@ -17,7 +17,7 @@ Create a key in [Google AI Studio](https://aistudio.google.com/api-keys). Paste 
 2. Popular services → Google Gemini → open the card
 3. Paste the key, Save
 
-Status is **running** when a key is saved.
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
 
 ## API
 
@@ -27,5 +27,6 @@ Status is **running** when a key is saved.
 
 Default model ids (editable on the card; live `GET /models` merges when a key exists):
 
-- `gemini-2.5-flash`
-- `gemini-2.5-pro`
+- `gemini-3.8-flash`
+
+`gemini-2.5-flash` returns 404 for new keys. Google’s replacement is `gemini-3.8-flash`.

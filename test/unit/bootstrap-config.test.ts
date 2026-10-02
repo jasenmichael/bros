@@ -26,48 +26,53 @@ describe('loadBootstrapConfig', () => {
     if (root) rmSync(root, { recursive: true, force: true })
   })
 
-  it('uses BROS_WORKING_DIR and BROS_DATA_DIR over search roots', () => {
-    const working = join(root, 'work')
+  it('uses BROS_DIR and BROS_DATA_DIR', () => {
+    const app = join(root, 'app')
     const data = join(root, 'data-env')
-    process.env.BROS_WORKING_DIR = working
+    mkdirSync(app, { recursive: true })
+    process.env.BROS_DIR = app
     process.env.BROS_DATA_DIR = data
     const cfg = loadBootstrapConfig(root)
-    expect(cfg.workingDir).toBe(resolve(working))
+    expect(cfg.workingDir).toBe(resolve(app))
     expect(cfg.dataDir).toBe(resolve(data))
   })
 
-  it('reads exclusive BROS_CONFIG yaml', () => {
-    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./from-default\n')
-    const exclusive = join(root, 'only.yml')
-    writeFileSync(exclusive, 'working_dir: .\ndata_dir: ./from-exclusive\n')
-    process.env.BROS_CONFIG = exclusive
+  it('reads only $BROS_DIR/bros.yml', () => {
+    const app = join(root, 'checkout')
+    mkdirSync(app, { recursive: true })
+    writeFileSync(join(app, 'bros.yml'), 'public_url: "https://bros.example.com"\nenable_host_ollama: true\n')
+    writeFileSync(join(root, 'bros.yml'), 'public_url: "https://ignored.example"\n')
+    process.env.BROS_DIR = app
     const cfg = loadBootstrapConfig(root)
-    expect(cfg.workingDir).toBe(resolve(root))
-    expect(cfg.dataDir).toBe(resolve(root, 'from-exclusive'))
+    expect(cfg.workingDir).toBe(resolve(app))
+    expect(cfg.dataDir).toBe(resolve(app, 'data'))
+    expect(cfg.publicUrl).toBe('https://bros.example.com')
+    expect(cfg.enableHostOllama).toBe(true)
+    expect(cfg.enableWhisper).toBe(false)
   })
 
   it('reads public_url from yaml', () => {
-    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\npublic_url: "https://bros.example.com"\n')
+    writeFileSync(join(root, 'bros.yml'), 'public_url: "https://bros.example.com"\n')
     const cfg = loadBootstrapConfig(root)
     expect(cfg.publicUrl).toBe('https://bros.example.com')
     expect(shouldAutostartFromPublicUrl(cfg.publicUrl)).toBe(true)
   })
 
   it('treats missing or empty public_url as unset', () => {
-    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\npublic_url: ""\n')
+    writeFileSync(join(root, 'bros.yml'), 'public_url: ""\n')
     expect(loadBootstrapConfig(root).publicUrl).toBeNull()
     expect(shouldAutostartFromPublicUrl(null)).toBe(false)
     expect(shouldAutostartFromPublicUrl('   ')).toBe(false)
   })
 
   it('uses BROS_PUBLIC_URL over yaml', () => {
-    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\npublic_url: "https://from-yaml.example"\n')
+    writeFileSync(join(root, 'bros.yml'), 'public_url: "https://from-yaml.example"\n')
     process.env.BROS_PUBLIC_URL = 'https://from-env.example'
     expect(loadBootstrapConfig(root).publicUrl).toBe('https://from-env.example')
   })
 
   it('from src/app cwd, uses checkout bros.yml data_dir (not src/app/data)', () => {
-    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\n')
+    writeFileSync(join(root, 'bros.yml'), 'public_url: ""\n')
     const appCwd = join(root, 'src', 'app')
     mkdirSync(appCwd, { recursive: true })
     const cfg = loadBootstrapConfig(appCwd)
@@ -102,27 +107,28 @@ describe('hostDataDirForBinds', () => {
     expect(hostDataDirForBinds()).toBe(resolve(root, 'host-data'))
   })
 
-  it('ignores in-container /data and uses BROS_HOME/data', () => {
-    process.env.BROS_HOST_DATA_DIR = '/data'
-    process.env.BROS_HOME = root
+  it('ignores in-container /app/data and uses BROS_DIR/data', () => {
+    process.env.BROS_HOST_DATA_DIR = '/app/data'
+    process.env.BROS_DIR = root
     expect(hostDataDirForBinds()).toBe(resolve(root, 'data'))
   })
 
   it('falls back to BROS_DATA_DIR when that is a host path', () => {
     process.env.BROS_DATA_DIR = join(root, 'from-data-dir')
-    process.env.BROS_WORKING_DIR = root
+    process.env.BROS_DIR = root
     expect(hostDataDirForBinds()).toBe(resolve(root, 'from-data-dir'))
   })
 })
 
 describe('ensureDataLayout', () => {
-  it('creates sidecars, sidecar-repos, and logs under the data dir', () => {
+  it('creates logs and tunnel under the data dir', () => {
     const dir = mkdtempSync(join(tmpdir(), 'bros-data-'))
     try {
       ensureDataLayout(dir)
-      expect(existsSync(join(dir, 'sidecars'))).toBe(true)
-      expect(existsSync(join(dir, 'sidecar-repos'))).toBe(true)
+      expect(existsSync(join(dir, 'sidecars'))).toBe(false)
+      expect(existsSync(join(dir, 'sidecar-repos'))).toBe(false)
       expect(existsSync(join(dir, 'logs'))).toBe(true)
+      expect(existsSync(join(dir, 'tunnel'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
