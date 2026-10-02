@@ -9,7 +9,7 @@ Shipped **addon** package `lib/sidecars/addon/openjev`. Open, Jev-compatible Sys
 
 Needs an **NVIDIA GPU** (DiffusionGemma NVFP4 via vLLM). Default `OPENJEV_GPU_UTIL=0.80` leaves KV headroom after weights load. Default `OPENJEV_VLLM_ARGS=--kv-cache-dtype bfloat16` (Ampere SM86 cannot use FP8 KV with the image’s Triton attention backend; Ada SM89+ can override). Laya and Verdict stay in the stack but default to `OPENJEV_DEVICE=cpu` so encoder VRAM does not compete with the main model; set `OPENJEV_DEVICE=cuda` (and usually `OPENJEV_GPU_UTIL=0.9`) when the card has spare capacity. Weight init for this NVFP4 checkpoint still peaks near a full 16 GB — if vLLM OOMs while creating MoE layers or never binds `8092`, you need more VRAM (or lower `OPENJEV_MAX_MODEL_LEN` only helps KV after a successful load). Disable with `BROS_SIDECAR_OPENJEV=0` if desired.
 
-Open/Pin target is FastAPI Swagger at `http://127.0.0.1:8092/docs` (available only after vLLM finishes loading; first start can take many minutes). Copy also offers `/v1` and Docker DNS `http://openjev:8080/` / `http://openjev:8080/v1` (Bros network). Tunnel proxy: `/openjev/v1/…` (session or Settings proxy key).
+Open/Pin target is FastAPI Swagger at `http://127.0.0.1:8092/docs` (available only after vLLM finishes loading; first start can take many minutes). Copy lists `http://127.0.0.1:8092/v1` and `http://openjev:8080/v1` (Bros network). Tunnel proxy: `/openjev/v1/…` (session or Settings proxy key).
 
 ## Ports
 

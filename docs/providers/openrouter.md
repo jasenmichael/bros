@@ -19,7 +19,7 @@ Create a key at [OpenRouter](https://openrouter.ai/keys). Paste it on Providers 
 2. Popular services → OpenRouter → open the card
 3. Paste the key, Save
 
-Status is **running** when a key is saved.
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
 
 ## API
 

@@ -1,11 +1,11 @@
 ---
 title: Settings
-description: Personality and rules skills, YAML toggles, read-only paths, and the passkey file.
+description: Personality and rules skills, Whisper and host Ollama, MCP, proxy key, paths, and the passkey.
 ---
 
 # Settings
 
-`/settings` shows the personality and rules skills, MCP servers, the proxy key, the host Ollama toggle, bootstrap paths (read-only), and the login passkey.
+`/settings` shows the personality and rules skills, the Whisper and host Ollama toggles, MCP servers, bootstrap paths (read-only), the proxy key, and the login passkey.
 
 ## Chat
 
@@ -16,27 +16,30 @@ Two fields read and write user skills. Save stores the body in `$BROS_HOME/data/
 
 Empty means that skill adds no text. They apply to Chat turns only — never to internal specialist `bros` (`Label:`).
 
+Chat and passkey fields are full width in the `max-w-xl` column.
+
+## Whisper and host Ollama
+
+**Enable Whisper** (off by default) stores `enable_whisper` in `$BROS_DIR/bros.yml`. On pulls the Whisper images, then starts the sidecar. Off stops it.
+
+**Enable host Ollama** (off by default) stores `enable_host_ollama` in the same file. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Sidecars.
+
+Those two toggles are the Settings module (`src/server/utils/settings`). Bootstrap paths stay in [Configuration](/docs/configuration).
+
 ## MCP
 
 Add an HTTP server id and URL. Bros stores the list. Chat does not call these servers.
-
-Chat and passkey fields are full width in the `max-w-xl` column.
-
-## Host Ollama
-
-**Enable host Ollama** (off by default) stores `enable_host_ollama` in `$BROS_DIR/bros.yml`. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Sidecars.
-
-**Enable Whisper** stores `enable_whisper` in the same file (off by default).
-
-Those two toggles are the Settings module (`src/server/utils/settings`). Bootstrap paths stay in [Configuration](/docs/configuration).
 
 ## Paths
 
 - `BROS_DIR` — app directory (container `/app`)
 - `BROS_DATA_DIR` — `$BROS_DIR/data` (container `/app/data`)
 - passkey file — `{dataDir}/passkey`
-- proxy key — `{dataDir}/proxy-key` (Bearer token for tunneled `api` and `openai` paths; rotate on this page)
 - session secret — `{dataDir}/session-secret`
+
+## Proxy key
+
+`{dataDir}/proxy-key` is the Bearer token for tunneled `api` and `openai` paths. Rotate on this page. The page also lists those proxy URLs when a sidecar exposes them.
 
 Host layout and YAML load order: [Configuration](/docs/configuration). Env catalog: [Environment](/docs/environment).
 

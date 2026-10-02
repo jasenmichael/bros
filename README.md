@@ -35,7 +35,7 @@ Host needs Docker only — no host Node for the app. Optional host `cloudflared`
 
 When running `bros` with `BROS_DIR` unset, `BROS_DIR` is the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). `BROS_HOME` is an alias. Persistent binds live under `$BROS_DIR/data` (`BROS_HOST_DATA_DIR`, mounted at `/app/data`):
 
-- `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, logs). Sidecar runtime data is `data/<id>/` mirroring container paths.
+- `$BROS_HOST_DATA_DIR` → container `/app/data` (SQLite, logs). Sidecar runtime data is `data/<id>/` mirroring container paths.
 - `$BROS_HOST_DATA_DIR/ollama/root/.ollama` → Ollama `/root/.ollama`
 - `$BROS_HOST_DATA_DIR/ollama/bros-model` → Ollama `/bros-model` (packaged specialist, read-only)
 - `$BROS_HOST_DATA_DIR/openwebui/app/backend/data` → Open WebUI data
@@ -70,7 +70,7 @@ Contributor hot-reload: `BROS_DEV=1 ./bros`. First start builds `bros:dev`. Ctrl
 | `src/layers/docs/` | `@bros/docs` | Docs layer — content from `docs/`, `/docs` routes; extends theme |
 | `src/layers/theme/` | `@bros/theme` | Nuxt UI, layouts, nav chrome, markdown/prose |
 | `src/website/` | `@bros/website` | Static site homepage + `extends`; `pnpm --dir src docs:generate` → GitHub Pages `/bros/` |
-| `lib/sidecars/` | — | Shipped sidecar packages (core Ollama + addons) |
+| `lib/sidecars/` | — | Shipped sidecar packages (core Ollama and Whisper, plus addons) |
 | `sidecars/` | — | User sidecar packs (`BROS_SIDECARS_DIR`; mostly gitignored). Tracked starters: open-seo, octop, paperclip, openhands, omniroute, trueforge. |
 
 ```text

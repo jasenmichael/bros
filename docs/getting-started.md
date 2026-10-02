@@ -43,7 +43,7 @@ Ctrl+C on an interactive start stops the **full stack**. First start brings up t
 
 - [App](/docs/app) — Dashboard, Chat, Providers, Sidecars, Status, Settings, Docs
 - [Providers](/docs/providers) — Ollama, Popular services, Custom providers
-- [Sidecars](/docs/sidecars) — Core Ollama, then Addon sidecars (bros / repo / custom)
+- [Sidecars](/docs/sidecars) — Core Ollama and Whisper, then addon, custom, and repo packs
 - [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_HOME`
 - [Environment](/docs/environment) — `BROS_*` catalog
 - [Tunnel](/docs/tunnel) — host `cloudflared`, install, login

@@ -7,7 +7,7 @@ description: Self-hosted Firecrawl scrape API on host port 3002.
 
 Shipped **addon** package `lib/sidecars/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Enabled by default. Disable autostart with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. Still listed under Addon sidecars as **Firecrawl (addon)**.
 
-There is **no** Firecrawl Cloud Web UI on this pack. Open is `http://127.0.0.1:3002/` (HTTP API). There is no Pin in nav on this card. Copy also offers `/v2` and the Docker DNS URLs `http://firecrawl:3002/` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/sidecars/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this sidecar.
+There is **no** Firecrawl product Web UI on this pack. The interface is `api` (`basePath` `/v2`), so there is no Open button and no Pin. Copy lists `http://127.0.0.1:3002/v2` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/sidecars/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this sidecar.
 
 Auth is off (`USE_DB_AUTHENTICATION=false`). Trusted network only — do not expose this baseline to the public internet. `ALLOW_LOCAL_WEBHOOKS` and `TEST_SUITE_SELF_HOSTED` are on so scrape/webhook of localhost and RFC1918 is allowed. From the API container, host apps are `http://host.docker.internal:<port>/` (not `http://127.0.0.1:<port>/`).
 

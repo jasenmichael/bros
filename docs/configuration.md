@@ -7,7 +7,7 @@ description: One bros.yml in BROS_DIR, and host data binds.
 
 ## Bootstrap YAML
 
-The only config file is `$BROS_DIR/bros.yml`. There is no `~/.config/bros.yml` search.
+The app loads `$BROS_DIR/bros.yml` only. It does not read `~/.config/bros.yml`. The host tunnel helper still prefers `~/.config/bros.yml` when that file exists, then `$BROS_DIR/bros.yml`.
 
 ```yaml
 public_url: https://bros.example.com

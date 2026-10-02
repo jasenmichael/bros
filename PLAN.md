@@ -83,7 +83,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 
 ## Recent (two Ollamas)
 
-- Sidecar YAML: `containerPort` + `publish` (Ollama host **11435**, OpenCode **4097**, Open WebUI **3080**, Firecrawl **3002**, Firecrawl UI **3081**, OpenJEV **8092**)
+- Sidecar YAML: `containerPort` + `publish` (Ollama host **11435**, Whisper **8090**, OpenCode **4097**, Open WebUI **3080**, Firecrawl **3002**, Firecrawl UI **3081**, OpenJEV **8092**)
 - Host Ollama is its own Chat/Providers provider (`ollama-host`). Settings **Enable host Ollama** is off by default. Live scan: default **11434** first via `dockerHostCandidates()` / `127.0.0.1` (skip sidecar **11435** / `bros-sc-ollama`; app container cannot see host `/proc`), then Docker Ollama published ports (skip `bros-sc-ollama` / **11435**), then leftover listen/published candidates. `GET /api/version` must be Ollama JSON `version`. Skip `bros-sc-*` / **11435**. Manual `host_probe_port` override stays exclusive. `POST /api/providers/ollama-host/scan` busts the 30s cache.
 - Start fails only if the Bros **publish** port is taken; host :11434 does not skip `bros-sc-ollama`
 
@@ -124,13 +124,13 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 - [x] M8 data dirs: one `$BROS_HOME/data/<id>/` per sidecar, subpaths mirror container paths (`lib/sidecars/core`, `lib/sidecars/addon`, gitignored `$BROS_SIDECARS_DIR`)
 - [x] M9 thinking plus stop, allow pick new model and start typing for next chat.
 - [x] M10 add voice to text for chat using whisper
-- [x] M11 Agent page (`/agent`): capped tool loop (8). The model picks `list_dir`, `read_file`, `grep`, `web_search`, and `web_fetch`. Agent tells the model those tools exist so it does not claim it cannot browse. Results replay in the provider’s tool format. Ollama thinking models send `think: true` and replay the `thinking` field with the tool call. A narrated lookup is asked again until a tool runs or the 8-step cap. A text reply is the answer only after that. Blank or HTTP 400/422 is one completion with tools off. Chat stays one completion.
+- [x] M11 Agent page (`/agent`) shipped a capped tool loop, then M14-03 removed it. There is no `/agent` page and no tool loop. Chat is one completion.
 - [x] M12-01 Gateway was a model option in Chat. Removed. The picker is a provider and a model.
 - [ ] M12-02 Later. API keys, key-to-bearer exchange, public `/v1/models` and `/v1/chat/completions`, transcript stored by token plus hash of the first user message.
 - [x] M12-03 Tools switches per provider, model, and Gateway were removed with the gateway picker. Chat is one completion.
 - [x] M12-04 MCP client only. No MCP server. HTTP servers are stored in Settings. Chat does not call them.
-- [x] M12-05 Skills. `personality` and `rules` live in `$BROS_HOME/data/skills`, seeded from `lib/skills/`, loaded on Chat and Agent turns only. A short rule in `data/rules/assistant.md` only references those skills. `label` and `task` are seeded from `lib/skills/internal/` into `$BROS_HOME/data/skills-internal` and stay out of the catalog. Label and task calls do not include personality or house rules. A specialist model other than trained `bros` receives that internal skill in full. Other agents’ skill dirs are read-only in the catalog.
-- [x] M12-06 `/chat` redirects to `/agent`. One recents list.
+- [x] M12-05 Skills. `personality` and `rules` live in `$BROS_HOME/data/skills`, seeded from `lib/skills/`, loaded on Chat turns only. A short rule in `data/rules/assistant.md` only references those skills. `label` and `task` are seeded from `lib/skills/internal/` into `$BROS_HOME/data/skills-internal` and stay out of the catalog. Label and task calls do not include personality or house rules. A specialist model other than trained `bros` receives that internal skill in full. Other agents’ skill dirs are read-only in the catalog.
+- [x] M12-06 `/chat` redirect to `/agent` was removed by M14-03. `/chat` is the conversation page. Recents stay in the dock.
 - [x] M12-07 ACP is not implemented. Spec stub only.
 - [ ] M12-08 Later. Retrain `bros` for `Task:` and a better `Label:`. Task examples are in `vendor/bros-model/data/source.jsonl`. The GGUF retrain is a bros-model release, not an app start. Task words: `chat`, `code`, `research`, `docs`, `rewrite`, `data`, `ops`, `plan`. Gateway ranks providers by availability, then cost, then tokens left, after that retrain is installed.
 - [ ] M13 implement ai agent roles. after the above is created, this will be done using those features above. this will require a long detailed interavtive conversation to make decitions what to implement.

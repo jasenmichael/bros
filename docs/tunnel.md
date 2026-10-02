@@ -92,7 +92,7 @@ Opens a browser so Cloudflare can authorize this host. Success writes `~/.cloudf
 
 ## Named vs quick
 
-When `public_url` is set in `~/.config/bros.yml` (or `bros.yml`) or via `BROS_PUBLIC_URL`:
+When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel helper loads (`~/.config/bros.yml` when that file exists, otherwise `$BROS_DIR/bros.yml`):
 
 1. `cloudflared` on `PATH` (or `~/.local/bin/cloudflared`)
 2. Login via `~/.cloudflared/cert.pem` or `cloudflared tunnel list`

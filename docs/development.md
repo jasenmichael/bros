@@ -58,7 +58,7 @@ src/server/utils/
   chat/                  chat, chat settings, titles, stats, specialist
   sidecars/              discover, data seed, proxy, Ollama must-run
   config.ts              bootstrap YAML
-src/app/pages/           /, /chat, /providers, /sidecars, /status, /settings
+src/app/pages/           /, /chat, /providers, /sidecars, /status, /settings, /login, /setup
 src/app/utils/
   providers/             Ollama label, disabled models, pull name
   sidecars/              host links, busy, source label

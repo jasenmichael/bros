@@ -39,7 +39,7 @@ Discover merges:
 3. `$BROS_SIDECARS_DIR/<id>/` when that directory is a sidecar package (default `$BROS_DIR/sidecars`)
 4. `$BROS_SIDECARS_DIR/<name>/sidecars/*` (git clone)
 
-Shipped ids win. Custom cannot reuse `ollama`, addon slugs, app routes, or Popular slugs.
+Shipped ids win. Custom cannot reuse `ollama`, `whisper`, addon slugs, app routes, or Popular slugs.
 
 ## Ports
 
