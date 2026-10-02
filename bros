@@ -68,7 +68,8 @@ Env:
   BROS_HOME          Alias for BROS_DIR
   BROS_BIN           PATH symlink (default: ~/.local/bin/bros)
   BROS_HOST_DATA_DIR Persistent binds; default \$BROS_HOME/data
-  BROS_PORT          App host port (default 3055); tunnel helper targets this
+  BROS_PORT          App host port (default 3055)
+  BROS_HOST          App host address (default 127.0.0.1); tunnel helper targets BROS_HOST:BROS_PORT
   BROS_DEV=1         Dev compose. Run: BROS_DEV=1 ./bros. Not a CLI flag
 
 Examples:
@@ -116,7 +117,48 @@ preflight() {
   fi
   resolve_bros_dir
   ensure_host_data_dir
+  load_listen_env
+}
+
+# One assignment from a repo-root .env line. Empty when the file or key is missing.
+dotenv_key() {
+  local key="$1"
+  local file="$REPO_ROOT/.env"
+  [[ -f "$file" ]] || return 0
+  local line val
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    [[ "$line" == "$key="* ]] || continue
+    val="${line#"$key="}"
+    val="${val#"${val%%[![:space:]]*}"}"
+    val="${val%"${val##*[![:space:]]}"}"
+    if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+      val="${val#\"}"
+      val="${val%\"}"
+    elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+      val="${val#\'}"
+      val="${val%\'}"
+    fi
+    printf '%s' "$val"
+    return 0
+  done <"$file"
+}
+
+# Command env, then repo .env, then defaults. Exported so Compose does not hide .env.
+load_listen_env() {
+  local from_file
+  if [[ -z "${BROS_PORT:-}" ]]; then
+    from_file="$(dotenv_key BROS_PORT)"
+    [[ -n "$from_file" ]] && BROS_PORT="$from_file"
+  fi
+  if [[ -z "${BROS_HOST:-}" ]]; then
+    from_file="$(dotenv_key BROS_HOST)"
+    [[ -n "$from_file" ]] && BROS_HOST="$from_file"
+  fi
   export BROS_PORT="${BROS_PORT:-3055}"
+  export BROS_HOST="${BROS_HOST:-127.0.0.1}"
 }
 
 # App dir = directory of this script (symlink-resolved) unless overridden.
@@ -589,11 +631,12 @@ cmd_stop() {
 cmd_status() {
   compose ps
   local port="${BROS_PORT:-3055}"
+  local host="${BROS_HOST:-127.0.0.1}"
   echo
-  if curl -sf --max-time 3 "http://127.0.0.1:${port}/api/health" >/dev/null 2>&1; then
-    echo "Health: ok (http://127.0.0.1:${port}/api/health)"
+  if curl -sf --max-time 3 "http://${host}:${port}/api/health" >/dev/null 2>&1; then
+    echo "Health: ok (http://${host}:${port}/api/health)"
   else
-    echo "Health: unreachable (http://127.0.0.1:${port}/api/health)"
+    echo "Health: unreachable (http://${host}:${port}/api/health)"
   fi
   if ollama_publish_up; then
     if sidecar_has_bros_model; then

@@ -56,7 +56,7 @@ Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/d
 - Write real `/` paths. A corrupted `@bros/` path is not a package or a URL
 - pnpm workspace root is `src/` (`@bros/app`, `@bros/theme`, `@bros/docs`, `@bros/website`)
 - Prefer Docker via `BROS_DEV=1 ./bros`. Host Node talks to sidecar Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1`. Compose-app calls use Docker DNS (`ollama:11434`, `whisper:8000`)
-- Dev does not mount `/app/sidecars/{core,addon,custom}` (those mounts are production-only). Discovery uses `/app/lib/sidecars` and `/app/sidecars`. Mount and pack rules live in the Sidecars section of [SPEC.md](SPEC.md)
+- Dev does not mount `/app/sidecars/{core,addon,custom}` (those mounts are production-only). Discovery uses `/app/lib/sidecars` and `/app/sidecars`. Custom packs live only in gitignored `$BROS_SIDECARS_DIR`. Do not commit them. A custom pack can later move to `lib/sidecars/addon/` or `lib/sidecars/core/`. An addon can later move to core. Mount and pack rules live in the Sidecars section of [SPEC.md](SPEC.md)
 - Internal Ollama model `bros` is for app jobs (titles). It is not a Chat or Providers picker. Ensure path: `src/server/utils/internalBrosModel.ts`
 
 ## Testing

@@ -24,21 +24,9 @@ coverage
 graphify-out
 
 # User sidecar packs (Add sidecar / From a repo). Host dir is BROS_SIDECARS_DIR.
-# Tracked starters stay in-repo for later addon promotion.
-sidecars/*
-!sidecars/README.md
-!sidecars/open-seo/
-!sidecars/open-seo/**
-!sidecars/octop/
-!sidecars/octop/**
-!sidecars/paperclip/
-!sidecars/paperclip/**
-!sidecars/openhands/
-!sidecars/openhands/**
-!sidecars/omniroute/
-!sidecars/omniroute/**
-!sidecars/trueforge/
-!sidecars/trueforge/**
+# Not shipped. A pack can later move into lib/sidecars/addon or lib/sidecars/core.
+# Leading slash: repo root only. docs/sidecars stays tracked.
+/sidecars/
 
 # Node compile cache (often root-owned from Docker)
 **/node-compile-cache/

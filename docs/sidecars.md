@@ -26,9 +26,9 @@ Do **not** add extra Cloudflare hostnames. Web UI path proxy exists only for nat
 
 **Core** — `lib/sidecars/core/`. Must-run **Ollama** (`lib/sidecars/core/ollama`) is always on. No Start, Stop, Restart, or Autostart on Sidecars / Status / Home. No disable env. `POST /api/sidecars/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast). **Whisper** (`lib/sidecars/core/whisper`) is core and stopped until Settings **Enable Whisper**. That switch pulls images, then starts the sidecar. Off stops it and skips autostart. The same pages hide Start, Stop, Restart, and Autostart. `POST /api/sidecars/whisper/start`, `…/stop`, and `…/restart` return 400.
 
-**Addon** — shipped packs under `lib/sidecars/addon/` (OpenCode, Open WebUI, Firecrawl, Firecrawl UI, OpenJEV). Optional and **enabled by default**. Start/Stop/Restart, autostart, logs. Disable autostart with `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, `BROS_SIDECAR_OPENJEV=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui,openjev`. Disabled addons stay listed. Env disable does not apply to core.
+**Addon** — shipped packs under `lib/sidecars/addon/` (OpenCode, Open WebUI, Firecrawl, Firecrawl UI, OpenJEV). An addon can later move to core. Optional and **enabled by default**. Start/Stop/Restart, autostart, logs. Disable autostart with `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, `BROS_SIDECAR_OPENJEV=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui,openjev`. Disabled addons stay listed. Env disable does not apply to core.
 
-**Additional** — user-created and git-cloned. Same controls as addons.
+**Additional** — user-created and git-cloned under `$BROS_SIDECARS_DIR` (gitignored; the repo does not ship these packs). Same controls as addons. A custom pack can later move to `lib/sidecars/addon/` or `lib/sidecars/core/`. An addon can later move to core.
 
 On `/sidecars`, **Core** is Ollama and Whisper. Everything else is one **Addon sidecars** list. Each card heading is the name plus **(core)**, **(addon)**, **(custom)** (`$BROS_SIDECARS_DIR`), or **(repo)** (git clone). Type pills show each interface type once, labeled **ui**, **api**, **openapi**, or **cli**. URL rows follow that type: webpage for **ui**, host plus Docker-network path for **api** and **openapi**, command name for **cli**. A section with one card uses the wide (horizontal) layout. Two or more cards stay one wide card per row until the section container is at least 48rem, then compact in two columns. A narrow section stacks even when the viewport is wide.
 
@@ -71,4 +71,4 @@ Cloudflare tunnel is **not** a sidecar. See [Tunnel](/docs/tunnel).
 - [Firecrawl UI](/docs/sidecars/firecrawl-ui) — addon, publish **3081** → container 8080
 - [OpenJEV](/docs/sidecars/openjev) — addon, publish **8092** → container 8080, Open `/docs` (NVIDIA GPU; util 0.80 + CPU encoders by default)
 - [Whisper](/docs/sidecars/whisper) — core, Settings enable (off by default), publish **8090** → container 8000 (Chat STT)
-- [Additional](/docs/sidecars/custom) — `$BROS_SIDECARS_DIR` + git clone; tracked starters **open-seo** (3001), **octop** (8088), **paperclip** (3100), **openhands** (8000), **omniroute** (20128), **trueforge** (8791)
+- [Additional](/docs/sidecars/custom) — `$BROS_SIDECARS_DIR` + git clone; gitignored

@@ -70,8 +70,8 @@ Contributor hot-reload: `BROS_DEV=1 ./bros`. First start builds `bros:dev`. Ctrl
 | `src/layers/docs/` | `@bros/docs` | Docs layer — content from `docs/`, `/docs` routes; extends theme |
 | `src/layers/theme/` | `@bros/theme` | Nuxt UI, layouts, nav chrome, markdown/prose |
 | `src/website/` | `@bros/website` | Static site homepage + `extends`; `pnpm --dir src docs:generate` → GitHub Pages `/bros/` |
-| `lib/sidecars/` | — | Shipped sidecar packages (core Ollama and Whisper, plus addons) |
-| `sidecars/` | — | User sidecar packs (`BROS_SIDECARS_DIR`; mostly gitignored). Tracked starters: open-seo, octop, paperclip, openhands, omniroute, trueforge. |
+| `lib/sidecars/` | — | Shipped sidecar packages (core Ollama and Whisper, plus addons). An addon can later move to core. |
+| `sidecars/` | — | User sidecar packs (`BROS_SIDECARS_DIR`). Gitignored. Not shipped. A custom pack can later move to addon or core. |
 
 ```text
 theme  →  docs  →  @bros/app     (`/` = dashboard)

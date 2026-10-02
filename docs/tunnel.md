@@ -7,7 +7,7 @@ description: Host cloudflared named vs quick tunnel, install, login, Status erro
 
 The Dashboard **Tunnel** card and `/status` control a **host** `cloudflared` process. Bros inside Docker cannot spawn it. It is not a sidecar.
 
-The tunnel exposes the Bros app at `http://127.0.0.1:<BROS_PORT>` (default **3055**). One hostname. Catch-all is `http_status:404`. Sidecar Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
+The tunnel exposes the Bros app at `http://<BROS_HOST>:<BROS_PORT>` (default `http://127.0.0.1:3055`). One hostname. Catch-all is `http_status:404`. Sidecar Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
 
 The same hostname proxies every `api` and `openai` interface. Bros strips `/<id>` and forwards the rest. `https://<tunnel>/ollama/api/...` reaches `http://ollama:11434/api/...`. `https://<tunnel>/ollama/v1/...` reaches `http://ollama:11434/v1/...`. Whisper (`/whisper/v1`), Firecrawl (`/firecrawl/v2`), Open WebUI (`/openwebui/api`, `/openwebui/openai/v1`), and OpenJEV (`/openjev/v1`) use the same rule. A logged-in browser session works. External clients send `Authorization: Bearer` the proxy key from Settings. That key does not log into Bros. Host Ollama is not on this path.
 
@@ -98,15 +98,15 @@ When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel h
 2. Login via `~/.cloudflared/cert.pem` or `cloudflared tunnel list`
 3. Named tunnel `bros` (`BROS_TUNNEL_NAME`) with `cloudflared tunnel create bros` if missing, `cloudflared tunnel route dns bros <hostname>` (CNAME to `<id>.cfargotunnel.com`), then `cloudflared tunnel --config $BROS_HOME/data/tunnel/config.yml run bros`
 
-`config.yml` uses `protocol: http2` and `edge-ip-version: 4`, hostname ingress to `http://127.0.0.1:<BROS_PORT>`, and a catch-all `http_status:404`. Override with `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`.
+`config.yml` uses `protocol: http2` and `edge-ip-version: 4`, hostname ingress to `http://<BROS_HOST>:<BROS_PORT>`, and a catch-all `http_status:404`. Override with `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`.
 
 When `public_url` is unset, first interactive `bros` may ask:
 
 ```text
-Enable Cloudflare tunnel (host cloudflared quick tunnel to :3055)? [y/N]
+Enable Cloudflare tunnel (host cloudflared quick tunnel to 127.0.0.1:3055)? [y/N]
 ```
 
-The Dashboard card then starts a **quick** tunnel: `cloudflared tunnel --url http://127.0.0.1:<BROS_PORT>`. Hostname is `*.trycloudflare.com`. A `public_url` whose host is already `*.trycloudflare.com` stays quick (no `route dns`).
+The Dashboard card then starts a **quick** tunnel: `cloudflared tunnel --url http://<BROS_HOST>:<BROS_PORT>`. Hostname is `*.trycloudflare.com`. A `public_url` whose host is already `*.trycloudflare.com` stays quick (no `route dns`).
 
 Already-exists on `route dns` is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Status/Dashboard show the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json`.
 
@@ -146,6 +146,7 @@ $BROS_HOME/data/tunnel/
 | --- | --- | --- |
 | `BROS_PUBLIC_URL` | unset | Named tunnel hostname (overrides YAML) |
 | `BROS_PORT` | `3055` | App port the helper targets |
+| `BROS_HOST` | `127.0.0.1` | App host the helper targets |
 | `BROS_TUNNEL_PROTOCOL` | `http2` | `http2` / `quic` / `auto` |
 | `BROS_TUNNEL_EDGE_IP_VERSION` | `4` | `4` / `6` / `auto` |
 | `BROS_TUNNEL_HOST` | unset | Extra Host match for via-tunnel detection |

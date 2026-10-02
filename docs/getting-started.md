@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install Bros with Docker, run bros, open port 3055.
+description: Install Bros with Docker, run bros, open the default address.
 ---
 
 # Getting started
@@ -29,7 +29,7 @@ Full install details: [Install](/docs/install).
 bros
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOME/data/passkey`.
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOME/data/passkey`.
 
 ```bash
 bros -D

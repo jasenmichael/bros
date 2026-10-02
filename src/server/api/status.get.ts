@@ -82,7 +82,8 @@ export default defineEventHandler(async (event) => {
     app: {
       ok: true,
       service: 'bros',
-      port: Number(process.env.BROS_PORT || process.env.PORT || 3055),
+      port: Number(process.env.BROS_PORT || 3055),
+      host: process.env.BROS_HOST || '127.0.0.1',
     },
     docker,
     disk: {

@@ -67,7 +67,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Firecrawl UI', to: '/docs/sidecars/firecrawl-ui', body: 'Publish 3081, scrape UI, never 3000/8080.' },
       { label: 'OpenJEV', to: '/docs/sidecars/openjev', body: 'Publish 8092, System One API, NVIDIA GPU (util leaves room for Laya/Verdict).' },
       { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Core. Settings enable, off by default. Publish 8090.' },
-      { label: 'Custom', to: '/docs/sidecars/custom', body: 'Drop-in under $BROS_SIDECARS_DIR.' },
+      { label: 'Custom', to: '/docs/sidecars/custom', body: 'Gitignored $BROS_SIDECARS_DIR. Not shipped.' },
     ],
   },
   {

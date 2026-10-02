@@ -5,7 +5,7 @@ set -uo pipefail
 
 DIR="${BROS_TUNNEL_DIR:?BROS_TUNNEL_DIR required}"
 PORT="${BROS_PORT:-3055}"
-TARGET="http://127.0.0.1:${PORT}"
+TARGET="http://${BROS_HOST:-127.0.0.1}:${PORT}"
 mkdir -p "$DIR"
 export PATH="${HOME}/.local/bin:${PATH}"
 

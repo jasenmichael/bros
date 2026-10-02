@@ -394,7 +394,7 @@ bros_tunnel_startup() {
   elif ! bros_tunnel_enabled_known; then
     if [[ -t 0 ]]; then
       echo ""
-      read -r -p "Enable Cloudflare tunnel (host cloudflared quick tunnel to :${BROS_PORT:-3055})? [y/N] " ans || true
+      read -r -p "Enable Cloudflare tunnel (host cloudflared quick tunnel to ${BROS_HOST:-127.0.0.1}:${BROS_PORT:-3055})? [y/N] " ans || true
       case "${ans:-}" in
         y|Y|yes|YES) bros_tunnel_set_enabled 1 ;;
         *) bros_tunnel_set_enabled 0 ;;
@@ -453,6 +453,7 @@ bros_tunnel_start_helper() {
     HOME="${HOME}" \
     BROS_TUNNEL_DIR="$(bros_tunnel_dir)" \
     BROS_PORT="${BROS_PORT:-3055}" \
+    BROS_HOST="${BROS_HOST:-127.0.0.1}" \
     BROS_PUBLIC_URL="${BROS_PUBLIC_URL:-}" \
     BROS_TUNNEL_PROTOCOL="${BROS_TUNNEL_PROTOCOL:-}" \
     BROS_TUNNEL_EDGE_IP_VERSION="${BROS_TUNNEL_EDGE_IP_VERSION:-}" \

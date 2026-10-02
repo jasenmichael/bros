@@ -24,12 +24,8 @@ FROM tools AS development
 WORKDIR /app/src
 
 ENV NODE_ENV=development
-ENV HOST=0.0.0.0
-ENV PORT=3055
-ENV NUXT_HOST=0.0.0.0
-ENV NUXT_PORT=3055
 EXPOSE 3055
-CMD ["pnpm", "--filter", "@bros/app", "dev", "--host", "0.0.0.0", "--port", "3055"]
+CMD ["pnpm", "--filter", "@bros/app", "dev"]
 
 # Prod path: bake workspace into image.
 FROM tools AS base
@@ -64,10 +60,6 @@ COPY --from=dockercli /usr/local/libexec/docker/cli-plugins/docker-compose \
 
 WORKDIR /app
 ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3055
-ENV NITRO_HOST=0.0.0.0
-ENV NITRO_PORT=3055
 ENV BROS_DIR=/app
 ENV BROS_NETWORK=bros
 
@@ -78,6 +70,7 @@ COPY --from=build /app/vendor/bros-model/ollama /app/vendor/bros-model/ollama
 COPY --from=build /app/vendor/bros-model/scripts /app/vendor/bros-model/scripts
 COPY --from=build /app/lib/skills /app/lib/skills
 COPY --from=build /app/lib/rules /app/lib/rules
+COPY docker/prod-entrypoint.sh /app/docker/prod-entrypoint.sh
 
 EXPOSE 3055
-CMD ["node", "/app/src/app/.output/server/index.mjs"]
+CMD ["/bin/sh", "/app/docker/prod-entrypoint.sh"]

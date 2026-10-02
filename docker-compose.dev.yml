@@ -1,51 +1,24 @@
 services:
   bros:
     build:
-      context: .
       target: development
-      dockerfile: Dockerfile
     image: bros:dev
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       # Full repo bind. Dev does not mount /app/sidecars/{core,addon,custom}
       # (production-only). Discovery uses /app/lib/sidecars and /app/sidecars.
       - ./:/app
-      - ${BROS_HOST_DATA_DIR:-./data}:/app/data
-      # Host path for bind (set by ./bros); inside container scan uses /host-home
-      - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
       - bros-node-modules:/app/src/node_modules
       - bros-app-modules:/app/src/app/node_modules
       - bros-docs-layer-modules:/app/src/layers/docs/node_modules
       - bros-theme-modules:/app/src/layers/theme/node_modules
       - bros-website-modules:/app/src/website/node_modules
     environment:
-      BROS_DIR: /app
       # Host packs are ./sidecars via ./:/app — not a separate /custom mount.
       BROS_SIDECARS_DIR: /app/sidecars
-      BROS_SIDECARS_DISABLE: ${BROS_SIDECARS_DISABLE:-}
-      BROS_SIDECAR_OPENCODE: ${BROS_SIDECAR_OPENCODE:-}
-      BROS_SIDECAR_OPENWEBUI: ${BROS_SIDECAR_OPENWEBUI:-}
-      BROS_SIDECAR_FIRECRAWL: ${BROS_SIDECAR_FIRECRAWL:-}
-      BROS_SIDECAR_OPENJEV: ${BROS_SIDECAR_OPENJEV:-}
-      BROS_WHISPER_PORT: ${BROS_WHISPER_PORT:-}
-      BROS_FIRECRAWL_PORT: ${BROS_FIRECRAWL_PORT:-}
-      BROS_OPENJEV_PORT: ${BROS_OPENJEV_PORT:-}
-      BROS_FIRECRAWL_POSTGRES_PASSWORD: ${BROS_FIRECRAWL_POSTGRES_PASSWORD:-}
-      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:-}
-      BROS_HOST_HOME: /host-home
-      BROS_HOST_HOME_BIND: ${BROS_HOST_HOME_BIND:-${HOME}}
-      BROS_OLLAMA_MODELS_DIR: /app/data/ollama/root/.ollama/models
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
       NODE_ENV: development
-      HOST: 0.0.0.0
-      PORT: "3055"
-      NUXT_HOST: 0.0.0.0
-      NUXT_PORT: "3055"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     # group_add stays in base compose only (merged lists concatenate).
-    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
     # Repo bind-mounted at /app; entrypoint installs then runs command.
     entrypoint: ["/bin/sh", "/app/docker/dev-entrypoint.sh"]
     command:
@@ -53,10 +26,6 @@ services:
       - --filter
       - "@bros/app"
       - dev
-      - --host
-      - "0.0.0.0"
-      - --port
-      - "3055"
 
 volumes:
   bros-node-modules:

@@ -11,7 +11,7 @@ Contributors: Docker Engine + Compose. The user CLI is `bros`. Hot-reload is `BR
 
 ```bash
 BROS_DEV=1 ./bros
-# http://127.0.0.1:3055
+# http://127.0.0.1:3055  (BROS_HOST:BROS_PORT)
 ```
 
 Bind-mount stack. First start builds `bros:dev` if it is missing. Later starts skip rebuild. Ctrl+C stops the full stack (core + sidecars).

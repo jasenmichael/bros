@@ -23,42 +23,39 @@ Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tun
 
 When running `bros` with `BROS_DIR` unset, `BROS_DIR` is the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). An installed clone is typically `~/.bros`. `BROS_HOME` is an alias. Later `install.sh` will clone to `~/.bros` and symlink `BROS_BIN` (`~/.local/bin/bros`) to `$BROS_DIR/bros`. The current installer still writes `~/.config/bros.yml`; the app does not read that file.
 
-Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`):
+Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`). The image sets `BROS_DIR=/app`, so that directory is `/app/data` inside the container. Start does not copy leftover named volumes into those dirs.
 
-- `$BROS_HOST_DATA_DIR` → app `/data` (SQLite, logs, tunnel). Each sidecar’s runtime data is `$BROS_HOST_DATA_DIR/<id>/` with subpaths that mirror container paths.
-- `$BROS_HOST_DATA_DIR/ollama/root/.ollama` → Ollama `/root/.ollama`
-- `$BROS_HOST_DATA_DIR/ollama/bros-model` → Ollama `/bros-model` (packaged specialist, read-only)
-- `$BROS_HOST_DATA_DIR/openwebui/app/backend/data` → Open WebUI data
-- `$BROS_HOST_DATA_DIR/opencode/workspace` → OpenCode workspace
-- `$BROS_HOST_DATA_DIR/firecrawl/var/lib/postgresql/data` → Firecrawl Postgres
-- `$BROS_HOST_DATA_DIR/firecrawl/data` → Firecrawl Redis
-- `$BROS_HOST_DATA_DIR/firecrawl/var/lib/rabbitmq` → Firecrawl RabbitMQ
-- `$BROS_HOST_DATA_DIR/whisper/home/ubuntu/.cache/huggingface/hub` → Whisper Hugging Face cache
-- `$BROS_HOST_DATA_DIR/openjev/root/.cache/huggingface` → OpenJEV Hugging Face cache
-- `$BROS_HOST_DATA_DIR/openjev/root/.cache/vllm` → OpenJEV vLLM cache
-- `$BROS_HOST_DATA_DIR/openjev/root/.cache/flashinfer` → OpenJEV FlashInfer cache
+Shipped packs are in the repo at `lib/sidecars/`, not under the data dir. User packs are `$BROS_SIDECARS_DIR` (default `$BROS_DIR/sidecars`) and are gitignored. The repo does not ship them. A custom pack can later move to `lib/sidecars/addon/` or `lib/sidecars/core/`. An addon can later move to core. Production mounts the three trees as `/app/sidecars/core`, `/app/sidecars/addon`, and `/app/sidecars/custom`. Dev does not mount those three paths; discovery uses `/app/lib/sidecars` and `/app/sidecars`.
 
-The image sets `BROS_DIR=/app`, so in-container data is `/app/data` (`$BROS_DIR/data`). Start does not copy leftover named volumes into those dirs.
-
-## Data directory layout
+## Directory layout
 
 ```text
-$BROS_HOME/sidecars/
-  core/                # ollama, whisper
-  addon/               # opencode, openwebui, firecrawl, firecrawl-ui, openjev
-  custom/              # gitignored; Add sidecar and git clones
+$BROS_DIR/lib/sidecars/          # shipped packs
+  core/                          # ollama, whisper
+  addon/                         # opencode, openwebui, firecrawl, firecrawl-ui, openjev
 
-$BROS_HOST_DATA_DIR/
+$BROS_SIDECARS_DIR/              # default $BROS_DIR/sidecars; gitignored
+  <id>/                          # Add sidecar
+  <name>/sidecars/               # git clone
+
+$BROS_HOST_DATA_DIR/             # default $BROS_HOME/data
   passkey
+  proxy-key
+  session-secret
   bros.sqlite
   logs/
   tunnel/
-  ollama/root/.ollama/
-  ollama/root/.config/ollama/
-  ollama/bros-model/
-  openwebui/app/backend/data/
-  opencode/workspace/
-  firecrawl/data/
+  rules/assistant.md
+  skills/
+  skills-internal/
+  ollama/root/.ollama/           # → /root/.ollama
+  ollama/root/.config/ollama/    # → /root/.config/ollama
+  ollama/bros-model/             # → /bros-model (read-only)
+  openwebui/app/backend/data/    # → /app/backend/data
+  opencode/workspace/            # → /workspace
+  opencode/root/.config/opencode/
+  opencode/root/.local/share/opencode/
+  firecrawl/data/                # Redis → /data
   firecrawl/var/lib/rabbitmq/
   firecrawl/var/lib/postgresql/data/
   whisper/home/ubuntu/.cache/huggingface/hub/

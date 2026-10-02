@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev --host 0.0.0.0 --port 3055",
+    "dev": "nuxt dev",
     "build": "nuxt build",
-    "preview": "nuxt preview --host 0.0.0.0 --port 3055",
+    "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",

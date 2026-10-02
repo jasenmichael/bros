@@ -7,7 +7,7 @@ services:
     image: bros:latest
     container_name: bros
     ports:
-      - "${BROS_PORT:-3055}:3055"
+      - "${BROS_PORT:-3055}:${BROS_PORT:-3055}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${BROS_HOST_DATA_DIR:-./data}:/app/data
@@ -30,12 +30,8 @@ services:
       BROS_HOST_HOME: /host-home
       BROS_HOST_HOME_BIND: ${BROS_HOST_HOME_BIND:-${HOME}}
       BROS_OLLAMA_MODELS_DIR: /app/data/ollama/root/.ollama/models
-      HOST: 0.0.0.0
-      PORT: "3055"
-      NITRO_HOST: 0.0.0.0
-      NITRO_PORT: "3055"
-      NUXT_HOST: 0.0.0.0
-      NUXT_PORT: "3055"
+      BROS_PORT: ${BROS_PORT:-3055}
+      BROS_HOST: ${BROS_HOST:-127.0.0.1}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

@@ -40,7 +40,7 @@ Not a milestone. Pick when needed:
 
 - CI: add test + typecheck jobs (Pages workflow only today)
 - Tests: chat stream coverage; e2e beyond `/api/health`
-- Additional sidecars: Add in the UI (`$BROS_SIDECARS_DIR/<id>/`, default `$BROS_DIR/sidecars`) or clone a repo (`$BROS_SIDECARS_DIR/<name>/`). Tracked starters: `open-seo` (3001), `octop` (8088), `paperclip` (3100), `openhands` (8000), `omniroute` (20128), `trueforge` (8791) — custom now, addon candidates later. TrueForge UI stays in the sidecar (no `@truefoundry/trueforge-ui` embed).
+- Additional sidecars stay in gitignored `$BROS_SIDECARS_DIR`. A custom pack can later move to addon or core. An addon can later move to core.
 - OpenCode `proxy.public` / `/opencode/`: wait for `ghcr.io/anomalyco/opencode` to ship base-path ([PR 28326](https://github.com/anomalyco/opencode/pull/28326)). 1.18.30 ignores `OPENCODE_SERVER_BASE_PATH`; `--base-path` exits. Do not fake a Bros-side prefix.
 - Settings: Chat prepend + assistant description are the `rules` and `personality` skills, plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes

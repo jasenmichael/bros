@@ -52,6 +52,6 @@ bros update
 bros service status
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Passkey is printed in the container logs (`[bros] passkey: …`).
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). Passkey is printed in the container logs (`[bros] passkey: …`).
 
 Contributor hot-reload is `BROS_DEV=1 ./bros`, not a user CLI flag. See [Development](/docs/development).

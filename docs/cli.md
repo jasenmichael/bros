@@ -45,7 +45,7 @@ BROS_DEV=1 ./bros
 | Install tree | `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias) |
 | Bootstrap YAML the runner loads | `$BROS_DIR/bros.yml` |
 | Data | `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`) |
-| App port | `3055` (`BROS_PORT`) |
+| App address | `127.0.0.1:3055` (`BROS_HOST`:`BROS_PORT`) |
 
 `install.sh` also writes `$XDG_CONFIG_HOME/bros.yml` (`~/.config/bros.yml`). The runner loads `$BROS_DIR/bros.yml` unless `-c` points at another file.
 

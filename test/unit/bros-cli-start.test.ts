@@ -106,6 +106,73 @@ describe('bros CLI start build policy', () => {
     }
     expect(base).toContain('BROS_SIDECARS_DIR: /app/sidecars/custom')
     expect(dev).toContain('BROS_SIDECARS_DIR: /app/sidecars')
+    expect(dev).not.toContain('BROS_SIDECARS_DISABLE')
+    expect(dev).not.toContain('extra_hosts')
+    expect(dev).not.toContain('/var/run/docker.sock')
+  })
+
+  it('merges the base file with one overlay', () => {
+    const fn = extractFn(readFileSync(BROS, 'utf8'), 'compose_files')
+    const prod = bash(`${fn}\nDEV=0\ncompose_files`).trim()
+    const dev = bash(`${fn}\nDEV=1\ncompose_files`).trim()
+    expect(prod).toBe('-f docker-compose.yml -f docker-compose.prod.yml')
+    expect(dev).toBe('-f docker-compose.yml -f docker-compose.dev.yml')
+  })
+
+  it('keeps listen env on BROS_PORT and BROS_HOST', () => {
+    const files = ['docker-compose.yml', 'docker-compose.dev.yml', 'docker-compose.prod.yml']
+    const banned = ['PORT', 'NUXT_PORT', 'NITRO_PORT', 'HOST', 'NUXT_HOST', 'NITRO_HOST']
+    for (const file of files) {
+      const yml = readFileSync(join(REPO, file), 'utf8')
+      for (const key of banned) {
+        expect(yml).not.toMatch(new RegExp(`^\\s+${key}:`, 'm'))
+      }
+    }
+    const base = readFileSync(join(REPO, 'docker-compose.yml'), 'utf8')
+    expect(base).toContain('BROS_PORT: ${BROS_PORT:-3055}')
+    expect(base).toContain('BROS_HOST: ${BROS_HOST:-127.0.0.1}')
+    expect(base).toContain('"${BROS_PORT:-3055}:${BROS_PORT:-3055}"')
+  })
+
+  it('load_listen_env uses command env, then .env, then defaults', () => {
+    const src = readFileSync(BROS, 'utf8')
+    const fns = `${extractFn(src, 'dotenv_key')}\n${extractFn(src, 'load_listen_env')}`
+    const dir = mkdtempSync(join(tmpdir(), 'bros-listen-'))
+    try {
+      writeFileSync(join(dir, '.env'), 'BROS_PORT=4000\nBROS_HOST=10.0.0.2\n')
+      const fromFile = bash(
+        `set -euo pipefail
+         REPO_ROOT=${dir}
+         unset BROS_PORT BROS_HOST
+         ${fns}
+         load_listen_env
+         printf '%s %s' "$BROS_PORT" "$BROS_HOST"`,
+      ).trim()
+      expect(fromFile).toBe('4000 10.0.0.2')
+      const fromEnv = bash(
+        `set -euo pipefail
+         REPO_ROOT=${dir}
+         BROS_PORT=4001
+         unset BROS_HOST
+         ${fns}
+         load_listen_env
+         printf '%s %s' "$BROS_PORT" "$BROS_HOST"`,
+      ).trim()
+      expect(fromEnv).toBe('4001 10.0.0.2')
+      writeFileSync(join(dir, '.env'), '# empty\n')
+      const defaults = bash(
+        `set -euo pipefail
+         REPO_ROOT=${dir}
+         unset BROS_PORT BROS_HOST
+         ${fns}
+         load_listen_env
+         printf '%s %s' "$BROS_PORT" "$BROS_HOST"`,
+      ).trim()
+      expect(defaults).toBe('3055 127.0.0.1')
+    }
+    finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('does not copy named Docker volumes on start', () => {

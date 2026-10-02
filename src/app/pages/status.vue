@@ -12,7 +12,7 @@ type StatusPayload = {
     helperAlive?: boolean
     error?: string | null
   }
-  app: { ok: boolean; service: string; port: number }
+  app: { ok: boolean; service: string; port: number; host: string }
   docker: { ok: boolean; error?: string }
   disk: { path: string; freeBytes: number | null; totalBytes: number | null; freeLabel: string | null; totalLabel: string | null }
   gpu: { available: boolean; name?: string; vramMb?: number }
@@ -65,7 +65,7 @@ const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', 
       <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
         <h2 class="text-lg font-medium text-white">Bros app</h2>
         <p class="mt-2 text-sm text-[var(--bros-muted)]">
-          {{ data?.app.ok ? `Up · ${data.app.service} · host port ${data.app.port}` : 'Unknown' }}
+          {{ data?.app.ok ? `Up · ${data.app.service} · ${data.app.host}:${data.app.port}` : 'Unknown' }}
         </p>
       </article>
       <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">

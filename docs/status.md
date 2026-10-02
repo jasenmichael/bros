@@ -9,7 +9,7 @@ description: App, Docker, disk, GPU, tunnel, and sidecar health.
 
 ## What it reports
 
-- **Bros app** — up, service name, host port (default 3055)
+- **Bros app** — up, service name, `BROS_HOST:BROS_PORT` (default `127.0.0.1:3055`)
 - **Docker** — socket reachable
 - **Disk** — data volume path and free space
 - **GPU** — NVIDIA detection and VRAM when present
