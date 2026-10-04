@@ -185,6 +185,11 @@ describe('bros CLI start build policy', () => {
     expect(ensure).toContain('mkdir -p')
     expect(ensure).not.toContain('docker volume')
     expect(ensure).not.toContain('alpine:3.20')
+    expect(ensure).not.toContain('migrate_sidecar_data')
+    expect(src).not.toContain('migrate_sidecar_data')
+    expect(src).not.toContain('move_if_missing')
+    expect(src).not.toContain('nest_volume')
+    expect(src).not.toContain('ollama-config')
   })
 
   it('update pulls, rebuilds, and git-pulls', () => {
