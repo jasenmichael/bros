@@ -38,7 +38,4 @@ graphify-out
 **/node-compile-cache/
 .cursor/
 
-.ua/fingerprints.json
-.ua/knowledge-graph.json
-.ua/meta.json
-.ua/intermediate/
+.ua/
