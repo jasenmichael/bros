@@ -1,0 +1,7 @@
+# Runtime, stores, and generated graphs. Never index.
+data-
+data/
+.ua/
+.pnpm-store/
+graphify-out/
+.understand-anything/
