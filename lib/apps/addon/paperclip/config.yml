@@ -1,0 +1,16 @@
+id: paperclip
+name: Paperclip
+description: Company control plane. Off until enabled.
+kind: npm
+spec: paperclipai
+bin: paperclipai
+home:
+  - .paperclip
+interfaces:
+  - type: cli
+    command: paperclipai
+  - type: webui
+    containerPort: 3100
+    publish: 3100
+services:
+  - paperclipai run

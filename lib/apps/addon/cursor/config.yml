@@ -1,0 +1,15 @@
+id: cursor
+name: Cursor
+description: Cursor desktop. Off until enabled.
+kind: deb
+spec: https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest
+bin: cursor
+home:
+  - .config/Cursor
+  - .cursor
+interfaces:
+  - type: cli
+    command: cursor
+  - type: gui
+    command: cursor
+    args: --no-sandbox

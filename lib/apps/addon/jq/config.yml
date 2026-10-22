@@ -1,0 +1,6 @@
+id: jq
+name: jq
+kind: apt
+spec: jq
+home:
+  - .config/jq

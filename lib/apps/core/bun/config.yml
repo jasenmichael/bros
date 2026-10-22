@@ -1,0 +1,7 @@
+id: bun
+name: bun
+kind: bun
+spec: bun
+bin: bun
+home:
+  - .bun

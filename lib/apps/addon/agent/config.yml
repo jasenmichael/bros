@@ -1,0 +1,13 @@
+id: agent
+name: Agent
+description: Cursor agent CLI. Off until enabled.
+kind: run
+spec: curl https://cursor.com/install -fsS | bash
+bin: agent
+clis: cursor-agent
+home:
+  - .local/share/cursor-agent
+  - .config/cursor
+interfaces:
+  - type: cli
+    command: agent, cursor-agent
