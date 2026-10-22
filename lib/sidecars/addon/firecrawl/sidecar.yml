@@ -1,0 +1,11 @@
+id: firecrawl
+slug: firecrawl
+name: Firecrawl
+description: Self-hosted scrape/crawl API (firecrawl/firecrawl). Bros publishes host port 3002. No product Web UI — Open/Pin is the HTTP API.
+
+interfaces:
+  - type: api
+    service: firecrawl
+    containerPort: 3002
+    publish: 3002
+    basePath: /v2
