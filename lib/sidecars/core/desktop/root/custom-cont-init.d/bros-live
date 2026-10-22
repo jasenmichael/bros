@@ -85,3 +85,12 @@ JS
     mv "$session" "${session}.bak"
   fi
 fi
+
+# Chromium cannot create a sandbox namespace in this container.
+if [ -x /usr/bin/cursor ]; then
+  cat > /usr/local/bin/cursor << 'EOF'
+#!/bin/sh
+exec /usr/bin/cursor --disable-chromium-sandbox "$@"
+EOF
+  chmod +x /usr/local/bin/cursor
+fi

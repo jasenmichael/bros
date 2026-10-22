@@ -12,4 +12,4 @@ interfaces:
     command: cursor
   - type: gui
     command: cursor
-    args: --no-sandbox
+    args: --disable-chromium-sandbox

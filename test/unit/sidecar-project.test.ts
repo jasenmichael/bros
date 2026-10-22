@@ -269,6 +269,7 @@ describe('sidecar data binds', () => {
     expect(live).toContain('s|^foot.*|')
     expect(live).toContain('/usr/local/bin/$name')
     expect(live).toContain('${session}.bak')
+    expect(live).toContain('exec /usr/bin/cursor --disable-chromium-sandbox "$@"')
     const gui = readFileSync(join(root, 'lib/sidecars/core/desktop/desktop-gui.sh'), 'utf8')
     expect(gui).toContain('HOME=/home/bros')
     expect(gui).toContain('desktop app failed to start')
