@@ -1,0 +1,14 @@
+services:
+  firecrawl-ui:
+    build: .
+    image: bros-firecrawl-ui
+    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
+    ports:
+      - "${BROS_FIRECRAWL_UI_PORT:-3081}:8080"
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true
