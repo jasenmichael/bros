@@ -1,0 +1,24 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
+    ports:
+      - "${BROS_OLLAMA_PORT:-11435}:11434"
+    environment:
+      HOME: /home/bros
+      OLLAMA_NOPRUNE: "1"
+    tmpfs:
+      - /home/bros:mode=1777
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/home/.ollama:/home/bros/.ollama
+      - ${BROS_HOST_DATA_DIR:?unset}/home/.config/ollama:/home/bros/.config/ollama
+      - ${BROS_HOST_DATA_DIR:?unset}/sidecars/ollama/bros-model:/bros-model:ro
+      # Same host path as app so symlink imports resolve inside Ollama
+      - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:ro
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true
