@@ -39,6 +39,7 @@ services:
     volumes:
       - ${BROS_HOST_DATA_DIR:?unset}/config/apps:/opt/bros/apps
       - ${BROS_HOST_DATA_DIR:?unset}/home:/home/bros
+      - ${BROS_HOST_DATA_DIR:?unset}/home/nix:/nix
       - ${BROS_HOST_WORKSPACE:?unset}:/home/bros/workspace
       - ${BROS_HOST_REPO:?unset}:/app:ro
       - /var/run/docker.sock:/var/run/docker.sock

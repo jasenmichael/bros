@@ -25,7 +25,8 @@ describe('desktop package apps', () => {
   it('does not install packages from the desktop init script', () => {
     const init = readFileSync(join(root, 'lib/sidecars/core/desktop/root/custom-cont-init.d/bros-live'), 'utf8')
     const dockerfile = readFileSync(join(root, 'lib/sidecars/core/desktop/Dockerfile'), 'utf8')
-    expect(init).not.toContain('install.mjs')
+    expect(init).toContain('install.mjs --kind nix')
+    expect(init).not.toContain('BROS_IMAGE_INSTALL')
     expect(dockerfile).toContain('node:26.7.0-bookworm-slim')
     expect(dockerfile).not.toContain('BROS_IMAGE_INSTALL=1')
     expect(dockerfile).not.toContain('paperclip.sh')
@@ -34,8 +35,10 @@ describe('desktop package apps', () => {
       { id: 'npm', tier: 'core' },
       { id: 'agent', tier: 'addon' },
       { id: 'pnpm', tier: 'core' },
+      { id: 'ripgrep', tier: 'custom', kind: 'nix' },
     ])
     expect([...layers.matchAll(/--only (\S+)/g)].map((match) => match[1])).toEqual(['npm', 'pnpm', 'agent', 'cursor'])
+    expect(layers).not.toContain('ripgrep')
     expect(layers).toContain('id=bros-pkg')
     expect(readFileSync(join(root, 'lib/sidecars/core/desktop/docker-compose.yml'), 'utf8')).toContain('core/desktop/enabled-apps/Dockerfile')
   })

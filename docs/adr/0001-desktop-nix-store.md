@@ -1,8 +1,7 @@
----
-title: Desktop Nix store
-description: The Nix store stays in the Desktop image. The global profile is /opt/bros/devbox.
----
+# Desktop Nix store lives on the Desktop home
 
-# Desktop Nix store stays in the image
+Devbox does not install Nix. Its first-run installer is Determinate `nix-installer`, which needs root and a daemon. The Desktop image keeps the pinned `devbox` binary and installs single-user Nix with the official installer (`--no-daemon`) as user `nix`.
 
-Devbox global packages install into the Nix store. The Desktop home mount hides `/home/bros`, so the global profile lives at `/opt/bros/devbox`, the `devbox` command sets that directory, and bins are linked into `/usr/local/bin`. A BuildKit cache mount on `/nix` would drop the store when the layer commits, so the store stays in the image. `bros-pkg` holds a file binary cache (`nix copy`) so a rebuilt layer does not re-download. Devbox 0.18's own Nix installer starts a daemon that dies with the Docker RUN, so the image installs single-user Nix as root and Devbox uses that.
+`/nix` is a fixed path. Compose mounts `${BROS_HOST_DATA_DIR}/home/nix` there. The profile and Devbox data are `/home/bros/.nix` (`HOME` for user `nix`, `XDG_DATA_HOME=/home/bros/.nix/devbox`) on the existing home mount. A rebuilt image keeps the store and the profile.
+
+The installer runs from `bros-live` when `/home/bros/.nix/.nix-profile/bin/nix` is missing. `nix.conf` sets `build-users-group` empty so Nix 2.35 does not look for the `nixbld` group. Nix package apps are not image layers. After the store exists, container start runs `devbox global add` for those packages. Other package kinds stay image layers.

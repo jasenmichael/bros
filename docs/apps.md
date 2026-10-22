@@ -23,7 +23,7 @@ A package `gui` shows in the Apps drawer on `/desktop` only when that app is ena
 
 A package `webui` `publish` is a host port, written with app `volumes` into `config/apps-compose.yml`. Open is `http://127.0.0.1:<publish>/`.
 
-`bros app update <id>` updates a package app through its package manager. `kind: run` has no Check. Its Update writes a force stamp and rebuilds Desktop so that curl runs again.
+`bros app update <id>` updates a package app through its package manager. `kind: run` has no Check. Its Update writes a force stamp and rebuilds Desktop so that curl runs again. That rebuild waits until the Desktop session answers.
 
 A sidecar `cli`, except a shell, gets a wrapper in `data/home/.local/sidecar-bins`. That directory is first on the Desktop `PATH`. While the sidecar is running, the wrapper is `docker compose exec` into it. While it is stopped, and `~/.local/bin/<bin>` exists on the host, the wrapper runs that host binary. Bros does not write the host PATH. Those rows are **Expose CLIs** on `/terminal` when the pack is not env-disabled. Shipped sidecar CLIs are OpenCode (`opencode`) and Pi (`pi`).
 

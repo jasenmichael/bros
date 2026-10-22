@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { defineCommand, runMain } from 'citty'
 import { consola } from 'consola'
 import { ofetch } from 'ofetch'
-import { hostWorkspaceForCompose } from '../server/utils/config.ts'
+import { hostWorkspaceForCompose, loadBootstrapConfig } from '../server/utils/config.ts'
 import {
   copyVendorModel,
   dataModelDir,
@@ -235,22 +235,49 @@ function ensureHostWorkspace() {
   process.env.BROS_HOST_WORKSPACE = workspace
 }
 
+async function containerRunning(name: string): Promise<boolean> {
+  const inspect = await run('docker', ['inspect', '-f', '{{.State.Running}}', name], true)
+  return inspect.code === 0 && inspect.out.trim() === 'true'
+}
+
 async function runUpdate() {
   const repo = repoDir()
-  consola.info('Bros update: git pull + submodule + images…')
-  await run('git', ['-C', repo, 'pull', '--ff-only'])
-  await run('git', ['-C', repo, 'submodule', 'update', '--init'])
-  await run('docker', composeArgs(['pull']))
+  consola.info('Bros update: rebuild images…')
   const built = await run('docker', composeArgs(['build', '--pull']))
   const cliDir = join(repo, 'lib/sidecars/core/desktop')
   ensureHostWorkspace()
-  const { prepareDesktopAppBuild } = await import('../server/utils/cli/packages.ts')
-  prepareDesktopAppBuild()
+  const { prepareDesktopAppBuild, writeDesktopAppStamp } = await import('../server/utils/cli/packages.ts')
+  const { waitForDesktopSession } = await import('../server/utils/desktopReady.ts')
+  const prep = prepareDesktopAppBuild()
   const apps = await run('docker', ['compose', '-p', 'bros-sc-desktop', '-f', join(cliDir, 'docker-compose.yml'), 'build'])
+  if (apps.code === 0) writeDesktopAppStamp(prep.hash)
+  let desk = 0
+  if (apps.code === 0 && await containerRunning('bros-desktop')) {
+    const files = ['-f', join(cliDir, 'docker-compose.yml')]
+    const override = join(loadBootstrapConfig().dataDir, 'config', 'apps-compose.yml')
+    if (existsSync(override)) files.push('-f', override)
+    const up = await run('docker', ['compose', '-p', 'bros-sc-desktop', ...files, 'up', '-d'])
+    desk = up.code
+    if (up.code === 0) {
+      const gaps = await waitForDesktopSession()
+      if (gaps) consola.warn(`Desktop session is not ready: ${gaps}`)
+    }
+  }
+  let app = 0
+  if (await containerRunning('bros')) {
+    const swapped = await run('docker', composeArgs(['up', '-d', '--no-deps', 'bros']))
+    app = swapped.code
+  }
   if (await ollamaReachable()) await ensureOllamaAndModel()
-  consola.info('Images pulled/rebuilt. Restart to run new images: bros')
+  if (built.code || apps.code || desk || app) {
+    consola.error('Image rebuild failed. Running containers were left as they were.')
+  } else {
+    consola.info('Images rebuilt. A running Bros app and a running Desktop were replaced. Stopped ones were left stopped. Other sidecars were not updated.')
+  }
   if (built.code !== 0) process.exitCode = built.code
   if (apps.code !== 0) process.exitCode = apps.code
+  if (desk !== 0) process.exitCode = desk
+  if (app !== 0) process.exitCode = app
 }
 
 async function gitDirty(): Promise<boolean> {

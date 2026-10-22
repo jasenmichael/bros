@@ -105,3 +105,22 @@ exec /usr/bin/cursor --no-sandbox "$@"
 EOF
   chmod +x /usr/local/bin/cursor
 fi
+
+# /nix is a volume. An image-build install would be hidden. Install once, then reuse it.
+mkdir -p /home/bros/.nix/devbox /nix /etc/nix
+printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' 'build-users-group =' > /etc/nix/nix.conf
+if [ ! -x /home/bros/.nix/.nix-profile/bin/nix ]; then
+  chown -R nix:nix /home/bros/.nix /nix
+  su -s /bin/bash nix -c 'NIX_INSTALLER_NO_CHANNEL_ADD=1 curl -fsSL https://nixos.org/nix/install | HOME=/home/bros/.nix sh -s -- --no-daemon --yes' || true
+  chmod -R a+rX /nix || true
+fi
+if [ -d /home/bros/.nix/.nix-profile/bin ]; then
+  for b in /home/bros/.nix/.nix-profile/bin/*; do
+    [ -e "$b" ] || continue
+    ln -sfn "$b" "/usr/local/bin/$(basename "$b")"
+  done
+fi
+chmod -R a+rX /home/bros/.nix || true
+if [ -x /home/bros/.nix/.nix-profile/bin/nix ]; then
+  node /opt/bros/install.mjs --kind nix || true
+fi

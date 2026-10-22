@@ -24,7 +24,7 @@ Three entries:
 | `status` | One-off | Compose ps and the health check. |
 | `restart` | One-off, then full start | Stop, then the same start as `bros start`. |
 | `check` | One-off | Look for git, image, and model updates. Prompt before updating when stdin is a TTY. |
-| `update` | One-off | Git pull, submodule, image pull, rebuild of the app and apps images, model stamp when Ollama is already up. Does not start the stack. Alias: `upgrade`. |
+| `update` | One-off | Git pull and submodule on the host, then a rebuild of the app and Desktop images. The local `bros` image is built, not pulled from a registry. Base images still refresh. Model stamp when Ollama is already up. Replaces a running `bros` container and a running Desktop container. Does not start either when it is stopped. Does not pull or replace other sidecars. Alias: `upgrade`. |
 | `service install` | One-off | Linux systemd --user unit. `ExecStart` is `bros -D`. |
 | `service uninstall` | One-off | Disable and remove that unit. |
 | `service status` | One-off | `systemctl --user status bros`. |

@@ -1095,8 +1095,9 @@ case "${COMMAND}" in
     run_node "${FORWARD[@]}"
     ;;
   update|upgrade)
-    # The CLI that writes the Desktop Dockerfile is inside the image.
-    # Build that image before the one-off container, or update keeps the previous CLI.
+    # Pull on the host. The image has git and not ssh. The build then sees the new commits.
+    git -C "$REPO_ROOT" pull --ff-only
+    git -C "$REPO_ROOT" submodule update --init
     compose build
     run_node "${FORWARD[@]}"
     ;;

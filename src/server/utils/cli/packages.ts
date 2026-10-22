@@ -554,11 +554,11 @@ export function appLayerOrder<T extends { id: string; tier?: string }>(packages:
   return [...packages].sort((a, b) => (a.tier === 'core' ? 0 : 1) - (b.tier === 'core' ? 0 : 1) || a.id.localeCompare(b.id))
 }
 
-export function desktopAppsDockerfile(base: string, packages: { id: string; tier?: string }[]): string {
+export function desktopAppsDockerfile(base: string, packages: { id: string; tier?: string; kind?: string }[]): string {
   const body = base
     .replace(/^# syntax=docker\/dockerfile:1\n/, '')
     .replace(/\nCOPY core\/desktop\/enabled-apps\/ \S+\nRUN BROS_IMAGE_INSTALL=1 node \/opt\/bros\/install\.mjs[^\n]*\n/, '\n')
-  const layers = appLayerOrder(packages).map((pkg) => {
+  const layers = appLayerOrder(packages).filter((pkg) => pkg.kind !== 'nix').map((pkg) => {
     if (!APP_ID.test(pkg.id)) throw new Error(`bad app id ${pkg.id}`)
     return `COPY core/desktop/enabled-apps/${pkg.id} /opt/bros/enabled-apps/${pkg.id}\nRUN --mount=type=cache,id=bros-pkg,target=/var/cache/bros \\\n  BROS_IMAGE_INSTALL=1 node /opt/bros/install.mjs --only ${pkg.id}`
   })
@@ -630,6 +630,7 @@ export function prepareDesktopAppBuild(): { hash: string; changed: boolean } {
   for (const pkg of packages) {
     const dest = join(dir, pkg.id)
     rmSync(dest, { recursive: true, force: true })
+    if (pkg.kind === 'nix') continue
     const src = appSourceDir(pkg.id)
     if (src) cpSync(src, dest, { recursive: true })
     else mkdirSync(dest, { recursive: true })
@@ -644,6 +645,12 @@ export function prepareDesktopAppBuild(): { hash: string; changed: boolean } {
   const hash = createHash('sha256').update(chunks.join('\n')).digest('hex')
   const prev = existsSync(desktopAppStampFile()) ? readFileSync(desktopAppStampFile(), 'utf8').trim() : ''
   return { hash, changed: hash !== prev }
+}
+
+/** A failed build must not stamp. An unchanged tree may. */
+export function shouldWriteDesktopStamp(build: boolean, buildFailed: boolean, appsChanged: boolean): boolean {
+  if (buildFailed) return false
+  return build || !appsChanged
 }
 
 export function writeDesktopAppStamp(hash: string) {
@@ -691,11 +698,11 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
     const action = cliApplyAction(running, changed, rebuild)
     if (action === 'skip') return { code: 0, stderr: '', rebuild: false }
     if (!opts?.claimed) release = claim(true)
-    await (await docker()).startSidecar('desktop', {
-      forceRecreate: action === 'recreate',
+    const started = await (await docker()).startSidecar('desktop', {
+      forceRecreate: changed,
       rebuild,
     })
-    return { code: 0, stderr: '', rebuild: action === 'recreate' }
+    return { code: 0, stderr: started.warning || '', rebuild: action === 'recreate' }
   } catch (err) {
     if ((err as { statusCode?: number }).statusCode === 409) throw err
     const message = err instanceof Error ? err.message : 'Rebuild failed'

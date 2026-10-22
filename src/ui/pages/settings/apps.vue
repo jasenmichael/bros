@@ -44,6 +44,10 @@ function cliDraftInterfaces(pkg: CliPackage): CliAppDraft['interfaces'] {
 const dialogOpen = ref(false)
 const editing = ref<CliPackage | null>(null)
 const toast = useToast()
+function installText(code: number, stderr: string | undefined, fallback: string) {
+  if (code === 0) return stderr || ''
+  return stderr || fallback
+}
 const form = ref<CliAppDraft | null>(null)
 const note = ref('')
 const busy = ref(false)
@@ -110,7 +114,7 @@ async function save(body: Omit<CliAppDraft, 'home'> & { home: string[] }) {
       ? await $fetch<{ packages: CliPackage[]; install: { code: number; stderr: string } }>(`/api/cli/packages/${id}`, { method: 'PATCH', body })
       : await $fetch<{ packages: CliPackage[]; install: { code: number; stderr: string } }>('/api/cli/packages', { method: 'POST', body })
     if (data.value) data.value.packages = saved.packages
-    note.value = saved.install.code === 0 ? '' : (saved.install.stderr || 'Rebuild failed')
+    note.value = installText(saved.install.code, saved.install.stderr, 'Rebuild failed')
   } catch (err: unknown) {
     note.value = errText(err)
     dialogOpen.value = true
@@ -184,13 +188,13 @@ async function updatePackage(pkg: CliPackage) {
   }
   try {
     const res = await $fetch<{ code: number; stderr: string }>(`/api/apps/${pkg.id}/update`, { method: 'POST' })
-    if (res.code !== 0) note.value = res.stderr || 'Update failed'
+    if (res.code !== 0 || res.stderr) note.value = installText(res.code, res.stderr, 'Update failed')
     if (run) {
       toast.remove('apps-rebuild')
       toast.add({
         title: res.code === 0 ? 'Apps container restarted' : 'Apps rebuild failed',
-        description: res.code === 0 ? undefined : (res.stderr || 'Rebuild failed'),
-        color: res.code === 0 ? 'success' : 'error',
+        description: installText(res.code, res.stderr, 'Rebuild failed') || undefined,
+        color: res.code !== 0 ? 'error' : res.stderr ? 'warning' : 'success',
       })
     }
     if (res.code === 0) await loadVersions()
@@ -222,7 +226,7 @@ async function enablePackage(id: string) {
   try {
     const saved = await $fetch<{ packages: CliPackage[]; install: { code: number; stderr: string } }>(`/api/apps/${id}/enable`, { method: 'POST' })
     if (data.value) data.value.packages = saved.packages
-    note.value = saved.install.code === 0 ? '' : (saved.install.stderr || 'Install failed')
+    note.value = installText(saved.install.code, saved.install.stderr, 'Install failed')
   } catch (err: unknown) {
     note.value = errText(err)
   } finally {
@@ -252,13 +256,13 @@ async function removePackage() {
     })
     if (data.value) data.value.packages = saved.packages
     editing.value = null
-    note.value = saved.install.code === 0 ? '' : (saved.install.stderr || 'Rebuild failed')
+    note.value = installText(saved.install.code, saved.install.stderr, 'Rebuild failed')
     if (rebuild) {
       toast.remove('apps-rebuild')
       toast.add({
         title: saved.install.code === 0 ? 'Apps container restarted' : 'Apps rebuild failed',
-        description: saved.install.code === 0 ? undefined : (saved.install.stderr || 'Rebuild failed'),
-        color: saved.install.code === 0 ? 'success' : 'error',
+        description: installText(saved.install.code, saved.install.stderr, 'Rebuild failed') || undefined,
+        color: saved.install.code !== 0 ? 'error' : saved.install.stderr ? 'warning' : 'success',
       })
     }
   } catch (err: unknown) {

@@ -579,7 +579,6 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
   const imageRef = dockerfile ? composeImageRef(sidecar.dir) : null
   const imageReady = imageRef ? (await run('docker', ['image', 'inspect', imageRef], sidecar.dir, 15_000)).code === 0 : false
   const build = dockerfile && shouldBuildSidecarImage(imageReady, !!opts?.rebuild)
-  if (build) forceRecreate = true
   const upArgs = [
     ...composeArgs,
     'up',
@@ -595,6 +594,8 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
       throw createError({ statusCode: 400, statusMessage: 'Desktop failed to start' })
     }
   }
+  let desktopWasRunning = false
+  if (id === DESKTOP_SIDECAR_ID) desktopWasRunning = (await getProjectStatus(sidecar)).running
   let up = await run(
     'docker',
     upArgs,
@@ -606,7 +607,9 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
     await run('docker', ['rm', '-f', conflict], sidecar.dir, 60_000)
     up = await run('docker', upArgs, sidecar.dir, 600_000)
   }
+  let buildFailed = false
   if (up.code !== 0 && build && imageReady && /timeout|DeadlineExceeded|failed to resolve|failed to do request/i.test(`${up.stderr || ''}\n${up.stdout || ''}`)) {
+    buildFailed = true
     up = await run('docker', upArgs.filter((arg) => arg !== '--build'), sidecar.dir, 600_000)
   }
   if (up.code !== 0) {
@@ -619,9 +622,12 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
       `${up.stderr || up.stdout || 'Failed to start sidecar'}${taken}`,
     ))
   }
-  if (desktopHash && (build || !desktopAppsChanged)) {
-    const { writeDesktopAppStamp } = await import('./cli/packages')
-    writeDesktopAppStamp(desktopHash)
+  if (desktopHash) {
+    const { shouldWriteDesktopStamp, writeDesktopAppStamp } = await import('./cli/packages')
+    if (shouldWriteDesktopStamp(build, buildFailed, desktopAppsChanged)) writeDesktopAppStamp(desktopHash)
+  }
+  if (buildFailed) {
+    throw new Error('Desktop image was not rebuilt. The previous image is still running.')
   }
   // Cursor shares Desktop's netns. Attaching it to `bros` fails and a force
   // disconnect can drop that namespace.
@@ -665,10 +671,16 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
     }
   }
   await refreshCliBridges()
+  let warning: string | undefined
+  if (id === DESKTOP_SIDECAR_ID && (build || forceRecreate || !desktopWasRunning)) {
+    const { waitForDesktopSession } = await import('./desktopReady')
+    const gaps = await waitForDesktopSession()
+    if (gaps) warning = `Desktop session is not ready: ${gaps}`
+  }
   return {
     ...status,
     skipped: false,
-    warning: undefined,
+    warning,
   }
   }
   finally {
