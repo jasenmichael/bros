@@ -1,0 +1,13 @@
+id: pi
+slug: pi
+name: Pi
+description: Terminal coding agent (earendil-works/pi). No host port. Exec pi inside the container.
+
+home:
+  - .pi
+
+interfaces:
+  - type: cli
+    service: pi
+    command: pi
+    bin: pi

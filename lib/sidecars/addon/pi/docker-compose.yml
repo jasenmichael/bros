@@ -1,0 +1,27 @@
+# Pi — https://pi.dev/docs/latest/quickstart
+# Same Node base as the Bros app image (node:22-bookworm-slim). No published port.
+# Disable autostart with BROS_SIDECAR_PI=0.
+services:
+  pi:
+    build: .
+    image: bros-pi
+    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
+    working_dir: /home/bros/workspace
+    stdin_open: true
+    tty: true
+    environment:
+      HOME: /home/bros
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    tmpfs:
+      - /home/bros:mode=1777
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/home/.pi:/home/bros/.pi
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true
