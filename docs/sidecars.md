@@ -75,3 +75,4 @@ Cloudflare tunnel is **not** a sidecar. See [Tunnel](/docs/tunnel).
 - [Desktop sidecar](/docs/sidecars/desktop) — core, always on, no host port, terminal at `/terminal`
 - [Desktop](/docs/sidecars/gui) — one Selkies stream and the Apps drawer, no host port
 - [Custom](/docs/sidecars/custom) — `lib/sidecars/custom` + git clone; only README.md is tracked
+- [Apps](/docs/apps) — package installs in the Desktop image. A sidecar app stays in its own container

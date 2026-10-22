@@ -74,6 +74,14 @@ The `/terminal` page. The shell inside the desktop sidecar.
 
 A sidecar or a package install. Every sidecar is an app. Core, addon, and custom are the tiers for both.
 
+## package app
+
+A package install. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. Installed into the Desktop image. Runs inside `bros-desktop`.
+
+## sidecar app
+
+A sidecar. Its process stays in its own container. Desktop reaches it through a `cli` wrapper, a `gui` window, or a `webui` address.
+
 ## package manager
 
-npm, pnpm, bun, deno, nix (Devbox global), apt, deb, or run. npm, pnpm, and bun are core apps. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.
+npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. npm, pnpm, bun, and uv are core apps. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.

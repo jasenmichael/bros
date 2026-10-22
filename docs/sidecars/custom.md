@@ -11,7 +11,7 @@ Everything that is not core (Ollama, Desktop, Whisper) or a shipped addon. Liste
 
 `/sidecars` → **Add sidecar**. Bros writes `lib/sidecars/custom/<id>/` with `sidecar.yml` plus `docker-compose.yml`. Only `lib/sidecars/custom/README.md` is tracked. Pack files stay on disk. Edit those files in the UI. Saving prompts a restart confirm so compose changes take effect.
 
-You can still drop the same files on disk. Apps and packages are not sidecars. Add them on `/settings/apps`. See [Desktop](/docs/sidecars/gui).
+You can still drop the same files on disk. Apps and packages are not sidecars. Add them on `/settings/apps`. See [Apps](/docs/apps).
 
 Compose project name is `bros-sc-<id>` on network `bros`.
 

@@ -15,7 +15,7 @@
 | DB | SQLite + Drizzle (`bros.sqlite`). Saved host-Ollama probe port is `sidecar_settings.host_probe_port`. |
 | Docker | dockerode + Compose CLI in image |
 | Host port | `BROS_PORT` default **3055**, `BROS_HOST` default **0.0.0.0** (app, local network). Docs site `pnpm --dir src docs:dev` is **3056**. |
-| Sidecar host ports | Ollama **11435** (container 11434), OpenCode **4097**, Open WebUI **3080** (container 8080), Firecrawl **3002**, Firecrawl UI **3081** (container 8080), OpenJEV **8092** (container 8080), Pi (CLI, no host port), Cursor (CLI, no host port), Desktop (Selkies 3000 and ttyd 7681, both unpublished), Whisper **8090** (container 8000). Never publish 3000 or 8080. |
+| Sidecar host ports | Ollama **11435** (container 11434), OpenCode **4097**, Open WebUI **3080** (container 8080), Firecrawl **3002**, Firecrawl UI **3081** (container 8080), OpenJEV **8092** (container 8080), Pi (CLI, no host port), Desktop (Selkies 3000 and ttyd 7681, both unpublished), Whisper **8090** (container 8000). Never publish 3000 or 8080. |
 | Path proxy | Nitro allowlist middleware + h3 `proxyRequest` (HTTP/SSE) and httpxy `proxyUpgrade` (WebSocket). `proxy.public` webuis that natively listen under `/${id}/` (none shipped today). `/terminal/session` to `http://desktop:7681`. `/desktop/view/` to `http://desktop:3000` (websocket upgrade, session cookie). |
 | Env prefix | `BROS_*` |
 | Host tunnel | `cloudflared` on the host. `public_url` in bootstrap YAML starts a named tunnel via `cloudflared tunnel route dns` + `run --protocol http2`; otherwise a quick tunnel. `bros` runs a helper that writes `$BROS_HOME/data/var/tunnel`. |
