@@ -1,0 +1,23 @@
+services:
+  opencode:
+    image: ghcr.io/anomalyco/opencode:2.0.32
+    user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
+    command: ["serve", "--hostname", "0.0.0.0", "--port", "4096"]
+    environment:
+      HOME: /home/bros
+    working_dir: /home/bros/workspace
+    tmpfs:
+      - /home/bros:mode=1777
+    ports:
+      - "${BROS_OPENCODE_PORT:-4097}:4096"
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/home/.config/opencode:/home/bros/.config/opencode
+      - ${BROS_HOST_DATA_DIR:?unset}/home/.local/share/opencode:/home/bros/.local/share/opencode
+      - ${BROS_HOST_DATA_DIR:?unset}/home/.local/state/opencode:/home/bros/.local/state/opencode
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true
