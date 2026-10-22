@@ -1,0 +1,33 @@
+services:
+  bros:
+    build:
+      target: development
+    image: bros:dev
+    volumes:
+      # Full repo bind. Dev does not mount /app/sidecars/{core,addon,custom}
+      # (production-only). Discovery uses /app/lib/sidecars.
+      - ./:/app
+      - bros-node-modules:/app/src/node_modules
+      - bros-app-modules:/app/src/ui/node_modules
+      - bros-docs-layer-modules:/app/src/layers/docs/node_modules
+      - bros-theme-modules:/app/src/layers/theme/node_modules
+      - bros-website-modules:/app/src/website/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      NODE_ENV: development
+    # group_add stays in base compose only (merged lists concatenate).
+    # Repo bind-mounted at /app; entrypoint installs then runs command.
+    entrypoint: ["/bin/sh", "/app/docker/dev-entrypoint.sh"]
+    command:
+      - pnpm
+      - --filter
+      - "@bros/ui"
+      - dev
+
+volumes:
+  bros-node-modules:
+  bros-app-modules:
+  bros-docs-layer-modules:
+  bros-theme-modules:
+  bros-website-modules:

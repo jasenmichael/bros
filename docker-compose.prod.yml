@@ -1,0 +1,8 @@
+services:
+  bros:
+    volumes:
+      - ./lib/sidecars/core:/app/sidecars/core:ro
+      - ./lib/sidecars/addon:/app/sidecars/addon:ro
+      - ./lib/sidecars/custom:/app/sidecars/custom
+    environment:
+      NODE_ENV: production
