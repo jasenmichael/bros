@@ -1,0 +1,59 @@
+# Desktop runtime. Selkies Wayland, package apps, and the terminal. No host port.
+services:
+  desktop:
+    build:
+      context: ${BROS_HOST_REPO:?unset}/lib/sidecars
+      dockerfile: core/desktop/enabled-apps/Dockerfile
+    image: bros-desktop
+    container_name: bros-desktop
+    hostname: bros
+    group_add:
+      - "${BROS_DOCKER_GID:-0}"
+    shm_size: "1gb"
+    stdin_open: true
+    tty: true
+    working_dir: /home/bros/workspace
+    environment:
+      PUID: "${BROS_HOST_UID:-1000}"
+      PGID: "${BROS_HOST_GID:-1000}"
+      HOME: /home/bros
+      PIXELFLUX_WAYLAND: "true"
+      SELKIES_MODE: websockets
+      SUBFOLDER: /desktop/view/
+      PATH: /home/bros/.local/sidecar-bins:/home/bros/.local/bin:/home/bros/.local/devbox-bin:/home/bros/.local/share/pnpm:/home/bros/.bun/bin:/home/bros/.deno/bin:/lsiopy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      npm_config_prefix: /home/bros/.local
+      PNPM_HOME: /home/bros/.local/share/pnpm
+      npm_config_store_dir: /home/bros/.local/share/pnpm/store
+      BUN_INSTALL: /home/bros/.bun
+      DENO_INSTALL_ROOT: /home/bros/.deno
+      DENO_DIR: /home/bros/.deno/cache
+      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:?unset}
+      BROS_HOST_REPO: ${BROS_HOST_REPO:?unset}
+      BROS_HOST_UID: ${BROS_HOST_UID:-1000}
+      BROS_HOST_GID: ${BROS_HOST_GID:-1000}
+      BROS_DOCKER_GID: ${BROS_DOCKER_GID:-0}
+      TZ: Etc/UTC
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}/config/apps:/opt/bros/apps
+      - ${BROS_HOST_DATA_DIR:?unset}/home:/home/bros
+      - ${BROS_HOST_WORKSPACE:?unset}:/home/bros/workspace
+      - ${BROS_HOST_REPO:?unset}:/app:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - bros-x11:/tmp/.X11-unix
+      - bros-run:/tmp/bros-run
+      - ${BROS_HOST_REPO:?unset}/lib/sidecars/core/desktop/root/custom-cont-init.d/bros-live:/custom-cont-init.d/bros-live:ro
+    restart: unless-stopped
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true
+
+volumes:
+  bros-x11:
+    name: bros-x11
+    external: true
+  bros-run:
+    name: bros-run
+    external: true

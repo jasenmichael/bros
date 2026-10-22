@@ -1,0 +1,22 @@
+#!/usr/bin/with-contenv bash
+set -eu
+mkdir -p /home/bros/workspace
+# shortcut: own uid so the prompt user is bros while abc keeps PUID. Not the Bros host uid.
+if ! id bros >/dev/null 2>&1; then
+  useradd --no-create-home --home-dir /home/bros --shell /bin/bash --gid "${PGID:-1000}" bros
+fi
+usermod -g "${PGID:-1000}" bros
+sock=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)
+if [ -n "$sock" ] && [ "$sock" != "0" ]; then
+  name=$(getent group "$sock" | cut -d: -f1)
+  [ -n "$name" ] && usermod -aG "$name" bros
+fi
+uid=$(id -u bros)
+gid=$(id -g bros)
+cat > /run/bros-terminal.bashrc << 'EOF'
+[ -f /home/bros/.bashrc ] && . /home/bros/.bashrc
+umask 002
+PS1='\u@\h:$(case $PWD in /home/bros/workspace) printf "~/workspace";; /home/bros/workspace/*) printf "~/workspace/%s" "${PWD#/home/bros/workspace/}";; *) printf "%s" "$PWD";; esac)\$ '
+EOF
+exec ttyd -W -p 7681 -i 0.0.0.0 -b /terminal/session -w /home/bros/workspace -u "$uid" -g "$gid" \
+  -- bash --rcfile /run/bros-terminal.bashrc -i

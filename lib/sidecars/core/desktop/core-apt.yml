@@ -1,0 +1,18 @@
+# Apt packages baked into the desktop image. Not rows on /settings/apps.
+# clis: main command, then extra commands, comma-separated.
+packages:
+  - name: bash
+    clis: bash
+  - name: ca-certificates
+  - name: curl
+    clis: curl
+  - name: wget
+    clis: wget
+  - name: git
+    clis: git
+  - name: python3
+    clis: python3
+  - name: xz-utils
+    clis: xz, xzcat, unxz, lzma
+  - name: unzip
+    clis: unzip, funzip, unzipsfx, zipgrep, zipinfo

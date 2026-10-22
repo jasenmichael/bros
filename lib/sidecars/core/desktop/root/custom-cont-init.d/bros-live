@@ -1,0 +1,87 @@
+#!/bin/bash
+mkdir -p /home/bros/.local/sidecar-bins /home/bros/.local/bin /home/bros/.local/share/pnpm/store /home/bros/.bun/bin /home/bros/.deno/bin /home/bros/.deno/cache /home/bros/workspace /opt/bros/apps /tmp/bros-run
+chmod 1777 /tmp/bros-run /tmp/.X11-unix || true
+# group_add is only on the s6 root process. foot and ttyd run as abc.
+gid=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)
+if [ -z "$gid" ] || [ "$gid" = "0" ]; then
+  gid=${BROS_DOCKER_GID:-0}
+fi
+if [ "$gid" != "0" ] && id abc >/dev/null 2>&1; then
+  name=$(getent group "$gid" | cut -d: -f1)
+  if [ -z "$name" ]; then
+    groupadd -g "$gid" dockersock
+    name=$(getent group "$gid" | cut -d: -f1)
+  fi
+  [ -n "$name" ] && usermod -aG "$name" abc
+fi
+# In-desktop foot opens in the desktop home workspace.
+foot_line='foot --working-directory=/home/bros/workspace'
+found=0
+for f in \
+  /home/bros/.config/labwc/autostart \
+  /defaults/autostart_wayland \
+  /defaults/autostart
+do
+  [ -f "$f" ] || continue
+  grep -q '^foot\( \|$\)' "$f" || continue
+  sed -i "s|^foot.*|$foot_line|" "$f"
+  found=1
+done
+if [ "$found" -eq 0 ]; then
+  mkdir -p /home/bros/.config/labwc
+  printf '%s\n' "$foot_line" >> /home/bros/.config/labwc/autostart
+fi
+
+# Image bins win over an older copy in the home mount.
+shopt -s nullglob
+for cfg in /opt/bros/enabled-apps/*/config.yml; do
+  [ -f "$cfg" ] || continue
+  while read -r name; do
+    case "$name" in
+      ''|*[!A-Za-z0-9._+-]*) continue ;;
+    esac
+    if [ -e "/usr/local/bin/$name" ] || [ -e "/usr/bin/$name" ]; then
+      target="/home/bros/.local/bin/$name"
+      if [ -f "$target" ] || [ -L "$target" ]; then
+        rm -f "$target"
+      fi
+    fi
+  done << EOF
+$(awk '
+  /^bin: / { print $2 }
+  /^clis: / {
+    line = $0
+    sub(/^clis: */, "", line)
+    n = split(line, a, ",")
+    for (i = 1; i <= n; i++) {
+      gsub(/ /, "", a[i])
+      if (a[i] != "") print a[i]
+    }
+  }
+' "$cfg")
+EOF
+done
+
+# Herdr restores a cwd from an older mount. A missing directory keeps the server from listening.
+session=/home/bros/.config/herdr/session.json
+if [ -f "$session" ] && command -v node >/dev/null 2>&1; then
+  missing=$(node - "$session" << 'JS'
+const fs = require('fs')
+const doc = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const dirs = []
+for (const workspace of doc.workspaces || []) {
+  if (workspace.identity_cwd) dirs.push(workspace.identity_cwd)
+  for (const tab of workspace.tabs || []) {
+    for (const pane of Object.values(tab.panes || {})) {
+      if (pane && pane.cwd) dirs.push(pane.cwd)
+    }
+  }
+}
+const gone = dirs.find((dir) => !fs.existsSync(dir))
+if (gone) process.stdout.write(gone)
+JS
+)
+  if [ -n "$missing" ]; then
+    mv "$session" "${session}.bak"
+  fi
+fi

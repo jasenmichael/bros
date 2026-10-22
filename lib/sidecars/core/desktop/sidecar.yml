@@ -1,0 +1,10 @@
+id: desktop
+slug: desktop
+name: Desktop
+description: Desktop session, package installs, and the terminal. No host port. Terminal is /terminal.
+
+interfaces:
+  - type: cli
+    service: desktop
+    command: /bin/bash
+    bin: bash
