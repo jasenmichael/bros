@@ -5,7 +5,8 @@ STATE=${BROS_GUI_STATE:-/tmp/bros-run/gui}
 # Container DISPLAY is the unused Xorg :1. The shared desktop is XWayland :0.
 DISPLAY_VALUE=:0
 WAYLAND_VALUE=wayland-0
-RUNTIME_VALUE=/tmp/bros-run
+# Selkies puts the compositor socket in $HOME/.XDG, not /tmp/bros-run.
+RUNTIME_VALUE=/home/bros/.XDG
 
 usage() {
   echo "usage: desktop-gui.sh start ID [--container NAME] -- CMD [ARG...]" >&2
@@ -70,6 +71,7 @@ if [ -n "$container" ]; then
     -e "DISPLAY=${DISPLAY_VALUE}" \
     -e "WAYLAND_DISPLAY=${WAYLAND_VALUE}" \
     -e "XDG_RUNTIME_DIR=${RUNTIME_VALUE}" \
+    -e BROS_GUI_LAUNCH=1 \
     "$container" \
     sh -c 'setsid sh -c "echo \$\$ > \"\$1\"; shift; exec \"\$@\"" sh "$@" </dev/null >/dev/null 2>&1 &' \
     sh "/tmp/bros-gui-${id}.pid" "$@"
@@ -94,6 +96,7 @@ else
       DISPLAY="$DISPLAY_VALUE" \
       WAYLAND_DISPLAY="$WAYLAND_VALUE" \
       XDG_RUNTIME_DIR="$RUNTIME_VALUE" \
+      BROS_GUI_LAUNCH=1 \
       "$@" >"$log" 2>&1 &
   else
     setsid env \
@@ -101,6 +104,7 @@ else
       DISPLAY="$DISPLAY_VALUE" \
       WAYLAND_DISPLAY="$WAYLAND_VALUE" \
       XDG_RUNTIME_DIR="$RUNTIME_VALUE" \
+      BROS_GUI_LAUNCH=1 \
       "$@" >"$log" 2>&1 &
   fi
   pid=$!

@@ -25,7 +25,7 @@ describe('desktop home', () => {
     const cursor = parseYaml(readFileSync(join(root, 'lib/apps/addon/cursor/config.yml'), 'utf8')) as { home?: string[]; interfaces?: Array<{ type?: string; args?: string }> }
     const agent = parseYaml(readFileSync(join(root, 'lib/apps/addon/agent/config.yml'), 'utf8')) as { home?: string[] }
     expect(cursor.home).toEqual(['.config/Cursor', '.cursor'])
-    expect(cursor.interfaces?.find((row) => row.type === 'gui')?.args).toBe('--disable-chromium-sandbox')
+    expect(cursor.interfaces?.find((row) => row.type === 'gui')?.args).toBe('--no-sandbox')
     expect(agent.home).toEqual(['.local/share/cursor-agent', '.config/cursor'])
     expect(duplicateHomePath([
       { id: 'cursor', home: cursor.home },

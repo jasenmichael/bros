@@ -7,7 +7,7 @@ description: One Selkies stream and an Apps drawer. No host port.
 
 `/desktop` keeps the Bros nav. One iframe shows the Selkies stream for the life of `bros-desktop`. The Apps drawer lists every sidecar `gui` interface and every package `gui` interface. A click opens the sidecar window when that sidecar is already running and does not start it. Stop kills that process. The sidecar stays up. The desktop stays up.
 
-Package apps exec inside `bros-desktop`, so they share `127.0.0.1`. A sidecar that draws on the desktop uses that container's network namespace and does not publish a host port. No shipped sidecar takes that namespace. Start fails when `bros-desktop` is not running. Service sidecars with no `gui` interface keep their own network and stay reachable by Docker DNS. Volume `bros-x11` is `/tmp/.X11-unix`. Volume `bros-run` is `/tmp/bros-run`. Launch sets `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, and `XDG_RUNTIME_DIR=/tmp/bros-run`. X11 apps use XWayland.
+Package apps exec inside `bros-desktop`, so they share `127.0.0.1`. A sidecar that draws on the desktop uses that container's network namespace and does not publish a host port. No shipped sidecar takes that namespace. Start fails when `bros-desktop` is not running. Service sidecars with no `gui` interface keep their own network and stay reachable by Docker DNS. Volume `bros-x11` is `/tmp/.X11-unix`. Volume `bros-run` is `/tmp/bros-run`. Launch sets `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, and `XDG_RUNTIME_DIR=/home/bros/.XDG`. X11 apps use XWayland.
 
 A `gui` interface stores `command` only. It cannot set `publish`. There is no per-app iframe and no `/gui` route.
 

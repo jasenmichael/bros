@@ -86,11 +86,22 @@ JS
   fi
 fi
 
-# Chromium cannot create a sandbox namespace in this container.
+# Chromium's zygote cannot make a namespace here. --disable-chromium-sandbox
+# is read after that crash. The electron binary needs --no-sandbox on argv.
 if [ -x /usr/bin/cursor ]; then
   cat > /usr/local/bin/cursor << 'EOF'
 #!/bin/sh
-exec /usr/bin/cursor --disable-chromium-sandbox "$@"
+for arg in "$@"; do
+  case "$arg" in
+    agent|tunnel|editor|--help|-h|--version|-v|--list-extensions|--show-versions|--status)
+      exec /usr/bin/cursor "$@"
+      ;;
+  esac
+done
+if [ -n "${BROS_GUI_LAUNCH:-}" ] && [ -x /usr/share/cursor/cursor ]; then
+  exec /usr/share/cursor/cursor --no-sandbox "$@"
+fi
+exec /usr/bin/cursor --no-sandbox "$@"
 EOF
   chmod +x /usr/local/bin/cursor
 fi
