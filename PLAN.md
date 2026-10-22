@@ -44,7 +44,7 @@ Not a milestone. Pick when needed:
 - CI: add test + typecheck jobs (Pages workflow only today)
 - Tests: chat stream coverage; e2e beyond `/api/health`
 - Custom packs live in `lib/sidecars/custom`. Only `README.md` there is tracked. A custom pack can later move to addon or core. An addon can later move to core.
-- Package managers cargo, pip, and uv are not built. npm, pnpm, bun, deno, nix (Devbox global), apt, deb, and run are the desktop managers. Global files for npm, pnpm, bun, and deno stay on the desktop live folder. The image is not rebuilt to add one.
+- Desktop package managers include uv and cargo. Nix stays Devbox global, with the store in the Desktop image.
 - OpenCode 2 (`ghcr.io/anomalyco/opencode:2.0.32`) serves on host **4097**. No `proxy.public`. The Sidecars card shows the server password. Do not fake a Bros-side prefix.
 - Settings: Chat prepend + assistant description are the `rules` and `personality` skills, plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes

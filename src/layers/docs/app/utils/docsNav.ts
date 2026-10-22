@@ -100,6 +100,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Development', to: '/docs/development', body: 'BROS_DEV=1 ./bros bind-mount, tests.' },
       { label: 'bros', to: '/docs/cli', body: 'bros commands, flags, paths.' },
       { label: 'Docs site', to: '/docs/website', body: 'Pages /bros/, same docs/.' },
+      { label: 'Desktop Nix store', to: '/docs/adr/0001-desktop-nix-store', body: 'Nix store stays in the Desktop image.' },
     ],
   },
   {

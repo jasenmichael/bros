@@ -66,6 +66,10 @@ function labelFor(nextKind: string, nextSpec: string) {
     return hash >= 0 ? nextSpec.slice(hash + 1) : nextSpec
   }
   if (nextKind === 'run' || nextKind === 'deb') return ''
+  if (nextKind === 'uv') {
+    const eq = nextSpec.indexOf('==')
+    return eq === -1 ? nextSpec : nextSpec.slice(0, eq)
+  }
   if (nextKind === 'deno') {
     const bare = nextSpec.slice(nextSpec.indexOf(':') + 1)
     const slash = bare.lastIndexOf('/')

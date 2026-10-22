@@ -1,14 +1,16 @@
 import { apt } from './apt'
 import { bun } from './bun'
+import { cargo } from './cargo'
 import { deb } from './deb'
 import { deno } from './deno'
 import { nix } from './nix'
 import { npm } from './npm'
 import { pnpm } from './pnpm'
 import { run } from './run'
+import { uv } from './uv'
 import type { ManagerForm, PackageManager } from './types'
 
-const LIST: PackageManager[] = [npm, pnpm, bun, deno, nix, apt, deb, run]
+const LIST: PackageManager[] = [npm, pnpm, bun, deno, uv, cargo, nix, apt, deb, run]
 
 const BY_KIND = new Map(LIST.map((manager) => [manager.kind, manager]))
 

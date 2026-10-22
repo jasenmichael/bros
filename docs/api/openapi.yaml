@@ -805,7 +805,7 @@ paths:
               type: object
               required: [kind, spec]
               properties:
-                kind: { type: string, enum: [npm, pnpm, bun, deno, nix, apt, deb, run] }
+                kind: { type: string, enum: [npm, pnpm, bun, deno, uv, cargo, nix, apt, deb, run] }
                 spec: { type: string }
                 args: { type: string }
                 bin: { type: string }
@@ -833,7 +833,7 @@ paths:
               type: object
               required: [kind, spec]
               properties:
-                kind: { type: string, enum: [npm, pnpm, bun, deno, nix, apt, deb, run] }
+                kind: { type: string, enum: [npm, pnpm, bun, deno, uv, cargo, nix, apt, deb, run] }
                 spec: { type: string }
                 args: { type: string }
                 bin: { type: string }

@@ -225,7 +225,7 @@ export function parseCliPackage(input: { kind?: string; spec?: string; bin?: str
   const spec = (input.spec || '').trim()
   const args = (input.args || '').trim()
   const manager = kind ? managerByKind(kind) : undefined
-  if (!manager || !kind) bad('kind must be npm, pnpm, bun, deno, nix, apt, deb, or run')
+  if (!manager || !kind) bad(`kind must be ${packageManagers().map((row) => row.kind).join(', ')}`)
   const specError = manager.parse(spec, args)
   if (specError) bad(specError)
   const parsed = parseExposes(input.interfaces)
@@ -720,6 +720,19 @@ function updateCommand(pkg: CliPackage): string[] {
   if (pkg.kind === 'apt') return ['apt-get', 'install', '-y', pkg.spec]
   if (pkg.kind === 'deb') return ['node', '/opt/bros/managers/deb.mjs', 'install', pkg.id, pkg.spec]
   if (pkg.kind === 'deno') return ['deno', 'install', '-g', '-A', '-f', pkg.spec]
+  if (pkg.kind === 'uv') {
+    const name = pkg.spec.split('==')[0] || pkg.spec
+    if (name === 'uv') return ['uv', 'self', 'update']
+    return ['uv', 'tool', 'upgrade', name]
+  }
+  if (pkg.kind === 'cargo') {
+    const at = pkg.spec.lastIndexOf('@')
+    const name = at > 0 ? pkg.spec.slice(0, at) : pkg.spec
+    const version = at > 0 ? pkg.spec.slice(at + 1) : ''
+    const cmd = ['cargo', 'install', '--locked', '--root', '/usr/local', name]
+    if (version) cmd.push('--version', version)
+    return cmd
+  }
   return ['true']
 }
 

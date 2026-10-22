@@ -15,6 +15,8 @@ export function versionCommand(pkg: ProbeApp): string | null {
   if (pkg.kind === 'bun') return 'bun pm ls -g'
   if (pkg.kind === 'apt') return `dpkg-query -W -f='\${Version}' ${sh(spec)}`
   if (pkg.kind === 'deb') return `name=$(head -n 1 /var/lib/bros/deb/${sh(pkg.id)}); [ -n "$name" ] && dpkg-query -W -f='\${Version}' "$name"`
+  if (pkg.kind === 'uv') return spec === 'uv' || spec.startsWith('uv==') || pkg.bin === 'uv' ? 'uv --version' : 'uv tool list'
+  if (pkg.kind === 'cargo') return spec === 'cargo' || pkg.bin === 'cargo' ? 'cargo --version' : 'cargo install --list'
   return null
 }
 
@@ -24,6 +26,18 @@ export function parseVersionText(kind: string, spec: string, text: string): stri
   if (kind === 'apt' || kind === 'deb') {
     const line = raw.split('\n').map((row) => row.trim()).find(Boolean) || ''
     return /^[0-9A-Za-z][0-9A-Za-z.+:~_-]{0,80}$/.test(line) ? line : null
+  }
+  if (kind === 'uv') {
+    if (spec === 'uv' || spec.startsWith('uv==')) return raw.match(/\b(\d+\.\d+\.\d+)\b/)?.[1] || null
+    const name = spec.split('==')[0]
+    const line = raw.split('\n').find((row) => row.startsWith(`${name} `))
+    return line?.split(/\s+/)[1]?.replace(/^v/, '') || null
+  }
+  if (kind === 'cargo') {
+    if (spec === 'cargo' || spec.startsWith('cargo@')) return raw.match(/\bcargo\s+(\d+\.\d+\.\d+)/)?.[1] || null
+    const name = spec.split('@')[0]
+    const line = raw.split('\n').find((row) => row.startsWith(`${name} `))
+    return line?.match(/v?(\d+\.\d+[^\s:]*)/)?.[1] || null
   }
   if (/^\d+\.\d+/.test(raw) && !raw.includes('\n')) return raw.split(/\s+/)[0] || null
   const name = spec.split('@')[0]?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') || ''

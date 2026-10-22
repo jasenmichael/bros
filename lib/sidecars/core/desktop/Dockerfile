@@ -37,12 +37,40 @@ ARG DENO_VERSION=2.1.4
 RUN HOME=/tmp npm install -g pnpm@${PNPM_VERSION} --prefix /usr/local \
   && curl -fsSL https://bun.sh/install | HOME=/tmp BUN_INSTALL=/usr/local bash -s "bun-v${BUN_VERSION}" \
   && curl -fsSL https://deno.land/install.sh | HOME=/tmp DENO_INSTALL=/usr/local sh -s "v${DENO_VERSION}"
+# Single-user Nix. Devbox 0.18's installer starts a daemon that dies with this RUN.
+ARG UV_VERSION=0.13.5
+ARG DEVBOX_VERSION=0.18.4
+RUN arch="$(dpkg --print-architecture)" \
+  && case "$arch" in \
+       amd64) uv_target=x86_64-unknown-linux-gnu; devbox_arch=amd64 ;; \
+       arm64) uv_target=aarch64-unknown-linux-gnu; devbox_arch=arm64 ;; \
+       *) echo "unsupported $arch"; exit 1 ;; \
+     esac \
+  && curl -fsSL "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${uv_target}.tar.gz" | tar -xz -C /tmp \
+  && install -m 0755 "/tmp/uv-${uv_target}/uv" "/tmp/uv-${uv_target}/uvx" /usr/local/bin/ \
+  && rm -rf "/tmp/uv-${uv_target}" \
+  && mkdir -p /usr/local/libexec /opt/bros/nix-home /opt/bros/devbox /etc/nix \
+  && curl -fsSL "https://github.com/jetify-com/devbox/releases/download/${DEVBOX_VERSION}/devbox_${DEVBOX_VERSION}_linux_${devbox_arch}.tar.gz" | tar -xz -C /usr/local/libexec devbox \
+  && chmod 0755 /usr/local/libexec/devbox \
+  && printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' > /etc/nix/nix.conf \
+  && curl -fsSL https://nixos.org/nix/install | HOME=/opt/bros/nix-home sh -s -- --no-daemon --yes \
+  && for b in /opt/bros/nix-home/.nix-profile/bin/*; do \
+       [ -e "$b" ] || continue; \
+       ln -sfn "$b" "/usr/local/bin/$(basename "$b")"; \
+     done \
+  && printf '%s\n' '#!/bin/sh' 'export XDG_DATA_HOME=/opt/bros/devbox' 'exec /usr/local/libexec/devbox "$@"' > /usr/local/bin/devbox \
+  && chmod 0755 /usr/local/bin/devbox \
+  && HOME=/opt/bros/nix-home devbox global list \
+  && chmod -R a+rX /nix /opt/bros/nix-home /opt/bros/devbox
 ENV npm_config_prefix=/home/bros/.local \
   PNPM_HOME=/home/bros/.local/share/pnpm \
   npm_config_store_dir=/home/bros/.local/share/pnpm/store \
   BUN_INSTALL=/home/bros/.bun \
   DENO_INSTALL_ROOT=/home/bros/.deno \
-  DENO_DIR=/home/bros/.deno/cache
+  DENO_DIR=/home/bros/.deno/cache \
+  UV_CACHE_DIR=/home/bros/.cache/uv \
+  RUSTUP_HOME=/usr/local/rustup \
+  CARGO_HOME=/home/bros/.cargo
 COPY core/desktop/install.mjs /opt/bros/install.mjs
 COPY core/desktop/managers/ /opt/bros/managers/
 COPY core/desktop/app-services/ /opt/bros/app-services/

@@ -27,6 +27,9 @@ services:
       BUN_INSTALL: /home/bros/.bun
       DENO_INSTALL_ROOT: /home/bros/.deno
       DENO_DIR: /home/bros/.deno/cache
+      UV_CACHE_DIR: /home/bros/.cache/uv
+      RUSTUP_HOME: /usr/local/rustup
+      CARGO_HOME: /home/bros/.cargo
       BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:?unset}
       BROS_HOST_REPO: ${BROS_HOST_REPO:?unset}
       BROS_HOST_UID: ${BROS_HOST_UID:-1000}

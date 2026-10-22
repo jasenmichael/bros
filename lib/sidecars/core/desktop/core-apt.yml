@@ -12,6 +12,8 @@ packages:
     clis: git
   - name: python3
     clis: python3
+  - name: python-is-python3
+    clis: python
   - name: xz-utils
     clis: xz, xzcat, unxz, lzma
   - name: unzip
