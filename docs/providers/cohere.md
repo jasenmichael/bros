@@ -1,0 +1,31 @@
+---
+title: Cohere
+description: OpenAI-compat Cohere API. Trial key, non-commercial.
+---
+
+# Cohere
+
+Cohere via the OpenAI compatibility endpoint. Trial key, 1,000 calls/month, non-commercial. Free-tier notes are Sep 2026 and change often. Bros uses the compat layer, not the native Cohere API.
+
+## Key
+
+Create a key at [Cohere Dashboard](https://dashboard.cohere.com/api-keys). Paste it on Providers → Popular services → Cohere (open the card). Keys live in SQLite, not env.
+
+## Enable
+
+1. Open Providers
+2. Popular services → Cohere → open the card
+3. Paste the key, Save
+
+Status is **Ready** after a live `GET /models` with that key succeeds. A saved key alone is not Ready.
+
+## API
+
+- Base URL: `https://api.cohere.ai/compatibility/v1`
+- Auth: `Authorization: Bearer <key>`
+- Chat: `POST /chat/completions`
+
+Default model ids (editable on the card; live `GET /models` merges when a key exists):
+
+- `command-r-plus`
+- `command-r`
