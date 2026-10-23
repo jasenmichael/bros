@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { appsComposeBody, desktopAppsDockerfile, parseCliPackage, parseServices, readCatalog } from '../../src/server/utils/cli/packages'
+import { appsComposeBody, catalogRoot, desktopAppsDockerfile, parseCliPackage, parseServices, readCatalog } from '../../src/server/utils/cli/packages'
 import { commandsForRunning, runningIds, servicesFromYaml } from '../../lib/sidecars/core/desktop/app-services/supervise.mjs'
 import { listedPackageApp, listedSidecarApp } from '../../src/ui/utils/gui'
 
@@ -47,6 +48,22 @@ describe('desktop package apps', () => {
     const ids = readCatalog().map((pkg) => pkg.id).sort()
     expect(ids).toEqual(['agent', 'bun', 'cursor', 'jq', 'npm', 'paperclip', 'pnpm', 'uv'])
     expect(readCatalog().find((pkg) => pkg.id === 'npm')?.bin).toBe('npm')
+  })
+
+  it('reads addon apps from BROS_HOST_REPO when the app dir has no catalog', () => {
+    const prevRepo = process.env.BROS_HOST_REPO
+    const prevDir = process.env.BROS_DIR
+    process.env.BROS_HOST_REPO = root
+    process.env.BROS_DIR = mkdtempSync(join(tmpdir(), 'bros-apps-'))
+    try {
+      expect(catalogRoot()).toBe(join(root, 'lib', 'apps'))
+      expect(readCatalog().find((pkg) => pkg.id === 'cursor')?.tier).toBe('addon')
+    } finally {
+      if (prevRepo == null) delete process.env.BROS_HOST_REPO
+      else process.env.BROS_HOST_REPO = prevRepo
+      if (prevDir == null) delete process.env.BROS_DIR
+      else process.env.BROS_DIR = prevDir
+    }
   })
 
   it('reads a services command or script from app yaml', () => {

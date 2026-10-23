@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DESKTOP_SIDECAR_ID, defaultSidecarAutostart, shouldAutostartSidecar } from '../../src/server/utils/sidecars/sidecars'
 import { packageUpdateAction, parseCliPackage, seedCliPackages, cliApplyAction } from '../../src/server/utils/cli/packages'
-import { parseVersionText, versionCommand } from '../../src/server/utils/cli/versionProbe'
+import { buildVersionScript, parseVersionScriptOutput, parseVersionText, versionCommand } from '../../src/server/utils/cli/versionProbe'
 import { managerForms } from '../../src/server/utils/cli/managers'
 import { debTracksLatest } from '../../src/server/utils/cli/managers/deb'
 import { debCachePath, debTracksLatest as debTracksLatestInstall, releaseKey } from '../../lib/sidecars/core/desktop/managers/deb.mjs'
@@ -171,6 +171,15 @@ describe('cli packages', () => {
     expect(parseVersionText('uv', 'ruff==0.6.8', 'ruff v0.6.8\n- ruff\n')).toBe('0.6.8')
     expect(parseVersionText('cargo', 'ripgrep@14.1.0', 'ripgrep v14.1.0:\n    rg\n')).toBe('14.1.0')
     expect(parseVersionText('apt', 'jq', '1.7.1-3')).toBe('1.7.1-3')
+    const probed = [
+      { id: 'jq', kind: 'apt', spec: 'jq' },
+      { id: 'cursor', kind: 'deb', spec: 'https://example.com/cursor/latest' },
+    ]
+    expect(buildVersionScript(probed).split('\n').filter((line) => line === 'echo')).toHaveLength(2)
+    expect(parseVersionScriptOutput('@@jq\n1.8.1-4ubuntu2\n@@cursor\n3.27.6-1792578269\n', probed)).toEqual([
+      { id: 'jq', version: '1.8.1-4ubuntu2' },
+      { id: 'cursor', version: '3.27.6-1792578269' },
+    ])
     expect(parseVersionText('npm', 'typescript', '/usr/local/lib\n└── typescript@5.4.5\n')).toBe('5.4.5')
     expect(packageUpdateAction('run')).toBe('rebuild')
     expect(packageUpdateAction('deb')).toBe('exec')

@@ -405,8 +405,10 @@ export function readStoredPackages(): CliPackage[] {
   }
 }
 
+/** Prod `/app` has no `lib/apps`. The checkout is `$BROS_HOST_REPO`. */
 export function catalogRoot(): string {
-  return join(loadBootstrapConfig().workingDir, 'lib', 'apps')
+  const root = process.env.BROS_HOST_REPO?.trim() || loadBootstrapConfig().workingDir
+  return join(root, 'lib', 'apps')
 }
 
 export function readCatalog(): CliPackage[] {

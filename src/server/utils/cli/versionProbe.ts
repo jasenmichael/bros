@@ -53,6 +53,7 @@ export function buildVersionScript(packages: ProbeApp[]): string {
     if (!cmd) continue
     lines.push(`echo '@@${pkg.id}'`)
     lines.push(`(${cmd}) 2>/dev/null || true`)
+    lines.push('echo')
   }
   return lines.join('\n')
 }
