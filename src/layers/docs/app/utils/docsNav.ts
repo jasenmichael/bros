@@ -69,6 +69,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Whisper', to: '/docs/sidecars/whisper', body: 'Core. Settings enable, off by default. Publish 8090.' },
       { label: 'Desktop sidecar', to: '/docs/sidecars/desktop', body: 'Core terminal and image. No host port.' },
       { label: 'Pi', to: '/docs/sidecars/pi', body: 'Addon CLI. No host port.' },
+      { label: 'OmniRoute', to: '/docs/sidecars/omniroute', body: 'Addon gateway. Publish 20128. Providers stay in OmniRoute.' },
       { label: 'Custom', to: '/docs/sidecars/custom', body: 'lib/sidecars/custom. Only README.md is tracked.' },
       { label: 'Desktop', to: '/docs/sidecars/gui', body: 'One Selkies stream. Apps drawer. No host port.' },
     ],
@@ -84,6 +85,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Agent', to: '/docs/apps/agent', body: 'Addon run. agent and cursor-agent. Off until enabled.' },
       { label: 'Paperclip', to: '/docs/apps/paperclip', body: 'Addon npm. Web UI on 3100. Off until enabled.' },
       { label: 'jq', to: '/docs/apps/jq', body: 'Addon apt. No CLI row and no window. Off until enabled.' },
+      { label: 'OpenCode', to: '/docs/apps/opencode', body: 'Addon npm. CLI only. Off until enabled.' },
     ],
   },
   {

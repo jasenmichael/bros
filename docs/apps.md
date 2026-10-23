@@ -50,3 +50,4 @@ npm, pnpm, bun, and uv are the bundled core apps and the managers for a later sp
 - [Agent](/docs/apps/agent) — addon, run, `agent` and `cursor-agent`
 - [Paperclip](/docs/apps/paperclip) — addon, npm, web UI on **3100**
 - [jq](/docs/apps/jq) — addon, apt, no CLI or window
+- [OpenCode](/docs/apps/opencode) — addon, npm, CLI only

@@ -74,6 +74,7 @@ describe('sidecar discover merge', () => {
   it('marks env-disabled addons and skips them from autostart', () => {
     expect(disabledAddonIds({ BROS_SIDECARS_DISABLE: 'opencode,openwebui' })).toEqual(new Set(['opencode', 'openwebui']))
     expect(disabledAddonIds({ BROS_SIDECAR_OPENCODE: '0' })).toEqual(new Set(['opencode']))
+    expect(readFileSync(join(import.meta.dirname, '../../docker-compose.yml'), 'utf8')).toContain('BROS_SIDECAR_OPENCODE: ${BROS_SIDECAR_OPENCODE:-0}')
     expect(disabledAddonIds({ BROS_SIDECAR_FIRECRAWL_UI: '0' })).toEqual(new Set(['firecrawl_ui', 'firecrawl-ui']))
     expect(disabledAddonIds({ BROS_SIDECAR_OPENJEV: '0' })).toEqual(new Set(['openjev']))
     expect(disabledAddonIds({ BROS_SIDECAR_OLLAMA: '0', BROS_SIDECARS_DISABLE: 'ollama,opencode' })).toEqual(new Set(['opencode']))

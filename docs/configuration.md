@@ -32,7 +32,7 @@ Shipped packs are `lib/sidecars/core` and `lib/sidecars/addon`. Custom packs are
 ```text
 $BROS_DIR/lib/sidecars/
   core/                          # ollama, whisper, desktop
-  addon/                         # opencode, openwebui, firecrawl, firecrawl-ui, openjev, pi, cursor
+  addon/                         # opencode, openwebui, firecrawl, firecrawl-ui, openjev, pi, omniroute, cursor
   custom/                        # user packs; only README.md is tracked
     <id>/                        # Add sidecar
     <name>/sidecars/             # git clone
@@ -81,7 +81,7 @@ $BROS_HOST_DATA_DIR/             # default $BROS_HOME/data
     logs/                        # container stdout/stderr, `<service>.log`
 ```
 
-Addon and custom sidecars stay stopped until SQLite `autostart` is on. A fresh install does not start them. Turn Autostart on and restart Bros, or press Start. Env can still mark a shipped addon disabled: `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, `BROS_SIDECAR_OPENJEV=0`, `BROS_SIDECAR_PI=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui,openjev,pi`. Ollama always starts and has no Restart. Desktop always starts. Whisper is core and follows Settings **Enable Whisper** (off by default), not those env vars.
+Addon and custom sidecars stay stopped until SQLite `autostart` is on. A fresh install does not start them. Turn Autostart on and restart Bros, or press Start. The app compose file defaults `BROS_SIDECAR_OPENCODE` to `0`, so the OpenCode sidecar is env-disabled, stays listed, and does not start. Env can still mark a shipped addon disabled: `BROS_SIDECAR_OPENCODE=0`, `BROS_SIDECAR_OPENWEBUI=0`, `BROS_SIDECAR_FIRECRAWL=0`, `BROS_SIDECAR_FIRECRAWL_UI=0`, `BROS_SIDECAR_OPENJEV=0`, `BROS_SIDECAR_PI=0`, `BROS_SIDECAR_OMNIROUTE=0`, or `BROS_SIDECARS_DISABLE=opencode,openwebui,firecrawl,firecrawl-ui,openjev,pi,omniroute`. Ollama always starts and has no Restart. Desktop always starts. Whisper is core and follows Settings **Enable Whisper** (off by default), not those env vars.
 
 Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (Ollama `config.customModels`, Popular services keys/models, custom OpenAI `config.models`), chat, Settings `enable_host_ollama` (host Ollama row, default off), Settings `enable_whisper` (Whisper sidecar, default off), and sidecar autostart/nav pins/`host_mode`/`expose_host`/`host_probe_port` (manual host-Ollama override) are stored in SQLite. Built-in providers are `ollama` (sidecar), `ollama-host` (row always seeded; listed only when `enable_host_ollama` is on), and the 12 Popular services rows.
 

@@ -5,7 +5,7 @@ description: CLI coding agent with web UI on host port 4097.
 
 # OpenCode sidecar
 
-Addon package `lib/sidecars/addon/opencode`. CLI coding agent with web UI (anomalyco/opencode). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_SIDECAR_OPENCODE=0` or `BROS_SIDECARS_DISABLE=opencode`. Still listed under Addon sidecars as **OpenCode (addon)**.
+Addon package `lib/sidecars/addon/opencode`. CLI coding agent with web UI (anomalyco/opencode). The app compose file defaults `BROS_SIDECAR_OPENCODE` to `0`. That env-disables the pack. It stays listed under Addon sidecars as **OpenCode (addon)** and does not start. Set `BROS_SIDECAR_OPENCODE=1` to allow Start and Autostart. `BROS_SIDECARS_DISABLE=opencode` also disables it.
 
 Image `ghcr.io/anomalyco/opencode:2.0.32`. Command is `opencode serve` on container port **4096**. The server is password protected. The Sidecars card shows that password. `/home/bros` is an empty tmpfs so the process has a writable home. Only the binds below are stored.
 

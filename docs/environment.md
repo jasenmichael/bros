@@ -44,12 +44,13 @@ Unset does not start an addon. `0`, `false`, `off`, or `no` skips it. Autostart 
 | Variable | Default | Role |
 | --- | --- | --- |
 | `BROS_SIDECARS_DISABLE` | empty | Comma list of addon ids |
-| `BROS_SIDECAR_OPENCODE` | unset | Skip OpenCode |
+| `BROS_SIDECAR_OPENCODE` | `0` | Env-disable the OpenCode sidecar. The pack stays listed and does not start. `1` allows Start and Autostart. The app compose file supplies `0` when this is unset |
 | `BROS_SIDECAR_OPENWEBUI` | unset | Skip Open WebUI |
 | `BROS_SIDECAR_FIRECRAWL` | unset | Skip Firecrawl |
 | `BROS_SIDECAR_FIRECRAWL_UI` | unset | Skip Firecrawl UI (`firecrawl-ui`) |
 | `BROS_SIDECAR_OPENJEV` | unset | Skip OpenJEV |
 | `BROS_SIDECAR_PI` | unset | Skip Pi |
+| `BROS_SIDECAR_OMNIROUTE` | unset | Skip OmniRoute |
 
 ## Host ports
 
@@ -64,6 +65,7 @@ In-container Bros uses Docker DNS, not these.
 | `BROS_FIRECRAWL_UI_PORT` | `3081` | Firecrawl UI |
 | `BROS_WHISPER_PORT` | `8090` | Whisper |
 | `BROS_OPENJEV_PORT` | `8092` | OpenJEV |
+| `BROS_OMNIROUTE_PORT` | `20128` | OmniRoute dashboard and `/v1` |
 
 ## Firecrawl
 

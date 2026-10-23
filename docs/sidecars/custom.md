@@ -27,7 +27,7 @@ Compose project name is `bros-sc-<id>` on network `bros`.
 - Compose-app Bros talks to sidecar APIs at `http://<service>:<containerPort>` on network `bros`
 - Stay on Docker network `bros`
 - Do not publish host ports **3000** or **8080**
-- Reserved ids include core/addon slugs (`ollama`, `opencode`, `openwebui`, `firecrawl`, `firecrawl-ui`, `openjev`, `pi`, `cursor`, `whisper`, `cli`), app routes (`api`, `chat`, `models`, `sidecars`, `settings`, `docs`, `login`, `setup`, `status`, `gui`), and Popular services slugs (`openai`, `gemini`, …). Cannot create a custom `ollama` or `gui`.
+- Reserved ids include core/addon slugs (`ollama`, `opencode`, `openwebui`, `firecrawl`, `firecrawl-ui`, `openjev`, `pi`, `omniroute`, `cursor`, `whisper`, `cli`), app routes (`api`, `chat`, `models`, `sidecars`, `settings`, `docs`, `login`, `setup`, `status`, `gui`), and Popular services slugs (`openai`, `gemini`, …). Cannot create a custom `ollama` or `gui`.
 
 A custom pack can later move into `lib/sidecars/addon/` or `lib/sidecars/core/`. An addon can later move to core. Until that move, the pack stays in `lib/sidecars/custom` and stays out of git.
 

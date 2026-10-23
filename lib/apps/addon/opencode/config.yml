@@ -1,0 +1,9 @@
+id: opencode
+name: OpenCode
+description: CLI coding agent. Off until enabled.
+kind: npm
+spec: "@opencode/cli"
+bin: opencode
+interfaces:
+  - type: cli
+    command: opencode

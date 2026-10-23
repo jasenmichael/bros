@@ -146,6 +146,7 @@ describe('sidecar data binds', () => {
       'lib/sidecars/addon/firecrawl-ui/docker-compose.yml',
       'lib/sidecars/addon/openjev/docker-compose.yml',
       'lib/sidecars/addon/pi/docker-compose.yml',
+      'lib/sidecars/addon/omniroute/docker-compose.yml',
       'lib/sidecars/core/whisper/docker-compose.yml',
       'lib/sidecars/core/desktop/docker-compose.yml',
     ]) {
@@ -172,6 +173,7 @@ describe('sidecar data binds', () => {
       'lib/sidecars/core/ollama/docker-compose.yml',
       'lib/sidecars/core/whisper/docker-compose.yml',
       'lib/sidecars/addon/opencode/docker-compose.yml',
+      'lib/sidecars/addon/omniroute/docker-compose.yml',
     ]) {
       expect(composeImageIsLocal(readFileSync(join(root, rel), 'utf8'))).toBe(false)
     }
@@ -229,6 +231,21 @@ describe('sidecar data binds', () => {
     expect(meta).toContain('command: pi')
   })
 
+  it('omniroute publishes 20128 and keeps provider config out of the pack', () => {
+    const dir = join(import.meta.dirname, '../../lib/sidecars/addon/omniroute')
+    const yml = readFileSync(join(dir, 'docker-compose.yml'), 'utf8')
+    const meta = readFileSync(join(dir, 'sidecar.yml'), 'utf8')
+    expect(yml).toContain('diegosouzapw/omniroute:3.8.52')
+    expect(yml).toContain('${BROS_OMNIROUTE_PORT:-20128}:20128')
+    expect(yml).toContain('REQUIRE_API_KEY: "true"')
+    expect(yml).toContain('redis://omniroute-redis:6379')
+    expect(yml).not.toMatch(/ports:[\s\S]*6379:/)
+    expect(yml).not.toMatch(/sk-/)
+    expect(meta).toContain('type: openai')
+    expect(meta).toContain('basePath: /v1')
+    expect(meta).toContain('publish: 20128')
+  })
+
   it('openjev compose publishes 8092 not 8080 and pins Hub images', () => {
     const yml = readFileSync(join(import.meta.dirname, '../../lib/sidecars/addon/openjev/docker-compose.yml'), 'utf8')
     expect(yml).toContain('${BROS_OPENJEV_PORT:-8092}:8080')
@@ -261,6 +278,7 @@ describe('sidecar data binds', () => {
       'lib/sidecars/addon/firecrawl-ui/docker-compose.yml',
       'lib/sidecars/addon/openjev/docker-compose.yml',
       'lib/sidecars/addon/pi/docker-compose.yml',
+      'lib/sidecars/addon/omniroute/docker-compose.yml',
     ]) {
       const doc = parseYaml(readFileSync(join(root, rel), 'utf8')) as { services?: Record<string, { user?: string }> }
       for (const [name, svc] of Object.entries(doc.services || {})) {
@@ -327,6 +345,7 @@ describe('sidecar data binds', () => {
       'lib/sidecars/addon/firecrawl/docker-compose.yml',
       'lib/sidecars/addon/openjev/docker-compose.yml',
       'lib/sidecars/addon/pi/docker-compose.yml',
+      'lib/sidecars/addon/omniroute/docker-compose.yml',
       'lib/sidecars/core/whisper/docker-compose.yml',
       'lib/sidecars/core/desktop/docker-compose.yml',
     ]) {
