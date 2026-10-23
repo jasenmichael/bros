@@ -4,8 +4,6 @@ description: Company control plane. Off until enabled.
 kind: npm
 spec: paperclipai
 bin: paperclipai
-home:
-  - .paperclip
 interfaces:
   - type: cli
     command: paperclipai
@@ -13,4 +11,4 @@ interfaces:
     containerPort: 3100
     publish: 3100
 services:
-  - paperclipai run
+  - script: serve.sh

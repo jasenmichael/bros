@@ -3,7 +3,7 @@ import { applyCliPackages, parseCliPackage, readCliPackages, readStoredPackages,
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id required' })
-  const body = await readBody<{ kind?: string; spec?: string; bin?: string; args?: string; services?: unknown; home?: unknown; uninstall?: unknown }>(event)
+  const body = await readBody<{ kind?: string; spec?: string; bin?: string; args?: string; services?: unknown; uninstall?: unknown }>(event)
   const current = readStoredPackages()
   const prev = current.find((row) => row.id === id)
   if (!prev) {
@@ -18,7 +18,6 @@ export default defineEventHandler(async (event) => {
     parsed = parseCliPackage({
       ...(body || {}),
       ...(!body || !('services' in body) ? { services: prev.services } : {}),
-      ...(!body || !('home' in body) ? { home: prev.home } : {}),
       ...(!body || !('uninstall' in body) ? { uninstall: prev.uninstall } : {}),
     }, current.filter((row) => row.id !== id).map((row) => row.id))
   } catch (err) {

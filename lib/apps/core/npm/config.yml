@@ -3,6 +3,3 @@ name: npm
 kind: npm
 spec: npm
 bin: npm
-home:
-  - .npm
-  - .local

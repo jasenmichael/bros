@@ -3,7 +3,6 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, r
 import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { loadBootstrapConfig } from '../config'
-import { ensureHomeDirs, parseHomePaths } from '../homePaths'
 import { discoverSidecars, getSidecar } from '../sidecars/sidecars'
 import { guiAppProxyId } from '../../../ui/utils/gui'
 import { managerByKind, packageManagers } from './managers'
@@ -44,7 +43,6 @@ export type CliPackage = {
   uninstall?: string
   tier?: AppTier
   enabled?: boolean
-  home?: string[]
 }
 
 const BIN_SPEC = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/
@@ -220,7 +218,7 @@ export function parseVolumes(raw: unknown): string[] {
   return out
 }
 
-export function parseCliPackage(input: { kind?: string; spec?: string; bin?: string; args?: string; clis?: string; interfaces?: unknown; services?: unknown; volumes?: unknown; home?: unknown; uninstall?: unknown; name?: string; description?: string }, taken: string[] = []): CliPackage {
+export function parseCliPackage(input: { kind?: string; spec?: string; bin?: string; args?: string; clis?: string; interfaces?: unknown; services?: unknown; volumes?: unknown; uninstall?: unknown; name?: string; description?: string }, taken: string[] = []): CliPackage {
   const kind = input.kind
   const spec = (input.spec || '').trim()
   const args = (input.args || '').trim()
@@ -248,7 +246,6 @@ export function parseCliPackage(input: { kind?: string; spec?: string; bin?: str
   const volumes = parseVolumes(input.volumes)
   const services = parseServices(input.services)
   const uninstall = parseUninstall(kind, input.uninstall)
-  const home = parseHomePaths(input.home)
   const name = (input.name || '').trim()
   const description = (input.description || '').trim()
   let id = packageId(kind, spec, bin || undefined)
@@ -267,7 +264,6 @@ export function parseCliPackage(input: { kind?: string; spec?: string; bin?: str
     ...(bin ? { bin } : {}),
     ...(clis.length ? { clis } : {}),
     ...(volumes.length ? { volumes } : {}),
-    ...(home.length ? { home } : {}),
     ...(interfaces.length ? { interfaces } : {}),
     ...(services.length ? { services } : {}),
     ...(uninstall ? { uninstall } : {}),
@@ -289,12 +285,6 @@ function asPackage(id: string, row: Record<string, unknown>): CliPackage | null 
     volumes = parseVolumes(row.volumes)
   } catch {
     volumes = []
-  }
-  let home: string[] = []
-  try {
-    home = parseHomePaths(row.home)
-  } catch {
-    home = []
   }
   let services: AppService[] = []
   try {
@@ -319,7 +309,6 @@ function asPackage(id: string, row: Record<string, unknown>): CliPackage | null 
     ...(typeof row.bin === 'string' && row.bin ? { bin: row.bin } : {}),
     ...(interfaces.length ? { interfaces } : {}),
     ...(volumes.length ? { volumes } : {}),
-    ...(home.length ? { home } : {}),
     ...(services.length ? { services } : {}),
     ...(uninstall ? { uninstall } : {}),
     ...(clis.length ? { clis } : {}),
@@ -466,7 +455,6 @@ export function writeCliPackages(packages: CliPackage[]) {
       ...(pkg.bin ? { bin: pkg.bin } : {}),
       ...(pkg.clis?.length ? { clis: pkg.clis.join(', ') } : {}),
       ...(pkg.volumes?.length ? { volumes: pkg.volumes } : {}),
-      ...(pkg.home?.length ? { home: pkg.home } : {}),
       ...(pkg.services?.length ? { services: serviceYaml(pkg.services) } : {}),
       ...(pkg.kind === 'run' && pkg.uninstall ? { uninstall: pkg.uninstall } : {}),
       ...(pkg.enabled === false ? { enabled: false } : {}),
@@ -519,7 +507,6 @@ function appBuildDoc(pkg: CliPackage) {
     ...(pkg.bin ? { bin: pkg.bin } : {}),
     ...(pkg.clis?.length ? { clis: pkg.clis } : {}),
     ...(pkg.volumes?.length ? { volumes: pkg.volumes } : {}),
-    ...(pkg.home?.length ? { home: pkg.home } : {}),
     ...(pkg.interfaces?.length ? { interfaces: pkg.interfaces } : {}),
     ...(pkg.services?.length ? { services: serviceYaml(pkg.services) } : {}),
     ...(pkg.kind === 'run' && pkg.uninstall ? { uninstall: pkg.uninstall } : {}),
@@ -688,8 +675,6 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
   let release: (() => void) | null = null
   try {
     const packages = readCliPackages()
-    const { dataDir } = loadBootstrapConfig()
-    for (const pkg of enabledCliPackages(packages)) ensureHomeDirs(dataDir, pkg.home || [])
     const before = readAppsComposeText()
     writeAppsCompose(packages)
     const changed = before.trim() !== readAppsComposeText().trim()
@@ -722,7 +707,8 @@ export function appUpdateKind(id: string, packages: { id: string }[], sidecarIds
   return null
 }
 
-function updateCommand(pkg: CliPackage): string[] {
+export function updateCommand(pkg: CliPackage): string[] {
+  if (pkg.id === 'paperclip') return ['bash', '-lc', 'HOME=/home/bros paperclipai update']
   if (pkg.kind === 'npm') return ['npm', 'update', '-g', '--prefix', '/usr/local', pkg.spec]
   if (pkg.kind === 'pnpm') return ['pnpm', 'update', '-g', pkg.spec]
   if (pkg.kind === 'bun') return ['bun', 'update', '-g', pkg.spec]

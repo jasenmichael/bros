@@ -7,7 +7,7 @@ description: Addon desktop app. Off until enabled. CLI and window.
 
 Addon app `lib/apps/addon/cursor/config.yml`. Off until Enable on `/settings/apps`. `kind: deb`. Spec is the Linux x64 latest URL (`https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/latest`). The build downloads that file and `apt-get install`s it. Check follows redirects because a path segment is `latest`, and compares the resolved URL to the one saved at install.
 
-`bin` is `cursor`. Home is `.config/Cursor` and `.cursor`.
+`bin` is `cursor`.
 
 Interfaces:
 

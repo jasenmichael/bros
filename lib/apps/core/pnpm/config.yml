@@ -3,5 +3,3 @@ name: pnpm
 kind: pnpm
 spec: pnpm
 bin: pnpm
-home:
-  - .local/share/pnpm

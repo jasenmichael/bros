@@ -22,7 +22,6 @@ export type CliAppDraft = {
   args: string
   interfaces: CliAppExpose[]
   volumes: string
-  home: string
 }
 
 const props = defineProps<{
@@ -36,7 +35,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  save: [draft: Omit<CliAppDraft, 'home'> & { home: string[] }]
+  save: [draft: CliAppDraft]
   remove: []
 }>()
 
@@ -45,7 +44,6 @@ const spec = ref('')
 const args = ref('')
 const interfaces = ref<CliAppExpose[]>([])
 const volumes = ref('')
-const home = ref('')
 const cliAuto = ref(true)
 const addTypes = [
   { label: 'gui', value: 'gui' },
@@ -102,7 +100,6 @@ watch(() => props.open, (open) => {
   if (!rows.some((row) => row.type === 'cli')) rows.unshift(blankRow('cli'))
   interfaces.value = rows
   volumes.value = props.initial?.volumes || ''
-  home.value = props.initial?.home || ''
   const cli = rows.find((row) => row.type === 'cli')
   const label = labelFor(kind.value, spec.value)
   cliAuto.value = !cli?.command || cli.command === label
@@ -165,7 +162,6 @@ function onSave() {
       basePath: row.basePath.trim(),
     })),
     volumes: volumes.value.trim(),
-    home: home.value.split('\n').map((line) => line.trim()).filter(Boolean),
   })
 }
 
@@ -213,10 +209,6 @@ function dropInterface(index: number) {
         <label class="text-sm text-[var(--bros-muted)]">
           Volumes
           <UTextarea v-model="volumes" class="mt-1 font-mono" :rows="2" placeholder="host:container, one per line" />
-        </label>
-        <label class="text-sm text-[var(--bros-muted)]">
-          Home
-          <UTextarea v-model="home" class="mt-1 font-mono" :rows="2" placeholder=".config/app, one relative path per line" />
         </label>
         <div class="grid gap-2">
           <div class="flex items-center justify-between">

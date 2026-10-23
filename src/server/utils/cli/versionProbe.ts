@@ -5,6 +5,7 @@ function sh(value: string) {
 }
 
 export function versionCommand(pkg: ProbeApp): string | null {
+  if (pkg.id === 'paperclip') return 'HOME=/home/bros paperclipai --version'
   if (pkg.kind === 'run' || pkg.kind === 'deno' || pkg.kind === 'nix') return null
   const spec = pkg.spec.trim()
   if (pkg.kind === 'npm' && (spec === 'npm' || spec.startsWith('npm@') || pkg.bin === 'npm')) return 'npm --version'
@@ -23,6 +24,7 @@ export function versionCommand(pkg: ProbeApp): string | null {
 export function parseVersionText(kind: string, spec: string, text: string): string | null {
   const raw = text.trim()
   if (!raw) return null
+  if (spec === 'paperclipai') return raw.match(/\b(\d+\.\d+\.\d+)\b/)?.[1] || null
   if (kind === 'apt' || kind === 'deb') {
     const line = raw.split('\n').map((row) => row.trim()).find(Boolean) || ''
     return /^[0-9A-Za-z][0-9A-Za-z.+:~_-]{0,80}$/.test(line) ? line : null

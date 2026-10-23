@@ -3,5 +3,3 @@ name: uv
 kind: uv
 spec: uv
 bin: uv
-home:
-  - .cache/uv

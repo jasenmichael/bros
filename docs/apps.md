@@ -11,7 +11,7 @@ Add and edit package apps on `/settings/apps`. The image and binds are [Desktop 
 
 ## Package app and sidecar app
 
-A **package app** is `lib/apps/<tier>/<id>/config.yml`, or `data/config/apps/<id>/config.yml` for a custom app. The Desktop image build installs the enabled set into `/usr/local`. Core is always on. An addon or custom app installs only after Enable. Container start does not install. The process runs inside `bros-desktop` and shares `127.0.0.1` with the rest of that container.
+A **package app** is `lib/apps/<tier>/<id>/config.yml`, or `data/config/apps/<id>/config.yml` for a custom app. The Desktop image build installs the enabled set into `/usr/local`. Core is always on. An addon or custom app installs only after Enable. Container start does not install, except Paperclip, which installs on Start. The process runs inside `bros-desktop` and shares `127.0.0.1` with the rest of that container.
 
 A **sidecar app** is a sidecar. It keeps its own image and container (`bros-sc-<id>`). Bros does not install it into the Desktop image. Desktop reaches it through a `cli` wrapper, a `gui` window, or a `webui` address.
 

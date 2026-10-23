@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DESKTOP_SIDECAR_ID, defaultSidecarAutostart, shouldAutostartSidecar } from '../../src/server/utils/sidecars/sidecars'
-import { packageUpdateAction, parseCliPackage, seedCliPackages, cliApplyAction } from '../../src/server/utils/cli/packages'
+import { packageUpdateAction, parseCliPackage, seedCliPackages, cliApplyAction, updateCommand } from '../../src/server/utils/cli/packages'
 import { buildVersionScript, parseVersionScriptOutput, parseVersionText, versionCommand } from '../../src/server/utils/cli/versionProbe'
 import { managerForms } from '../../src/server/utils/cli/managers'
 import { debTracksLatest } from '../../src/server/utils/cli/managers/deb'
@@ -162,6 +162,9 @@ describe('cli packages', () => {
   })
 
   it('parses an installed version and rebuilds a run update', () => {
+    expect(versionCommand({ id: 'paperclip', kind: 'npm', spec: 'paperclipai', bin: 'paperclipai' })).toBe('HOME=/home/bros paperclipai --version')
+    expect(parseVersionText('npm', 'paperclipai', 'paperclipai 2026.720.0\n')).toBe('2026.720.0')
+    expect(updateCommand({ id: 'paperclip', kind: 'npm', spec: 'paperclipai', bin: 'paperclipai' })).toEqual(['bash', '-lc', 'HOME=/home/bros paperclipai update'])
     expect(versionCommand({ id: 'agent', kind: 'run', spec: 'curl https://example.com/install | bash' })).toBeNull()
     expect(versionCommand({ id: 'npm', kind: 'npm', spec: 'npm', bin: 'npm' })).toBe('npm --version')
     expect(versionCommand({ id: 'uv', kind: 'uv', spec: 'uv', bin: 'uv' })).toBe('uv --version')

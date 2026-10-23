@@ -12,7 +12,6 @@ type CliPackage = {
   bin?: string
   clis?: string[]
   volumes?: string[]
-  home?: string[]
   interfaces?: Array<{ type: string; command?: string; args?: string; containerPort?: number; publish?: number; basePath?: string }>
   tier?: 'core' | 'addon' | 'custom'
   enabled?: boolean
@@ -96,16 +95,15 @@ function openEdit(pkg: CliPackage) {
     spec: pkg.spec,
     args: pkg.args || '',
     volumes: (pkg.volumes || []).join('\n'),
-    home: (pkg.home || []).join('\n'),
     interfaces: cliDraftInterfaces(pkg),
   }
   note.value = ''
   dialogOpen.value = true
 }
 
-async function save(body: Omit<CliAppDraft, 'home'> & { home: string[] }) {
+async function save(body: CliAppDraft) {
   const id = editing.value?.id
-  form.value = { ...body, home: body.home.join('\n') }
+  form.value = body
   dialogOpen.value = false
   busy.value = true
   note.value = ''

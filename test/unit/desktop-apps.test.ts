@@ -8,7 +8,7 @@ import { listedPackageApp, listedSidecarApp } from '../../src/ui/utils/gui'
 
 const root = join(import.meta.dirname, '../..')
 
-const paperclip = 'id: paperclip\nenabled: true\nservices:\n  - paperclipai run\n'
+const paperclip = 'id: paperclip\nenabled: true\nservices:\n  - script: serve.sh\n'
 const jq = 'id: jq\nkind: apt\n'
 
 describe('desktop package apps', () => {
@@ -17,7 +17,8 @@ describe('desktop package apps', () => {
     const paperclip = catalog.find((pkg) => pkg.id === 'paperclip')
     expect(paperclip?.tier).toBe('addon')
     expect(paperclip?.enabled).toBe(false)
-    expect(paperclip?.services?.[0]?.command).toBe('paperclipai run')
+    expect(paperclip?.services?.[0]?.script).toBe('serve.sh')
+    expect(readFileSync(join(root, 'lib/apps/addon/paperclip/serve.sh'), 'utf8')).toContain('onboard --yes --bind lan')
     expect(appsComposeBody(catalog)).not.toContain('3100')
     const enabled = catalog.map((pkg) => pkg.id === 'paperclip' ? { ...pkg, enabled: true } : pkg)
     expect(appsComposeBody(enabled)).toContain('3100:3100')
@@ -85,7 +86,7 @@ describe('desktop package apps', () => {
     const files = [{ text: paperclip }, { text: jq }]
     expect(runningIds('{"ids":["paperclip"]}')).toEqual(['paperclip'])
     expect(runningIds('')).toEqual([])
-    expect(commandsForRunning(files, ['paperclip'])).toEqual([{ id: 'paperclip', command: 'paperclipai run' }])
+    expect(commandsForRunning(files, ['paperclip'])).toEqual([{ id: 'paperclip', command: './serve.sh' }])
     expect(commandsForRunning([{ text: 'id: demo\nservices:\n  - script: serve.sh\n', dir: '/opt/bros/enabled-apps/demo' }], ['demo'])).toEqual([{ id: 'demo', command: './serve.sh', cwd: '/opt/bros/enabled-apps/demo' }])
     expect(commandsForRunning(files, [])).toEqual([])
     expect(commandsForRunning([{ text: 'id: paperclip\nenabled: false\nservices:\n  - paperclipai run\n' }], ['paperclip'])).toEqual([])
