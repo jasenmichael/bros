@@ -7,7 +7,7 @@ description: Core desktop image and the terminal. No host port.
 
 Core package `lib/sidecars/core/desktop`. Always starts. No host port. Listed as **Desktop (core)**. The card links to `/terminal`.
 
-The image and container are `bros-desktop`. Compose service `desktop`. Selkies captures one Wayland display. `labwc` nests on it and provides window management and XWayland. The page is [Desktop](/docs/sidecars/gui).
+The image and container are `bros-desktop`. Sidecars Update rebuilds that image. Check does not pull it. Compose service `desktop`. Selkies captures one Wayland display. `labwc` nests on it and provides window management and XWayland. The page is [Desktop](/docs/sidecars/gui).
 
 `/terminal` embeds ttyd on container port 7681, proxied at `/terminal/session` from `http://desktop:7681`. The shell is user `bros`, the container hostname is `bros`, and it starts in `$HOME/workspace` (`/home/bros/workspace`). The prompt there is `bros@bros:~/workspace$`. Package installs are [Apps](/docs/apps). Add and edit on `/settings/apps`.
 

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse as parseYaml } from 'yaml'
-import { composeUsesDesktopNetns, isMissingHostDataBind, shouldAttachProjectNetwork, shouldBuildSidecarImage } from '../../src/server/utils/docker'
+import { composeImageIsLocal, composeUsesDesktopNetns, isMissingHostDataBind, shouldAttachProjectNetwork, shouldBuildSidecarImage } from '../../src/server/utils/docker'
 import { isReservedSidecarId, parseSidecarMeta, projectName, RESERVED_SLUGS } from '../../src/server/utils/sidecars/sidecars'
 
 describe('sidecar project naming', () => {
@@ -157,6 +157,25 @@ describe('sidecar data binds', () => {
     expect(shouldBuildSidecarImage(true, false)).toBe(false)
     expect(shouldBuildSidecarImage(true, true)).toBe(true)
     expect(shouldBuildSidecarImage(false, false)).toBe(true)
+  })
+
+  it('treats a build with no registry image as local', () => {
+    const root = join(import.meta.dirname, '../..')
+    for (const rel of [
+      'lib/sidecars/core/desktop/docker-compose.yml',
+      'lib/sidecars/addon/pi/docker-compose.yml',
+      'lib/sidecars/addon/firecrawl-ui/docker-compose.yml',
+    ]) {
+      expect(composeImageIsLocal(readFileSync(join(root, rel), 'utf8'))).toBe(true)
+    }
+    for (const rel of [
+      'lib/sidecars/core/ollama/docker-compose.yml',
+      'lib/sidecars/core/whisper/docker-compose.yml',
+      'lib/sidecars/addon/opencode/docker-compose.yml',
+    ]) {
+      expect(composeImageIsLocal(readFileSync(join(root, rel), 'utf8'))).toBe(false)
+    }
+    expect(composeImageIsLocal('services:\n  app:\n    build: .\n')).toBe(true)
   })
 
   it('sets OLLAMA_NOPRUNE=1 on sidecar Ollama compose', () => {

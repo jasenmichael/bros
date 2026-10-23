@@ -31,7 +31,7 @@ Three entries:
 | `run <command>` | Exec | Run that command in container `bros-desktop` (service `desktop`, workdir `$HOME/workspace`). Example: `bros run agent`. |
 | `shell` | Exec | Open the Bros terminal on the host. Same container and `bash` as `/terminal`. |
 | `app check <id>` | One-off | Check one package app or sidecar app. Prints the installed version, then `Update available` or `Up to date`. A run command has no version check. A deb URL reports an update only when a path segment is `latest` and the resolved URL changed. |
-| `app update <id>` | One-off | Update that app. A package app uses its package manager. A run app writes a force stamp and rebuilds Desktop so that curl runs again. A sidecar app pulls its image and recreates. |
+| `app update <id>` | One-off | Update that app. A package app uses its package manager. A run app writes a force stamp and rebuilds Desktop so that curl runs again. A registry sidecar image pulls and recreates. A local image (compose `build`, no registry in the name) rebuilds and recreates. Check on a local image does not pull. |
 
 If `bros-desktop` is not running, `run` and `shell` exit and tell you to start Bros.
 

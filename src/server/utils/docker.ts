@@ -65,6 +65,13 @@ export function shouldBuildSidecarImage(imageReady: boolean, rebuild: boolean): 
   return rebuild || !imageReady
 }
 
+/** Local tag (`bros-desktop`) is built here. A registry image contains `/`. */
+export function composeImageIsLocal(text: string): boolean {
+  if (!/^\s*build:/m.test(text)) return false
+  const image = text.match(/^\s*image:\s*([^\s#]+)/m)?.[1]
+  return !image || !image.includes('/')
+}
+
 function composeImageRef(dir: string): string | null {
   try {
     const match = readFileSync(join(dir, 'docker-compose.yml'), 'utf8').match(/^\s*image:\s*([^\s#]+)/m)
@@ -442,8 +449,15 @@ const startJobs = new Map<string, Promise<unknown>>()
 export async function pullSidecar(id: string, opts?: { dryRun?: boolean }) {
   const sidecar = getSidecar(id)
   if (!sidecar) throw createError({ statusCode: 404, statusMessage: 'Sidecar not found' })
+  const composePath = join(sidecar.dir, 'docker-compose.yml')
+  const compose = existsSync(composePath) ? readFileSync(composePath, 'utf8') : ''
+  if (composeImageIsLocal(compose)) {
+    if (opts?.dryRun) return { code: 0, stdout: '', stderr: '' }
+    const started = await startSidecar(id, { rebuild: true, forceRecreate: true })
+    return { code: 0, stdout: '', stderr: started.warning || '' }
+  }
   const pull = await run('docker', [
-    'compose', '-p', projectName(id), '-f', join(sidecar.dir, 'docker-compose.yml'),
+    'compose', '-p', projectName(id), '-f', composePath,
     'pull',
     ...(opts?.dryRun ? ['--dry-run'] : []),
   ], sidecar.dir, 600_000)

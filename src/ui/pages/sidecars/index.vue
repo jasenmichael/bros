@@ -345,7 +345,7 @@ async function updateImage(s: SidecarRow) {
   markBusy(key)
   try {
     const res = await $fetch<{ code: number; stderr: string }>(`/api/apps/${s.id}/update`, { method: 'POST' })
-    actionNote.value = res.code === 0 ? `${s.name} updated` : (res.stderr || 'Update failed')
+    actionNote.value = res.code === 0 ? (res.stderr || `${s.name} updated`) : (res.stderr || 'Update failed')
   } catch (err: unknown) {
     formError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
       || (err instanceof Error ? err.message : 'Update failed')
