@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { openCodePassword, passwordFromLogs } from '../../src/server/utils/sidecars/opencodePassword'
+import { openCodePassword, openCodeServeLogPassword, passwordFromLogs } from '../../src/server/utils/sidecars/opencodePassword'
 
 describe('openCodePassword', () => {
   let root = ''
@@ -30,6 +30,14 @@ describe('openCodePassword', () => {
   it('returns null when the files are missing or empty', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-oc-'))
     expect(openCodePassword(root)).toBeNull()
+  })
+
+  it('reads the Desktop serve log password', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-oc-'))
+    mkdirSync(join(root, 'home/.local/state/opencode'), { recursive: true })
+    writeFileSync(join(root, 'home/.local/state/opencode/serve.log'), 'server password desk\n')
+    expect(openCodeServeLogPassword(root)).toBe('desk')
+    expect(openCodeServeLogPassword(join(root, 'missing'))).toBeNull()
   })
 
   it('uses the latest server password line', () => {

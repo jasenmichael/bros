@@ -5,7 +5,7 @@ description: @bros/website on GitHub Pages, same docs/ as the app.
 
 # Docs site
 
-Package `@bros/website`. `baseURL` `/bros/`. Same repo-root `docs/` as the app `/docs`. Layer chain: theme → docs → website (marketing `/`) or app (dashboard `/`).
+Package `@bros/website`. `baseURL` `/bros/`. Same repo-root `docs/` as the app `/docs`. Layer chain: theme → docs → website (marketing `/`) or app (dashboard `/`). GitHub Pages is the only build: the app image and dev container do not copy, install, or cache this package.
 
 ## Local
 

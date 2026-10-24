@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { CliAppDraft, CliManagerForm } from '../../components/CliAppDialog.vue'
+import type { CliAppDraft, CliManagerForm } from '../../../components/CliAppDialog.vue'
 
-useSeoMeta({ title: 'Apps and packages' })
+useSeoMeta({ title: 'Desktop settings' })
 
 type CliPackage = {
   id: string
@@ -17,6 +17,9 @@ type CliPackage = {
   enabled?: boolean
   services?: Array<{ command: string }>
   serviceRunning?: boolean
+  password?: string
+  forwardHost?: boolean
+  navPinned?: boolean
 }
 
 function cliDraftInterfaces(pkg: CliPackage): CliAppDraft['interfaces'] {
@@ -54,11 +57,21 @@ const pending = ref<string[]>([])
 const rebuildLock = ref(false)
 const versions = ref<Record<string, string>>({})
 const latest = ref<Record<string, string>>({})
+const updates = ref<Record<string, boolean>>({})
 
-const { data, refresh } = await useFetch<{ packages: CliPackage[]; managers: CliManagerForm[] }>('/api/cli/packages')
+const { data, refresh } = await useFetch<{ packages: CliPackage[]; managers: CliManagerForm[]; rebuildPending?: boolean }>('/api/cli/packages?rebuild=1')
+const { refreshPinnedNav } = usePinnedNav()
+
+function copyText(value: string) {
+  void navigator.clipboard.writeText(value)
+}
+
+function hasWebui(pkg: CliPackage) {
+  return (pkg.interfaces || []).some((row) => row.type === 'webui' && row.containerPort && row.publish)
+}
 
 function webuiOpen(pkg: CliPackage) {
-  if (pkg.enabled === false) return ''
+  if (pkg.enabled === false || pkg.forwardHost === false) return ''
   const face = (pkg.interfaces || []).find((row) => row.type === 'webui' && row.publish)
   return face?.publish ? `http://127.0.0.1:${face.publish}/` : ''
 }
@@ -146,7 +159,7 @@ async function loadVersions() {
 onMounted(() => { void loadVersions() })
 
 function labelVersion(pkg: CliPackage) {
-  return pkg.kind === 'run' || pkg.enabled === false ? '' : (versions.value[pkg.id] || '')
+  return pkg.enabled === false ? '' : (versions.value[pkg.id] || '')
 }
 
 function labelLatest(pkg: CliPackage) {
@@ -161,6 +174,7 @@ async function checkPackage(id: string) {
   try {
     const res = await $fetch<{ available: boolean; version?: string; latest?: string }>(`/api/apps/${id}/update`)
     if (res.version) versions.value = { ...versions.value, [id]: res.version }
+    updates.value = { ...updates.value, [id]: !!res.available }
     latest.value = { ...latest.value, [id]: res.available && res.latest ? res.latest : '' }
   } catch (err: unknown) {
     note.value = errText(err)
@@ -195,7 +209,11 @@ async function updatePackage(pkg: CliPackage) {
         color: res.code !== 0 ? 'error' : res.stderr ? 'warning' : 'success',
       })
     }
-    if (res.code === 0) await loadVersions()
+    if (res.code === 0) {
+      await loadVersions()
+      latest.value = { ...latest.value, [pkg.id]: '' }
+      updates.value = { ...updates.value, [pkg.id]: false }
+    }
   } catch (err: unknown) {
     if (run) toast.remove('apps-rebuild')
     note.value = errText(err)
@@ -205,11 +223,66 @@ async function updatePackage(pkg: CliPackage) {
   }
 }
 
-async function setService(id: string, start: boolean) {
+async function setService(id: string, action: 'start' | 'stop' | 'restart') {
   busy.value = true
   note.value = ''
   try {
-    await $fetch(`/api/apps/${id}/service`, { method: 'POST', body: { action: start ? 'start' : 'stop' } })
+    await $fetch(`/api/apps/${id}/service`, { method: 'POST', body: { action } })
+  } catch (err: unknown) {
+    note.value = errText(err)
+  } finally {
+    busy.value = false
+    await refresh()
+  }
+}
+
+async function patchUi(id: string, body: { forwardHost?: boolean; navPinned?: boolean }) {
+  busy.value = true
+  note.value = ''
+  try {
+    const saved = await $fetch<{ packages: CliPackage[]; install: { code: number; stderr: string } }>(`/api/apps/${id}/ui`, { method: 'POST', body })
+    if (data.value) data.value.packages = saved.packages
+    if (body.forwardHost !== undefined) note.value = installText(saved.install.code, saved.install.stderr, 'Forward failed')
+    if (body.navPinned !== undefined) await refreshPinnedNav()
+  } catch (err: unknown) {
+    note.value = errText(err)
+  } finally {
+    busy.value = false
+    await refresh()
+  }
+}
+
+async function rebuildDesktop() {
+  if (busy.value || rebuildLock.value) return
+  busy.value = true
+  rebuildLock.value = true
+  note.value = ''
+  toast.add({ id: 'apps-rebuild', title: 'Rebuilding Desktop', description: 'Installing run apps and swapping the container.', duration: 0 })
+  try {
+    const res = await $fetch<{ install: { code: number; stderr: string } }>('/api/apps/rebuild', { method: 'POST' })
+    toast.remove('apps-rebuild')
+    toast.add({
+      title: res.install.code === 0 ? 'Desktop container replaced' : 'Desktop rebuild failed',
+      description: installText(res.install.code, res.install.stderr, 'Rebuild failed') || undefined,
+      color: res.install.code !== 0 ? 'error' : res.install.stderr ? 'warning' : 'success',
+    })
+  } catch (err: unknown) {
+    toast.remove('apps-rebuild')
+    note.value = errText(err)
+  } finally {
+    busy.value = false
+    rebuildLock.value = false
+    await refresh()
+  }
+}
+
+async function disablePackage(id: string) {
+  busy.value = true
+  note.value = ''
+  try {
+    const saved = await $fetch<{ packages: CliPackage[]; install: { code: number; stderr: string } }>(`/api/apps/${id}/disable`, { method: 'POST' })
+    if (data.value) data.value.packages = saved.packages
+    note.value = installText(saved.install.code, saved.install.stderr, 'Disable failed')
   } catch (err: unknown) {
     note.value = errText(err)
   } finally {
@@ -275,9 +348,12 @@ async function removePackage() {
 </script>
 
 <template>
-  <BrosPageShell title="Apps and packages" description="Enabled apps install when the Desktop image builds. A volume or a webui port rebuilds Desktop.">
-    <div class="mb-3 flex items-center justify-between">
-      <NuxtLink to="/settings" class="text-sm text-[var(--bros-muted)] underline">Settings</NuxtLink>
+  <BrosPageShell title="Desktop settings" description="Apps on the Desktop image, and launchers pinned to the Drawer.">
+    <NuxtLink to="/settings" class="text-sm text-[var(--bros-muted)] underline">Settings</NuxtLink>
+    <h2 class="mb-2 mt-4 text-lg font-medium text-white">Apps</h2>
+    <DesktopAppsBoard />
+    <div class="mb-3 mt-8 flex items-center justify-end gap-2">
+      <UButton v-if="data?.rebuildPending" size="sm" color="neutral" variant="soft" :disabled="busy || rebuildLock" @click="rebuildDesktop">Rebuild</UButton>
       <UButton size="sm" icon="i-lucide-plus" :disabled="busy" @click="openAdd">Add app</UButton>
     </div>
     <p v-if="note" class="mb-3 text-sm text-amber-300">{{ note }}</p>
@@ -303,6 +379,12 @@ async function removePackage() {
           target="_blank"
           rel="noopener noreferrer"
         >Open</a>
+        <button
+          v-if="pkg.password"
+          type="button"
+          class="font-mono text-xs text-white"
+          @click="copyText(pkg.password || '')"
+        >{{ pkg.password }}</button>
         <UButton
           v-if="pkg.enabled === false"
           size="xs"
@@ -314,8 +396,16 @@ async function removePackage() {
           v-if="pkg.services?.length"
           size="xs"
           :disabled="busy"
-          @click="setService(pkg.id, !pkg.serviceRunning)"
+          @click="setService(pkg.id, pkg.serviceRunning ? 'stop' : 'start')"
         >{{ pkg.serviceRunning ? 'Stop' : 'Start' }}</UButton>
+        <UButton
+          v-if="pkg.services?.length"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :disabled="busy"
+          @click="setService(pkg.id, 'restart')"
+        >Restart</UButton>
         <UButton
           v-if="pkg.kind !== 'run'"
           size="xs"
@@ -326,6 +416,7 @@ async function removePackage() {
           @click="checkPackage(pkg.id)"
         >Check</UButton>
         <UButton
+          v-if="pkg.kind === 'run' || updates[pkg.id]"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -333,7 +424,30 @@ async function removePackage() {
           :disabled="updateOff(pkg)"
           @click="updatePackage(pkg)"
         >Update</UButton>
+        <UButton
+          v-if="pkg.tier === 'addon'"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :disabled="busy"
+          @click="disablePackage(pkg.id)"
+        >Disable</UButton>
         </template>
+        <label v-if="hasWebui(pkg)" class="flex items-center gap-1 text-xs text-[var(--bros-muted)]">
+          <USwitch :model-value="pkg.forwardHost !== false" :disabled="busy" @update:model-value="(v: boolean) => patchUi(pkg.id, { forwardHost: v })" />
+          Forward to host
+        </label>
+        <label v-if="hasWebui(pkg)" class="flex items-center gap-1 text-xs text-[var(--bros-muted)]">
+          <USwitch :model-value="pkg.navPinned === true" :disabled="busy" @update:model-value="(v: boolean) => patchUi(pkg.id, { navPinned: v })" />
+          Pin in nav
+        </label>
+        <UButton
+          v-if="pkg.services?.length"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :to="`/settings/desktop/${pkg.id}/logs`"
+        >Logs</UButton>
         <UButton
           v-if="pkg.tier === 'custom' || !pkg.tier"
           icon="i-lucide-pencil"

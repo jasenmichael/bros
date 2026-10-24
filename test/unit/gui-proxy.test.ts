@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { guiAppProxyId } from '../../src/ui/utils/gui'
-import { isDesktopStreamPath } from '../../src/server/utils/sidecars/guiProxy'
+import { injectDesktopStreamVisibility, isDesktopStreamPath } from '../../src/server/utils/sidecars/guiProxy'
 import { needsAuthGate } from '../../src/server/utils/sidecars/sidecarProxy'
 import { isReservedSidecarId, parseSidecarMeta, shouldAutostartSidecar } from '../../src/server/utils/sidecars/sidecars'
 
@@ -12,6 +12,15 @@ describe('desktop stream paths', () => {
     expect(isDesktopStreamPath('/desktop/view/')).toBe(true)
     expect(isDesktopStreamPath('/desktop/view/index.html')).toBe(true)
     expect(isDesktopStreamPath('/desktop-extra')).toBe(false)
+  })
+
+  it('ties the embedded stream visibility to the Bros page', () => {
+    const html = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
+    const next = injectDesktopStreamVisibility(html)
+    expect(next).toContain('data-bros-stream-visibility')
+    expect(next.indexOf('data-bros-stream-visibility')).toBeLessThan(next.indexOf('<meta'))
+    expect(injectDesktopStreamVisibility(next)).toBe(next)
+    expect(injectDesktopStreamVisibility('<html><body>x</body></html>')).toMatch(/^<script data-bros-stream-visibility>/)
   })
 
   it('names one process id per package GUI', () => {

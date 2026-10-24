@@ -1,5 +1,5 @@
 id: uv
 name: uv
-kind: uv
+kind: nix
 spec: uv
 bin: uv

@@ -47,7 +47,7 @@ bros/
 
 A utils concept gets a folder when it already has three or more files. One file stays flat. Route handlers stay thin and call those modules. `#bros` points at `src/server/utils`.
 
-The Bros image runs Node 26.7.0. The Desktop image copies its Node binary from `node:26.7.0-bookworm-slim`.
+The Bros image runs Node 26.7.0. Desktop does not copy that binary onto `PATH`. The Desktop build mounts it to run `install.mjs` for `kind: run`.
 
 ## Layer chain
 
@@ -63,7 +63,7 @@ Docs extends theme. App and website also extend theme + docs so both layers stay
 - `docker-compose.yml` plus one overlay: `docker-compose.prod.yml` or `docker-compose.dev.yml` (`BROS_DEV=1`). Core + sidecars join external network `bros` (`external: true`). `bros` / dockerode create it if missing so compose never tries to own/relabel it. Listen env on the base file is `BROS_PORT` and `BROS_HOST`. The process binds `BROS_HOST` (default `0.0.0.0`).
 - Dev start (`BROS_DEV=1 ./bros` or `./bros --dev`): `compose up` without `--build`. Builds only if `bros:dev` is missing. Daily source edits use the bind-mount. Rebuild/pull: `BROS_DEV=1 ./bros update`.
 - Prod start (`bros`): `compose up --build` (source is baked into `bros:latest`).
-- Dev image (`Dockerfile` target `development`): toolchain only — no source `COPY`; bind-mount `./:/app`, then `pnpm install` in `/app/src` + `pnpm --filter @bros/ui dev`. The app service also bind-mounts `$BROS_HOST_REPO` at the same path. Prod bakes `@bros/cli` to `/usr/local/lib/bros-cli.mjs` and installs `git`. pnpm 12 sets `minimumReleaseAge: 0` and `verifyDepsBeforeRun: false` in `src/pnpm-workspace.yaml`.
+- Dev image (`Dockerfile` target `development`): toolchain only — no source `COPY`; bind-mount `./:/app`, then `pnpm install --filter @bros/ui... --filter @bros/cli...` in `/app/src` + `pnpm --filter @bros/ui dev`. Prod install uses the same filters. `@bros/website` is GitHub Pages only (`.dockerignore` skips `src/website`). The app service also bind-mounts `$BROS_HOST_REPO` at the same path. Prod bakes `@bros/cli` to `/usr/local/lib/bros-cli.mjs` and installs `git`. pnpm 12 reads hoist from `src/pnpm-workspace.yaml` (`shamefullyHoist: true`, `minimumReleaseAge: 0`, `verifyDepsBeforeRun: false`); `.npmrc` is auth and registry only. `src/server` sits outside `@bros/ui`, so the CLI bundle needs that public hoist to inline `pathe` and the other server imports.
 - Sidecars **not** in main Compose; managed via Docker socket
 - Persistent data is host binds under `$BROS_HOME/data` (repo `./data`, installed `~/.bros/data`), not named `bros-data` / `bros-ollama-data` volumes. Start does not copy leftover named volumes. Dev `node_modules` volumes stay named caches.
 - Docs site: `pnpm --dir src docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm --dir src docs:generate` then `pnpm --dir src --filter @bros/website preview`. Pages artifact is `src/website/.output/public`.

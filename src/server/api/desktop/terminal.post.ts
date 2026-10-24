@@ -1,17 +1,9 @@
-import { dockerCommandError, ensureAppsRunning, execInSidecar } from '../../utils/docker'
-
-const script = '/app/lib/sidecars/core/desktop/desktop-gui.sh'
+import { closeTerminal, startTerminal, stopTerminal } from '../../utils/desktopPins'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ open?: boolean }>(event).catch(() => ({ open: true }))
-  await ensureAppsRunning()
-  const open = body?.open !== false
-  const args = open
-    ? [script, 'start', 'terminal', '--', 'foot', '--working-directory=/home/bros/workspace']
-    : [script, 'stop', 'terminal']
-  const res = await execInSidecar('desktop', args)
-  if (res.code !== 0) {
-    throw createError(dockerCommandError(500, open ? 'Desktop app failed to start' : 'Desktop app failed to stop', res.stderr || res.stdout || 'Desktop app failed to start'))
-  }
+  const body = await readBody<{ open?: boolean, close?: boolean }>(event).catch(() => ({ open: true, close: false }))
+  if (body?.close) await closeTerminal()
+  else if (body?.open === false) await stopTerminal()
+  else await startTerminal()
   return { ok: true }
 })

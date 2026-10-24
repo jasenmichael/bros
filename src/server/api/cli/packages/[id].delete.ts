@@ -1,4 +1,5 @@
 import { applyCliPackages, readCliPackages, readStoredPackages, writeCliPackages } from '../../../utils/cli/packages'
+import { stagePackageRemoval } from '../../../utils/cli/ensure'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -7,6 +8,8 @@ export default defineEventHandler(async (event) => {
   if (!current.some((row) => row.id === id)) {
     throw createError({ statusCode: 404, statusMessage: 'Package not found' })
   }
+  const pkg = readCliPackages().find((row) => row.id === id)
+  if (pkg) stagePackageRemoval(pkg)
   const packages = current.filter((row) => row.id !== id)
   writeCliPackages(packages)
   try {

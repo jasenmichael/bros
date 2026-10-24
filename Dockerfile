@@ -1,16 +1,15 @@
 # syntax=docker/dockerfile:1
 
-FROM docker:27-cli AS dockercli
+FROM docker:27.5.1-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c AS dockercli
 
 # Shared toolchain (no app source). Dev uses this as-is; prod build layers on top.
 FROM node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b75901b6a09de1ae5a667d32 AS tools
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    python3 make g++ git curl ca-certificates systemd \
+    git curl ca-certificates systemd \
   && rm -rf /var/lib/apt/lists/* \
-  && corepack enable \
-  && corepack prepare pnpm@9.15.0 --activate
+  && npm install -g pnpm@12.15.0
 
 COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=dockercli /usr/local/libexec/docker/cli-plugins/docker-compose \
@@ -35,12 +34,13 @@ WORKDIR /app
 COPY src/package.json src/pnpm-workspace.yaml src/pnpm-lock.yaml src/.npmrc ./src/
 COPY src/cli/package.json ./src/cli/
 COPY src/ui/package.json ./src/ui/
-COPY src/website/package.json ./src/website/
 COPY src/layers/theme/package.json ./src/layers/theme/
 COPY src/layers/docs/package.json ./src/layers/docs/
 
 WORKDIR /app/src
-RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+# @bros/website is GitHub Pages only. ui... pulls docs + theme.
+RUN pnpm install --filter "@bros/ui..." --filter "@bros/cli..." --frozen-lockfile \
+  || pnpm install --filter "@bros/ui..." --filter "@bros/cli..." --no-frozen-lockfile
 
 WORKDIR /app
 COPY . .

@@ -1,0 +1,5 @@
+id: deno
+name: deno
+kind: nix
+spec: deno
+bin: deno

@@ -41,8 +41,10 @@ describe('sidecar discover merge', () => {
     writePackage(join(shipped, 'core'), 'ollama')
     writePackage(join(shipped, 'addon'), 'opencode')
     writePackage(join(shipped, 'addon'), 'openwebui')
+    writePackage(join(shipped, 'addon'), 'routeslug', 'slug: taken-slug')
     writePackage(custom, 'opencode')
     writePackage(custom, 'mine')
+    writePackage(custom, 'alias', 'slug: taken-slug')
     const repoSidecars = join(custom, 'extra', 'sidecars')
     writePackage(repoSidecars, 'fromgit')
     mkdirSync(join(custom, 'extra', '.git'), { recursive: true })
@@ -68,10 +70,36 @@ describe('sidecar discover merge', () => {
     expect(byId.fromgit.kind).toBe('additional')
     expect(byId.fromgit.source).toBe('https://github.com/example/extra.git')
     expect(byId.fromgit.editable).toBe(false)
-    expect(errors.some((e) => e.includes('opencode'))).toBe(true)
+    expect(byId.routeslug.kind).toBe('addon')
+    expect(byId.alias).toBeUndefined()
+    expect(errors.some((e) => e.includes('opencode') && e.includes('id'))).toBe(true)
+    expect(errors.some((e) => e.includes('alias') && e.includes('slug'))).toBe(true)
+
+    const disabled = discoverSidecars({
+      shippedRoot: shipped,
+      customRoot: custom,
+      dataDir,
+      env: { BROS_SIDECAR_OPENCODE: '0', BROS_SIDECARS_DISABLE: 'routeslug' },
+    })
+    const off = Object.fromEntries(disabled.sidecars.map((s) => [s.id, s]))
+    expect(off.opencode.source).toBe('shipped')
+    expect(off.opencode.disabled).toBe(true)
+    expect(off.opencode.dir).toBe(join(shipped, 'addon', 'opencode'))
+    expect(off.routeslug.source).toBe('shipped')
+    expect(off.routeslug.disabled).toBe(true)
+    expect(off.alias).toBeUndefined()
+    expect(off.openwebui.source).toBe('shipped')
+    expect(off.openwebui.disabled).toBe(false)
+    expect(disabled.errors.some((e) => e.includes('opencode') && e.includes('id'))).toBe(true)
+    expect(disabled.errors.some((e) => e.includes('alias') && e.includes('slug'))).toBe(true)
+    expect(shouldAutostartSidecar(off.opencode, { autostart: true })).toBe(false)
+    expect(isReservedSidecarId('opencode', { shippedRoot: shipped, env: { BROS_SIDECAR_OPENCODE: '0' } })).toBe(true)
+    expect(isReservedSidecarId('routeslug', { shippedRoot: shipped, env: { BROS_SIDECARS_DISABLE: 'routeslug' } })).toBe(true)
+    expect(isReservedSidecarId('opencode', { shippedRoot: shipped, env: {} })).toBe(true)
+    expect(isReservedSidecarId('ollama', { shippedRoot: shipped, env: { BROS_SIDECAR_OLLAMA: '0' } })).toBe(true)
   })
 
-  it('marks env-disabled addons and skips them from autostart', () => {
+  it('lists env-disabled addons and skips autostart', () => {
     expect(disabledAddonIds({ BROS_SIDECARS_DISABLE: 'opencode,openwebui' })).toEqual(new Set(['opencode', 'openwebui']))
     expect(disabledAddonIds({ BROS_SIDECAR_OPENCODE: '0' })).toEqual(new Set(['opencode']))
     expect(readFileSync(join(import.meta.dirname, '../../docker-compose.yml'), 'utf8')).toContain('BROS_SIDECAR_OPENCODE: ${BROS_SIDECAR_OPENCODE:-0}')
@@ -91,6 +119,7 @@ describe('sidecar discover merge', () => {
       env: { BROS_SIDECAR_OPENCODE: '0' },
     })
     const opencode = sidecars.find((s) => s.id === 'opencode')
+    expect(opencode?.source).toBe('shipped')
     expect(opencode?.disabled).toBe(true)
     expect(shouldAutostartSidecar(opencode!, { autostart: true })).toBe(false)
     expect(shouldAutostartSidecar({ id: CORE_SIDECAR_ID }, { autostart: false })).toBe(true)
@@ -132,6 +161,59 @@ describe('sidecar discover merge', () => {
     expect(created.kind).toBe('additional')
     expect(readFileSync(join(custom, 'mine', 'sidecar.yml'), 'utf8')).toContain('id: mine')
     expect(readFileSync(join(custom, 'mine', 'docker-compose.yml'), 'utf8')).toContain('nginx:alpine')
+  })
+
+  it('keeps a disabled addon listed and rejects a custom pack with that id', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-disabled-addon-'))
+    const shipped = join(root, 'lib', 'sidecars')
+    const custom = join(root, 'sidecars')
+    const dataDir = join(root, 'data')
+    const id = 'fakedis'
+    writePackage(join(shipped, 'addon'), id, 'slug: fakedis-slug')
+    writePackage(custom, id)
+    writePackage(custom, 'fakealias', 'slug: fakedis-slug')
+
+    const { sidecars, errors } = discoverSidecars({
+      shippedRoot: shipped,
+      customRoot: custom,
+      dataDir,
+      env: { BROS_SIDECARS_DISABLE: id },
+    })
+    const byId = Object.fromEntries(sidecars.map((s) => [s.id, s]))
+
+    expect(byId[id].source).toBe('shipped')
+    expect(byId[id].disabled).toBe(true)
+    expect(byId[id].dir).toBe(join(shipped, 'addon', id))
+    expect(byId.fakealias).toBeUndefined()
+    expect(errors).toContain(`Custom sidecar "${id}" conflicts with a shipped or reserved id — rejected`)
+    expect(errors).toContain('Custom sidecar "fakealias" conflicts with a shipped or reserved slug — rejected')
+    expect(isReservedSidecarId(id, { shippedRoot: shipped, env: { BROS_SIDECARS_DISABLE: id } })).toBe(true)
+    expect(shouldAutostartSidecar(byId[id], { autostart: true })).toBe(false)
+  })
+
+  it('rejects a custom pack that duplicates an enabled addon', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-enabled-addon-'))
+    const shipped = join(root, 'lib', 'sidecars')
+    const custom = join(root, 'sidecars')
+    const dataDir = join(root, 'data')
+    const id = 'fakeon'
+    writePackage(join(shipped, 'addon'), id)
+    writePackage(custom, id)
+
+    const { sidecars, errors } = discoverSidecars({
+      shippedRoot: shipped,
+      customRoot: custom,
+      dataDir,
+      env: {},
+    })
+    const row = sidecars.find((s) => s.id === id)
+
+    expect(row?.source).toBe('shipped')
+    expect(row?.kind).toBe('addon')
+    expect(row?.dir).toBe(join(shipped, 'addon', id))
+    expect(sidecars.some((s) => s.source === 'custom' && s.id === id)).toBe(false)
+    expect(errors).toContain(`Custom sidecar "${id}" conflicts with a shipped or reserved id — rejected`)
+    expect(isReservedSidecarId(id, { shippedRoot: shipped, env: {} })).toBe(true)
   })
 
   it('derives a repo folder name from a git URL', () => {

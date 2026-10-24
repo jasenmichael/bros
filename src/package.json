@@ -1,7 +1,7 @@
 {
   "name": "bros",
   "private": true,
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
     "ui:dev": "pnpm --filter @bros/ui dev",
     "build": "pnpm --filter @bros/ui build",

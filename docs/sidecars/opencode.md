@@ -5,7 +5,7 @@ description: CLI coding agent with web UI on host port 4097.
 
 # OpenCode sidecar
 
-Addon package `lib/sidecars/addon/opencode`. CLI coding agent with web UI (anomalyco/opencode). The app compose file defaults `BROS_SIDECAR_OPENCODE` to `0`. That env-disables the pack. It stays listed under Addon sidecars as **OpenCode (addon)** and does not start. Set `BROS_SIDECAR_OPENCODE=1` to allow Start and Autostart. `BROS_SIDECARS_DISABLE=opencode` also disables it.
+Addon package `lib/sidecars/addon/opencode`. CLI coding agent with web UI (anomalyco/opencode). The app compose file defaults `BROS_SIDECAR_OPENCODE` to `0`. That env-disables the pack. It stays listed, does not autostart, and Start still runs it. The id stays reserved. Set `BROS_SIDECAR_OPENCODE=1` to clear the disable and allow Autostart. `BROS_SIDECARS_DISABLE=opencode` also disables it.
 
 Image `ghcr.io/anomalyco/opencode:2.0.32`. Command is `opencode serve` on container port **4096**. The server is password protected. The Sidecars card shows that password. `/home/bros` is an empty tmpfs so the process has a writable home. Only the binds below are stored.
 
@@ -16,7 +16,7 @@ OpenCode does **not** set `proxy.public`. It listens at `/`. A `/opencode/` prox
 - Container: **4096**
 - Host publish: **4097** (`BROS_OPENCODE_PORT` override)
 
-LAN Open/Pin: `http://127.0.0.1:4097/`. Via-tunnel Open/Pin stay that LAN URL (not same-host `/opencode/`). Pin from Sidecars to keep it in the dock.
+LAN Open/Pin: `http://127.0.0.1:4097/`. Via-tunnel Open/Pin stay that LAN URL (not same-host `/opencode/`). Pin from Sidecars to keep it in the dock. The Desktop OpenCode app publishes the same host port. Leave this sidecar stopped while that app is the web UI.
 
 ## Binds
 

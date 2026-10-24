@@ -32,6 +32,17 @@ export function openCodePassword(dataDir: string): string | null {
   return null
 }
 
+/** Last `server password` line in the Desktop app serve log. */
+export function openCodeServeLogPassword(dataDir: string): string | null {
+  const path = join(dataDir, 'home/.local/state/opencode/serve.log')
+  if (!existsSync(path)) return null
+  try {
+    return passwordFromLogs(readFileSync(path, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
 /** Last `server password` line. `opencode serve` prints it and does not write service.json. */
 export function passwordFromLogs(text: string): string | null {
   let found: string | null = null

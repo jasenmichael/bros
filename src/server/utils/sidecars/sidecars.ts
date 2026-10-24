@@ -103,7 +103,7 @@ function truthyOff(value: string | undefined): boolean {
   return v === '0' || v === 'false' || v === 'off' || v === 'no'
 }
 
-/** Addon ids skipped at autostart. Ollama and the CLI sidecar cannot be disabled. */
+/** Shipped addon ids that stay listed and do not autostart. Core ids cannot be disabled. */
 export function disabledAddonIds(env: NodeJS.ProcessEnv = process.env): Set<string> {
   const out = new Set<string>()
   for (const raw of (env.BROS_SIDECARS_DISABLE || '').split(',')) {
@@ -163,7 +163,8 @@ export function isShippedAddonId(id: string, opts?: DiscoverOptions): boolean {
 
 export function isReservedSidecarId(id: string, opts?: DiscoverOptions): boolean {
   if (RESERVED_SLUGS.has(id) || id === CORE_SIDECAR_ID || id === WHISPER_SIDECAR_ID) return true
-  return isShippedCoreId(id, opts) || isShippedAddonId(id, opts)
+  if (isShippedCoreId(id, opts)) return true
+  return isShippedAddonId(id, opts)
 }
 
 /** Core Ollama and Desktop always start. Whisper follows Settings. Addon and custom stay off until SQLite `autostart` is on. */
@@ -337,13 +338,13 @@ export function discoverSidecars(opts?: DiscoverOptions): { sidecars: SidecarMet
     disabled: false,
     editable: false,
   }))
-  const addons = scanRoot(join(shippedRoot, 'addon'), 'shipped', 'addon', { disabledIds: disabled }).map((s) => ({
-    ...s,
-    kind: 'addon' as const,
-    source: 'shipped' as const,
-    disabled: disabled.has(s.id),
-    editable: false,
-  }))
+  const addons = scanRoot(join(shippedRoot, 'addon'), 'shipped', 'addon', { disabledIds: disabled })
+    .map((s) => ({
+      ...s,
+      kind: 'addon' as const,
+      source: 'shipped' as const,
+      editable: false,
+    }))
 
   const shipped: SidecarMeta[] = [...core, ...addons]
   const takenIds = new Set(shipped.map((s) => s.id))

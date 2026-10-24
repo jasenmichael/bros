@@ -5,7 +5,7 @@ description: Self-hosted Firecrawl scrape API on host port 3002.
 
 # Firecrawl sidecar
 
-Shipped **addon** package `lib/sidecars/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. Still listed under Addon sidecars as **Firecrawl (addon)**.
+Shipped **addon** package `lib/sidecars/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_SIDECAR_FIRECRAWL=0` or `BROS_SIDECARS_DISABLE=firecrawl`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
 
 There is **no** Firecrawl product Web UI on this pack. The interface is `api` (`basePath` `/v2`), so there is no Open button and no Pin. Copy lists `http://127.0.0.1:3002/v2` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/sidecars/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this sidecar.
 

@@ -25,6 +25,7 @@ services:
       REDIS_URL: redis://omniroute-redis:6379
       REQUIRE_API_KEY: "true"
       OMNIROUTE_MEMORY_MB: "2048"
+      JWT_SECRET: ${OMNIROUTE_JWT_SECRET:-}
     ports:
       - "${BROS_OMNIROUTE_PORT:-20128}:20128"
     volumes:

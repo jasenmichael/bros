@@ -1,5 +1,5 @@
 id: pnpm
 name: pnpm
-kind: pnpm
+kind: nix
 spec: pnpm
 bin: pnpm

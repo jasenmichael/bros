@@ -6,8 +6,6 @@ dist
 data
 data-
 lib/sidecars/core/cli/build-apps/*.yml
-lib/sidecars/core/desktop/enabled-apps/**
-!lib/sidecars/core/desktop/enabled-apps/.gitkeep
 .pnpm-store
 *.sqlite
 *.sqlite-journal

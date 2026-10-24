@@ -192,7 +192,7 @@ onMounted(async () => {
       </li>
     </ul>
     <p class="text-sm text-[var(--bros-muted)]">
-      Apps and packages are configured in <NuxtLink to="/settings/apps" class="text-white underline">Settings</NuxtLink>.
+      Apps and packages are configured in <NuxtLink to="/settings/desktop" class="text-white underline">Desktop settings</NuxtLink>.
     </p>
   </BrosPageShell>
 </template>

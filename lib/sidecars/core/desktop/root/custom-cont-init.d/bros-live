@@ -45,6 +45,9 @@ if [ "$gid" != "0" ] && id abc >/dev/null 2>&1; then
   fi
   [ -n "$name" ] && usermod -aG "$name" abc
 fi
+# foot reads ~/.bashrc. ttyd sources the same path file.
+touch /home/bros/.bashrc
+grep -q '/etc/profile.d/bros-path.sh' /home/bros/.bashrc || printf '\n%s\n' '[ -f /etc/profile.d/bros-path.sh ] && . /etc/profile.d/bros-path.sh' >> /home/bros/.bashrc
 # In-desktop foot opens in the desktop home workspace.
 foot_line='foot --working-directory=/home/bros/workspace'
 found=0
@@ -61,6 +64,31 @@ done
 if [ "$found" -eq 0 ]; then
   mkdir -p /home/bros/.config/labwc
   printf '%s\n' "$foot_line" >> /home/bros/.config/labwc/autostart
+fi
+
+# Cursor draws its own title bar. labwc's bar is the second min/fullscreen/close row.
+mkdir -p /home/bros/.config/labwc
+rc=/home/bros/.config/labwc/rc.xml
+rule='  <windowRule identifier="*cursor*" serverDecoration="no" />'
+if [ ! -f "$rc" ]; then
+  cat > "$rc" << EOF
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+$rule
+  </windowRules>
+</labwc_config>
+EOF
+elif ! grep -F -q 'identifier="*cursor*"' "$rc"; then
+  if grep -q '</windowRules>' "$rc"; then
+    sed -i "s|</windowRules>|$rule\n  </windowRules>|" "$rc"
+  elif grep -q '</labwc_config>' "$rc"; then
+    sed -i "s|</labwc_config>|  <windowRules>\n$rule\n  </windowRules>\n</labwc_config>|" "$rc"
+  elif grep -q '</openbox_config>' "$rc"; then
+    sed -i "s|</openbox_config>|  <windowRules>\n$rule\n  </windowRules>\n</openbox_config>|" "$rc"
+  else
+    printf '\n<windowRules>\n%s\n</windowRules>\n' "$rule" >> "$rc"
+  fi
 fi
 
 # Image bins win over an older copy in the home mount.
@@ -137,21 +165,6 @@ EOF
   chmod +x /usr/local/bin/cursor
 fi
 
-# /nix is a volume. An image-build install would be hidden. Install once, then reuse it.
-mkdir -p /home/bros/.nix/devbox /nix /etc/nix
-printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' 'build-users-group =' > /etc/nix/nix.conf
-if [ ! -x /home/bros/.nix/.nix-profile/bin/nix ]; then
-  chown -R nix:nix /home/bros/.nix /nix
-  su -s /bin/bash nix -c 'NIX_INSTALLER_NO_CHANNEL_ADD=1 curl -fsSL https://nixos.org/nix/install | HOME=/home/bros/.nix sh -s -- --no-daemon --yes' || true
-  chmod -R a+rX /nix || true
-fi
-if [ -d /home/bros/.nix/.nix-profile/bin ]; then
-  for b in /home/bros/.nix/.nix-profile/bin/*; do
-    [ -e "$b" ] || continue
-    ln -sfn "$b" "/usr/local/bin/$(basename "$b")"
-  done
-fi
-chmod -R a+rX /home/bros/.nix || true
-if [ -x /home/bros/.nix/.nix-profile/bin/nix ]; then
-  node /opt/bros/install.mjs --kind nix || true
-fi
+# Nix store stays /nix/store inside the container. The installer runs from ensure.sh when nix is missing.
+mkdir -p /nix /etc/nix /home/bros/.local/share/devbox /home/bros/.local/state/nix /var/log/bros/apps
+printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' 'build-users-group =' 'use-xdg-base-directories = true' > /etc/nix/nix.conf

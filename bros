@@ -432,6 +432,12 @@ preflight() {
   fi
   resolve_bros_dir
   load_listen_env
+  if [[ -z "${BROS_NODE_VERSION:-}" ]]; then
+    local node_ver=""
+    node_ver="$(node -v 2>/dev/null || true)"
+    node_ver="${node_ver#v}"
+    export BROS_NODE_VERSION="${node_ver:-26.7.0}"
+  fi
 }
 
 # Export every KEY=value in $REPO_ROOT/.env. Already-set shell vars win. Empty values stay unset.
@@ -515,8 +521,13 @@ ensure_host_data_dir() {
     "$BROS_HOST_DATA_DIR/home/.local/sidecar-bins" \
     "$BROS_HOST_DATA_DIR/home/workspace" \
     "$BROS_HOST_DATA_DIR/home/.agents/skills" \
+    "$BROS_HOST_DATA_DIR/home/nix" \
     "$BROS_HOST_DATA_DIR/sidecars/ollama/bros-model" \
+    "$BROS_HOST_DATA_DIR/cache/apt/archives" \
+    "$BROS_HOST_DATA_DIR/cache/apt/lists" \
+    "$BROS_HOST_DATA_DIR/cache/deb" \
     "$BROS_HOST_DATA_DIR/var/logs" \
+    "$BROS_HOST_DATA_DIR/var/logs/apps" \
     "$BROS_HOST_DATA_DIR/var/tunnel"
   if [[ -f "$REPO_ROOT/bros.yml" && ! -e "$BROS_HOST_DATA_DIR/config/bros.yml" ]]; then
     cp "$REPO_ROOT/bros.yml" "$BROS_HOST_DATA_DIR/config/bros.yml"

@@ -1,51 +1,40 @@
-export type ProbeApp = { id: string; kind: string; spec: string; bin?: string }
+export type ProbeApp = { id: string; kind: string; spec: string; bin?: string; clis?: string[]; version?: string }
+
+function versionBin(pkg: ProbeApp): string {
+  if (pkg.bin) return pkg.bin
+  if (pkg.clis?.[0]) return pkg.clis[0]
+  const raw = pkg.spec.includes('#') ? pkg.spec.split('#').pop() || pkg.spec : pkg.spec
+  const name = raw.split('@')[0]?.split('/').pop() || ''
+  return /^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(name) ? name : ''
+}
 
 function sh(value: string) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`
 }
 
-export function versionCommand(pkg: ProbeApp): string | null {
-  if (pkg.id === 'paperclip') return 'HOME=/home/bros paperclipai --version'
-  if (pkg.kind === 'run' || pkg.kind === 'deno' || pkg.kind === 'nix') return null
-  const spec = pkg.spec.trim()
-  if (pkg.kind === 'npm' && (spec === 'npm' || spec.startsWith('npm@') || pkg.bin === 'npm')) return 'npm --version'
-  if (pkg.kind === 'pnpm' && (spec === 'pnpm' || spec.startsWith('pnpm@') || pkg.bin === 'pnpm')) return 'pnpm --version'
-  if (pkg.kind === 'bun' && (spec === 'bun' || spec.startsWith('bun@') || pkg.bin === 'bun')) return 'bun --version'
-  if (pkg.kind === 'npm') return `npm ls -g --depth=0 --prefix /usr/local ${sh(spec)}`
-  if (pkg.kind === 'pnpm') return `pnpm list -g --depth 0 ${sh(spec)}`
-  if (pkg.kind === 'bun') return 'bun pm ls -g'
-  if (pkg.kind === 'apt') return `dpkg-query -W -f='\${Version}' ${sh(spec)}`
-  if (pkg.kind === 'deb') return `name=$(head -n 1 /var/lib/bros/deb/${sh(pkg.id)}); [ -n "$name" ] && dpkg-query -W -f='\${Version}' "$name"`
-  if (pkg.kind === 'uv') return spec === 'uv' || spec.startsWith('uv==') || pkg.bin === 'uv' ? 'uv --version' : 'uv tool list'
-  if (pkg.kind === 'cargo') return spec === 'cargo' || pkg.bin === 'cargo' ? 'cargo --version' : 'cargo install --list'
-  return null
+export function nodePin(env = process.env.BROS_NODE_VERSION): string {
+  const raw = String(env || '26.7.0').trim().replace(/^v/, '')
+  return /^\d+\.\d+/.test(raw) ? raw : '26.7.0'
 }
 
-export function parseVersionText(kind: string, spec: string, text: string): string | null {
+export function nodeUpdateAvailable(installed: string | undefined, pin = nodePin()): boolean {
+  if (!installed) return true
+  return compareVersions(installed, pin) < 0
+}
+
+export function versionCommand(pkg: ProbeApp): string | null {
+  const custom = pkg.version?.trim()
+  if (custom && !custom.includes('\n')) return custom
+  const bin = versionBin(pkg)
+  if (!bin) return null
+  const q = sh(bin)
+  return `${q} --version 2>/dev/null || ${q} -V`
+}
+
+export function parseVersionText(_kind: string, _spec: string, text: string): string | null {
   const raw = text.trim()
   if (!raw) return null
-  if (spec === 'paperclipai') return raw.match(/\b(\d+\.\d+\.\d+)\b/)?.[1] || null
-  if (kind === 'apt' || kind === 'deb') {
-    const line = raw.split('\n').map((row) => row.trim()).find(Boolean) || ''
-    return /^[0-9A-Za-z][0-9A-Za-z.+:~_-]{0,80}$/.test(line) ? line : null
-  }
-  if (kind === 'uv') {
-    if (spec === 'uv' || spec.startsWith('uv==')) return raw.match(/\b(\d+\.\d+\.\d+)\b/)?.[1] || null
-    const name = spec.split('==')[0]
-    const line = raw.split('\n').find((row) => row.startsWith(`${name} `))
-    return line?.split(/\s+/)[1]?.replace(/^v/, '') || null
-  }
-  if (kind === 'cargo') {
-    if (spec === 'cargo' || spec.startsWith('cargo@')) return raw.match(/\bcargo\s+(\d+\.\d+\.\d+)/)?.[1] || null
-    const name = spec.split('@')[0]
-    const line = raw.split('\n').find((row) => row.startsWith(`${name} `))
-    return line?.match(/v?(\d+\.\d+[^\s:]*)/)?.[1] || null
-  }
-  if (/^\d+\.\d+/.test(raw) && !raw.includes('\n')) return raw.split(/\s+/)[0] || null
-  const name = spec.split('@')[0]?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') || ''
-  if (!name) return null
-  const match = raw.match(new RegExp(`(?:^|[\\s/])${name}@([^\\s]+)`))
-  return match?.[1] || null
+  return raw.match(/v?(\d+\.\d+[0-9A-Za-z.+~-]*)/)?.[1] || null
 }
 
 export function buildVersionScript(packages: ProbeApp[]): string {
@@ -73,6 +62,18 @@ export function parseVersionScriptOutput(text: string, packages: ProbeApp[]): { 
     if (version) out.push({ id, version })
   }
   return out
+}
+
+export function compareVersions(a: string, b: string): number {
+  const parts = (value: string) => value.split(/[^0-9]+/).filter(Boolean).map((part) => Number(part) || 0)
+  const left = parts(a)
+  const right = parts(b)
+  const n = Math.max(left.length, right.length)
+  for (let i = 0; i < n; i += 1) {
+    const diff = (left[i] || 0) - (right[i] || 0)
+    if (diff) return diff < 0 ? -1 : 1
+  }
+  return 0
 }
 
 export function parseOutdated(text: string, spec: string): { current?: string; latest?: string } {

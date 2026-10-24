@@ -138,6 +138,8 @@ function actionErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : 'Action failed'
 }
 
+const { refreshPinnedNav } = usePinnedNav()
+
 async function act(id: string, action: 'start' | 'stop' | 'restart') {
   const key = sidecarBusyKey(id, action)
   markBusy(key)
@@ -151,10 +153,9 @@ async function act(id: string, action: 'start' | 'stop' | 'restart') {
     await refresh()
   } finally {
     clearBusy(key)
+    await refreshPinnedNav()
   }
 }
-
-const { refreshPinnedNav } = usePinnedNav()
 
 async function patchSettings(id: string, body: {
   autostart?: boolean

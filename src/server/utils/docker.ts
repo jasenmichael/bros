@@ -370,14 +370,25 @@ export async function getProjectStatus(sidecar: SidecarMeta) {
   }
 }
 
-export async function sidecarRuntime(sidecar: SidecarMeta) {
-  const settings = getSidecarSetting(sidecar.id)
-  const status = sidecar.error
-    ? { project: projectName(sidecar.id), running: false, services: [] as Array<{ name: string; state: string }> }
-    : await getProjectStatus(sidecar)
+/** No warning for a stopped sidecar that will not autostart. Start still probes the port. */
+export function sidecarPortWarning(input: {
+  running: boolean
+  autostart: boolean
+  portOccupied: boolean
+  ours: boolean
+  hostPort?: number | null
+}): string | undefined {
+  if (!input.running && !input.autostart) return undefined
+  if (input.portOccupied && !input.ours && input.hostPort) {
+    return `Port ${input.hostPort} is already in use. Bros sidecar cannot start until it is free.`
+  }
+  return undefined
+}
+
+async function readPublishedPort(sidecar: SidecarMeta, running: boolean) {
   const hostPort = firstPublishPort(sidecar.interfaces)
   let portOccupied = false
-  let ours = status.running
+  let ours = running
   if (typeof hostPort === 'number') {
     portOccupied = await probeHostPort(hostPort)
     try {
@@ -387,10 +398,26 @@ export async function sidecarRuntime(sidecar: SidecarMeta) {
       // docker inspect failed — fall back to compose status
     }
   }
+  return { hostPort, portOccupied, ours }
+}
+
+export async function sidecarRuntime(sidecar: SidecarMeta) {
+  const settings = getSidecarSetting(sidecar.id)
+  const status = sidecar.error
+    ? { project: projectName(sidecar.id), running: false, services: [] as Array<{ name: string; state: string }> }
+    : await getProjectStatus(sidecar)
+  const skipProbe = !status.running && !settings.autostart
+  const { hostPort, portOccupied, ours } = skipProbe
+    ? { hostPort: firstPublishPort(sidecar.interfaces), portOccupied: false, ours: false }
+    : await readPublishedPort(sidecar, status.running)
   const warnPortTaken = portOccupied && !ours
-  const warning = warnPortTaken && hostPort
-    ? `Port ${hostPort} is already in use. Bros sidecar cannot start until it is free.`
-    : undefined
+  const warning = sidecarPortWarning({
+    running: status.running,
+    autostart: settings.autostart,
+    portOccupied,
+    ours,
+    hostPort,
+  })
   let hostOllama: { port: number; version: string } | null = null
   let hostOllamaError: string | null = null
   if (sidecar.id === 'ollama') {
@@ -531,13 +558,21 @@ export async function ensureSidecarGui(id: string) {
   }
 }
 
-export async function stopGuiSession(id: string) {
+async function guiScript(id: string, action: 'close' | 'stop') {
   const sidecar = getSidecar(DESKTOP_SIDECAR_ID)
   if (!sidecar || sidecar.error || !(await getProjectStatus(sidecar)).running) return
-  const res = await execInSidecar(DESKTOP_SIDECAR_ID, ['/app/lib/sidecars/core/desktop/desktop-gui.sh', 'stop', id])
+  const res = await execInSidecar(DESKTOP_SIDECAR_ID, ['/app/lib/sidecars/core/desktop/desktop-gui.sh', action, id])
   if (res.code !== 0) {
     throw createError(dockerCommandError(500, 'Desktop app failed to stop', res.stderr || res.stdout || 'Desktop app failed to stop'))
   }
+}
+
+export function stopGuiSession(id: string) {
+  return guiScript(id, 'stop')
+}
+
+export function closeGuiWindow(id: string) {
+  return guiScript(id, 'close')
 }
 
 async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; rebuild?: boolean }) {
@@ -550,10 +585,13 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
   seedSidecarData(sidecar.dir, join(boot.dataDir, sidecar.id))
   ensureHomeDirs(boot.dataDir, sidecar.home || [])
   const probed = await sidecarRuntime(sidecar)
-  if (probed.portOccupied && !probed.ours && probed.hostPort) {
+  const startPort = !probed.status.running && !probed.settings.autostart
+    ? await readPublishedPort(sidecar, false)
+    : probed
+  if (startPort.portOccupied && !startPort.ours && startPort.hostPort) {
     throw createError({
       statusCode: 409,
-      statusMessage: `Port ${probed.hostPort} is already in use.`,
+      statusMessage: `Port ${startPort.hostPort} is already in use.`,
     })
   }
   await ensureNetwork()
@@ -641,8 +679,8 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
     up = await run('docker', upArgs.filter((arg) => arg !== '--build'), sidecar.dir, 600_000)
   }
   if (up.code !== 0) {
-    const taken = probed.warnPortTaken && probed.hostPort
-      ? ` Port ${probed.hostPort} is already in use.`
+    const taken = startPort.portOccupied && !startPort.ours && startPort.hostPort
+      ? ` Port ${startPort.hostPort} is already in use.`
       : ''
     throw createError(dockerCommandError(
       500,
@@ -704,6 +742,10 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
     const { waitForDesktopSession } = await import('./desktopReady')
     const gaps = await waitForDesktopSession()
     if (gaps) warning = `Desktop session is not ready: ${gaps}`
+    else {
+      const { queueDesktopEnsure } = await import('./cli/ensure')
+      queueDesktopEnsure()
+    }
   }
   return {
     ...status,

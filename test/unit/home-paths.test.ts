@@ -44,11 +44,11 @@ describe('app tiers', () => {
   it('seeds an addon disabled and keeps package paths out of apps-compose', () => {
     const catalog = readCatalog()
     const addon = catalog.find((pkg) => pkg.id === 'jq')
-    const core = catalog.find((pkg) => pkg.id === 'npm')
+    const core = catalog.find((pkg) => pkg.id === 'node')
     expect(addon?.tier).toBe('addon')
     expect(addon?.enabled).toBe(false)
     expect(core?.enabled).toBe(true)
-    expect(core?.bin).toBe('npm')
+    expect(core?.bin).toBe('node')
     const body = appsComposeBody(catalog)
     expect(body).not.toContain('.config/jq')
     expect(body).not.toContain('.npm')

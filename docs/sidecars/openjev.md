@@ -5,7 +5,7 @@ description: Jev-compatible System One decision API on host port 8092.
 
 # OpenJEV sidecar
 
-Addon package `lib/sidecars/addon/openjev`. Open, Jev-compatible System One decision server ([razorback16/openjev](https://github.com/razorback16/openjev)). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_SIDECAR_OPENJEV=0` or `BROS_SIDECARS_DISABLE=openjev`. Still listed under Addon sidecars as **OpenJEV (addon)**.
+Addon package `lib/sidecars/addon/openjev`. Open, Jev-compatible System One decision server ([razorback16/openjev](https://github.com/razorback16/openjev)). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_SIDECAR_OPENJEV=0` or `BROS_SIDECARS_DISABLE=openjev`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
 
 Needs an **NVIDIA GPU** (DiffusionGemma NVFP4 via vLLM). Default `OPENJEV_GPU_UTIL=0.80` leaves KV headroom after weights load. Default `OPENJEV_VLLM_ARGS=--kv-cache-dtype bfloat16` (Ampere SM86 cannot use FP8 KV with the image’s Triton attention backend; Ada SM89+ can override). Laya and Verdict stay in the stack but default to `OPENJEV_DEVICE=cpu` so encoder VRAM does not compete with the main model; set `OPENJEV_DEVICE=cuda` (and usually `OPENJEV_GPU_UTIL=0.9`) when the card has spare capacity. Weight init for this NVFP4 checkpoint still peaks near a full 16 GB — if vLLM OOMs while creating MoE layers or never binds `8092`, you need more VRAM (or lower `OPENJEV_MAX_MODEL_LEN` only helps KV after a successful load). Disable with `BROS_SIDECAR_OPENJEV=0` if desired.
 

@@ -166,8 +166,8 @@ async function logout() {
   <BrosPageShell title="Settings" description="Personality and rules skills, Whisper, bootstrap paths (read-only), proxy key, and passkey.">
     <div class="max-w-xl space-y-6">
       <p class="text-sm text-[var(--bros-muted)]">
-        <NuxtLink to="/settings/apps" class="text-white underline">Apps and packages</NuxtLink>
-        install into Desktop.
+        <NuxtLink to="/settings/desktop" class="text-white underline">Desktop settings</NuxtLink>
+        install apps into Desktop.
       </p>
       <form class="space-y-3" @submit.prevent="saveChat">
         <h2 class="text-lg font-medium text-white">Chat</h2>

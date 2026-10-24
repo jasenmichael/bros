@@ -11,4 +11,4 @@ interfaces:
     containerPort: 3100
     publish: 3100
 services:
-  - script: serve.sh
+  - paperclipai run

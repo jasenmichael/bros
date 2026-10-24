@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import ProviderModelsPrototype from '../../components/prototype/providers/ProviderModelsPrototype.vue'
 import { isOllamaModelChatEnabled, parseDisabledOllamaModels } from '../../utils/providers/ollamaDisabledModels'
 import { isValidOllamaPullName, ollamaNameFromMenuValue } from '../../utils/providers/ollamaPullName'
 import { ollamaProviderDisplayName } from '../../utils/providers/ollamaProviderLabel'
 
 useSeoMeta({ title: 'Providers' })
-
-const dev = import.meta.dev
 
 const ADD_ID = '__new__'
 
@@ -1190,8 +1187,6 @@ async function scanHost() {
         </li>
       </ul>
     </section>
-
-    <ProviderModelsPrototype v-if="dev" :providers="data?.providers || []" />
 
     <UModal
       v-if="deleteTarget"

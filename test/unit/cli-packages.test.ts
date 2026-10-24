@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DESKTOP_SIDECAR_ID, defaultSidecarAutostart, shouldAutostartSidecar } from '../../src/server/utils/sidecars/sidecars'
 import { packageUpdateAction, parseCliPackage, seedCliPackages, cliApplyAction, updateCommand } from '../../src/server/utils/cli/packages'
-import { buildVersionScript, parseVersionScriptOutput, parseVersionText, versionCommand } from '../../src/server/utils/cli/versionProbe'
+import { buildVersionScript, nodePin, nodeUpdateAvailable, parseVersionScriptOutput, parseVersionText, versionCommand } from '../../src/server/utils/cli/versionProbe'
 import { managerForms } from '../../src/server/utils/cli/managers'
 import { debTracksLatest } from '../../src/server/utils/cli/managers/deb'
 import { debCachePath, debTracksLatest as debTracksLatestInstall, releaseKey } from '../../lib/sidecars/core/desktop/managers/deb.mjs'
@@ -162,21 +162,32 @@ describe('cli packages', () => {
   })
 
   it('parses an installed version and rebuilds a run update', () => {
-    expect(versionCommand({ id: 'paperclip', kind: 'npm', spec: 'paperclipai', bin: 'paperclipai' })).toBe('HOME=/home/bros paperclipai --version')
+    expect(versionCommand({ id: 'paperclip', kind: 'npm', spec: 'paperclipai', bin: 'paperclipai' })).toBe(`'paperclipai' --version 2>/dev/null || 'paperclipai' -V`)
     expect(parseVersionText('npm', 'paperclipai', 'paperclipai 2026.720.0\n')).toBe('2026.720.0')
-    expect(updateCommand({ id: 'paperclip', kind: 'npm', spec: 'paperclipai', bin: 'paperclipai' })).toEqual(['bash', '-lc', 'HOME=/home/bros paperclipai update'])
+    expect(updateCommand({ id: 'paperclip', kind: 'npm', spec: 'paperclipai', bin: 'paperclipai' })).toEqual(['npm', 'update', '-g', '--prefix', '/home/bros/.local', 'paperclipai'])
     expect(versionCommand({ id: 'agent', kind: 'run', spec: 'curl https://example.com/install | bash' })).toBeNull()
-    expect(versionCommand({ id: 'npm', kind: 'npm', spec: 'npm', bin: 'npm' })).toBe('npm --version')
-    expect(versionCommand({ id: 'uv', kind: 'uv', spec: 'uv', bin: 'uv' })).toBe('uv --version')
-    expect(versionCommand({ id: 'ruff', kind: 'uv', spec: 'ruff==0.6.8', bin: 'ruff' })).toBe('uv tool list')
-    expect(versionCommand({ id: 'rg', kind: 'cargo', spec: 'ripgrep@14.1.0', bin: 'rg' })).toBe('cargo install --list')
+    expect(versionCommand({ id: 'agent', kind: 'run', spec: 'curl https://example.com/install | bash', bin: 'agent', version: 'agent version' })).toBe('agent version')
+    expect(versionCommand({ id: 'npm', kind: 'npm', spec: 'npm', bin: 'npm' })).toBe(`'npm' --version 2>/dev/null || 'npm' -V`)
+    expect(versionCommand({ id: 'node', kind: 'nix', spec: 'nodejs', bin: 'node' })).toBe(`'node' --version 2>/dev/null || 'node' -V`)
+    expect(versionCommand({ id: 'ripgrep', kind: 'nix', spec: 'nixpkgs#ripgrep' })).toBe(`'ripgrep' --version 2>/dev/null || 'ripgrep' -V`)
+    expect(nodePin('v26.7.0')).toBe('26.7.0')
+    expect(nodePin('')).toBe('26.7.0')
+    expect(nodeUpdateAvailable('26.6.0', '26.7.0')).toBe(true)
+    expect(nodeUpdateAvailable(undefined, '26.7.0')).toBe(true)
+    expect(nodeUpdateAvailable('26.7.0', '26.7.0')).toBe(false)
+    expect(nodeUpdateAvailable('26.8.0', '26.7.0')).toBe(false)
+    expect(updateCommand({ id: 'typescript', kind: 'npm', spec: 'typescript', bin: 'tsc' })).toEqual(['npm', 'update', '-g', '--prefix', '/home/bros/.local', 'typescript'])
+    expect(updateCommand({ id: 'rg', kind: 'cargo', spec: 'ripgrep', bin: 'rg' })).toEqual(['cargo', 'install', '--locked', '--root', '/home/bros/.cargo', 'ripgrep'])
+    expect(versionCommand({ id: 'uv', kind: 'uv', spec: 'uv', bin: 'uv' })).toBe(`'uv' --version 2>/dev/null || 'uv' -V`)
+    expect(versionCommand({ id: 'ruff', kind: 'uv', spec: 'ruff==0.6.8', bin: 'ruff' })).toBe(`'ruff' --version 2>/dev/null || 'ruff' -V`)
+    expect(versionCommand({ id: 'rg', kind: 'cargo', spec: 'ripgrep@14.1.0', bin: 'rg' })).toBe(`'rg' --version 2>/dev/null || 'rg' -V`)
     expect(parseVersionText('uv', 'uv', 'uv 0.13.5 (c4b4d8c4 2026-01-01)')).toBe('0.13.5')
     expect(parseVersionText('uv', 'ruff==0.6.8', 'ruff v0.6.8\n- ruff\n')).toBe('0.6.8')
     expect(parseVersionText('cargo', 'ripgrep@14.1.0', 'ripgrep v14.1.0:\n    rg\n')).toBe('14.1.0')
     expect(parseVersionText('apt', 'jq', '1.7.1-3')).toBe('1.7.1-3')
     const probed = [
       { id: 'jq', kind: 'apt', spec: 'jq' },
-      { id: 'cursor', kind: 'deb', spec: 'https://example.com/cursor/latest' },
+      { id: 'cursor', kind: 'deb', spec: 'https://example.com/cursor/latest', bin: 'cursor' },
     ]
     expect(buildVersionScript(probed).split('\n').filter((line) => line === 'echo')).toHaveLength(2)
     expect(parseVersionScriptOutput('@@jq\n1.8.1-4ubuntu2\n@@cursor\n3.27.6-1792578269\n', probed)).toEqual([

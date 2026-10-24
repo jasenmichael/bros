@@ -5,7 +5,8 @@ import { proxyUpgrade } from 'httpxy'
 import { SESSION_COOKIE, hasPasscode, isSessionValid, requestIsHttps, verifyProxyAuthorization } from '../auth'
 import { getProjectStatus } from '../docker'
 import { sidecarReachUrl } from '../hostProbe'
-import { discoverSidecars, type DiscoverOptions, type SidecarInterface, type SidecarMeta } from './sidecars'
+import { readCliPackages } from '../cli/packages'
+import { discoverSidecars, getSidecar, type DiscoverOptions, type SidecarInterface, type SidecarMeta } from './sidecars'
 import { viaTunnelFromEvent } from '../viaTunnel'
 
 export type PublicProxyTarget = {
@@ -166,11 +167,40 @@ export function collectPublicProxyTargets(sidecars: SidecarMeta[]): PublicProxyT
   return out
 }
 
+function packageWebuiTargets(): PublicProxyTarget[] {
+  const desktop = getSidecar('desktop')
+  if (!desktop || desktop.error) return []
+  const out: PublicProxyTarget[] = []
+  for (const pkg of readCliPackages()) {
+    if (pkg.enabled === false || pkg.forwardHost === false) continue
+    const face = (pkg.interfaces || []).find((row) => row.type === 'webui' && row.containerPort && row.publish)
+    if (!face?.containerPort || !face.publish) continue
+    const iface: SidecarInterface = {
+      type: 'webui',
+      service: 'desktop',
+      containerPort: face.containerPort,
+      publish: face.publish,
+      ...(face.basePath ? { basePath: face.basePath } : {}),
+    }
+    out.push({
+      id: pkg.id,
+      service: 'desktop',
+      containerPort: face.containerPort,
+      publish: face.publish,
+      sidecar: desktop,
+      iface,
+      stripPrefix: false,
+    })
+  }
+  return out
+}
+
 export function listPublicProxyTargets(opts?: DiscoverOptions): PublicProxyTarget[] {
   if (!opts && discoverCache && Date.now() - discoverCache.at < DISCOVER_CACHE_MS) {
     return discoverCache.targets
   }
   const targets = collectPublicProxyTargets(discoverSidecars(opts).sidecars)
+  if (!opts) targets.push(...packageWebuiTargets())
   if (!opts) discoverCache = { at: Date.now(), targets }
   return targets
 }

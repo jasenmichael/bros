@@ -56,7 +56,7 @@ A pack under `lib/sidecars/core/`. Ollama and Desktop always start. Whisper star
 
 ## addon sidecar
 
-A shipped pack under `lib/sidecars/addon/`. A fresh install does not start it. Autostart is off until the user turns it on or presses Start. An env disable keeps it listed and does not autostart it. The same tier on an app is shipped, listed, and off until enabled.
+A shipped pack under `lib/sidecars/addon/`. A fresh install does not start it. Autostart is off until the user turns it on or presses Start. An env disable keeps it listed and does not autostart it. Start still runs it, and the id stays reserved. The same tier on an app is shipped, listed, and off until enabled.
 
 ## custom sidecar
 
@@ -75,13 +75,32 @@ _Avoid_: terminal user
 
 The `/terminal` page. The shell inside the desktop sidecar. It is the same user as the desktop user.
 
+## desktop entry
+
+A freedesktop launcher record inside the Desktop container. Not an app.
+_Avoid_: desktop app, .desktop app
+
+## pinned launcher
+
+A library app the user chose to keep on the Drawer. Terminal, a package gui, a sidecar gui, or a desktop entry. Not a package install. 
+_Avoid_: pin, custom app
+
+## Drawer
+
+The app launcher on `/desktop`. It sits at the bottom and shows on hover or touch.
+_Avoid_: shelf
+
 ## app
 
 A sidecar or a package install. Every sidecar is an app. Core, addon, and custom are the tiers for both. It can expose one or more `webui`, `gui`, or `cli` interfaces.
 
 ## package app
 
-A package install. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. Installed into the Desktop image. Runs inside `bros-desktop`.
+A package install. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. A `kind: run` app is a Desktop image layer. Other kinds install into the Desktop home after the session is up. Runs inside `bros-desktop`.
+
+## desktop build
+
+The Docker build context for `kind: run` apps. Bros writes it to `$BROS_DIR/data/build/desktop`. It is not an install prefix.
 
 ## sidecar app
 
@@ -89,4 +108,4 @@ A sidecar. Its process stays in its own container. Desktop reaches it through a 
 
 ## package manager
 
-npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. npm, pnpm, bun, and uv are core apps. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.
+npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. node, cargo, pnpm, bun, deno, and uv are core apps. npm is a kind. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.

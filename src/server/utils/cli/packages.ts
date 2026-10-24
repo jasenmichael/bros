@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { createError } from 'h3'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
@@ -7,7 +8,7 @@ import { discoverSidecars, getSidecar } from '../sidecars/sidecars'
 import { guiAppProxyId } from '../../../ui/utils/gui'
 import { managerByKind, packageManagers } from './managers'
 import { debTracksLatest } from './managers/deb'
-import { buildVersionScript, parseOutdated, parseVersionScriptOutput, parseVersionText, versionCommand } from './versionProbe'
+import { buildVersionScript, nodePin, nodeUpdateAvailable, parseOutdated, parseVersionScriptOutput, parseVersionText, versionCommand } from './versionProbe'
 
 export const CLI_PACKAGE_KINDS = packageManagers().map((manager) => manager.kind)
 export type CliPackageKind = (typeof CLI_PACKAGE_KINDS)[number]
@@ -41,8 +42,11 @@ export type CliPackage = {
   interfaces?: CliExpose[]
   services?: AppService[]
   uninstall?: string
+  version?: string
   tier?: AppTier
   enabled?: boolean
+  forwardHost?: boolean
+  navPinned?: boolean
 }
 
 const BIN_SPEC = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/
@@ -299,6 +303,7 @@ function asPackage(id: string, row: Record<string, unknown>): CliPackage | null 
   }
   const name = typeof row.name === 'string' ? row.name.trim() : ''
   const description = typeof row.description === 'string' ? row.description.trim() : ''
+  const version = typeof row.version === 'string' ? row.version.trim() : ''
   return {
     id,
     kind: kind as CliPackageKind,
@@ -311,6 +316,7 @@ function asPackage(id: string, row: Record<string, unknown>): CliPackage | null 
     ...(volumes.length ? { volumes } : {}),
     ...(services.length ? { services } : {}),
     ...(uninstall ? { uninstall } : {}),
+    ...(version && !version.includes('\n') ? { version } : {}),
     ...(clis.length ? { clis } : {}),
     ...(row.enabled === false ? { enabled: false } : {}),
     ...(row.enabled === true ? { enabled: true } : {}),
@@ -396,8 +402,7 @@ export function readStoredPackages(): CliPackage[] {
 
 /** Prod `/app` has no `lib/apps`. The checkout is `$BROS_HOST_REPO`. */
 export function catalogRoot(): string {
-  const root = process.env.BROS_HOST_REPO?.trim() || loadBootstrapConfig().workingDir
-  return join(root, 'lib', 'apps')
+  return join(repoRoot(), 'lib', 'apps')
 }
 
 export function readCatalog(): CliPackage[] {
@@ -411,19 +416,66 @@ export function readCatalog(): CliPackage[] {
   return out
 }
 
+export type AppUi = { forwardHost?: boolean; navPinned?: boolean }
+
+function appUiFile() {
+  return join(loadBootstrapConfig().dataDir, 'config', 'apps-ui.json')
+}
+
+export function readAppUi(): Record<string, AppUi> {
+  try {
+    const doc = JSON.parse(readFileSync(appUiFile(), 'utf8')) as Record<string, unknown>
+    const out: Record<string, AppUi> = {}
+    for (const [id, row] of Object.entries(doc)) {
+      if (!APP_ID.test(id) || !row || typeof row !== 'object') continue
+      const rec = row as AppUi
+      out[id] = {
+        ...(rec.forwardHost === false ? { forwardHost: false } : {}),
+        ...(rec.navPinned === true ? { navPinned: true } : {}),
+      }
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export function patchAppUi(id: string, patch: AppUi): AppUi {
+  if (!APP_ID.test(id)) bad('id is invalid')
+  const all = readAppUi()
+  const next = { ...all[id] }
+  if (patch.forwardHost !== undefined) next.forwardHost = patch.forwardHost
+  if (patch.navPinned !== undefined) next.navPinned = patch.navPinned
+  all[id] = next
+  const file = appUiFile()
+  mkdirSync(join(file, '..'), { recursive: true })
+  writeFileSync(file, `${JSON.stringify(all)}\n`)
+  return next
+}
+
+function withAppUi(pkg: CliPackage, ui = readAppUi()): CliPackage {
+  const row = ui[pkg.id]
+  const web = (pkg.interfaces || []).some((iface) => iface.type === 'webui' && iface.containerPort && iface.publish)
+  return {
+    ...pkg,
+    ...(web ? { forwardHost: row?.forwardHost !== false, navPinned: row?.navPinned === true } : {}),
+  }
+}
+
 export function readCliPackages(): CliPackage[] {
   const stored = readStoredPackages()
+  const ui = readAppUi()
   const used = new Set<string>()
   const out: CliPackage[] = []
   for (const row of readCatalog()) {
     used.add(row.id)
     const over = stored.find((pkg) => pkg.id === row.id)
     const enabled = row.tier === 'core' ? true : over?.enabled === true
-    out.push({ ...row, enabled })
+    out.push(withAppUi({ ...row, enabled }, ui))
   }
   for (const row of stored) {
     if (used.has(row.id)) continue
-    out.push({ ...row, tier: 'custom', enabled: row.enabled !== false })
+    out.push(withAppUi({ ...row, tier: 'custom', enabled: row.enabled !== false }, ui))
   }
   return out
 }
@@ -457,6 +509,7 @@ export function writeCliPackages(packages: CliPackage[]) {
       ...(pkg.volumes?.length ? { volumes: pkg.volumes } : {}),
       ...(pkg.services?.length ? { services: serviceYaml(pkg.services) } : {}),
       ...(pkg.kind === 'run' && pkg.uninstall ? { uninstall: pkg.uninstall } : {}),
+      ...(pkg.version ? { version: pkg.version } : {}),
       ...(pkg.enabled === false ? { enabled: false } : {}),
       ...(pkg.enabled === true ? { enabled: true } : {}),
       ...(pkg.interfaces?.length ? { interfaces: pkg.interfaces } : {}),
@@ -488,10 +541,17 @@ export function cliApplyAction(running: boolean, composeChanged: boolean, rebuil
   return 'skip'
 }
 
-/** Prod `/app` is root-owned. Docker build reads `$BROS_HOST_REPO/lib/sidecars`, not that tree. */
+/** Docker build context for kind:run layers. The daemon reads the host data bind. */
 export function enabledAppsDir(): string {
-  const root = process.env.BROS_HOST_REPO?.trim() || loadBootstrapConfig().workingDir
-  return join(root, 'lib', 'sidecars', 'core', 'desktop', 'enabled-apps')
+  return join(loadBootstrapConfig().dataDir, 'build', 'desktop')
+}
+
+function repoRoot(): string {
+  return process.env.BROS_HOST_REPO?.trim() || loadBootstrapConfig().workingDir
+}
+
+function desktopDockerfileTemplate(): string {
+  return join(repoRoot(), 'lib', 'sidecars', 'core', 'desktop', 'Dockerfile')
 }
 
 function desktopAppStampFile(): string {
@@ -547,9 +607,10 @@ export function desktopAppsDockerfile(base: string, packages: { id: string; tier
   const body = base
     .replace(/^# syntax=docker\/dockerfile:1\n/, '')
     .replace(/\nCOPY core\/desktop\/enabled-apps\/ \S+\nRUN BROS_IMAGE_INSTALL=1 node \/opt\/bros\/install\.mjs[^\n]*\n/, '\n')
-  const layers = appLayerOrder(packages).filter((pkg) => pkg.kind !== 'nix').map((pkg) => {
+    .replace(/^COPY core\/desktop\//gm, 'COPY --from=sidecars core/desktop/')
+  const layers = appLayerOrder(packages).filter((pkg) => pkg.kind === 'run').map((pkg) => {
     if (!APP_ID.test(pkg.id)) throw new Error(`bad app id ${pkg.id}`)
-    return `COPY core/desktop/enabled-apps/${pkg.id} /opt/bros/enabled-apps/${pkg.id}\nRUN --mount=type=cache,id=bros-pkg,target=/var/cache/bros \\\n  BROS_IMAGE_INSTALL=1 node /opt/bros/install.mjs --only ${pkg.id}`
+    return `COPY ${pkg.id} /opt/bros/enabled-apps/${pkg.id}\nRUN --mount=type=cache,id=bros-pkg,target=/var/cache/bros \\\n  --mount=type=bind,from=brosnode,source=/usr/local/bin/node,target=/tmp/bros-node \\\n  BROS_IMAGE_INSTALL=1 /tmp/bros-node /opt/bros/install.mjs --only ${pkg.id}`
   })
   return `# syntax=docker/dockerfile:1\n${body.trim()}\n${layers.join('\n')}\n`
 }
@@ -619,7 +680,7 @@ export function prepareDesktopAppBuild(): { hash: string; changed: boolean } {
   for (const pkg of packages) {
     const dest = join(dir, pkg.id)
     rmSync(dest, { recursive: true, force: true })
-    if (pkg.kind === 'nix') continue
+    if (pkg.kind !== 'run') continue
     const src = appSourceDir(pkg.id)
     if (src) cpSync(src, dest, { recursive: true })
     else mkdirSync(dest, { recursive: true })
@@ -630,10 +691,16 @@ export function prepareDesktopAppBuild(): { hash: string; changed: boolean } {
     }
     chunks.push(treeText(dest))
   }
-  writeFileSync(join(dir, 'Dockerfile'), desktopAppsDockerfile(readFileSync(join(dir, '..', 'Dockerfile'), 'utf8'), packages))
+  writeFileSync(join(dir, 'Dockerfile'), desktopAppsDockerfile(readFileSync(desktopDockerfileTemplate(), 'utf8'), packages))
   const hash = createHash('sha256').update(chunks.join('\n')).digest('hex')
   const prev = existsSync(desktopAppStampFile()) ? readFileSync(desktopAppStampFile(), 'utf8').trim() : ''
   return { hash, changed: hash !== prev }
+}
+
+export function runBuildPending(changed: boolean, enabledRun: boolean): boolean {
+  if (!changed) return false
+  if (enabledRun) return true
+  return existsSync(desktopAppStampFile())
 }
 
 /** A failed build must not stamp. An unchanged tree may. */
@@ -651,9 +718,12 @@ export function writeDesktopAppStamp(hash: string) {
 export function appsComposeBody(packages: CliPackage[]): string {
   const active = enabledCliPackages(packages)
   const volumes = active.flatMap((pkg) => pkg.volumes || [])
-  const ports = active.flatMap((pkg) => (pkg.interfaces || [])
-    .filter((iface) => iface.type !== 'gui' && iface.publish && iface.containerPort)
-    .map((iface) => `${iface.publish}:${iface.containerPort}`))
+  const ports = active.flatMap((pkg) => {
+    if (pkg.forwardHost === false) return []
+    return (pkg.interfaces || [])
+      .filter((iface) => iface.type !== 'gui' && iface.publish && iface.containerPort)
+      .map((iface) => `${iface.publish}:${iface.containerPort}`)
+  })
   if (!volumes.length && !ports.length) return ''
   const lines = ['services:', '  desktop:']
   if (ports.length) lines.push('    ports:', ...ports.map((port) => `      - "${port}"`))
@@ -681,9 +751,13 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
     const list = prepareDesktopAppBuild()
     const sidecar = getSidecar('desktop')
     const running = !!sidecar && !sidecar.error && (await (await docker()).getProjectStatus(sidecar)).running
-    const rebuild = !!opts?.rebuild || list.changed
+    const rebuild = !!opts?.rebuild
     const action = cliApplyAction(running, changed, rebuild)
-    if (action === 'skip') return { code: 0, stderr: '', rebuild: false }
+    if (action === 'skip') {
+      const { queueDesktopEnsure } = await import('./ensure')
+      queueDesktopEnsure()
+      return { code: 0, stderr: '', rebuild: false }
+    }
     if (!opts?.claimed) release = claim(true)
     const started = await (await docker()).startSidecar('desktop', {
       forceRecreate: changed,
@@ -708,8 +782,13 @@ export function appUpdateKind(id: string, packages: { id: string }[], sidecarIds
 }
 
 export function updateCommand(pkg: CliPackage): string[] {
-  if (pkg.id === 'paperclip') return ['bash', '-lc', 'HOME=/home/bros paperclipai update']
-  if (pkg.kind === 'npm') return ['npm', 'update', '-g', '--prefix', '/usr/local', pkg.spec]
+  if (pkg.kind === 'nix') {
+    const q = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`
+    const spec = pkg.id === 'node' ? `nodejs@${nodePin()}` : pkg.spec.split('#')[0] || pkg.spec
+    const fallback = pkg.id === 'node' ? ` || devbox global add ${q(`nodejs@${nodePin().split('.')[0]}`)}` : ''
+    return ['bash', '-lc', `export HOME=/home/bros; devbox global add ${q(spec)}${fallback}`]
+  }
+  if (pkg.kind === 'npm') return ['npm', 'update', '-g', '--prefix', '/home/bros/.local', pkg.spec]
   if (pkg.kind === 'pnpm') return ['pnpm', 'update', '-g', pkg.spec]
   if (pkg.kind === 'bun') return ['bun', 'update', '-g', pkg.spec]
   if (pkg.kind === 'apt') return ['apt-get', 'install', '-y', pkg.spec]
@@ -724,7 +803,7 @@ export function updateCommand(pkg: CliPackage): string[] {
     const at = pkg.spec.lastIndexOf('@')
     const name = at > 0 ? pkg.spec.slice(0, at) : pkg.spec
     const version = at > 0 ? pkg.spec.slice(at + 1) : ''
-    const cmd = ['cargo', 'install', '--locked', '--root', '/usr/local', name]
+    const cmd = ['cargo', 'install', '--locked', '--root', '/home/bros/.cargo', name]
     if (version) cmd.push('--version', version)
     return cmd
   }
@@ -800,6 +879,15 @@ export async function checkAppUpdate(id: string): Promise<AppCheck> {
   }
   const pkg = packages.find((row) => row.id === id)
   if (!pkg || pkg.kind === 'run') return { kind, available: false, run: pkg?.kind === 'run' }
+  if (pkg.kind === 'nix') {
+    const version = await installedVersion(pkg)
+    if (pkg.id === 'node') {
+      const pin = nodePin()
+      const available = nodeUpdateAvailable(version, pin)
+      return { kind, available, ...(version ? { version } : {}), ...(available ? { latest: pin } : {}) }
+    }
+    return { kind, available: false, ...(version ? { version } : {}) }
+  }
   const version = await installedVersion(pkg)
   if (pkg.kind === 'deb') {
     if (!debTracksLatest(pkg.spec)) return { kind, available: false, ...(version ? { version } : {}) }
@@ -818,6 +906,18 @@ export async function checkAppUpdate(id: string): Promise<AppCheck> {
   }
 }
 
+export function disableAddonApp(id: string) {
+  const row = readCatalog().find((pkg) => pkg.id === id && pkg.tier === 'addon')
+  if (!row) {
+    const err = new Error('Addon app not found') as Error & { statusCode: number }
+    err.statusCode = 404
+    throw err
+  }
+  const stored = readStoredPackages().filter((pkg) => pkg.id !== id)
+  stored.push({ ...row, enabled: false })
+  writeCliPackages(stored)
+}
+
 export function enableAddonApp(id: string) {
   const row = readCatalog().find((pkg) => pkg.id === id && pkg.tier === 'addon')
   if (!row) {
@@ -834,30 +934,62 @@ export function appServicesFile() {
   return join(cliAppsDir(), 'running.json')
 }
 
-export function readRunningAppIds(): string[] {
+type RunningDoc = { ids: string[]; restarts: Record<string, number> }
+
+function readRunningDoc(): RunningDoc {
   try {
-    const doc = JSON.parse(readFileSync(appServicesFile(), 'utf8')) as { ids?: unknown }
-    const ids = Array.isArray(doc?.ids) ? doc.ids : []
-    return ids.filter((id): id is string => typeof id === 'string' && !!id)
+    const doc = JSON.parse(readFileSync(appServicesFile(), 'utf8')) as { ids?: unknown; restarts?: unknown }
+    const ids = Array.isArray(doc?.ids) ? doc.ids.filter((id): id is string => typeof id === 'string' && !!id) : []
+    const restarts: Record<string, number> = {}
+    if (doc?.restarts && typeof doc.restarts === 'object') {
+      for (const [id, n] of Object.entries(doc.restarts)) {
+        if (APP_ID.test(id) && typeof n === 'number' && n >= 0) restarts[id] = n
+      }
+    }
+    return { ids, restarts }
   } catch {
-    return []
+    return { ids: [], restarts: {} }
   }
 }
 
-export function setAppService(id: string, on: boolean) {
+function writeRunningDoc(doc: RunningDoc) {
+  const file = appServicesFile()
+  mkdirSync(join(file, '..'), { recursive: true })
+  writeFileSync(file, `${JSON.stringify({ ids: [...doc.ids].sort(), restarts: doc.restarts })}\n`)
+}
+
+export function readRunningAppIds(): string[] {
+  return readRunningDoc().ids
+}
+
+function servicePkg(id: string) {
   const pkg = readCliPackages().find((row) => row.id === id)
   if (!pkg || pkg.enabled === false || !pkg.services?.length) {
     const err = new Error('App service not found') as Error & { statusCode: number }
     err.statusCode = 404
     throw err
   }
-  const ids = new Set(readRunningAppIds())
+  return pkg
+}
+
+export function setAppService(id: string, on: boolean) {
+  servicePkg(id)
+  const doc = readRunningDoc()
+  const ids = new Set(doc.ids)
   if (on) ids.add(id)
   else ids.delete(id)
-  const file = appServicesFile()
-  mkdirSync(join(file, '..'), { recursive: true })
-  writeFileSync(file, `${JSON.stringify({ ids: [...ids].sort() })}\n`)
+  writeRunningDoc({ ids: [...ids], restarts: doc.restarts })
   return { id, serviceRunning: on }
+}
+
+export function restartAppService(id: string) {
+  servicePkg(id)
+  const doc = readRunningDoc()
+  const ids = new Set(doc.ids)
+  ids.add(id)
+  const restart = (doc.restarts[id] || 0) + 1
+  writeRunningDoc({ ids: [...ids], restarts: { ...doc.restarts, [id]: restart } })
+  return { id, serviceRunning: true, restart }
 }
 
 export async function startAppGui(id: string, command?: string) {
@@ -879,7 +1011,7 @@ export async function startAppGui(id: string, command?: string) {
   return res
 }
 
-export async function stopAppGui(id: string, command?: string) {
+async function endAppGui(id: string, command: string | undefined, action: 'close' | 'stop') {
   if (!BIN_SPEC.test(id) || (command && !BIN_SPEC.test(command))) {
     const err = new Error('GUI app not found') as Error & { statusCode: number }
     err.statusCode = 404
@@ -891,5 +1023,13 @@ export async function stopAppGui(id: string, command?: string) {
     err.statusCode = 404
     throw err
   }
-  return (await docker()).execInSidecar('desktop', ['/app/lib/sidecars/core/desktop/desktop-gui.sh', 'stop', guiAppProxyId(id, cmd)])
+  return (await docker()).execInSidecar('desktop', ['/app/lib/sidecars/core/desktop/desktop-gui.sh', action, guiAppProxyId(id, cmd)])
+}
+
+export function stopAppGui(id: string, command?: string) {
+  return endAppGui(id, command, 'stop')
+}
+
+export function closeAppGui(id: string, command?: string) {
+  return endAppGui(id, command, 'close')
 }

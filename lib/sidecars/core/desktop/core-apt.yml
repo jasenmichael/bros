@@ -1,4 +1,4 @@
-# Apt packages baked into the desktop image. Not rows on /settings/apps.
+# Apt packages baked into the desktop image. Not rows on /settings/desktop.
 # clis: main command, then extra commands, comma-separated.
 packages:
   - name: bash

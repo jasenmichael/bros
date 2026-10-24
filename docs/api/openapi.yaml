@@ -787,6 +787,252 @@ paths:
       responses:
         '200': { description: '{ ok: true }' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/apps/ensure:
+    get:
+      tags: [Sidecars]
+      summary: Ensure queue status for the toast
+      responses:
+        '200': { description: Ensure status }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/apps/{id}/disable:
+    post:
+      tags: [Sidecars]
+      summary: Disable an addon app and queue removal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Updated package list }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/apps/{id}/logs:
+    get:
+      tags: [Sidecars]
+      summary: Tail of an app service log
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Log text }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/apps/versions:
+    get:
+      tags: [Sidecars]
+      summary: Installed versions for enabled package apps
+      responses:
+        '200': { description: '{ versions }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/apps/{id}/update:
+    get:
+      tags: [Sidecars]
+      summary: Check whether an app update is available
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ available, version?, latest? }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Sidecars]
+      summary: Update one package or sidecar app
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Update result }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Rebuild already running }
+  /api/apps/{id}/enable:
+    post:
+      tags: [Sidecars]
+      summary: Enable an addon app and queue ensure
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ packages, install }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/apps/{id}/service:
+    post:
+      tags: [Sidecars]
+      summary: Start, stop, or restart an app service
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [start, stop, restart] }
+      responses:
+        '200': { description: Service state }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/apps/rebuild:
+    post:
+      tags: [Sidecars]
+      summary: Rebuild Desktop for the current run set
+      responses:
+        '200': { description: '{ install }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Rebuild already running }
+  /api/apps/{id}/ui:
+    post:
+      tags: [Sidecars]
+      summary: Update package web UI forward and nav pin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                forwardHost: { type: boolean }
+                navPinned: { type: boolean }
+      responses:
+        '200': { description: '{ ui, packages, install }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/drawer:
+    get:
+      tags: [Sidecars]
+      summary: Desktop entries and library
+      responses:
+        '200': { description: '{ entries, library }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/icons:
+    get:
+      tags: [Sidecars]
+      summary: Desktop entry icon bytes
+      parameters:
+        - name: name
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Icon bytes }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/desktop/entry:
+    post:
+      tags: [Sidecars]
+      summary: Open or close a desktop entry window
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                close: { type: boolean }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/focus:
+    post:
+      tags: [Sidecars]
+      summary: Focus a library app window, or open one
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind: { type: string }
+                id: { type: string }
+                command: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/pins:
+    post:
+      tags: [Sidecars]
+      summary: Pin a library app
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind: { type: string, enum: [terminal, package, sidecar, entry] }
+                id: { type: string }
+                command: { type: string }
+      responses:
+        '200': { description: '{ pin }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/pins/{id}:
+    delete:
+      tags: [Sidecars]
+      summary: Unpin a library app
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/pins/{id}/open:
+    post:
+      tags: [Sidecars]
+      summary: Open the pinned app
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/pins/{id}/close:
+    post:
+      tags: [Sidecars]
+      summary: Close the newest window for that pin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/desktop/terminal:
+    post:
+      tags: [Sidecars]
+      summary: Open or close a foot window
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                open: { type: boolean }
+                close: { type: boolean }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/cli/packages:
     get:
       tags: [Sidecars]

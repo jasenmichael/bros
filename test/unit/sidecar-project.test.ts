@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { parse as parseYaml } from 'yaml'
 import { composeImageIsLocal, composeUsesDesktopNetns, isMissingHostDataBind, shouldAttachProjectNetwork, shouldBuildSidecarImage } from '../../src/server/utils/docker'
@@ -295,7 +296,7 @@ describe('sidecar data binds', () => {
     expect(desktop).not.toContain('sidecars/cursor/state')
     expect(desktop).not.toContain('sidecars/opencode/config')
     expect(desktop).toContain('${BROS_HOST_DATA_DIR:?unset}/home:/home/bros')
-    expect(desktop).toContain('PATH: /home/bros/.local/sidecar-bins:')
+    expect(desktop).toContain('/home/bros/.local/sidecar-bins:')
     expect(desktop).toContain('"${BROS_DOCKER_GID:-0}"')
     expect(desktop).toContain('${BROS_HOST_REPO:?unset}/lib/sidecars/core/desktop/root/custom-cont-init.d/bros-live:/custom-cont-init.d/bros-live:ro')
     expect(desktop).not.toMatch(/^\s+user:/m)
@@ -308,11 +309,18 @@ describe('sidecar data binds', () => {
     expect(live).toContain('/usr/local/bin/$name')
     expect(live).toContain('${session}.bak')
     expect(live).toContain('exec /usr/share/cursor/cursor --no-sandbox "$@"')
+    expect(live).toContain('serverDecoration="no"')
     const gui = readFileSync(join(root, 'lib/sidecars/core/desktop/desktop-gui.sh'), 'utf8')
     expect(gui).toContain('HOME=/home/bros')
     expect(gui).toContain('RUNTIME_VALUE=/home/bros/.XDG')
     expect(gui).toContain('BROS_GUI_LAUNCH=1')
     expect(gui).toContain('desktop app failed to start')
+    expect(gui.slice(gui.indexOf('start) ;;'))).not.toContain('stop_one')
+    expect(gui).toContain('w/$n/pid')
+    expect(gui).toContain('focus_one')
+    expect(gui).toContain('desktop-gui.sh status')
+    const win = spawnSync('python3', [join(root, 'lib/sidecars/core/desktop/desktop-win.py'), '--self-check'], { encoding: 'utf8' })
+    expect(win.status, win.stderr).toBe(0)
   })
 
   it('starts the browser terminal as user bros in the desktop workspace', () => {

@@ -4,6 +4,20 @@ packages:
   - 'website'
   - 'layers/*'
 
+# pnpm 12 reads these here. .npmrc is auth and registry only.
+# src/server is outside @bros/ui. Public hoist lets the CLI bundle inline pathe and the rest.
+shamefullyHoist: true
+strictPeerDependencies: false
 # 0 skips the pnpm 12 registry recheck (default 1440). false: a filtered install never leaves a state file, so dev and both builds would reinstall every run.
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
+
+allowBuilds:
+  better-sqlite3: true
+  # Optional ssh2 accel with no prebuild. node-gyp fails here (no compiler), pnpm drops
+  # the package, and Nitro realpath of the leftover ssh2 link exits the UI build.
+  cpu-features: false
+  esbuild: true
+  protobufjs: true
+  ssh2: true
+  vue-demi: true

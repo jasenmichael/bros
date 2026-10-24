@@ -20,7 +20,7 @@ Done:
 - Rename to Bros
 - Host tunnel, auth, and `proxy.public`
 - M7 install and runner CLI
-- `/desktop`: one Selkies stream in `bros-desktop`. Sidecar GUIs keep their own container and draw on the shared sockets. Config is `/settings/apps`.
+- `/desktop`: one Selkies stream in `bros-desktop`. The Drawer sits at the bottom and shows on hover or touch. Sidecar GUIs keep their own container and draw on the shared sockets. Desktop settings are `/settings/desktop`.
 
 ## Milestones
 

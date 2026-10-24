@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { markAutostartFailed, sidecarPhase } from '../../src/server/utils/docker'
+import { markAutostartFailed, sidecarPhase, sidecarPortWarning } from '../../src/server/utils/docker'
 import { parseMeminfo } from '../../src/server/utils/memory'
 import {
   buildAttention,
@@ -20,6 +20,25 @@ describe('sidecarPhase', () => {
     expect(sidecarPhase('paperclip', false)).toBe('error')
     expect(sidecarPhase('paperclip', true)).toBe('running')
     expect(sidecarPhase('paperclip', false)).toBe('stopped')
+  })
+})
+
+describe('sidecarPortWarning', () => {
+  it('does not warn when a stopped autostart-off sidecar has a taken port', () => {
+    expect(sidecarPortWarning({
+      running: false,
+      autostart: false,
+      portOccupied: true,
+      ours: false,
+      hostPort: 3100,
+    })).toBeUndefined()
+    expect(sidecarPortWarning({
+      running: false,
+      autostart: true,
+      portOccupied: true,
+      ours: false,
+      hostPort: 3100,
+    })).toBe('Port 3100 is already in use. Bros sidecar cannot start until it is free.')
   })
 })
 

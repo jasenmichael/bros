@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { brosDevCssSplitPlugin, installBrosDevCssSplit } from './vite/devCssSplit'
+import { ignoreUnbuiltCpuFeatures } from './nitroTrace'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -82,6 +83,9 @@ export default defineNuxtConfig({
     externals: {
       // Resolve from the workspace — a bare name is treated as src/ui/better-sqlite3.
       traceInclude: [betterSqlite3Entry()],
+      traceOptions: {
+        ignore: ignoreUnbuiltCpuFeatures,
+      },
     },
   },
   hooks: {

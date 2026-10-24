@@ -1,0 +1,6 @@
+id: cargo
+name: cargo
+kind: nix
+spec: cargo
+bin: cargo
+clis: cargo, rustc

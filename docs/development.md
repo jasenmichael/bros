@@ -31,7 +31,7 @@ BROS_DEV=1 ./bros stop
 
 ## Host Node (optional)
 
-Node **22+**, pnpm **9.15**. Docker still needed for sidecars via the socket. Chat/Providers talk to sidecar Ollama at `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT`) and host Ollama at `http://127.0.0.1:<probe>` (not `ollama` / `host.docker.internal`). Whisper STT uses `http://127.0.0.1:8090`. Compose app uses Docker DNS. Sidecar Compose always gets `BROS_HOST_DATA_DIR` (checkout `data/`).
+Node **22+**, pnpm **12.15.0**. Docker still needed for sidecars via the socket. Chat/Providers talk to sidecar Ollama at `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT`) and host Ollama at `http://127.0.0.1:<probe>` (not `ollama` / `host.docker.internal`). Whisper STT uses `http://127.0.0.1:8090`. Compose app uses Docker DNS. Sidecar Compose always gets `BROS_HOST_DATA_DIR` (checkout `data/`).
 
 ```bash
 pnpm --dir src install
@@ -41,7 +41,7 @@ pnpm --dir src test
 
 Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOST_DATA_DIR/passkey`.
 
-Website/docs site: [Docs site](/docs/website).
+Website/docs site: [Docs site](/docs/website). The app container installs `@bros/ui` and `@bros/cli` only; Pages builds `@bros/website`.
 
 ## Where code lives
 

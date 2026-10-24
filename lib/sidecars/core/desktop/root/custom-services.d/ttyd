@@ -9,6 +9,7 @@ fi
 uid=$(id -u bros)
 gid=$(id -g bros)
 cat > /run/bros-terminal.bashrc << 'EOF'
+[ -f /etc/profile.d/bros-path.sh ] && . /etc/profile.d/bros-path.sh
 [ -f /home/bros/.bashrc ] && . /home/bros/.bashrc
 umask 002
 PS1='\u@\h:$(case $PWD in /home/bros/workspace) printf "~/workspace";; /home/bros/workspace/*) printf "~/workspace/%s" "${PWD#/home/bros/workspace/}";; *) printf "%s" "$PWD";; esac)\$ '

@@ -37,18 +37,7 @@ describe('desktop window and enabled sidecar autostart', () => {
     expect(shouldAutostartSidecar({ id: 'whisper' }, { autostart: true })).toBe(false)
   })
 
-  it('writes enabled-apps on the host repo, and on the app directory when that env is unset', () => {
-    const prev = process.env.BROS_HOST_REPO
-    try {
-      process.env.BROS_HOST_REPO = '/srv/bros-host'
-      expect(enabledAppsDir()).toBe('/srv/bros-host/lib/sidecars/core/desktop/enabled-apps')
-      process.env.BROS_HOST_REPO = '   '
-      expect(enabledAppsDir()).toBe(join(loadBootstrapConfig().workingDir, 'lib', 'sidecars', 'core', 'desktop', 'enabled-apps'))
-      delete process.env.BROS_HOST_REPO
-      expect(enabledAppsDir()).toBe(join(loadBootstrapConfig().workingDir, 'lib', 'sidecars', 'core', 'desktop', 'enabled-apps'))
-    } finally {
-      if (prev == null) delete process.env.BROS_HOST_REPO
-      else process.env.BROS_HOST_REPO = prev
-    }
+  it('writes the desktop build under the data dir', () => {
+    expect(enabledAppsDir()).toBe(join(loadBootstrapConfig().dataDir, 'build', 'desktop'))
   })
 })

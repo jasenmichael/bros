@@ -1,5 +1,5 @@
 id: bun
 name: bun
-kind: bun
+kind: nix
 spec: bun
 bin: bun

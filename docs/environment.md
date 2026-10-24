@@ -27,6 +27,7 @@ Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assi
 | `BROS_PORT` | `3055` | App port |
 | `BROS_HOST` | `0.0.0.0` | Listen address. `127.0.0.1` stays on this machine |
 | `BROS_DEV` | `0` | `1` selects `docker-compose.dev.yml`. Same as `./bros --dev` |
+| `BROS_NODE_VERSION` | `node -v` where `./bros` runs, else `26.7.0` | Desktop Node pin. Ensure installs `nodejs@` that version. Check offers an update only when the installed Node is missing or lower |
 | `BROS_DEVBOX_VERSION` | `0.18.4` | Desktop Devbox binary pin. A change applies on the next Desktop image build |
 
 ## User
@@ -40,12 +41,12 @@ Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assi
 
 ## Sidecars
 
-Unset does not start an addon. `0`, `false`, `off`, or `no` skips it. Autostart is SQLite and defaults off. Ollama, Desktop, and Whisper ignore these.
+Unset does not start an addon. `0`, `false`, `off`, or `no` omits that shipped addon from discovery. It does not autostart and does not reserve its id or slug. A custom pack may use that id. Autostart is SQLite and defaults off. Ollama, Desktop, and Whisper ignore these.
 
 | Variable | Default | Role |
 | --- | --- | --- |
 | `BROS_SIDECARS_DISABLE` | empty | Comma list of addon ids |
-| `BROS_SIDECAR_OPENCODE` | `0` | Env-disable the OpenCode sidecar. The pack stays listed and does not start. `1` allows Start and Autostart. The app compose file supplies `0` when this is unset |
+| `BROS_SIDECAR_OPENCODE` | `0` | Env-disable the OpenCode sidecar. It stays listed, does not autostart, and Start still runs it. The id stays reserved. `1` clears the disable and allows Autostart. The app compose file supplies `0` when this is unset |
 | `BROS_SIDECAR_OPENWEBUI` | unset | Skip Open WebUI |
 | `BROS_SIDECAR_FIRECRAWL` | unset | Skip Firecrawl |
 | `BROS_SIDECAR_FIRECRAWL_UI` | unset | Skip Firecrawl UI (`firecrawl-ui`) |

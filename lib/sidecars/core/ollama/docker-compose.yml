@@ -1,6 +1,6 @@
 services:
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.40.10@sha256:4c5b27871a3239a717048f9b93057680a51b60c8119a7016aebb57f938e25e35
     user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
     ports:
       - "${BROS_OLLAMA_PORT:-11435}:11434"
