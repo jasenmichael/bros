@@ -9,6 +9,11 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2025-01-01',
   modules: ['@nuxt/ui'],
+  icon: {
+    serverBundle: {
+      collections: ['lucide'],
+    },
+  },
   css: [join(currentDir, './app/assets/css/main.css')],
   ui: {
     colorMode: true,
