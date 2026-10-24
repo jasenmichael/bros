@@ -39,7 +39,7 @@ RUN HOME=/tmp npm install -g pnpm@${PNPM_VERSION} --prefix /usr/local \
   && curl -fsSL https://deno.land/install.sh | HOME=/tmp DENO_INSTALL=/usr/local sh -s "v${DENO_VERSION}"
 # Devbox binary only. Nix installs on first Desktop start into the /nix volume.
 ARG UV_VERSION=0.13.5
-ARG DEVBOX_VERSION=0.18.4
+ARG BROS_DEVBOX_VERSION=0.18.4
 RUN arch="$(dpkg --print-architecture)" \
   && case "$arch" in \
        amd64) uv_target=x86_64-unknown-linux-gnu; devbox_arch=amd64 ;; \
@@ -51,7 +51,7 @@ RUN arch="$(dpkg --print-architecture)" \
   && rm -rf "/tmp/uv-${uv_target}" \
   && useradd --system --no-create-home --home-dir /home/bros/.nix --shell /bin/bash nix \
   && mkdir -p /usr/local/libexec \
-  && curl -fsSL "https://github.com/jetify-com/devbox/releases/download/${DEVBOX_VERSION}/devbox_${DEVBOX_VERSION}_linux_${devbox_arch}.tar.gz" | tar -xz -C /usr/local/libexec devbox \
+  && curl -fsSL "https://github.com/jetify-com/devbox/releases/download/${BROS_DEVBOX_VERSION}/devbox_${BROS_DEVBOX_VERSION}_linux_${devbox_arch}.tar.gz" | tar -xz -C /usr/local/libexec devbox \
   && chmod 0755 /usr/local/libexec/devbox \
   && printf '%s\n' '#!/bin/sh' 'export XDG_DATA_HOME=/home/bros/.nix/devbox' 'exec /usr/local/libexec/devbox "$@"' > /usr/local/bin/devbox \
   && chmod 0755 /usr/local/bin/devbox

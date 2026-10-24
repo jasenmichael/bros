@@ -44,6 +44,7 @@ services:
       BROS_OLLAMA_MODELS_DIR: /app/data/home/.ollama/models
       BROS_PORT: ${BROS_PORT:-3055}
       BROS_HOST: ${BROS_HOST:-0.0.0.0}
+      BROS_DEVBOX_VERSION: ${BROS_DEVBOX_VERSION:-0.18.4}
       BROS_DEV: ${BROS_DEV:-}
       BROS_DAEMON: ${BROS_DAEMON:-}
       BROS_HOME: ${BROS_HOME:-}

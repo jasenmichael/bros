@@ -4,6 +4,8 @@ services:
     build:
       context: ${BROS_HOST_REPO:?unset}/lib/sidecars
       dockerfile: core/desktop/enabled-apps/Dockerfile
+      args:
+        BROS_DEVBOX_VERSION: ${BROS_DEVBOX_VERSION:-0.18.4}
     image: bros-desktop
     container_name: bros-desktop
     hostname: bros

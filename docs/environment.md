@@ -27,6 +27,7 @@ Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assi
 | `BROS_PORT` | `3055` | App port |
 | `BROS_HOST` | `0.0.0.0` | Listen address. `127.0.0.1` stays on this machine |
 | `BROS_DEV` | `0` | `1` selects `docker-compose.dev.yml`. Same as `./bros --dev` |
+| `BROS_DEVBOX_VERSION` | `0.18.4` | Desktop Devbox binary pin. A change applies on the next Desktop image build |
 
 ## User
 
