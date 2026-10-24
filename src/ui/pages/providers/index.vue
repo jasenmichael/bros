@@ -230,6 +230,7 @@ const listedModels = computed(() => {
     .map((job) => ({
       id: `${job.providerId}/${job.model}`,
       name: job.model,
+      size: undefined,
       pull: job,
     }))
   return [...pullingRows, ...installedRows]
@@ -525,7 +526,7 @@ function resumePull(name: string) {
   return pullModel(name)
 }
 
-function onPullSelect(value: string | { label: string; value: string } | undefined) {
+function onPullSelect(value: unknown) {
   const name = ollamaNameFromMenuValue(value)
   pullName.value = name
   pullPicked.value = Boolean(name && isValidOllamaPullName(name))
@@ -852,15 +853,14 @@ async function scanHost() {
               </p>
             </template>
             <div class="flex w-3/4 max-w-3xl min-w-0 gap-2" :class="!ollamaReady && isHost ? 'opacity-50' : ''">
+              <!-- @vue-ignore Nuxt UI InputMenu key union drops type:label rows -->
               <UInputMenu
-                v-model="pullName"
+                v-model="pullName" value-key="value" label-key="value"
                 v-model:open="pullMenuOpen"
                 v-model:search-term="pullSearch"
-                value-key="value"
                 :items="pullItems"
                 :loading="libraryPending"
                 :disabled="Boolean(isHost && !ollamaReady)"
-                label-key="value"
                 :open-on-focus="!pullModelName"
                 open-on-click
                 :filter-fields="['label', 'value']"
@@ -871,14 +871,13 @@ async function scanHost() {
                   base: 'w-full',
                   content: 'w-(--reka-combobox-trigger-width) min-w-(--reka-combobox-trigger-width)',
                   item: 'w-full',
-                  itemWrapper: 'w-full min-w-0',
                 }"
                 @update:model-value="onPullSelect"
                 @update:open="onPullOpen"
                 @update:search-term="onPullSearch"
               >
                 <template #item-label="{ item }">
-                  <span :class="item.disabled ? 'text-[var(--bros-muted)] line-through' : ''">{{ item.label }}</span>
+                  <span :class="'disabled' in item && item.disabled ? 'text-[var(--bros-muted)] line-through' : ''">{{ item.label }}</span>
                 </template>
               </UInputMenu>
               <UButton
@@ -1201,7 +1200,7 @@ async function scanHost() {
       description="Are you sure? This removes the model from this Ollama and cannot be undone."
     >
       <template #footer>
-        <UButton color="neutral" variant="ghost" @click="deleteOpen = false">Cancel</UButton>
+        <UButton color="neutral" variant="ghost" @click="() => { deleteOpen = false }">Cancel</UButton>
         <UButton color="error" :loading="busy" @click="confirmDeleteModel">Delete</UButton>
       </template>
     </UModal>

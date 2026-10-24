@@ -480,8 +480,9 @@ export async function probeProviderHealth(id: string): Promise<ProviderHealth> {
 export async function listOpenAIModelIds(providerId: string): Promise<string[]> {
   const configured = listConfiguredOpenAIModels(providerId)
   const secret = getProviderSecret(providerId)
-  const base = secret?.row.baseUrl?.replace(/\/$/, '')
-  if (!base || !secret.apiKey) return configured
+  if (!secret || !secret.apiKey) return configured
+  const base = secret.row.baseUrl?.replace(/\/$/, '')
+  if (!base) return configured
   try {
     const headers: Record<string, string> = {}
     if (secret.apiKey) headers.authorization = `Bearer ${secret.apiKey}`

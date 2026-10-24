@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { createError } from 'h3'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import Docker from 'dockerode'
@@ -19,8 +20,10 @@ const startingSidecarIds = new Set<string>()
 const autostartFailed = new Map<string, string>()
 let bootPending = true
 
+const nitroPrerender = Boolean((import.meta as { prerender?: boolean }).prerender)
+
 /** True until this process finishes its one autostart pass. False while prerendering. */
-export function servicesBootPending(prerender = import.meta.prerender) {
+export function servicesBootPending(prerender = nitroPrerender) {
   if (prerender) return false
   return bootPending
 }
@@ -279,7 +282,12 @@ export async function listPublishedHostPorts(): Promise<Array<{
 }>> {
   const d = getDocker()
   const containers = await d.listContainers({ all: false })
-  const out: PublishedHostPort[] = []
+  const out: Array<{
+    port: number
+    project?: string
+    containerName?: string
+    image?: string
+  }> = []
   for (const c of containers) {
     const project = c.Labels?.['com.docker.compose.project']
     const containerName = (c.Names || [])[0]
@@ -419,7 +427,7 @@ export function dockerCommandError(statusCode: number, fallback: string, detail:
 }
 
 /** False while Nitro is prerendering the image build. */
-export function shouldRunAutostart(prerender = import.meta.prerender) {
+export function shouldRunAutostart(prerender = nitroPrerender) {
   return !prerender
 }
 

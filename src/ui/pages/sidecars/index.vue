@@ -509,7 +509,7 @@ function sectionGridClass(count: number) {
           <UTextarea v-model="addForm.composeYml" placeholder="docker-compose.yml" aria-label="docker-compose.yml" :rows="10" class="font-mono text-xs" />
           <div class="flex gap-2">
             <UButton size="sm" color="primary" :loading="hasBusy('create')" @click="createCustom">Create</UButton>
-            <UButton size="sm" color="neutral" variant="ghost" @click="addOpen = false">Cancel</UButton>
+            <UButton size="sm" color="neutral" variant="ghost" @click="() => { addOpen = false }">Cancel</UButton>
           </div>
         </div>
 
@@ -519,7 +519,7 @@ function sectionGridClass(count: number) {
           <p class="text-xs text-[var(--bros-muted)]">Clones into lib/sidecars/custom/&lt;name&gt;/ and loads that tree’s sidecars/ dir.</p>
           <div class="flex gap-2">
             <UButton size="sm" color="primary" :loading="hasBusy('clone')" @click="cloneRepo">Clone</UButton>
-            <UButton size="sm" color="neutral" variant="ghost" @click="repoOpen = false">Cancel</UButton>
+            <UButton size="sm" color="neutral" variant="ghost" @click="() => { repoOpen = false }">Cancel</UButton>
           </div>
         </div>
 
@@ -768,8 +768,8 @@ function sectionGridClass(count: number) {
                   <UTextarea v-model="editFiles.sidecarYml" :rows="8" class="font-mono text-xs" />
                   <UTextarea v-model="editFiles.composeYml" :rows="10" class="font-mono text-xs" />
                   <div class="flex gap-2">
-                    <UButton size="sm" color="primary" :loading="isBusy(s.id, 'save')" @click="saveEdit">Save</UButton>
-                    <UButton size="sm" color="neutral" variant="ghost" @click="editingId = null">Cancel</UButton>
+                    <UButton size="sm" color="primary" :loading="isBusy(s.id, 'save')" @click="() => { void saveEdit() }">Save</UButton>
+                    <UButton size="sm" color="neutral" variant="ghost" @click="() => { editingId = null }">Cancel</UButton>
                   </div>
                 </div>
               </div>
@@ -786,7 +786,7 @@ function sectionGridClass(count: number) {
       @update:open="(v: boolean) => { if (!v) restartTarget = null }"
     >
       <template #footer>
-        <UButton color="neutral" variant="ghost" @click="restartTarget = null">Not now</UButton>
+        <UButton color="neutral" variant="ghost" @click="() => { restartTarget = null }">Not now</UButton>
         <UButton color="primary" :loading="restartTarget ? isBusy(restartTarget.id, 'restart') : false" @click="confirmRestart">Restart</UButton>
       </template>
     </UModal>

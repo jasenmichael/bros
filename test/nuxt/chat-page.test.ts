@@ -10,6 +10,8 @@ const chatMount = {
     components: {
       BrosChatAssistantMeta,
       BrosChatUserTurn,
+    },
+    stubs: {
       BrosChatMarkdown: {
         props: ['text'],
         template: '<div class="bros-prose">{{ text }}</div>',

@@ -52,8 +52,9 @@ export function isCloudflaredLoggedIn(input: { certExists: boolean; tunnelListOk
 export function namedTunnelRouteOwned(requestedHost: string, routeOutput: string): boolean {
   const want = requestedHost.trim().replace(/\.$/, '').toLowerCase()
   const added = routeOutput.match(/Added CNAME\s+([^\s]+)/i)
-  if (added) {
-    const got = added[1].replace(/\.$/, '').toLowerCase()
+  const addedHost = added?.[1]
+  if (addedHost) {
+    const got = addedHost.replace(/\.$/, '').toLowerCase()
     return Boolean(want && got === want)
   }
   if (/could not find zone|zone not found|no zone matching|does not exist|not have access|unauthorized/i.test(routeOutput)) {
@@ -85,6 +86,7 @@ export function parseTunnelRuntimeError(logText: string): string | null {
   let shuttingDown = false
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    if (!line) continue
     if (SHUTDOWN_RE.test(line)) shuttingDown = true
     if (REGISTERED_RE.test(line)) {
       lastRegister = i
@@ -104,6 +106,7 @@ export function parseQuickTunnelHostname(logText: string): string | null {
   const matches = logText.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/gi)
   if (!matches?.length) return null
   const url = matches[matches.length - 1]
+  if (!url) return null
   return url.replace(/^https:\/\//i, '').toLowerCase()
 }
 

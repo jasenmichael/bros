@@ -15,7 +15,7 @@ import {
 
 async function proxyTranscribe(file: { data: Buffer | Uint8Array; filename?: string; type?: string }) {
   const form = new FormData()
-  const bytes = file.data instanceof Uint8Array ? file.data : new Uint8Array(file.data)
+  const bytes = new Uint8Array(file.data)
   const blob = new Blob([bytes], { type: file.type || 'audio/webm' })
   form.append('file', blob, file.filename || 'audio.webm')
   form.append('model', WHISPER_MODEL)
@@ -33,7 +33,8 @@ export default defineEventHandler(async (event) => {
   const parts = await readMultipartFormData(event)
   const file = pickTranscribeFile(parts)
   const bad = transcribeFileError(file, Number.isFinite(length) ? length : undefined)
-  if (bad || !file?.data) {
+  const audio = file?.data
+  if (bad || !audio) {
     throw createError(bad || { statusCode: 400, statusMessage: 'file required' })
   }
   if (!isWhisperEnabled()) {
@@ -41,7 +42,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await proxyTranscribe(file)
+    return await proxyTranscribe({ data: audio, filename: file?.filename, type: file?.type })
   } catch (err) {
     if (!isWhisperUnreachable(err)) throw err
   }
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await proxyTranscribe(file)
+    return await proxyTranscribe({ data: audio, filename: file?.filename, type: file?.type })
   } catch (err) {
     if (isWhisperUnreachable(err)) {
       throw createError({ statusCode: 503, statusMessage: 'Whisper sidecar unreachable' })

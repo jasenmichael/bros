@@ -10,14 +10,15 @@ function readSeen(): string | null {
 export default defineNuxtPlugin(() => {
   const toast = useToast()
   const seen = ref<string | null>(readSeen())
-  const { data } = useFetch<{ ollamaRestartNotice?: unknown }>(
+  const { data, refresh } = useFetch<{ ollamaRestartNotice?: unknown }>(
     '/api/status',
     {
       key: 'bros-ollama-restart-notice',
       lazy: true,
-      refreshInterval: 8000,
     },
   )
+  const timer = setInterval(() => { void refresh() }, 8000)
+  onScopeDispose(() => clearInterval(timer))
 
   watch(
     () => data.value?.ollamaRestartNotice,

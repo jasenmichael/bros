@@ -47,8 +47,11 @@ type StatusPayload = {
 
 const { data, pending, refresh } = await useFetch<StatusPayload>('/api/status', {
   key: 'bros-status-page',
-  refreshInterval: 8000,
 })
+if (import.meta.client) {
+  const timer = setInterval(() => { void refresh() }, 8000)
+  onUnmounted(() => clearInterval(timer))
+}
 </script>
 
 <template>

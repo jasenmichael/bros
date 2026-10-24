@@ -19,8 +19,8 @@ export function toModuleCssUrl(url: string): string {
 
 /** Map `/_nuxt/bros-mod/…css.js` back to the Vite `/_nuxt/…css` URL. */
 export function fromModuleCssUrl(url: string): string | null {
-  const [pathAndQuery] = url.split('#')
-  if (!pathAndQuery.startsWith(DEV_CSS_MOD_PREFIX)) return null
+  const pathAndQuery = url.split('#')[0]
+  if (!pathAndQuery || !pathAndQuery.startsWith(DEV_CSS_MOD_PREFIX)) return null
   let rest = pathAndQuery.slice(DEV_CSS_MOD_PREFIX.length)
   const qIndex = rest.indexOf('?')
   let query = ''

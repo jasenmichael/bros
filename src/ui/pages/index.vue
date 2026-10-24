@@ -51,8 +51,11 @@ const { data: summary, refresh } = await useFetch<Summary>('/api/dashboard/summa
   key: 'bros-dashboard-summary',
   lazy: true,
   server: false,
-  refreshInterval: 5000,
 })
+if (import.meta.client) {
+  const timer = setInterval(() => { void refresh() }, 5000)
+  onUnmounted(() => clearInterval(timer))
+}
 </script>
 
 <template>

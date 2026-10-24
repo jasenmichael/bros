@@ -35,6 +35,8 @@ export function openCodePassword(dataDir: string): string | null {
 /** Last `server password` line. `opencode serve` prints it and does not write service.json. */
 export function passwordFromLogs(text: string): string | null {
   let found: string | null = null
-  for (const match of text.matchAll(PASSWORD_LINE)) found = match[1]
+  for (const match of text.matchAll(PASSWORD_LINE)) {
+    if (match[1]) found = match[1]
+  }
   return found
 }

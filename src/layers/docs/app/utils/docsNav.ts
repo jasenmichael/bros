@@ -148,7 +148,7 @@ export function docsIndexGroups(nodes: DocsNavNode[] = DOCS_NAV_TREE) {
   }))
 }
 
-export function docsNavItems(nodes: DocsNavNode[] = DOCS_NAV_TREE) {
+export function docsNavItems(nodes: DocsNavNode[] = DOCS_NAV_TREE): DocsNavNode[] {
   return nodes.map((node) => ({
     label: node.label,
     to: node.to,

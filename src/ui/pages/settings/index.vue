@@ -252,7 +252,7 @@ async function logout() {
           color="neutral"
           variant="outline"
           :disabled="!data?.repairCommand"
-          @click="repairOpen = true"
+          @click="() => { repairOpen = true }"
         >
           Repair data dir
         </UButton>
@@ -274,7 +274,7 @@ async function logout() {
           </div>
         </template>
         <template #footer>
-          <UButton color="neutral" variant="ghost" @click="repairOpen = false">Cancel</UButton>
+          <UButton color="neutral" variant="ghost" @click="() => { repairOpen = false }">Cancel</UButton>
           <UButton color="primary" :loading="repairPending" :disabled="!data?.repairCommand" @click="repairData">Repair</UButton>
         </template>
       </UModal>

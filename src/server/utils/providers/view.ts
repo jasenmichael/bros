@@ -105,7 +105,8 @@ export async function buildProvidersView() {
         ? { ok: true, kind: 'ready', message: 'Ready' }
         : { ok: false, kind: 'unreachable', message: 'Ollama sidecar is unreachable' }
       port = OLLAMA_SIDECAR_PUBLISH
-      if (errors[p.id]) statusMessage = errors[p.id]
+      const sidecarError = errors[p.id]
+      if (sidecarError) statusMessage = sidecarError
     }
     else if (p.id === OLLAMA_HOST_ID) {
       const manual = readOllamaManualPort()

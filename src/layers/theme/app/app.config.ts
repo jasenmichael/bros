@@ -1,4 +1,6 @@
-export type { BrosNavItem } from './types/nav'
+import type { BrosNavItem } from './types/nav'
+
+export type { BrosNavItem }
 
 export default defineAppConfig({
   bros: {

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { getRequestHeader, getRequestProtocol, type H3Event } from 'h3'
+import { createError, getRequestHeader, getRequestProtocol, type H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
 import { join } from 'pathe'
 import { loadBootstrapConfig } from './config'
@@ -200,7 +200,7 @@ export function encryptSecret(plain: string): string {
   // lightweight XOR+hmac style obfuscation suitable for local single-user store
   const data = Buffer.from(plain, 'utf8')
   const out = Buffer.alloc(data.length)
-  for (let i = 0; i < data.length; i++) out[i] = data[i] ^ key[i % key.length]
+  for (let i = 0; i < data.length; i++) out[i] = (data[i] ?? 0) ^ (key[i % key.length] ?? 0)
   return `${iv.toString('hex')}:${out.toString('hex')}`
 }
 
@@ -210,7 +210,7 @@ export function decryptSecret(enc: string): string {
   const [, hex] = enc.split(':')
   const data = Buffer.from(hex || '', 'hex')
   const out = Buffer.alloc(data.length)
-  for (let i = 0; i < data.length; i++) out[i] = data[i] ^ key[i % key.length]
+  for (let i = 0; i < data.length; i++) out[i] = (data[i] ?? 0) ^ (key[i % key.length] ?? 0)
   return out.toString('utf8')
 }
 

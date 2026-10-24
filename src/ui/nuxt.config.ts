@@ -93,7 +93,6 @@ export default defineNuxtConfig({
   vite: {
     plugins: [brosDevCssSplitPlugin()],
     server: {
-      host: brosHost,
       // Dev via Cloudflare tunnel / public_url host (Vite 6+ blocks unknown Host by default).
       allowedHosts: true,
       headers: {

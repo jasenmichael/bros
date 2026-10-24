@@ -39,7 +39,7 @@ if (!skipNuxtProject) {
         include: ['../../test/nuxt/**/*.{test,spec}.ts'],
         environment: 'nuxt',
       },
-    }))
+    }) as Record<string, unknown>)
   } catch {
     // Unit/e2e still run when Nuxt is not resolvable (Docker volume without the package).
   }
