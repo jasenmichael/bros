@@ -319,11 +319,11 @@ describe('bros CLI start build policy', () => {
 
   it('update pulls, rebuilds, and git-pulls', () => {
     const update = readFileSync(join(REPO, 'src/cli/index.ts'), 'utf8')
-    expect(update).toContain("'pull'")
-    expect(update).toContain("'build', '--pull'")
-    expect(update).toContain("'pull', '--ff-only'")
+    expect(update).toContain("composeArgs(['build'])")
+    expect(update).not.toContain('--pull')
     expect(update).toContain("'submodule', 'update', '--init'")
     expect(update).toContain('ensureHostWorkspace()')
+    expect(readFileSync(BROS, 'utf8')).toContain('git -C "$REPO_ROOT" pull --ff-only')
   })
 
   it('defaults BROS_HOST_WORKSPACE to the host data workspace', () => {
@@ -724,7 +724,8 @@ describe('desktop sidecar image context', () => {
     expect(body.indexOf("containerRunning('bros-desktop')")).toBeLessThan(body.indexOf("containerRunning('bros')"))
     expect(body).toContain("composeArgs(['up', '-d', '--no-deps', 'bros'])")
     expect(body).toContain('writeDesktopAppStamp(prep.hash)')
-    expect(body).toContain("composeArgs(['build', '--pull'])")
+    expect(body).toContain("composeArgs(['build'])")
+    expect(body).not.toContain('--pull')
     expect(body).not.toContain("'pull', '--ff-only'")
     expect(body).not.toContain("composeArgs(['pull'])")
     expect(body).not.toContain('Restart to run new images')

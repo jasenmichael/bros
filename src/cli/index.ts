@@ -243,7 +243,7 @@ async function containerRunning(name: string): Promise<boolean> {
 async function runUpdate() {
   const repo = repoDir()
   consola.info('Bros update: rebuild images…')
-  const built = await run('docker', composeArgs(['build', '--pull']))
+  const built = await run('docker', composeArgs(['build']))
   process.env.BROS_APP_IMAGE = process.env.BROS_DEV === '1' ? 'bros:dev' : 'bros:latest'
   const appImage = await run('docker', ['image', 'inspect', process.env.BROS_APP_IMAGE], true)
   if (appImage.code !== 0) {
