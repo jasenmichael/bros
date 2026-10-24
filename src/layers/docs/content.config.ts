@@ -12,6 +12,7 @@ export default defineContentConfig({
       source: {
         cwd: docsDir,
         include: '**/*.md',
+        exclude: ['adr/**'],
         prefix: '/docs',
       },
       schema: z.object({

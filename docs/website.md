@@ -21,6 +21,6 @@ pnpm --dir src --filter @bros/website preview
 
 GitHub Pages: https://jasenmichael.github.io/bros/
 
-New markdown goes in `docs/` and must be added to `DOCS_NAV_TREE` in `src/layers/docs/app/utils/docsNav.ts` so the dock, website nav, docs index, and breadcrumbs all list it. Do not put pages under `src/ui`. Theme owns `layouts/default.vue` and `ProsePre`. Docs render through the docs-layer `ContentRenderer` + `.bros-prose`. Docs pages show breadcrumbs above the title.
+`docs/adr/` is gitignored local notes, not a docs page. New markdown goes in `docs/` and must be added to `DOCS_NAV_TREE` in `src/layers/docs/app/utils/docsNav.ts` so the dock, website nav, docs index, and breadcrumbs all list it. Do not put pages under `src/ui`. Theme owns `layouts/default.vue` and `ProsePre`. Docs render through the docs-layer `ContentRenderer` + `.bros-prose`. Docs pages show breadcrumbs above the title.
 
 Website nav: Home, then the docs directory tree (Start, App, Sidecars, Popular services, Contribute).

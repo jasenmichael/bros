@@ -11,6 +11,7 @@ function listDocsMarkdown(dir: string, prefix = ''): string[] {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name)
     const rel = prefix ? `${prefix}/${name}` : name
+    if (rel === 'adr') continue
     if (statSync(full).isDirectory()) {
       out.push(...listDocsMarkdown(full, rel))
       continue
