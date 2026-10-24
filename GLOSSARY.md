@@ -72,7 +72,7 @@ The `/terminal` page. The shell inside the desktop sidecar.
 
 ## app
 
-A sidecar or a package install. Every sidecar is an app. Core, addon, and custom are the tiers for both.
+A sidecar or a package install. Every sidecar is an app. Core, addon, and custom are the tiers for both. It can expose one or more `webui`, `gui`, or `cli` interfaces.
 
 ## package app
 
