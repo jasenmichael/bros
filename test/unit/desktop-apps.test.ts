@@ -30,6 +30,7 @@ describe('desktop package apps', () => {
     expect(init).toContain('install.mjs --kind nix')
     expect(init).not.toContain('BROS_IMAGE_INSTALL')
     expect(dockerfile).toContain('node:26.7.0-bookworm-slim')
+    expect(readFileSync(join(root, 'Dockerfile'), 'utf8')).toContain('node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b75901b6a09de1ae5a667d32')
     expect(dockerfile).not.toContain('BROS_IMAGE_INSTALL=1')
     expect(dockerfile).not.toContain('paperclip.sh')
     const layers = desktopAppsDockerfile(dockerfile, [

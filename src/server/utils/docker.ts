@@ -555,6 +555,7 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
   let desktopHash: string | null = null
   let desktopAppsChanged = false
   if (id === DESKTOP_SIDECAR_ID) {
+    process.env.BROS_APP_IMAGE = process.env.BROS_DEV === '1' ? 'bros:dev' : 'bros:latest'
     const override = join(loadBootstrapConfig().dataDir, 'config', 'apps-compose.yml')
     if (existsSync(override)) composeArgs.push('-f', override)
     const { prepareDesktopAppBuild } = await import('./cli/packages')
@@ -593,6 +594,11 @@ async function runStartSidecar(id: string, opts?: { forceRecreate?: boolean; reb
   const imageRef = dockerfile ? composeImageRef(sidecar.dir) : null
   const imageReady = imageRef ? (await run('docker', ['image', 'inspect', imageRef], sidecar.dir, 15_000)).code === 0 : false
   const build = dockerfile && shouldBuildSidecarImage(imageReady, !!opts?.rebuild)
+  if (id === DESKTOP_SIDECAR_ID && build) {
+    const appImage = process.env.BROS_APP_IMAGE || 'bros:latest'
+    const have = await run('docker', ['image', 'inspect', appImage], sidecar.dir, 15_000)
+    if (have.code !== 0) throw createError({ statusCode: 400, statusMessage: 'Build the Bros image first' })
+  }
   const upArgs = [
     ...composeArgs,
     'up',

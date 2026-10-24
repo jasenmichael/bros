@@ -3,7 +3,7 @@
 FROM docker:27-cli AS dockercli
 
 # Shared toolchain (no app source). Dev uses this as-is; prod build layers on top.
-FROM node:22-bookworm-slim AS tools
+FROM node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b75901b6a09de1ae5a667d32 AS tools
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -51,7 +51,7 @@ WORKDIR /app/src
 RUN pnpm --filter @bros/ui build \
   && pnpm --filter @bros/cli build
 
-FROM node:22-bookworm-slim AS production
+FROM node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b75901b6a09de1ae5a667d32 AS production
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl git systemd \

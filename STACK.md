@@ -47,7 +47,7 @@ bros/
 
 A utils concept gets a folder when it already has three or more files. One file stays flat. Route handlers stay thin and call those modules. `#bros` points at `src/server/utils`.
 
-The Desktop image copies its Node binary from `node:26.7.0-bookworm-slim`. The Bros app image stays on its own Node.
+The Bros image runs Node 26.7.0. The Desktop image copies its Node binary from `node:26.7.0-bookworm-slim`.
 
 ## Layer chain
 
