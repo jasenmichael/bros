@@ -66,9 +66,14 @@ A user pack under `lib/sidecars/custom`. Same controls as an addon sidecar. Only
 
 The core sidecar `desktop`. Always on. No host port. Image and container `bros-desktop`. The card is Desktop (core). `/desktop` is the Selkies stream of one Wayland session.
 
+## desktop user
+
+The user `bros` in the Desktop container. Foot, the Terminal shell, and package processes are this user.
+_Avoid_: terminal user
+
 ## Terminal
 
-The `/terminal` page. The shell inside the desktop sidecar.
+The `/terminal` page. The shell inside the desktop sidecar. It is the same user as the desktop user.
 
 ## app
 

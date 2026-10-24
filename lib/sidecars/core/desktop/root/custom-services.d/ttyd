@@ -1,11 +1,6 @@
 #!/usr/bin/with-contenv bash
 set -eu
 mkdir -p /home/bros/workspace
-# shortcut: own uid so the prompt user is bros while abc keeps PUID. Not the Bros host uid.
-if ! id bros >/dev/null 2>&1; then
-  useradd --no-create-home --home-dir /home/bros --shell /bin/bash --gid "${PGID:-1000}" bros
-fi
-usermod -g "${PGID:-1000}" bros
 sock=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)
 if [ -n "$sock" ] && [ "$sock" != "0" ]; then
   name=$(getent group "$sock" | cut -d: -f1)

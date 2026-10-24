@@ -103,6 +103,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'bros', to: '/docs/cli', body: 'bros commands, flags, paths.' },
       { label: 'Docs site', to: '/docs/website', body: 'Pages /bros/, same docs/.' },
       { label: 'Desktop Nix store', to: '/docs/adr/0001-desktop-nix-store', body: 'Nix store stays in the Desktop image.' },
+      { label: 'Desktop user', to: '/docs/adr/0003-desktop-user-bros', body: 'Desktop user is bros. abc stays for the same uid.' },
     ],
   },
   {

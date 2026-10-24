@@ -1,4 +1,35 @@
 #!/bin/bash
+# shortcut: abc stays so Selkies scripts keep that name; bros is the same uid listed first. Drop this if Selkies adds a username setting.
+if id abc >/dev/null 2>&1; then
+  uid=$(id -u abc)
+  gid=$(id -g abc)
+  if ! id bros >/dev/null 2>&1; then
+    useradd --non-unique --no-create-home --uid "$uid" --gid "$gid" --home-dir /home/bros --shell /bin/bash bros
+  elif [ "$(id -u bros)" != "$uid" ] || [ "$(id -g bros)" != "$gid" ]; then
+    mkdir -p /run/bros-empty
+    usermod -d /run/bros-empty bros
+    usermod -o -u "$uid" -g "$gid" bros
+    usermod -d /home/bros bros
+  fi
+  if id bros >/dev/null 2>&1; then
+    tmp=$(mktemp)
+    awk 'BEGIN{FS=OFS=":"} $1=="bros"{b=$0; next} {o[++n]=$0} END{if (b != "") print b; for (i = 1; i <= n; i++) print o[i]}' /etc/passwd > "$tmp"
+    if [ -s "$tmp" ] && grep -q '^bros:' "$tmp"; then
+      cat "$tmp" > /etc/passwd
+    fi
+    rm -f "$tmp"
+  fi
+fi
+for f in /etc/sudoers /etc/sudoers.d/*; do
+  [ -f "$f" ] || continue
+  grep -q '^abc[[:space:]]' "$f" || continue
+  while IFS= read -r line; do
+    rule=${line#abc}
+    grep -qxF "bros${rule}" "$f" || printf 'bros%s\n' "$rule" >> "$f"
+  done << EOF
+$(grep '^abc[[:space:]]' "$f")
+EOF
+done
 mkdir -p /home/bros/.local/sidecar-bins /home/bros/.local/bin /home/bros/.local/share/pnpm/store /home/bros/.bun/bin /home/bros/.deno/bin /home/bros/.deno/cache /home/bros/workspace /opt/bros/apps /tmp/bros-run
 chmod 1777 /tmp/bros-run /tmp/.X11-unix || true
 # group_add is only on the s6 root process. foot and ttyd run as abc.

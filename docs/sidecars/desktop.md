@@ -9,7 +9,7 @@ Core package `lib/sidecars/core/desktop`. Always starts. No host port. Listed as
 
 The image and container are `bros-desktop`. Sidecars Update rebuilds that image. Check does not pull it. Compose service `desktop`. Selkies captures one Wayland display. `labwc` nests on it and provides window management and XWayland. The page is [Desktop](/docs/sidecars/gui).
 
-`/terminal` embeds ttyd on container port 7681, proxied at `/terminal/session` from `http://desktop:7681`. The shell is user `bros`, the container hostname is `bros`, and it starts in `$HOME/workspace` (`/home/bros/workspace`). The prompt there is `bros@bros:~/workspace$`. Package installs are [Apps](/docs/apps). Add and edit on `/settings/apps`.
+`/terminal` embeds ttyd on container port 7681, proxied at `/terminal/session` from `http://desktop:7681`. The shell is the desktop user `bros` at `PUID`/`PGID`, the container hostname is `bros`, and it starts in `$HOME/workspace` (`/home/bros/workspace`). The prompt there is `bros@bros:~/workspace$`. Foot is that same uid. Passwd also lists `abc` for that uid. See [ADR 0003](/docs/adr/0003-desktop-user-bros). Package installs are [Apps](/docs/apps). Add and edit on `/settings/apps`.
 
 Enabled package apps install when the Desktop image builds, into `/usr/local`. Core always. Addon and custom only when enabled. Container start does not install, except Paperclip, which installs on Start. Bros writes that set to `$BROS_HOST_REPO/lib/sidecars/core/desktop/enabled-apps` when `BROS_HOST_REPO` is set, otherwise under the app directory, which is the Desktop image build context. The Desktop Node binary is 26.7.0. The Devbox binary pin is `BROS_DEVBOX_VERSION` (default `0.18.4`). Adding, enabling, or disabling a package app rebuilds the image. An unchanged start does not. A `services` list on `config.yml` is a command or `script` beside that file. Apps Start runs it inside Desktop. `kind: run` may set `uninstall` to a command or a script beside the config. Enable does not start the service. Stop keeps it stopped across a Desktop restart. Sidecar processes start in their own image. Desktop reaches them through the sidecar `cli` wrapper, `gui` window, and `webui` address.
 
@@ -35,6 +35,6 @@ Each enabled package install is its own image layer in the generated `enabled-ap
 - volume `bros-x11` → `/tmp/.X11-unix`
 - volume `bros-run` → `/tmp/bros-run`
 
-s6 starts as root so Selkies can start. `PUID` and `PGID` are the desktop user. Package GUI processes run as that user.
+s6 starts as root so Selkies can start. `PUID` and `PGID` are the desktop user `bros`. Package GUI processes run as that user. The group name stays `abc`.
 
 Hub: [Sidecars](/docs/sidecars).

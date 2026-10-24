@@ -19,7 +19,7 @@ A **sidecar app** is a sidecar. It keeps its own image and container (`bros-sc-<
 
 A package `cli` shows under **Apps** on `/terminal` only when that app is enabled. The command is the binary in the image or a home bin dir.
 
-A package `gui` shows in the Apps drawer on `/desktop` only when that app is enabled. A click runs `desktop-gui.sh` inside Desktop with no `--container`. The process is user `abc` with `HOME=/home/bros`. Terminal is the first drawer row. It opens `foot` in `/home/bros/workspace`.
+A package `gui` shows in the Apps drawer on `/desktop` only when that app is enabled. A click runs `desktop-gui.sh` inside Desktop with no `--container`. The process is the desktop user `bros` with `HOME=/home/bros`. Terminal is the first drawer row. It opens `foot` in `/home/bros/workspace`.
 
 A package `webui` `publish` is a host port, written with app `volumes` into `config/apps-compose.yml`. Open is `http://127.0.0.1:<publish>/`.
 

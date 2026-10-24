@@ -1,6 +1,6 @@
 # Desktop
 
-Selkies desktop, package installs, and the terminal. The container process is root. The `/terminal` shell is user `bros` in `$HOME/workspace`, with prompt `bros@bros:~/workspace$`. That account is its own uid. Package GUI processes run as the desktop user (`PUID` / `PGID`).
+Selkies desktop, package installs, and the terminal. The container process is root. The `/terminal` shell and package GUI processes are the desktop user `bros` at `PUID`/`PGID`, with prompt `bros@bros:~/workspace$`. Passwd also lists `abc` for that uid.
 
 ## Mounts
 
