@@ -48,6 +48,7 @@ node, cargo, pnpm, bun, deno, and uv are the core apps. npm, pnpm, bun, deno, uv
 - [Core apps](/docs/apps/core) — node, cargo, pnpm, bun, deno, uv. Always on
 - [Cursor](/docs/apps/cursor) — addon, deb, CLI and window
 - [Agent](/docs/apps/agent) — addon, run, `agent` and `cursor-agent`
+- [Claude](/docs/apps/claude) — addon, run, `claude`
 - [Paperclip](/docs/apps/paperclip) — addon, npm, web UI on **3100**
 - [jq](/docs/apps/jq) — addon, apt, no CLI or window
 - [OpenCode](/docs/apps/opencode) — addon, npm, web UI on **4097** (container **4096**)

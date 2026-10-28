@@ -58,6 +58,55 @@ export const messages = sqliteTable('messages', {
   createdAt: integer('created_at', { mode: 'number' }).notNull(),
 })
 
+export const agentProjects = sqliteTable('agent_projects', {
+  name: text('name').primaryKey(),
+  prBase: text('pr_base').notNull().default('staging'),
+  createdAt: integer('created_at', { mode: 'number' }).notNull(),
+  fullName: text('full_name'),
+  defaultBranch: text('default_branch').notNull().default('main'),
+  path: text('path'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  promotionUrl: text('promotion_url'),
+})
+
+export const agentJobs = sqliteTable('agent_jobs', {
+  id: text('id').primaryKey(),
+  project: text('project').notNull(),
+  issueNumber: integer('issue_number', { mode: 'number' }).notNull(),
+  state: text('state').notNull(),
+  kind: text('kind').notNull().default('feat'),
+  title: text('title').notNull().default(''),
+  branch: text('branch'),
+  prNumber: integer('pr_number', { mode: 'number' }),
+  prUrl: text('pr_url'),
+  taskSpec: text('task_spec'),
+  preflightModel: text('preflight_model'),
+  error: text('error'),
+  result: text('result'),
+  agent: text('agent').notNull().default('cursor'),
+  retryCount: integer('retry_count', { mode: 'number' }).notNull().default(0),
+  branchDeleted: integer('branch_deleted', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'number' }).notNull(),
+  startedAt: integer('started_at', { mode: 'number' }),
+  completedAt: integer('completed_at', { mode: 'number' }),
+})
+
+export const agentEvents = sqliteTable('agent_events', {
+  id: text('id').primaryKey(),
+  jobId: text('job_id').notNull(),
+  kind: text('kind').notNull(),
+  message: text('message').notNull(),
+  createdAt: integer('created_at', { mode: 'number' }).notNull(),
+})
+
+export const agentApprovals = sqliteTable('agent_approvals', {
+  id: text('id').primaryKey(),
+  jobId: text('job_id').notNull(),
+  kind: text('kind').notNull(),
+  status: text('status').notNull(),
+  createdAt: integer('created_at', { mode: 'number' }).notNull(),
+})
+
 export const ollamaPullJobRows = sqliteTable('ollama_pull_jobs', {
   id: text('id').primaryKey(),
   providerId: text('provider_id').notNull(),
@@ -140,6 +189,51 @@ function migrate(sqlite: Database.Database) {
       content TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS agent_projects (
+      name TEXT PRIMARY KEY,
+      pr_base TEXT NOT NULL DEFAULT 'staging',
+      created_at INTEGER NOT NULL,
+      full_name TEXT,
+      default_branch TEXT NOT NULL DEFAULT 'main',
+      path TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      promotion_url TEXT
+    );
+    CREATE TABLE IF NOT EXISTS agent_jobs (
+      id TEXT PRIMARY KEY,
+      project TEXT NOT NULL,
+      issue_number INTEGER NOT NULL,
+      state TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'feat',
+      title TEXT NOT NULL DEFAULT '',
+      branch TEXT,
+      pr_number INTEGER,
+      pr_url TEXT,
+      task_spec TEXT,
+      preflight_model TEXT,
+      error TEXT,
+      result TEXT,
+      agent TEXT NOT NULL DEFAULT 'cursor',
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      branch_deleted INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      started_at INTEGER,
+      completed_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS agent_events (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS agent_approvals (
+      id TEXT PRIMARY KEY,
+      job_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS ollama_pull_jobs (
       id TEXT PRIMARY KEY,
       provider_id TEXT NOT NULL,
@@ -192,5 +286,13 @@ function migrate(sqlite: Database.Database) {
   if (!convoColsNow.some((c) => c.name === 'tools')) {
     sqlite.exec(`ALTER TABLE conversations ADD COLUMN tools INTEGER NOT NULL DEFAULT 0`)
     sqlite.exec(`UPDATE conversations SET tools = 1 WHERE kind = 'agent'`)
+  }
+  const projectCols = sqlite.prepare('PRAGMA table_info(agent_projects)').all() as Array<{ name: string }>
+  if (projectCols.length && !projectCols.some((c) => c.name === 'full_name')) {
+    sqlite.exec(`ALTER TABLE agent_projects ADD COLUMN full_name TEXT`)
+    sqlite.exec(`ALTER TABLE agent_projects ADD COLUMN default_branch TEXT NOT NULL DEFAULT 'main'`)
+    sqlite.exec(`ALTER TABLE agent_projects ADD COLUMN path TEXT`)
+    sqlite.exec(`ALTER TABLE agent_projects ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`)
+    sqlite.exec(`ALTER TABLE agent_projects ADD COLUMN promotion_url TEXT`)
   }
 }

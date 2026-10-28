@@ -1,0 +1,9 @@
+id: claude
+name: Claude
+description: Claude Code CLI. Off until enabled.
+kind: run
+spec: curl -fsSL https://claude.ai/install.sh | bash
+bin: claude
+interfaces:
+  - type: cli
+    command: claude

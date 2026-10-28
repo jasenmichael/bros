@@ -15,6 +15,7 @@ tags:
   - name: Health
   - name: Providers
   - name: Chat
+  - name: Agents
   - name: Sidecars
   - name: Settings
   - name: Tunnel
@@ -1332,4 +1333,157 @@ paths:
       summary: Tunnel helper logs
       responses:
         '200': { description: Logs }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agents:
+    get:
+      tags: [Agents]
+      summary: Agents board
+      responses:
+        '200': { description: Settings, projects, issues, and jobs }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [Agents]
+      summary: Save Agents settings
+      responses:
+        '200': { description: Masked settings }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agents/projects:
+    post:
+      tags: [Agents]
+      summary: Register a project under Workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string }
+                defaultBranch: { type: string }
+                path: { type: string }
+      responses:
+        '200': { description: Project row }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agents/projects/{name}:
+    put:
+      tags: [Agents]
+      summary: Set a project's PR base
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prBase: { type: string, enum: [staging, main] }
+      responses:
+        '200': { description: '{ name, prBase }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Agents]
+      summary: Update a registered project
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                defaultBranch: { type: string }
+                path: { type: string }
+                enabled: { type: boolean }
+                prBase: { type: string, enum: [staging, main] }
+      responses:
+        '200': { description: Project row }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Agents]
+      summary: Remove a registered project row
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agents/jobs:
+    post:
+      tags: [Agents]
+      summary: Start preflight for an issue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project, issueNumber]
+              properties:
+                project: { type: string }
+                issueNumber: { type: integer }
+      responses:
+        '200': { description: Job row }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agents/jobs/{id}:
+    get:
+      tags: [Agents]
+      summary: Job and event transcript
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ job, events }' }
+        '404': { description: Missing job }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [Agents]
+      summary: Clear a failed job row
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: '{ ok: true }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/agents/jobs/{id}/action:
+    post:
+      tags: [Agents]
+      summary: Approve implement, approve the PR, or cancel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [approve, approve_pr, cancel] }
+                taskSpec: {}
+      responses:
+        '200': { description: Job row }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }

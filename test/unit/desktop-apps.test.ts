@@ -70,7 +70,7 @@ describe('desktop package apps', () => {
 
   it('reads shipped apps from config.yml', () => {
     const ids = readCatalog().map((pkg) => pkg.id).sort()
-    expect(ids).toEqual(['agent', 'bun', 'cargo', 'cursor', 'deno', 'jq', 'node', 'opencode', 'paperclip', 'pnpm', 'uv'])
+    expect(ids).toEqual(['agent', 'bun', 'cargo', 'claude', 'cursor', 'deno', 'jq', 'node', 'opencode', 'paperclip', 'pnpm', 'uv'])
     const node = readCatalog().find((pkg) => pkg.id === 'node')
     expect(node?.name).toBe('Node')
     expect(node?.kind).toBe('nix')

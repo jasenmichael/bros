@@ -135,6 +135,7 @@ Persistent sidecar + app state is `$BROS_HOME/data` on the host (`./data` in a c
 - [x] M12-04 MCP client only. No MCP server. HTTP servers are stored in Settings. Chat does not call them.
 - [x] M12-05 Skills. `personality` and `rules` live in `$BROS_HOME/data/config/skills`, seeded from `lib/skills/`, loaded on Chat turns only. A short rule in `data/config/assistant.md` only references those skills. `label` and `task` are seeded from `lib/skills/internal/` into `$BROS_HOME/data/skills-internal` and stay out of the catalog. Label and task calls do not include personality or house rules. A specialist model other than trained `bros` receives that internal skill in full. Other agents’ skill dirs are read-only in the catalog.
 - [x] M12-06 `/chat` redirect to `/agent` was removed by M14-03. `/chat` is the conversation page. Recents stay in the dock.
-- [x] M12-07 ACP is not implemented. Spec stub only.
+- [x] M12-07 Chat still has no ACP tool loop. `/agents` talks ACP to Desktop `cursor-agent`.
+- [x] M15 Agents page (`/agents`). GitHub issue board, Desktop Cursor or Claude after approval, pull request into the repo's PR base. No `/agent` route. Chat stays one completion.
 - [ ] M12-08 Later. Retrain `bros` for `Task:` and a better `Label:`. Task examples are in `vendor/bros-model/data/source.jsonl`. The GGUF retrain is a bros-model release, not an app start. Task words: `chat`, `code`, `research`, `docs`, `rewrite`, `data`, `ops`, `plan`. Gateway ranks providers by availability, then cost, then tokens left, after that retrain is installed.
 - [ ] M13 later. Agent roles, after a decision conversation. No catalog in this file.

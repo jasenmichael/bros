@@ -49,7 +49,7 @@ Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/d
 - Env: [docs/environment.md](docs/environment.md). Bootstrap YAML vs SQLite: [docs/configuration.md](docs/configuration.md)
 - HTTP API: [docs/api.md](docs/api.md)
 - A sidecar pack: [docs/sidecars.md](docs/sidecars.md) and `docs/sidecars/<id>.md`
-- Chat routes or agent wording: [docs/agent.md](docs/agent.md). There is no `/agent` page. Chat is one completion.
+- Chat routes or agent wording: [docs/agent.md](docs/agent.md) and [docs/agents.md](docs/agents.md). There is no `/agent` page. Chat is one completion. The job board is `/agents`.
 - Docs site and Pages: [docs/website.md](docs/website.md)
 
 ## Constraints

@@ -12,7 +12,7 @@ An interface type on a sidecar: a command, no URL. Not the desktop sidecar. The 
 
 ## Browser app
 
-Chat, Providers, Sidecars, Status, Settings, `/desktop`, and `/terminal`.
+Chat, Agents, Providers, Sidecars, Status, Settings, `/desktop`, and `/terminal`.
 
 ## Docs
 
@@ -28,7 +28,49 @@ A model id on a Provider. Chat stores `modelId` as `providerId/model`. Models ar
 
 ## Chat
 
-The `/chat` page. One streamed completion. There is no Agent page.
+The `/chat` page. One streamed completion. There is no `/agent` page. The job board is Agents.
+
+## Agents page
+
+`/agents`. The board (Issues, Needs you, Queue, Failed, Completed), Add project under it, then Runtime closed until opened. Not the Agent app.
+_Avoid_: Agent page
+
+## Agent app
+
+The addon that installs `agent`. Not the Agents page. Not the Cursor runtime. The runtime binary is `cursor-agent` under the Desktop home.
+
+## Workspace
+
+The Desktop working directory. Host path `BROS_HOST_WORKSPACE`, else `bros.yml` `workspace`, else `data/home/workspace`. Inside Desktop it is `/home/bros/workspace`.
+
+## Repo
+
+One git directory under Workspace. The directory name is the repo name. The cwd for a job is that directory. Also called a project.
+_Avoid_: worktree
+
+## GitHub token
+
+The one credential for GitHub API calls and for `git` against GitHub inside Desktop. Set on the Agents page. On startup, a set `GH_TOKEN`, else `GITHUB_TOKEN`, else `GITHUB_PAT`, replaces it.
+
+## Issue
+
+A GitHub issue on a repo.
+
+## Job
+
+One run of an issue through preflight, implement, and the pull request.
+
+## Task Spec
+
+The plan PreFlight writes. The user can edit it before implement.
+
+## Issue branch
+
+The job branch `{kind}/{slug}`. It is the pull request head.
+
+## PR base
+
+Per repo, `staging` or `main`. The issue branch's pull request targets that branch. Default `staging`.
 
 ## Settings
 

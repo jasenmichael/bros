@@ -105,6 +105,7 @@ Empty. Not a Providers bootstrap. Do not commit a real value.
 | `OPENJEV_API_KEY` | empty | OpenJEV |
 | `OPENJEV_ORIGIN_SECRET` | empty | OpenJEV |
 | `HF_TOKEN` | empty | OpenJEV Hugging Face |
+| `GH_TOKEN` | empty | Agents page GitHub token. On start, replaces the stored token when set. Else `GITHUB_TOKEN`, else `GITHUB_PAT`. Unset leaves a pasted token |
 
 ## Tunnel
 

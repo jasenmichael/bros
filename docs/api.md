@@ -66,6 +66,23 @@ UI conversations (SQLite). Not an OpenAI drop-in.
 
 There is no `/api/agent`. Public `GET /v1/models` and `POST /v1/chat/completions` on Bros itself are not implemented. Sidecar OpenAI paths are proxies, for example `/ollama/v1/chat/completions`.
 
+## Agents
+
+The `/agents` board. Session cookie. Secrets come back masked (`set`, `last4`).
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/agents` | Settings, projects, issues, jobs |
+| PUT | `/api/agents` | Runtime, keys, switches. Empty secret fields do not clear. `githubTokenClear` / `cursorKeyClear` remove that secret |
+| POST | `/api/agents/projects` | `{ fullName, defaultBranch?, path? }` registers a repo under Workspace. No clone |
+| PUT | `/api/agents/projects/{name}` | `{ prBase }` `staging` or `main` |
+| PATCH | `/api/agents/projects/{name}` | `{ defaultBranch?, path?, enabled?, prBase? }` |
+| DELETE | `/api/agents/projects/{name}` | Removes the row. Does not delete the directory |
+| POST | `/api/agents/jobs` | `{ project, issueNumber }` starts preflight |
+| GET | `/api/agents/jobs/{id}` | Job plus event transcript |
+| POST | `/api/agents/jobs/{id}/action` | `{ action: approve \| approve_pr \| cancel, taskSpec? }` |
+| DELETE | `/api/agents/jobs/{id}` | Clear a failed, timed out, or cancelled row. Does not delete the repo |
+
 ## MCP, skills
 
 Session cookie only.

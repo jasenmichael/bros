@@ -41,7 +41,8 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     body: 'Dashboard, dock, login, Docs.',
     children: [
       { label: 'Chat', to: '/docs/chat', body: 'Provider then model, Stop, mic, auto-title.' },
-      { label: 'Agent', to: '/docs/agent', body: 'No agent page. Chat is one completion.' },
+      { label: 'Agents', to: '/docs/agents', body: 'Job board. Issues, approvals, queue.' },
+      { label: 'Agent', to: '/docs/agent', body: 'Chat is one completion. No /agent route.' },
       {
         label: 'Providers',
         children: [
@@ -83,6 +84,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Core apps', to: '/docs/apps/core', body: 'node, cargo, pnpm, bun, deno, uv. Always on.' },
       { label: 'Cursor', to: '/docs/apps/cursor', body: 'Addon deb. CLI and window. Off until enabled.' },
       { label: 'Agent', to: '/docs/apps/agent', body: 'Addon run. agent and cursor-agent. Off until enabled.' },
+      { label: 'Claude', to: '/docs/apps/claude', body: 'Addon run. claude. Off until enabled.' },
       { label: 'Paperclip', to: '/docs/apps/paperclip', body: 'Addon npm. Web UI on 3100. Off until enabled.' },
       { label: 'jq', to: '/docs/apps/jq', body: 'Addon apt. No CLI row and no window. Off until enabled.' },
       { label: 'OpenCode', to: '/docs/apps/opencode', body: 'Addon npm. Web UI on 4097. Off until enabled.' },
