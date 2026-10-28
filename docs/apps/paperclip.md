@@ -12,6 +12,6 @@ Interfaces:
 - `cli` — `paperclipai`. Shows under **Apps** on `/terminal` only while Paperclip is enabled.
 - `webui` — container port **3100**, publish **3100**. Open is `http://127.0.0.1:3100/` only while enabled.
 
-Ensure installs `paperclipai` with npm into `/home/bros/.local`. Start runs `paperclipai run`. Open is `http://127.0.0.1:3100/` while Forward to host is on. Stop, run onboard in the terminal, then Start. The first visit claims the instance. Stop keeps it stopped across a Desktop restart. The log file stays.
+Ensure installs `paperclipai` with npm into `/home/bros/.local`. Start runs `paperclipai run` in `/home/bros`, so `~/workspace` is `/home/bros/workspace`. Open is `http://127.0.0.1:3100/` while Forward to host is on. Stop, run onboard in the terminal, then Start. The first visit claims the instance. Stop keeps it stopped across a Desktop restart. The log file stays.
 
 Hub: [Apps](/docs/apps).

@@ -11,4 +11,5 @@ interfaces:
     containerPort: 3100
     publish: 3100
 services:
-  - paperclipai run
+  - command: paperclipai run
+    cwd: /home/bros
