@@ -1,0 +1,11 @@
+id: ghostty
+name: Ghostty
+description: Terminal emulator. Off until enabled.
+kind: nix
+spec: ghostty
+bin: ghostty
+interfaces:
+  - type: cli
+    command: ghostty
+  - type: gui
+    command: ghostty

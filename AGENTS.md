@@ -60,6 +60,11 @@ Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/d
 - Prefer Docker via `BROS_DEV=1 ./bros`. Host Node talks to sidecar Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1`. Compose-app calls use Docker DNS (`ollama:11434`, `whisper:8000`)
 - Dev does not mount `/app/sidecars/{core,addon,custom}` (those mounts are production-only). Discovery uses `/app/lib/sidecars`. Custom packs live in `lib/sidecars/custom`. Only `README.md` there is tracked. A custom pack can later move to `lib/sidecars/addon/` or `lib/sidecars/core/`. An addon can later move to core. Mount and pack rules live in the Sidecars section of [SPEC.md](SPEC.md)
 - Internal Ollama model `bros` is for app jobs (titles). It is not a Chat or Providers picker. Ensure path: `src/server/utils/internalBrosModel.ts`
+- Nix has one install. Run the [Devbox install script](https://www.jetify.com/docs/devbox/installing-devbox) as the non-root desktop user, and only when `devbox` is not already installed. Devbox installs Nix in single-user mode when Nix is not already present. Do not add another Nix installer (`nixos.org/nix/install`, a Nix tarball, the Determinate installer, or a Devbox GitHub release tarball).
+
+```bash
+curl -fsSL https://get.jetify.com/devbox | bash
+```
 
 ## Testing
 

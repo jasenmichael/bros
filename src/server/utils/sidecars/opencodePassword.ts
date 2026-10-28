@@ -32,9 +32,9 @@ export function openCodePassword(dataDir: string): string | null {
   return null
 }
 
-/** Last `server password` line in the Desktop app serve log. */
+/** Last `server password` line in the Desktop app service log. */
 export function openCodeServeLogPassword(dataDir: string): string | null {
-  const path = join(dataDir, 'home/.local/state/opencode/serve.log')
+  const path = join(dataDir, 'var/logs/apps/opencode.log')
   if (!existsSync(path)) return null
   try {
     return passwordFromLogs(readFileSync(path, 'utf8'))

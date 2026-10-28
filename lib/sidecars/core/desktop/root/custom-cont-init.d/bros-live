@@ -32,6 +32,22 @@ EOF
 done
 mkdir -p /home/bros/.local/sidecar-bins /home/bros/.local/bin /home/bros/.local/share/pnpm/store /home/bros/.bun/bin /home/bros/.deno/bin /home/bros/.deno/cache /home/bros/workspace /opt/bros/apps /tmp/bros-run
 chmod 1777 /tmp/bros-run /tmp/.X11-unix || true
+# launch.sh beside an app config. This loop does not name an app.
+install_launch() {
+  dir=$1
+  [ -f "$dir/launch.sh" ] || return 0
+  [ -f "$dir/config.yml" ] || return 0
+  bin=$(awk '/^bin: / { print $2; exit }' "$dir/config.yml")
+  case "$bin" in
+    ''|*[!A-Za-z0-9._+-]*) return 0 ;;
+  esac
+  cp "$dir/launch.sh" "/home/bros/.local/sidecar-bins/$bin"
+  chmod 755 "/home/bros/.local/sidecar-bins/$bin"
+}
+for dir in /app/lib/apps/core/* /app/lib/apps/addon/* /opt/bros/apps/*; do
+  [ -d "$dir" ] || continue
+  install_launch "$dir"
+done
 # group_add is only on the s6 root process. foot and ttyd run as abc.
 gid=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)
 if [ -z "$gid" ] || [ "$gid" = "0" ]; then
@@ -68,6 +84,9 @@ fi
 
 # Cursor draws its own title bar. labwc's bar is the second min/fullscreen/close row.
 mkdir -p /home/bros/.config/labwc
+# Session software OpenGL. labwc does not read profile.d.
+touch /home/bros/.config/labwc/environment
+grep -q '^LIBGL_ALWAYS_SOFTWARE=' /home/bros/.config/labwc/environment || printf '%s\n' 'LIBGL_ALWAYS_SOFTWARE=1' >> /home/bros/.config/labwc/environment
 rc=/home/bros/.config/labwc/rc.xml
 rule='  <windowRule identifier="*cursor*" serverDecoration="no" />'
 if [ ! -f "$rc" ]; then
@@ -145,26 +164,22 @@ JS
   fi
 fi
 
-# Chromium's zygote cannot make a namespace here. --disable-chromium-sandbox
-# is read after that crash. The electron binary needs --no-sandbox on argv.
-if [ -x /usr/bin/cursor ]; then
-  cat > /usr/local/bin/cursor << 'EOF'
-#!/bin/sh
-for arg in "$@"; do
-  case "$arg" in
-    agent|tunnel|editor|--help|-h|--version|-v|--list-extensions|--show-versions|--status)
-      exec /usr/bin/cursor "$@"
-      ;;
-  esac
-done
-if [ -n "${BROS_GUI_LAUNCH:-}" ] && [ -x /usr/share/cursor/cursor ]; then
-  exec /usr/share/cursor/cursor --no-sandbox "$@"
-fi
-exec /usr/bin/cursor --no-sandbox "$@"
-EOF
-  chmod +x /usr/local/bin/cursor
-fi
-
-# Nix store stays /nix/store inside the container. The installer runs from ensure.sh when nix is missing.
-mkdir -p /nix /etc/nix /home/bros/.local/share/devbox /home/bros/.local/state/nix /var/log/bros/apps
+# Mounts are already in place. Install Devbox only when that binary is missing.
+# The script installs Nix in single-user mode when Nix is not already on PATH.
+mkdir -p /etc/nix /home/bros/.local/share/devbox /home/bros/.local/state/nix /var/log/bros/apps
 printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' 'build-users-group =' 'use-xdg-base-directories = true' > /etc/nix/nix.conf
+printf '%s\n' 'export PATH="/home/bros/.local/sidecar-bins:${PATH}"' 'export LIBGL_ALWAYS_SOFTWARE=1' > /etc/profile.d/bros-path.sh
+nix_bin=
+for cand in /nix/store/*-nix-*/bin/nix /home/bros/.nix-profile/bin/nix /nix/var/nix/profiles/default/bin/nix; do
+  [ -x "$cand" ] || continue
+  nix_bin=$cand
+  break
+done
+install_path="/home/bros/.local/bin:${PATH}"
+if [ -n "$nix_bin" ]; then
+  install_path="$(dirname "$nix_bin"):$install_path"
+fi
+if id abc >/dev/null 2>&1; then
+  runuser -u abc -- env HOME=/home/bros PATH="$install_path" bash -lc 'command -v devbox >/dev/null' \
+    || runuser -u abc -- env HOME=/home/bros PATH="$install_path" FORCE=1 bash -lc 'curl -fsSL https://get.jetify.com/devbox | bash'
+fi

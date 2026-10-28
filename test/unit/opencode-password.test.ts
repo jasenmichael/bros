@@ -34,8 +34,8 @@ describe('openCodePassword', () => {
 
   it('reads the Desktop serve log password', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-oc-'))
-    mkdirSync(join(root, 'home/.local/state/opencode'), { recursive: true })
-    writeFileSync(join(root, 'home/.local/state/opencode/serve.log'), 'server password desk\n')
+    mkdirSync(join(root, 'var/logs/apps'), { recursive: true })
+    writeFileSync(join(root, 'var/logs/apps/opencode.log'), 'server password desk\n')
     expect(openCodeServeLogPassword(root)).toBe('desk')
     expect(openCodeServeLogPassword(join(root, 'missing'))).toBeNull()
   })

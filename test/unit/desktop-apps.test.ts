@@ -70,7 +70,7 @@ describe('desktop package apps', () => {
 
   it('reads shipped apps from config.yml', () => {
     const ids = readCatalog().map((pkg) => pkg.id).sort()
-    expect(ids).toEqual(['agent', 'bun', 'cargo', 'claude', 'cursor', 'deno', 'jq', 'node', 'opencode', 'paperclip', 'pnpm', 'uv'])
+    expect(ids).toEqual(['agent', 'bun', 'cargo', 'claude', 'cursor', 'deno', 'ghostty', 'jq', 'node', 'opencode', 'paperclip', 'pnpm', 'uv'])
     const node = readCatalog().find((pkg) => pkg.id === 'node')
     expect(node?.name).toBe('Node')
     expect(node?.kind).toBe('nix')
@@ -107,6 +107,7 @@ describe('desktop package apps', () => {
 
   it('reads a services command or script from app yaml', () => {
     expect(servicesFromYaml('services:\n  - paperclipai run\n')).toEqual([{ command: 'paperclipai run' }])
+    expect(servicesFromYaml('services:\n  - command: paperclipai run\n    cwd: /home/bros\n')).toEqual([{ command: 'paperclipai run', cwd: '/home/bros' }])
     expect(servicesFromYaml('services:\n  - script: serve.sh\n')).toEqual([{ command: 'serve.sh', script: 'serve.sh' }])
     expect(parseServices([{ script: 'serve.sh' }])).toEqual([{ command: 'serve.sh', script: 'serve.sh' }])
     expect(parseCliPackage({ kind: 'run', spec: 'curl -fsSL https://example.com/install | sh', uninstall: 'uninstall.sh' }).uninstall).toBe('uninstall.sh')
@@ -148,6 +149,9 @@ describe('desktop package apps', () => {
     const session = docker.indexOf('waitForDesktopSession()')
     expect(docker.slice(session, session + 500)).toContain('queueDesktopEnsure()')
     expect(docker.slice(session, session + 500)).not.toContain('await queueDesktopEnsure')
+    const running = docker.indexOf('runtime.status.running || (runtime.portOccupied && !runtime.ours)')
+    expect(docker.slice(running, running + 700)).toContain('queueDesktopEnsure()')
+    expect(docker.slice(running, running + 700)).not.toContain('await queueDesktopEnsure')
     expect(existsSync(join(root, 'src/ui/pages/settings/apps.vue'))).toBe(false)
   })
 
@@ -159,6 +163,7 @@ describe('desktop package apps', () => {
     expect(bumpedRestartIds({ paperclip: 1 }, { paperclip: 2 })).toEqual(['paperclip'])
     expect(bumpedRestartIds({}, { paperclip: 1 })).toEqual([])
     expect(commandsForRunning([{ text: 'id: demo\nservices:\n  - script: serve.sh\n', dir: '/opt/bros/enabled-apps/demo' }], ['demo'])).toEqual([{ id: 'demo', command: './serve.sh', cwd: '/opt/bros/enabled-apps/demo' }])
+    expect(commandsForRunning([{ text: 'id: paperclip\nservices:\n  - command: paperclipai run\n    cwd: /home/bros\n', dir: '/app/lib/apps/addon/paperclip' }], ['paperclip'])).toEqual([{ id: 'paperclip', command: 'paperclipai run', cwd: '/home/bros' }])
     expect(commandsForRunning(files, [])).toEqual([])
     expect(commandsForRunning([{ text: 'id: paperclip\nenabled: false\nservices:\n  - paperclipai run\n' }], ['paperclip'])).toEqual([])
   })

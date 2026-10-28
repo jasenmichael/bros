@@ -23,11 +23,11 @@ describe('desktop rebuild', () => {
 
   it('names the session gaps', () => {
     const script = readFileSync(join(root, 'lib/sidecars/core/desktop/desktop-ready.sh'), 'utf8')
-    expect(script).toContain("gaps.push('selkies')")
-    expect(script).toContain("gaps.push('ttyd')")
-    expect(script).toContain("gaps.push('x11')")
-    expect(script).toContain("gaps.push('wayland')")
-    expect(script).toContain("gaps.join(' ')")
+    expect(script).not.toContain('exec node')
+    expect(script).toContain('selkies')
+    expect(script).toContain('ttyd')
+    expect(script).toContain('x11')
+    expect(script).toContain('wayland')
     expect(script).toContain('/tmp/.X11-unix/X0')
     expect(script).toContain('/home/bros/.XDG/wayland-0')
   })

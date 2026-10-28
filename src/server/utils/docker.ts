@@ -922,6 +922,14 @@ async function startQueued(queue: SidecarMeta[]) {
       const runtime = await sidecarRuntime(s)
       if (runtime.status.running || (runtime.portOccupied && !runtime.ours)) {
         startingSidecarIds.delete(s.id)
+        if (s.id === DESKTOP_SIDECAR_ID && runtime.status.running) {
+          const { waitForDesktopSession } = await import('./desktopReady')
+          const gaps = await waitForDesktopSession()
+          if (!gaps) {
+            const { queueDesktopEnsure } = await import('./cli/ensure')
+            queueDesktopEnsure()
+          }
+        }
         return
       }
       await startSidecar(s.id)

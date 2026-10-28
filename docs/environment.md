@@ -28,7 +28,6 @@ Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assi
 | `BROS_HOST` | `0.0.0.0` | Listen address. `127.0.0.1` stays on this machine |
 | `BROS_DEV` | `0` | `1` selects `docker-compose.dev.yml`. Same as `./bros --dev` |
 | `BROS_NODE_VERSION` | `node -v` where `./bros` runs, else `26.7.0` | Desktop Node pin. Ensure installs `nodejs@` that version. Check offers an update only when the installed Node is missing or lower |
-| `BROS_DEVBOX_VERSION` | `0.18.4` | Desktop Devbox binary pin. A change applies on the next Desktop image build |
 
 ## User
 

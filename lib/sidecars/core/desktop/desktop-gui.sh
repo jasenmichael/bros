@@ -298,7 +298,6 @@ if [ -n "$container" ]; then
     -e "DISPLAY=${DISPLAY_VALUE}" \
     -e "WAYLAND_DISPLAY=${WAYLAND_VALUE}" \
     -e "XDG_RUNTIME_DIR=${RUNTIME_VALUE}" \
-    -e BROS_GUI_LAUNCH=1 \
     "$container" \
     sh -c 'setsid sh -c "echo \$\$ > \"\$1\"; shift; exec \"\$@\"" sh "$@" </dev/null >/dev/null 2>&1 &' \
     sh "/tmp/bros-gui-${id}-${n}.pid" "$@"
@@ -319,22 +318,24 @@ if [ -n "$container" ]; then
 else
   log="$slot/err"
   : > "$log"
+  # Devbox bins for this child only. sidecar-bins stays first so launch.sh wins.
+  launch='eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true; export PATH="/home/bros/.local/sidecar-bins:$PATH"; export LIBGL_ALWAYS_SOFTWARE=1; exec "$@"'
   if id abc >/dev/null 2>&1; then
     setsid runuser -u abc -- env \
       HOME=/home/bros \
       DISPLAY="$DISPLAY_VALUE" \
       WAYLAND_DISPLAY="$WAYLAND_VALUE" \
       XDG_RUNTIME_DIR="$RUNTIME_VALUE" \
-      BROS_GUI_LAUNCH=1 \
-      "$@" >"$log" 2>&1 &
+      LIBGL_ALWAYS_SOFTWARE=1 \
+      bash -lc "$launch" _ "$@" >"$log" 2>&1 &
   else
     setsid env \
       HOME=/home/bros \
       DISPLAY="$DISPLAY_VALUE" \
       WAYLAND_DISPLAY="$WAYLAND_VALUE" \
       XDG_RUNTIME_DIR="$RUNTIME_VALUE" \
-      BROS_GUI_LAUNCH=1 \
-      "$@" >"$log" 2>&1 &
+      LIBGL_ALWAYS_SOFTWARE=1 \
+      bash -lc "$launch" _ "$@" >"$log" 2>&1 &
   fi
   pid=$!
   printf '%s\n' "$pid" > "$slot/pid"

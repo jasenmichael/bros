@@ -11,7 +11,7 @@ ENV XDG_DATA_HOME=/home/bros/.local/share
 ENV XDG_STATE_HOME=/home/bros/.local/state
 ENV XDG_CACHE_HOME=/home/bros/.cache
 ENV XDG_CONFIG_HOME=/home/bros/.config
-ENV PATH="/home/bros/.local/share/devbox/global/default/.devbox/nix/profile/default/bin:/home/bros/.nix-profile/bin:/home/bros/.cargo/bin:/home/bros/.local/sidecar-bins:/home/bros/.local/bin:/home/bros/.local/devbox-bin:/home/bros/.local/share/pnpm:/home/bros/.bun/bin:/home/bros/.deno/bin:/lsiopy/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV PATH="/home/bros/.local/sidecar-bins:$PATH"
 
 COPY core/desktop/core-apt.yml /tmp/core-apt.yml
 RUN awk '/^[[:space:]]*-[[:space:]]*name:/ { print $3 }' /tmp/core-apt.yml > /tmp/apt-names \
@@ -31,17 +31,7 @@ RUN arch="$(dpkg --print-architecture)" \
     "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.${ttyd_arch}" \
   && chmod +x /usr/local/bin/ttyd
 
-# Devbox binary only. Single-user Nix installs on ensure when nix is missing.
-# Store paths stay /nix/store. NIX_STORE_DIR does not relocate binary-cache paths.
-ARG BROS_DEVBOX_VERSION=0.18.4
-RUN arch="$(dpkg --print-architecture)" \
-  && case "$arch" in \
-       amd64) devbox_arch=amd64 ;; \
-       arm64) devbox_arch=arm64 ;; \
-       *) echo "unsupported $arch"; exit 1 ;; \
-     esac \
-  && curl -fsSL "https://github.com/jetify-com/devbox/releases/download/${BROS_DEVBOX_VERSION}/devbox_${BROS_DEVBOX_VERSION}_linux_${devbox_arch}.tar.gz" | tar -xz -C /usr/local/bin devbox \
-  && chmod 0755 /usr/local/bin/devbox
+# Devbox and Nix install at container start, after /home/bros and /nix are mounted.
 ENV npm_config_prefix=/home/bros/.local \
   PNPM_HOME=/home/bros/.local/share/pnpm \
   npm_config_store_dir=/home/bros/.local/share/pnpm/store \

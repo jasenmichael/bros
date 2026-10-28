@@ -4,7 +4,7 @@ colorMode.preference = 'dark'
 </script>
 
 <template>
-  <UApp :toaster="{ position: 'bottom-left' }">
+  <UApp :toaster="{ position: 'bottom-right' }">
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
