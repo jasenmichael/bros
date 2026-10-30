@@ -149,14 +149,6 @@ export function resetDbForTests() {
 }
 
 function migrate(sqlite: Database.Database) {
-  const oldSettings = sqlite.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sidecar_settings'`).get()
-  if (oldSettings) {
-    sqlite.exec(`ALTER TABLE sidecar_settings RENAME TO app_settings`)
-    const renamed = sqlite.prepare(`PRAGMA table_info(app_settings)`).all() as Array<{ name: string }>
-    if (renamed.some((c) => c.name === 'sidecar_id')) {
-      sqlite.exec(`ALTER TABLE app_settings RENAME COLUMN sidecar_id TO app_id`)
-    }
-  }
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS meta (
       key TEXT PRIMARY KEY,
@@ -265,9 +257,6 @@ function migrate(sqlite: Database.Database) {
   if (!cols.some((c) => c.name === 'expose_host')) {
     sqlite.exec(`ALTER TABLE app_settings ADD COLUMN expose_host INTEGER NOT NULL DEFAULT 1`)
   }
-  sqlite.exec(`UPDATE app_settings SET host_mode = 'docker' WHERE host_mode = 'sidecar'`)
-  sqlite.exec(`UPDATE providers SET config_json = replace(config_json, '"mode":"sidecar"', '"mode":"docker"') WHERE config_json LIKE '%"mode":"sidecar"%'`)
-  sqlite.exec(`UPDATE providers SET config_json = replace(config_json, '"mode": "sidecar"', '"mode": "docker"') WHERE config_json LIKE '%"mode": "sidecar"%'`)
   const exposeDefault = sqlite.prepare(`SELECT value FROM meta WHERE key = 'cli_expose_default_on'`).get() as { value: string } | undefined
   if (!exposeDefault) {
     sqlite.exec(`UPDATE app_settings SET expose_host = 1`)
