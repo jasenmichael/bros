@@ -94,7 +94,12 @@ The Wayland session inside container `bros`. Container and image name are `bros`
 
 ## UI host
 
-The Node process that serves the browser app. Dev runs it on the host with `pnpm`. Prod runs it on the host when `pnpm` is on `PATH`, otherwise in container `bros-ui`. It listens on `BROS_PORT`. It is not the desktop container.
+The Node process that serves the browser app. Dev runs it on the host with `pnpm`. Prod runs it on the host when `pnpm` is on `PATH`, unless `--use-runner` or `BROS_USE_RUNNER=1` forces the UI runner. Otherwise the UI runner. It listens on `BROS_PORT`. It is not the desktop container.
+
+## UI runner
+
+Container `bros-ui`. The UI host when it runs in that container.
+_Avoid_: runner CLI, runner
 
 ## desktop user
 

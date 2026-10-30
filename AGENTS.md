@@ -16,28 +16,25 @@ Before editing, read the file that owns the change. Update that file when the ch
 
 pnpm workspace root is `src/`.
 
-Dev requires host `pnpm` and `cargo`. The UI runs on the host. Prod needs Docker. Prod uses host `pnpm` for the UI when it exists, otherwise container `bros-ui`.
+Dev requires host `pnpm` and `cargo`. The UI runs on the host. Prod needs Docker. Prod uses host `pnpm` for the UI when it exists, otherwise container `bros-ui`. `--use-runner` or `BROS_USE_RUNNER=1` forces `bros-ui`. Dev with either errors.
 
-Contributor loop:
+Build + run (production UI):
 
 ```bash
+pnpm --dir src install
+scripts/build.sh
+./bros
+```
+
+Dev (hot-reload UI):
+
+```bash
+pnpm --dir src install
 BROS_DEV=1 ./bros
 # or: ./bros --dev
 ```
 
-App: http://127.0.0.1:3055. After Dockerfile or compose changes:
-
-```bash
-BROS_DEV=1 ./bros update
-```
-
-Dev host pnpm (the UI) and docs:
-
-```bash
-pnpm --dir src install
-pnpm --dir src ui:dev
-pnpm --dir src docs:dev
-```
+App: http://127.0.0.1:3055. After Dockerfile or compose changes: `BROS_DEV=1 ./bros update`. Docs: `pnpm --dir src docs:dev`.
 
 Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/development.md).
 
@@ -67,6 +64,10 @@ Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/d
 ```bash
 curl -fsSL https://get.jetify.com/devbox | bash
 ```
+
+## Commits
+
+Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf` are a patch. `feat!` or a `BREAKING CHANGE` footer is major. `chore`, `docs`, `refactor`, `test`, and `ci` do not bump. Do not bump `VERSION` in an ordinary change. The product version is `0.0.1`. The packaged model release is `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0`). Until tag `v0.0.1` exists, the pull request workflow does not bump. After that tag exists it commits `chore: bump <type> to X.Y.Z` on the branch. It does not push to `main`. The merge publishes when `v<VERSION>` is missing.
 
 ## Testing
 

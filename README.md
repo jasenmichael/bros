@@ -10,15 +10,15 @@ A release needs Docker. It does not need git, cargo, or Node.
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 ```
 
-That unpacks `bros.tar.gz` into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias) and symlinks `~/.local/bin/bros`. Config the app reads is `$BROS_DIR/data/config/bros.yml`. `bros update` downloads the next tarball (`BROS_RELEASE_URL` overrides) and keeps `data/`.
+That unpacks `bros-<os>-<arch>.tar.gz` into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias) and symlinks `~/.local/bin/bros` (`BROS_BIN`) to `$BROS_DIR/bros`. It does not build; the binary is in the tarball. The tarball has the prebuilt UI and that `bros` binary for this machine. It does not include `src/` sources. Config the app reads is `$BROS_DIR/data/config/bros.yml`. `bros update` downloads the next tarball (`BROS_RELEASE_URL` overrides the exact URL) and keeps `data/`.
 
-Install from source when you have git and cargo:
+Install from source when you have git and cargo (`--from-src` is optional; the default release path never builds):
 
 ```bash
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
 ```
 
-That clones [jasenmichael/bros](https://github.com/jasenmichael/bros) into `~/.bros`, builds `cli/`, and symlinks `bros` to `cli/target/release/bros`. `bros update` pulls and rebuilds that binary, then rebuilds the image through the API. Dev still needs host `pnpm`.
+That clones [jasenmichael/bros](https://github.com/jasenmichael/bros) into `~/.bros`, builds `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, and symlinks `BROS_BIN` the same way as a release install. `bros update` pulls and rebuilds that binary, then rebuilds the image through the API. Dev still needs host `pnpm`.
 
 Optional systemd user service:
 
@@ -36,68 +36,48 @@ bros
 
 Default action is **start**. Commands and flags: [docs/cli.md](docs/cli.md). Open [http://127.0.0.1:3055](http://127.0.0.1:3055)
 
-Production: [Production](#production). A contributor checkout: [Development](#development).
+Checkout build: [Build and run](#build-and-run-checkout). Hot-reload: [Development](#development-hot-reload).
 
 Optional host `cloudflared` (install + `cloudflared login`). Set `public_url` in `$BROS_DIR/data/config/bros.yml` to start a named tunnel for that hostname.
 
-## Production
+## Build and run (checkout)
 
-Build the CLI and the UI host. These two commands do not build container images. The CLI build is one program for the host OS and architecture. There is no directory of builds for other systems.
-
-```bash
-cargo build --release --manifest-path cli/Cargo.toml
-pnpm --dir src --filter @bros/ui build
-```
-
-The CLI program is `cli/target/release/bros`. The UI host files are `src/ui/.output`. The server file is `src/ui/.output/server/index.mjs`.
-
-In a checkout, `bros` at the repo root is a symlink to that one host program. The symlink lets `./bros` find the repo. It is not a release directory.
-
-Run the production start. Do not set `BROS_DEV=1` and do not pass `--dev`.
-
-```bash
-./bros
-./bros -D
-./bros stop
-```
-
-`./bros` starts the Desktop, the UI host, and docker apps. When `src/ui/.output/server/index.mjs` is already there, the UI host runs that file. It does not run `pnpm --filter @bros/ui dev`. The Desktop start still uses `compose up --build`. That image build is separate from the two commands above. Foreground `./bros` owns the terminal. Ctrl+C stops that stack and prints `Bros exited.` `./bros -D` leaves the UI host running after the command exits. `./bros stop` stops it.
-
-Docker is required for the Desktop and docker apps. A release tree has no `cli/Cargo.toml` and runs the UI host in container `bros-ui`. A source prod start uses the host UI host when `pnpm` is on `PATH`, otherwise `bros-ui`. Only one UI host runs.
-
-When `cli/src/main.rs` is newer than `cli/target/release/bros`, the CLI runs `cargo build --release` and starts the new program once. A release tree never calls cargo. Help (`-h`) and version (`-v`) print without Docker, pnpm, or cargo.
-
-Operator lines stay on the terminal. Compose, BuildKit, and UI output append to `$BROS_HOST_DATA_DIR/var/logs/bros.log`. The login passkey is in that log (`[bros] passkey:`).
-
-## Development
-
-Contributors need Docker, host `pnpm`, and `cargo`. Dev always runs the UI on the host. Dev never starts `bros-ui`.
-
-```bash
-BROS_DEV=1 ./bros
-./bros --dev
-```
-
-
-
-The UI is `pnpm --dir src --filter @bros/ui dev`. Ctrl+C stops the desktop, the UI, and docker apps. `-D` is ignored in dev.
-
-After Dockerfile or compose changes:
-
-```bash
-BROS_DEV=1 ./bros update
-```
-
-Docs and tests use the same host pnpm. The workspace root is `src/`.
+Needs Docker, host `pnpm`, and `cargo`. Builds the host CLI + UI, then starts production mode (prebuilt UI, not Vite). Does not create `~/.local/bin/bros`.
 
 ```bash
 pnpm --dir src install
-pnpm --dir src ui:dev
+scripts/build.sh
+./bros
+# http://127.0.0.1:3055
+```
+
+Do not set `BROS_DEV=1` and do not pass `--dev`. Useful flags: `./bros -D`, `./bros --use-runner`, `./bros stop`. Full notes: [docs/development.md](docs/development.md).
+
+A GitHub release publishes one tarball per OS/arch (`bros-linux-amd64`, …) with that binary and `src/ui/.output`. Product version is `0.0.1`. Local pack (no bump): `scripts/pack-release.sh --target …` after a targeted cargo build. Merge to `main` publishes; there is no local release command. See [STACK.md](STACK.md).
+
+When `cli/src/main.rs` is newer than `cli/target/release/bros`, the CLI rebuilds once and re-execs. A release tree never calls cargo. Operator lines stay on the terminal; compose/UI detail goes to `$BROS_HOST_DATA_DIR/var/logs/bros.log` (`[bros] passkey:`).
+
+## Development (hot-reload)
+
+Same deps. Vite UI on the host. Never starts `bros-ui`. `--use-runner` / `BROS_USE_RUNNER=1` with dev errors.
+
+```bash
+pnpm --dir src install
+BROS_DEV=1 ./bros
+# or: ./bros --dev
+# http://127.0.0.1:3055
+```
+
+If `./bros` is missing, run `scripts/build.sh` once first. Ctrl+C stops the stack. `-D` is ignored. After Dockerfile or compose changes: `BROS_DEV=1 ./bros update`.
+
+Docs and tests use the same workspace (`src/`):
+
+```bash
 pnpm --dir src docs:dev
 pnpm --dir src test
 ```
 
-Docs site: [http://127.0.0.1:3056/bros/](http://127.0.0.1:3056/bros/) ([docs/website.md](docs/website.md)). Full notes: [docs/development.md](docs/development.md).
+Docs site: [http://127.0.0.1:3056/bros/](http://127.0.0.1:3056/bros/). Full notes: [docs/development.md](docs/development.md).
 
 ## Data directory
 
@@ -128,7 +108,7 @@ Pull on an Ollama card, or type any valid Ollama name. Progress stays on that pr
 
 ### Internal specialist (`bros`)
 
-Bros ships a small internal Ollama model named `bros` for app jobs (auto-titling chats). It is **not** listed in Chat or Providers. Source: [jasenmichael/bros-model](https://github.com/jasenmichael/bros-model). Packaged GGUF installs into the Ollama docker app on first start. See [docs/apps/ollama.md](docs/apps/ollama.md).
+Bros ships a small internal Ollama model named `bros` for app jobs (auto-titling chats). It is **not** listed in Chat or Providers. Source: [jasenmichael/bros-model](https://github.com/jasenmichael/bros-model). A source checkout installs the packaged GGUF into the Ollama docker app on first start. A release tarball does not include `vendor/bros-model`. See [docs/apps/ollama.md](docs/apps/ollama.md).
 
 ## Workspace (pnpm)
 

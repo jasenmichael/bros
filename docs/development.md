@@ -1,50 +1,48 @@
 ---
 title: Development
-description: Docker bind-mount hot-reload with BROS_DEV=1 ./bros or ./bros --dev.
+description: Build and run a checkout with scripts/build.sh, or hot-reload with BROS_DEV=1 ./bros.
 ---
 
 # Development
 
-Contributors need Docker, host `pnpm`, and `cargo`. The CLI is `cli/`. Hot-reload is `BROS_DEV=1 ./bros` or `./bros --dev`. Dev always runs the UI on the host. The pnpm workspace root is `src/`.
+Contributors need Docker, host `pnpm`, and `cargo`. The CLI is `cli/`. The pnpm workspace root is `src/`. Publishing a release is CI only (`scripts/pack-release.sh` + GitHub Actions). There is no local release command.
 
-## Production build
+## Build and run (production mode)
 
-Build the CLI and the UI host for this machine. These commands do not build container images. `cargo` writes one program for the host OS and architecture. There is no directory of builds for other systems.
-
-```bash
-cargo build --release --manifest-path cli/Cargo.toml
-pnpm --dir src --filter @bros/ui build
-```
-
-The CLI program is `cli/target/release/bros`. The UI host files are `src/ui/.output`.
-
-`bros` at the repo root is a symlink to that host program. Use it to run. Do not set `BROS_DEV=1` and do not pass `--dev`.
+Builds the host CLI and UI, then starts the stack with the prebuilt UI (not Vite). Does not build container images for other OS/arch. Does not create `~/.local/bin/bros` (install-only).
 
 ```bash
+pnpm --dir src install
+scripts/build.sh
 ./bros
+# http://127.0.0.1:3055
 ```
 
-When `src/ui/.output/server/index.mjs` is already there, the UI host runs that file. The Desktop start still uses `compose up --build`.
-
-## Docker bind-mount
+`scripts/build.sh` runs `cargo build --release` for `cli/`, builds `@bros/ui` into `src/ui/.output`, and refreshes `bros` → `cli/target/release/bros`. Do not set `BROS_DEV=1` and do not pass `--dev`.
 
 ```bash
+./bros -D          # leave UI host up after the command exits
+./bros --use-runner  # or BROS_USE_RUNNER=1: UI in container bros-ui
+./bros stop
+```
+
+When `src/ui/.output/server/index.mjs` exists, the UI host runs that file. `--use-runner` / `BROS_USE_RUNNER=1` starts `bros-ui` instead (that image copies `.output` and does not run `pnpm`). Desktop still uses `compose up --build`.
+
+## Dev (hot-reload)
+
+Bind-mount desktop + Vite UI on the host. Needs `pnpm` and `cargo` on `PATH`. Never starts `bros-ui`. `--use-runner` or `BROS_USE_RUNNER=1` with dev errors.
+
+```bash
+pnpm --dir src install
 BROS_DEV=1 ./bros
-./bros --dev
-# http://127.0.0.1:3055  (BROS_HOST:BROS_PORT)
+# or: ./bros --dev
+# http://127.0.0.1:3055
 ```
 
-Dev refuses to start when `pnpm` or `cargo` is missing. The desktop container is Selkies. The UI is `pnpm --dir src --filter @bros/ui dev`. Ctrl+C stops the full stack (desktop, UI host, docker apps). `-D` is ignored in dev.
-
-After Dockerfile or compose changes:
+If `./bros` is missing, run `scripts/build.sh` once (or `cargo build --release --manifest-path cli/Cargo.toml` and `ln -sfn cli/target/release/bros ./bros`). Dev UI is `pnpm --dir src --filter @bros/ui dev`. Ctrl+C stops the full stack. `-D` is ignored in dev.
 
 ```bash
-BROS_DEV=1 ./bros update
-```
-
-Stop a leftover stack:
-
-```bash
+BROS_DEV=1 ./bros update   # after Dockerfile or compose changes
 BROS_DEV=1 ./bros stop
 ```
 
@@ -85,3 +83,7 @@ src/ui/utils/
 ```
 
 The CLI is the Rust binary in `cli/`. Usage: [bros](/docs/cli).
+
+## Release
+
+Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, pull request commit types bump the version on the branch and the merge publishes the tag. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install).

@@ -5,7 +5,7 @@ description: Vars a user can set in .env, with defaults.
 
 # Environment
 
-No `.env` is needed. `./bros` and Compose apply the defaults below when a var is unset. Repo-root `example.env` lists each one commented, default after `=`, short note after that. To override, `cp example.env .env`, uncomment the line, and delete the trailing comment. `./bros` keeps that comment as part of the value. A var already set in the shell wins. Empty values are skipped. A local `.env` is gitignored.
+No `.env` is needed for defaults. `./bros` and Compose apply the defaults below when a var is unset. Repo-root `example.env` lists each one commented, default after `=`, short note after that. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. To override, uncomment the line in `.env` and delete the trailing comment. `./bros` keeps that comment as part of the value. A var already set in the shell wins. Empty values are skipped. A local `.env` is gitignored. `bros update` refreshes `example.env` and does not replace an existing `.env`.
 
 Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assistant description are the `rules` and `personality` skill files. Provider keys and chat history live in SQLite. There is no Providers key bootstrap. Paste those keys on Providers. Pi and OpenJEV can read the empty key names below when set.
 
@@ -30,7 +30,8 @@ Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assi
 | `BROS_TTYD_PORT` | `7681` | ttyd host port, bound to `127.0.0.1` |
 | `BROS_DESKTOP_STREAM_ORIGIN` | `http://127.0.0.1:$BROS_STREAM_PORT` on the host UI, `http://bros:3000` in `bros-ui` | `/desktop/view/` proxy target |
 | `BROS_TERMINAL_ORIGIN` | `http://127.0.0.1:$BROS_TTYD_PORT` on the host UI, `http://bros:7681` in `bros-ui` | `/terminal/session` proxy target |
-| `BROS_DEV` | `0` | `1` selects `docker-compose.dev.yml`. Same as `./bros --dev`. Dev requires host pnpm and cargo |
+| `BROS_DEV` | `0` | `1` selects `lib/desktop/docker-compose.dev.yml`. Same as `./bros --dev`. Dev requires host pnpm and cargo |
+| `BROS_USE_RUNNER` | `0` | `1` starts container `bros-ui` even when host `pnpm` is on `PATH`. Same as `./bros --use-runner`. Dev with `1` errors |
 | `BROS_NODE_VERSION` | `node -v` where `./bros` runs, else `26.7.0` | Desktop Node pin. Ensure installs `nodejs@` that version. Check offers an update only when the installed Node is missing or lower |
 
 ## User
@@ -64,7 +65,7 @@ In-container Bros uses Docker DNS, not these.
 | Variable | Default | Role |
 | --- | --- | --- |
 | `BROS_OLLAMA_PORT` | `11435` | Docker app Ollama |
-| `BROS_OPENCODE_PORT` | `4097` | OpenCode |
+| `BROS_OPENCODE_PORT` | `4096` | OpenCode |
 | `BROS_OPENWEBUI_PORT` | `3080` | Open WebUI |
 | `BROS_FIRECRAWL_PORT` | `3002` | Firecrawl API |
 | `BROS_FIRECRAWL_UI_PORT` | `3081` | Firecrawl UI |

@@ -5,7 +5,15 @@ description: install.sh, BROS_HOME, first start, and the bros command.
 
 # Install
 
-A release needs Docker. It unpacks `bros.tar.gz` into `~/.bros` and symlinks `~/.local/bin/bros`. `bros update` downloads the next tarball (`BROS_RELEASE_URL`) and keeps `data/`.
+A release needs Docker. It unpacks `bros-<os>-<arch>.tar.gz` (`bros-linux-amd64`, `bros-linux-arm64`, `bros-darwin-amd64`, or `bros-darwin-arm64`) into `~/.bros` and symlinks `~/.local/bin/bros` (`BROS_BIN`) to `$BROS_DIR/bros`. It does not build. The binary is in the tarball. The tarball includes the prebuilt UI at `src/ui/.output`, that `bros` binary, and `example.env`. It omits `vendor/` and the `src/` sources. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. `bros update` downloads the next tarball for this machine (`BROS_RELEASE_URL` overrides the exact URL), keeps `data/` and an existing `.env`, and refreshes `example.env`.
+
+The product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`, so this install downloads [bros-model `v1.0.0`](https://github.com/jasenmichael/bros-model/releases/download/v1.0.0/bros-model.tar.gz) when that stamp is missing or older. The next merge to `main` publishes tag `v0.0.1`. It does not bump the number. After `v0.0.1` and bros-model `v1.0.0` exist, a pull request's commit type chooses the next number (`feat` minor, `fix` and `perf` patch, `feat!` or a `BREAKING CHANGE` footer major). The merge tags that number and uploads the tarballs. A later bros-model release whose version changed opens a Bros pull request with that model release and a minor bump. A local pack does not bump `VERSION`:
+
+```bash
+pnpm --dir src --filter @bros/ui build
+cargo build --release --manifest-path cli/Cargo.toml --target x86_64-unknown-linux-gnu
+scripts/pack-release.sh --target x86_64-unknown-linux-gnu
+```
 
 ```bash
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
@@ -17,7 +25,7 @@ A source install needs git and cargo once. After that, runtime is Docker. Dev st
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
 ```
 
-That clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias), builds `cli/`, and points `bros` at `cli/target/release/bros`. Source `bros update` pulls, rebuilds the CLI, then rebuilds the image through the API. A release runs the UI in container `bros-ui`. A source prod start uses host `pnpm` when it is on `PATH`.
+That clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. `--from-src` is the optional build path; the default release install never builds. Source `bros update` pulls, rebuilds the CLI, then rebuilds the image through the API. A release runs the UI in container `bros-ui`. A source prod start uses host `pnpm` when it is on `PATH`. `--use-runner` or `BROS_USE_RUNNER=1` uses container `bros-ui` instead. Dev with either switch errors.
 
 Optional systemd user service (Linux):
 
@@ -25,12 +33,12 @@ Optional systemd user service (Linux):
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 ```
 
-`install.sh` default path does not clone. The app reads `$BROS_DIR/data/config/bros.yml`. The installer still writes `~/.config/bros.yml` until a later pass; that file is not loaded. `BROS_BIN` is `~/.local/bin/bros`, a symlink to `$BROS_DIR/bros`.
+`install.sh` default (release) path does not clone and does not build. The app reads `$BROS_DIR/data/config/bros.yml`. The installer still writes `~/.config/bros.yml` until a later pass; that file is not loaded. `BROS_BIN` is `~/.local/bin/bros`, a symlink to `$BROS_DIR/bros` (install-only; a checkout `cargo` build does not create it).
 
 Overrides:
 
 - `BROS_HOME` / `BROS_DIR` — install directory (default `~/.bros`)
-- `BROS_RELEASE_URL` — release tarball
+- `BROS_RELEASE_URL` — exact release tarball URL. Unset uses `https://github.com/jasenmichael/bros/releases/latest/download/bros-<os>-<arch>.tar.gz`
 - `BROS_REPO` — git clone URL for `--from-src`
 - `BROS_REF` — git ref for `--from-src` (default `main`)
 - `BROS_CONFIG` — bootstrap YAML (default `~/.config/bros.yml`)
@@ -46,7 +54,7 @@ Docs site: https://jasenmichael.github.io/bros/
 bros
 ```
 
-Interactive start. Ctrl+C stops the full stack: the UI, docker apps, then container `bros`. UI autostart brings up the Ollama docker app and installs the internal `bros` model when the packaged GGUF is present. The CLI does not do that itself.
+Interactive start. Ctrl+C stops the full stack: the UI, docker apps, then container `bros`. Install and `bros update` download the packaged model for `lib/apps/core/ollama/BROS_MODEL_VERSION` when the local stamp is missing or older, then the Ollama core app creates model `bros`. A newer stamp stays. `bros` start does not download. UI autostart brings up the Ollama docker app. Missing GGUF skips create. The CLI does not run `ollama create` itself.
 
 Commands and flags: [bros](/docs/cli).
 

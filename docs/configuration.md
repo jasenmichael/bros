@@ -87,6 +87,6 @@ Docker apps stay stopped until SQLite `autostart` is on. A fresh install does no
 
 Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (Ollama `config.customModels`, Popular services keys/models, custom OpenAI `config.models`), chat, Settings `enable_host_ollama` (host Ollama row, default off), Settings `enable_whisper` (Whisper docker app, default off), and docker app autostart/nav pins/`host_mode`/`expose_host`/`host_probe_port` (manual host-Ollama override) are stored in SQLite. Built-in providers are `ollama` (docker app), `ollama-host` (row always seeded; listed only when `enable_host_ollama` is on), and the 12 Popular services rows.
 
-`$BROS_HOST_DATA_DIR/apps/ollama/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)).
+On a source checkout, `$BROS_HOST_DATA_DIR/apps/ollama/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). A release does not ship that tree. An existing copy under `data/` stays across `bros update`.
 
 Do not commit `data/`, `.env` (optional overrides only; defaults need no `.env`), `.nuxt`, or `node_modules`. See [Environment](/docs/environment) and repo-root `example.env`.

@@ -15,13 +15,15 @@ Route files under `src/server/api/<surface>/` are the HTTP seam. Each handler st
 
 Most `/api/*` routes need a valid session cookie `bros_session` (HttpOnly, SameSite=Lax). Get it from `POST /api/auth/login` with `{ "passcode": "…" }` after setup. `GET /api/health` and `/api/auth/*` are open. `GET /openapi.yaml` is open.
 
-There is no Bearer API token. Pass the cookie on each request:
+The host CLI uses `Authorization: Bearer <proxy-key>` (file `$BROS_HOST_DATA_DIR/proxy-key`) for machine calls such as `POST /api/apps/compose`. That header does not create a browser session. Browsers use the cookie:
 
 ```bash
 curl -sS -c cookies -b cookies -X POST http://127.0.0.1:3055/api/auth/login \
   -H 'content-type: application/json' \
   -d '{"passcode":"YOUR_PASSKEY"}'
 curl -sS -b cookies http://127.0.0.1:3055/api/providers
+curl -sS -H "Authorization: Bearer $(cat "$BROS_HOST_DATA_DIR/proxy-key")" \
+  -X POST http://127.0.0.1:3055/api/apps/compose
 ```
 
 401 = missing/invalid session or setup required. 403 = via-tunnel stop lock (tunnel stop, some docker app stops). 400 = bad body. 404 = missing id.
@@ -114,7 +116,7 @@ Store list is `GET /api/apps`. Compose start, stop, restart, settings, and files
 | POST | `/api/desktop/pins/{id}/open` | Open the pinned app |
 | POST | `/api/desktop/pins/{id}/close` | Close the newest window for that pin |
 | GET | `/api/desktop/drawer` | `{ entries, library }` for the desktop drawer. Catalog comes from `docker exec` into container `bros` |
-| GET | `/api/desktop/icons?name=` | Icon bytes for a desktop entry, read via `docker exec` into container `bros`. When that file is missing, `icon.png` beside the app config. 404 when the name is missing or neither file is found |
+| GET | `/api/desktop/icons?name=` | Icon bytes. Prefers `icon.png` beside the app config (core, addon, or custom). When that file is missing, reads a desktop/pixmap icon via `docker exec` into container `bros`. 404 when the name is missing or neither file is found |
 | POST | `/api/apps/{id}/start` | Core Ollama and Whisper 400. Body `{ gui: true }` opens another GUI window on the desktop display when the container is already running, and returns 409 `Docker app is not running` when it is down. It does not start the container. A start with no body starts the container and does not launch that process |
 | POST | `/api/apps/{id}/stop` | Core Ollama and Whisper 400; via-tunnel may 403. Body `{ gui: true, one: true }` kills the newest GUI window. Body `{ gui: true }` kills every GUI window for that docker app and leaves the container up. A stop with no body stops the container and, for a GUI docker app, every GUI window |
 | POST | `/api/apps/{id}/restart` | Core Ollama and Whisper 400 |
