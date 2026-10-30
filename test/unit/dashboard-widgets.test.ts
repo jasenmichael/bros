@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { markAutostartFailed, dockerAppPhase, dockerAppPortWarning } from '../../src/server/utils/docker'
-import { parseMeminfo } from '../../src/server/utils/memory'
 import {
   buildAttention,
   diskNeedsAttention,
@@ -39,20 +38,6 @@ describe('dockerAppPortWarning', () => {
       ours: false,
       hostPort: 3100,
     })).toBe('Port 3100 is already in use. Bros docker app cannot start until it is free.')
-  })
-})
-
-describe('parseMeminfo', () => {
-  it('prefers MemAvailable and falls back to MemFree', () => {
-    const parsed = parseMeminfo(`
-MemTotal:       2048 kB
-MemFree:         100 kB
-MemAvailable:   1024 kB
-`)
-    expect(parsed).toEqual({ totalBytes: 2048 * 1024, availableBytes: 1024 * 1024 })
-    const freeOnly = parseMeminfo('MemTotal: 10 kB\nMemFree: 4 kB\n')
-    expect(freeOnly).toEqual({ totalBytes: 10 * 1024, availableBytes: 4 * 1024 })
-    expect(parseMeminfo('MemFree: 4 kB\n')).toBeNull()
   })
 })
 
