@@ -11,20 +11,29 @@ describe('migrateDataLayout', () => {
     if (root) rmSync(root, { recursive: true, force: true })
   })
 
-  it('moves app config once', () => {
+  it('moves app config once and migrates legacy bros.yml to home', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-layout-'))
     const data = join(root, 'data')
     mkdirSync(join(data, 'skills'), { recursive: true })
+    mkdirSync(join(data, 'config'), { recursive: true })
     writeFileSync(join(data, 'skills/id'), 'keep\n')
-    writeFileSync(join(root, 'bros.yml'), 'enable_whisper: false\n')
+    writeFileSync(join(data, 'config/bros.yml'), 'enable_whisper: false\n')
 
     migrateDataLayout(data, root)
     migrateDataLayout(data, root)
 
     expect(readFileSync(join(data, 'config/skills/id'), 'utf8')).toBe('keep\n')
     expect(existsSync(join(data, 'skills/id'))).toBe(false)
-    expect(readFileSync(join(data, 'config/bros.yml'), 'utf8')).toBe('enable_whisper: false\n')
-    expect(existsSync(join(root, 'bros.yml'))).toBe(false)
+    expect(readFileSync(join(root, 'bros.yml'), 'utf8')).toBe('enable_whisper: false\n')
+    expect(existsSync(join(data, 'config/bros.yml'))).toBe(false)
+  })
+
+  it('removes a Docker-poison directory at legacy bros.yml', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-layout-'))
+    const data = join(root, 'data')
+    mkdirSync(join(data, 'config/bros.yml'), { recursive: true })
+    migrateDataLayout(data, root)
+    expect(existsSync(join(data, 'config/bros.yml'))).toBe(false)
   })
 
   it('replaces an empty destination directory', () => {

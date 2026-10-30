@@ -20,14 +20,20 @@ describe('UI host split', () => {
     expect(yml).toContain('container_name: bros-ui')
     expect(yml).toContain('BROS_DESKTOP_STREAM_ORIGIN: http://bros:3000')
     expect(yml).toContain('BROS_TERMINAL_ORIGIN: http://bros:7681')
+    expect(yml).toContain('${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml')
+    expect(yml).not.toContain('./data/config/bros.yml')
+    expect(yml).not.toContain('bros.yml:ro')
     expect(yml).not.toContain('bros-server')
   })
 
-  it('builds bros-ui from the pinned node stage', () => {
+  it('builds bros-ui from the pinned node stage with docker CLI', () => {
     const dockerfile = readFileSync(join(REPO, 'lib/desktop/Dockerfile'), 'utf8')
     expect(dockerfile).toContain('FROM node:26.7.0-bookworm-slim')
     expect(dockerfile).toContain('FROM nodetools AS ui')
     expect(dockerfile).toContain('COPY src/ui/.output /app/src/ui/.output')
+    const uiStage = dockerfile.slice(dockerfile.indexOf('FROM nodetools AS ui'), dockerfile.indexOf('FROM ghcr.io/linuxserver'))
+    expect(uiStage).toContain('COPY --from=dockercli /usr/local/bin/docker')
+    expect(uiStage).toContain('docker-compose')
     expect(dockerfile).not.toContain('pnpm --filter @bros/ui build')
     expect(dockerfile).not.toContain('pnpm install')
     expect(dockerfile).toContain('pnpm@12.15.0')
@@ -177,7 +183,7 @@ describe('Bros image context', () => {
     expect(nixManager).not.toContain('nix profile install')
     expect(nixManager).not.toContain('get.jetify.com')
     const host = readFileSync(join(REPO, 'cli/src/main.rs'), 'utf8')
-    expect(host).toContain('fn choose_ui(source: bool, dev: bool, pnpm: bool, use_runner: bool)')
+    expect(host).toContain('fn choose_ui(source: bool, dev: bool, host_js: bool, use_runner: bool)')
     expect(host).toContain('cli/Cargo.toml')
     const install = readFileSync(join(REPO, 'src/website/public/install.sh'), 'utf8')
     expect(install).toContain('--from-src')
@@ -270,5 +276,17 @@ describe('install.sh next steps', () => {
     expect(sh).toContain('BROS_HOME')
     expect(sh).toContain('BROS_BIN')
     expect(sh).toContain('--service')
+    expect(sh).toContain('BROS_CONFIG="${BROS_CONFIG:-$BROS_HOME/bros.yml}"')
+    expect(sh).not.toContain('trap \'rm -rf "$tmp"\' RETURN')
+    expect(sh).not.toContain('.config}/bros.yml')
+  })
+})
+
+describe('choose_ui release host', () => {
+  it('prefers host UI when release has host JS and not use-runner', () => {
+    const host = readFileSync(join(REPO, 'cli/src/main.rs'), 'utf8')
+    expect(host).toContain('on_path("node") || on_path("pnpm")')
+    expect(host).toContain('prebuilt UI missing at src/ui/.output')
+    expect(host).not.toMatch(/if !source \{\s*if dev \{\s*return Err\("dev requires a source checkout"\);\s*\}\s*return Ok\(UiHost::Runner\);/)
   })
 })

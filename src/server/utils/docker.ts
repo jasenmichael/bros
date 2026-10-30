@@ -139,15 +139,24 @@ function run(cmd: string, args: string[], cwd: string, timeoutMs = 120_000): Pro
     const child = spawn(cmd, args, { cwd, env: composeEnv() })
     let stdout = ''
     let stderr = ''
+    let settled = false
+    const done = (code: number, errText?: string) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve({ code, stdout, stderr: stderr || errText || '' })
+    }
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
-      resolve({ code: 124, stdout, stderr: stderr || `timeout after ${timeoutMs}ms` })
+      done(124, `timeout after ${timeoutMs}ms`)
     }, timeoutMs)
-    child.stdout.on('data', (d) => { stdout += String(d) })
-    child.stderr.on('data', (d) => { stderr += String(d) })
+    child.stdout?.on('data', (d) => { stdout += String(d) })
+    child.stderr?.on('data', (d) => { stderr += String(d) })
+    child.on('error', (err) => {
+      done(127, err.message)
+    })
     child.on('close', (code) => {
-      clearTimeout(timer)
-      resolve({ code: code ?? 1, stdout, stderr })
+      done(code ?? 1)
     })
   })
 }

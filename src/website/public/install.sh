@@ -14,7 +14,7 @@
 #   BROS_RELEASE_URL  Exact release tarball URL. Unset picks bros-<os>-<arch>.tar.gz
 #   BROS_REPO    Git clone URL for --from-src
 #   BROS_HOME    Install directory (default: ~/.bros). BROS_DIR is an alias.
-#   BROS_CONFIG  Bootstrap YAML (default: ~/.config/bros.yml)
+#   BROS_CONFIG  Bootstrap YAML (default: $BROS_HOME/bros.yml)
 #   BROS_BIN     PATH symlink (default: ~/.local/bin/bros)
 #   BROS_REF     Git ref for --from-src (default: main)
 set -euo pipefail
@@ -25,7 +25,7 @@ if [[ -z "${BROS_HOME:-}" ]]; then
 fi
 BROS_DIR="$BROS_HOME"
 BROS_REF="${BROS_REF:-main}"
-BROS_CONFIG="${BROS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml}"
+BROS_CONFIG="${BROS_CONFIG:-$BROS_HOME/bros.yml}"
 BROS_BIN="${BROS_BIN:-${HOME}/.local/bin/bros}"
 INSTALL_SERVICE=0
 FROM_SRC=0
@@ -91,14 +91,15 @@ unpack_release() {
   local tmp url
   url="$(release_url)"
   tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
   info "Downloading $url"
   if ! curl -fL --retry 2 -o "$tmp/bros.tar.gz" "$url"; then
+    rm -rf "$tmp"
     die "release not found: $url
 Install from source: install.sh --from-src"
   fi
   mkdir -p "$BROS_HOME"
   tar -xzf "$tmp/bros.tar.gz" -C "$BROS_HOME"
+  rm -rf "$tmp"
 }
 
 from_src() {

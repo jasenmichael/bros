@@ -9,7 +9,7 @@ The CLI is a Rust binary in `cli/`. `scripts/build.sh` runs `cargo build --relea
 
 Dev (`BROS_DEV=1` or `--dev`) is a source checkout only. It requires host `pnpm` and `cargo`. The UI is always `pnpm --dir src --filter @bros/ui dev` on the host. Dev never starts container `bros-ui`. `--use-runner` or `BROS_USE_RUNNER=1` with dev exits `dev does not use the UI runner`.
 
-A release runs that prebuilt UI in container `bros-ui`. The image copies `src/ui/.output` and does not compile `src/`. A source prod start uses host `pnpm` when it is on `PATH`. `--use-runner` or `BROS_USE_RUNNER=1` uses container `bros-ui` (compose profile `ui`, Node 26.7.0) and that same prebuilt output instead. One UI at a time. A release already uses `bros-ui`, so the flag changes nothing there. Missing `src/ui/.output` fails the image build.
+Prod uses host Node/pnpm for the UI when available (a release runs `node src/ui/.output/server/index.mjs`; a source checkout uses host `pnpm`). Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` (compose profile `ui`, Node 26.7.0 plus docker CLI for the host sock) serves that same prebuilt output. One UI at a time. Missing `src/ui/.output` fails the image build or host start.
 
 Container `bros` is the desktop. The UI host listens on `BROS_PORT` (3055). Selkies publishes on `127.0.0.1:${BROS_STREAM_PORT:-3300}`. ttyd publishes on `127.0.0.1:${BROS_TTYD_PORT:-7681}`.
 
@@ -48,7 +48,7 @@ A desktop recreate does not restart docker apps. A docker app restarts when its 
 | Flag | What it does |
 | --- | --- |
 | `--dev` | Dev compose (`lib/desktop/docker-compose.dev.yml`). Same as `BROS_DEV=1`. Requires host pnpm and cargo. |
-| `--use-runner` | Prod UI in container `bros-ui` even when host `pnpm` is on `PATH`. Same as `BROS_USE_RUNNER=1`. Errors when dev is on. |
+| `--use-runner` | Prod UI in container `bros-ui` even when host Node/pnpm is on `PATH`. Same as `BROS_USE_RUNNER=1`. Errors when dev is on. |
 | `-D`, `--daemon` | Full start in the background. The UI survives exit. Ignored when dev is on. Dev stays in the foreground. |
 | `-i`, `--interactive` | Foreground full start. Default. One Ctrl+C or SIGTERM stops the full stack, prints `Bros exited.`, and exits 0. A second Ctrl+C exits 130. |
 | `-c`, `--config PATH` | Host `bros.yml`. |

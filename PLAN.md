@@ -4,7 +4,7 @@
 
 The CLI is a Rust binary. Usage is [docs/cli.md](docs/cli.md). A release install is that binary plus the Docker build tree. A source checkout is `cli/`.
 
-Implementation through **M7** complete. Release install unpacks into `BROS_HOME`, writes `~/.config/bros.yml`, and symlinks `~/.local/bin/bros` (no build; binary from tarball). `--from-src` clones and cargo-builds. Optional systemd --user. First `bros` start ensures docker app Ollama and the internal `bros` model. Docker hot-reload is `BROS_DEV=1 ./bros`.
+Implementation through **M7** complete. Release install unpacks into `BROS_HOME`, writes `$BROS_HOME/bros.yml`, and symlinks `~/.local/bin/bros` (no build; binary from tarball). `--from-src` clones and cargo-builds. Optional systemd --user. First `bros` start ensures docker app Ollama and the internal `bros` model. Docker hot-reload is `BROS_DEV=1 ./bros`.
 
 Product brand is **Bros**. Docker apps are Ollama and Whisper. The Bros container is the Selkies image plus the HTTP server. Host `cloudflared`, passkey sessions, and optional `proxy.public` are in the tree. The OpenCode package app is npm.
 
@@ -31,7 +31,7 @@ Done:
 5. **M4** — Providers page
 6. **M5** — Chat streaming + history
 7. **M6** — docs content, compose prod/dev, root docs
-8. **M7** — install + runner CLI (`BROS_HOME`, `~/.config/bros.yml`, `BROS_BIN` symlink, optional systemd --user, first-start Ollama + model `bros`; `BROS_DEV=1 ./bros` for bind-mount)
+8. **M7** — install + runner CLI (`BROS_HOME`, `$BROS_HOME/bros.yml`, `BROS_BIN` symlink, optional systemd --user, first-start Ollama + model `bros`; `BROS_DEV=1 ./bros` for bind-mount)
 
 ## Layer chain
 
@@ -57,7 +57,7 @@ Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in 
 
 ## Recent (M7 install)
 
-- `install.sh` default unpacks release into `BROS_HOME` (`~/.bros`) with no cargo; `--from-src` clones and builds. Writes `~/.config/bros.yml` if missing, symlinks `~/.local/bin/bros`, optional `bros service install` (systemd --user). Checkout `scripts/build.sh` builds CLI + UI and refreshes repo-root `bros` only (not `BROS_BIN`). Release publish is CI only.
+- `install.sh` default unpacks release into `BROS_HOME` (`~/.bros`) with no cargo; `--from-src` clones and builds. Writes `$BROS_HOME/bros.yml` if missing, symlinks `~/.local/bin/bros`, optional `bros service install` (systemd --user). Checkout `scripts/build.sh` builds CLI + UI and refreshes repo-root `bros` only (not `BROS_BIN`). Release publish is CI only. Prod UI: host Node/pnpm when available, else `bros-ui` (or `--use-runner`).
 - Dev compose is `BROS_DEV=1 ./bros` or `./bros --dev`. Default is production compose.
 - First start starts docker app Ollama. A source checkout copies `vendor/bros-model`. A release reads `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0` for product `0.0.1`) and downloads that packaged release on install and `bros update` when the local stamp is missing or older. A release tarball omits `vendor/`.
 

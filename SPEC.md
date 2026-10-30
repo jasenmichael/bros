@@ -62,7 +62,7 @@ The website owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`
 
 ## Bootstrap
 
-One file, `$BROS_HOME/data/config/bros.yml`: `public_url`, `enable_host_ollama` (default off), `enable_whisper` (default off), `workspace` (host directory, default `data/home/workspace`). `BROS_PUBLIC_URL` overrides `public_url`. `BROS_HOST_WORKSPACE` overrides `workspace`. Chat prepend and assistant description are the `rules` and `personality` skills. Settings reads and writes those files. They never apply to internal `bros` titles. Settings **Repair data dir** confirms, then runs `chown` on the host data directory as `BROS_HOST_UID`:`BROS_HOST_GID`. Start and stop do not.
+One file, `$BROS_HOME/bros.yml`: `public_url`, `enable_host_ollama` (default off), `enable_whisper` (default off), `workspace` (host directory, default `data/home/workspace`). `BROS_PUBLIC_URL` overrides `public_url`. `BROS_HOST_WORKSPACE` overrides `workspace`. A leftover `$BROS_HOME/data/config/bros.yml` is moved to `$BROS_HOME/bros.yml` when the home file is missing. Chat prepend and assistant description are the `rules` and `personality` skills. Settings reads and writes those files. They never apply to internal `bros` titles. Settings **Repair data dir** confirms, then runs `chown` on the host data directory as `BROS_HOST_UID`:`BROS_HOST_GID`. Start and stop do not.
 
 **`BROS_DIR` (host):** when running `bros` with `BROS_DIR` unset, the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). Installed clone is typically `~/.bros`. `BROS_HOME` is an alias (`BROS_HOME` alone still sets `BROS_DIR`). Override with `BROS_DIR` or `BROS_HOME`. Data defaults to `$BROS_DIR/data` (`BROS_DATA_DIR` override, host bind `BROS_HOST_DATA_DIR`):
 

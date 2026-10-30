@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { join } from 'pathe'
 import { loadBootstrapConfig } from './config'
 import { getDb, meta, sessions } from './db'
+import { claimForHost } from './hostClaim'
 import { viaTunnelFromEvent } from './viaTunnel'
 
 const SECRET_KEY = 'app_secret'
@@ -36,7 +37,9 @@ export function readPasskey(): string | null {
 function writePasskeyFile(passcode: string) {
   const { dataDir } = loadBootstrapConfig()
   mkdirSync(dataDir, { recursive: true })
-  writeFileSync(passkeyPath(), `${passcode}\n`, { encoding: 'utf8', mode: 0o600 })
+  const path = passkeyPath()
+  writeFileSync(path, `${passcode}\n`, { encoding: 'utf8', mode: 0o600 })
+  claimForHost(path)
 }
 
 /**
@@ -50,6 +53,9 @@ export function ensurePasskey(): string {
     key = randomBytes(9).toString('base64url')
     writePasskeyFile(key)
     created = true
+  }
+  else {
+    claimForHost(passkeyPath())
   }
   if (!printedPasskeyOnce) {
     printedPasskeyOnce = true
@@ -74,7 +80,9 @@ function readProxyKey(): string | null {
 function writeProxyKeyFile(key: string) {
   const { dataDir } = loadBootstrapConfig()
   mkdirSync(dataDir, { recursive: true })
-  writeFileSync(proxyKeyPath(), `${key}\n`, { encoding: 'utf8', mode: 0o600 })
+  const path = proxyKeyPath()
+  writeFileSync(path, `${key}\n`, { encoding: 'utf8', mode: 0o600 })
+  claimForHost(path)
 }
 
 /**
@@ -87,6 +95,9 @@ export function ensureProxyKey(): string {
     key = randomBytes(24).toString('base64url')
     writeProxyKeyFile(key)
     created = true
+  }
+  else {
+    claimForHost(proxyKeyPath())
   }
   if (!printedProxyKeyOnce) {
     printedProxyKeyOnce = true

@@ -85,7 +85,7 @@ services:
       - ${BROS_HOST_DATA_DIR:?unset}/var/logs:/var/log/bros
       - ${BROS_HOST_WORKSPACE:?unset}:/home/bros/workspace
       - ${BROS_HOST_REPO:?unset}:${BROS_HOST_REPO:?unset}:ro
-      - ${BROS_CONFIG_HOST:-./data/config/bros.yml}:/app/bros.yml:ro
+      - ${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml
       - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
       - ${BROS_HOST_HOME_BIND:-${HOME}}:${BROS_HOST_HOME_BIND:-${HOME}}:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -130,7 +130,7 @@ services:
     volumes:
       - ${BROS_HOST_DATA_DIR:?unset}:/app/data
       - ${BROS_HOST_REPO:?unset}:${BROS_HOST_REPO:?unset}:ro
-      - ${BROS_CONFIG_HOST:-./data/config/bros.yml}:/app/bros.yml:ro
+      - ${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - bros

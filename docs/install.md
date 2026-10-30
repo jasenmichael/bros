@@ -25,7 +25,7 @@ A source install needs git and cargo once. After that, runtime is Docker. Dev st
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
 ```
 
-That clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. `--from-src` is the optional build path; the default release install never builds. Source `bros update` pulls, rebuilds the CLI, then rebuilds the image through the API. A release runs the UI in container `bros-ui`. A source prod start uses host `pnpm` when it is on `PATH`. `--use-runner` or `BROS_USE_RUNNER=1` uses container `bros-ui` instead. Dev with either switch errors.
+That clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. `--from-src` is the optional build path; the default release install never builds. Source `bros update` pulls, rebuilds the CLI, then rebuilds the image through the API. Prod (release or source) uses host Node/pnpm for the UI when available; a release runs the prebuilt `src/ui/.output` with host `node`. Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` serves the UI. Dev always uses host `pnpm` and errors with either runner switch.
 
 Optional systemd user service (Linux):
 
@@ -33,7 +33,7 @@ Optional systemd user service (Linux):
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 ```
 
-`install.sh` default (release) path does not clone and does not build. The app reads `$BROS_DIR/data/config/bros.yml`. The installer still writes `~/.config/bros.yml` until a later pass; that file is not loaded. `BROS_BIN` is `~/.local/bin/bros`, a symlink to `$BROS_DIR/bros` (install-only; a checkout `cargo` build does not create it).
+`install.sh` default (release) path does not clone and does not build. The app reads `$BROS_HOME/bros.yml`. The installer writes that stub when missing. `BROS_BIN` is `~/.local/bin/bros`, a symlink to `$BROS_DIR/bros` (install-only; a checkout `cargo` build does not create it).
 
 Overrides:
 
@@ -41,7 +41,7 @@ Overrides:
 - `BROS_RELEASE_URL` — exact release tarball URL. Unset uses `https://github.com/jasenmichael/bros/releases/latest/download/bros-<os>-<arch>.tar.gz`
 - `BROS_REPO` — git clone URL for `--from-src`
 - `BROS_REF` — git ref for `--from-src` (default `main`)
-- `BROS_CONFIG` — bootstrap YAML (default `~/.config/bros.yml`)
+- `BROS_CONFIG` — bootstrap YAML (default `$BROS_HOME/bros.yml`)
 - `BROS_BIN` — PATH symlink (default `~/.local/bin/bros`)
 
 Running `bros` with `BROS_DIR` unset sets `BROS_DIR` to the real directory of the binary (so a checkout `./bros` or a `BROS_BIN` symlink both resolve correctly). Persistent binds live under `$BROS_HOME/data` (`$BROS_HOST_DATA_DIR`).
