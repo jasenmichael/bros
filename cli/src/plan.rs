@@ -349,15 +349,29 @@ mod tests {
 
     #[test]
     fn docker_run_and_compose_fixture() {
+        // Public image — CI has no local bros:latest.
+        const IMAGE: &str = "alpine:3.20";
         let info = Command::new("docker").arg("info").output().expect("docker");
         assert!(info.status.success(), "docker info failed: {}", String::from_utf8_lossy(&info.stderr));
-        let ran = docker_output(&["run".into(), "--rm".into(), "--entrypoint".into(), "echo".into(), "bros:latest".into(), "hi".into()]).unwrap();
+        let ran = docker_output(&[
+            "run".into(),
+            "--rm".into(),
+            "--entrypoint".into(),
+            "echo".into(),
+            IMAGE.into(),
+            "hi".into(),
+        ])
+        .unwrap();
         assert!(ran.status.success(), "{}", String::from_utf8_lossy(&ran.stderr));
         assert_eq!(String::from_utf8_lossy(&ran.stdout).trim(), "hi");
         let dir = std::env::temp_dir().join(format!("bros-compose-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("compose.yml"), "services:\n  one:\n    image: bros:latest\n    entrypoint: [\"echo\", \"one\"]\n").unwrap();
+        fs::write(
+            dir.join("compose.yml"),
+            format!("services:\n  one:\n    image: {IMAGE}\n    entrypoint: [\"echo\", \"one\"]\n"),
+        )
+        .unwrap();
         let up = Command::new("docker")
             .args(["compose", "-f", "compose.yml", "run", "--rm", "one"])
             .current_dir(&dir)
