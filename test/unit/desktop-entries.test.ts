@@ -70,7 +70,7 @@ describe('desktop entries', () => {
     expect(apps.map((app) => `${app.kind}:${app.id}`)).toEqual(['terminal:terminal', 'package:cursor', 'entry:firefox', 'entry:storm'])
     expect(apps.map((app) => app.command)).not.toEqual(expect.arrayContaining(['uxterm', 'xterm', 'footclient', 'st']))
     const pkg = apps.find((app) => app.kind === 'package')
-    expect(pkg?.icon).toBe('co.anysphere.cursor')
+    expect(pkg?.icon).toBe('cursor')
     const ghostty = libraryApps([], [{ id: 'ghostty', name: 'Ghostty', enabled: true, interfaces: [{ type: 'gui', command: 'ghostty' }] }], [])
     expect(ghostty.find((app) => app.id === 'ghostty')?.icon).toBe('ghostty')
     expect(pinKey(pkg!)).toBe('pkg-cursor-cursor')

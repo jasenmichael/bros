@@ -104,8 +104,15 @@ describe('ensureInternalBrosModel', () => {
   }
 
   it('skips create when vendor GGUF is missing and does not throw', async () => {
-    await expect(ensureInternalBrosModel()).resolves.toBeUndefined()
-    expect(execInDockerApp).not.toHaveBeenCalled()
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(ensureInternalBrosModel()).resolves.toBeUndefined()
+      expect(execInDockerApp).not.toHaveBeenCalled()
+      expect(err).not.toHaveBeenCalled()
+    }
+    finally {
+      err.mockRestore()
+    }
   })
 
   it('skips exec when tags has bros and stamp matches vendor', async () => {
@@ -119,6 +126,21 @@ describe('ensureInternalBrosModel', () => {
     }), { status: 200 })))
     await ensureInternalBrosModel()
     expect(execInDockerApp).not.toHaveBeenCalled()
+  })
+
+  it('runs install-ollama.sh from the data dir when vendor is missing', async () => {
+    const dest = destBrosModelDir(join(root, 'data'))
+    const gguf = join(dest, 'models/bros-q4_k_m.gguf')
+    mkdirSync(join(gguf, '..'), { recursive: true })
+    writeFileSync(gguf, 'downloaded-gguf')
+    mkdirSync(join(dest, 'scripts'), { recursive: true })
+    writeFileSync(join(dest, 'scripts/install-ollama.sh'), '#!/bin/bash\n')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      models: [{ name: 'llama3.2' }],
+    }), { status: 200 })))
+    await ensureInternalBrosModel()
+    expect(execInDockerApp).toHaveBeenCalledTimes(1)
+    expect(execInDockerApp.mock.calls[0]?.[1]).toEqual(['bash', '/bros-model/scripts/install-ollama.sh'])
   })
 
   it('copies and runs install-ollama.sh when tags miss', async () => {

@@ -86,7 +86,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
       { label: 'Claude', to: '/docs/apps/claude', body: 'Addon run. claude. Off until enabled.' },
       { label: 'Paperclip', to: '/docs/apps/paperclip', body: 'Addon npm. Web UI on 3100. Off until enabled.' },
       { label: 'jq', to: '/docs/apps/jq', body: 'Addon apt. No CLI row and no window. Off until enabled.' },
-      { label: 'OpenCode', to: '/docs/apps/opencode', body: 'Addon npm. Web UI on 4097. Off until enabled.' },
+      { label: 'OpenCode', to: '/docs/apps/opencode', body: 'Addon npm. Web UI on 4096. Off until enabled.' },
     ],
   },
   {

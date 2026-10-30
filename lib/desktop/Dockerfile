@@ -6,38 +6,20 @@ FROM node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b7
 
 RUN npm install -g pnpm@12.15.0
 
-# Prod server. Dev target does not build this stage.
-FROM nodetools AS appbuild
-
-WORKDIR /app
-COPY src/package.json src/pnpm-workspace.yaml src/pnpm-lock.yaml src/.npmrc ./src/
-COPY src/ui/package.json ./src/ui/
-COPY src/layers/theme/package.json ./src/layers/theme/
-COPY src/layers/docs/package.json ./src/layers/docs/
-
-WORKDIR /app/src
-RUN pnpm install --filter "@bros/ui..." --frozen-lockfile \
-  || pnpm install --filter "@bros/ui..." --no-frozen-lockfile
-
-WORKDIR /app
-COPY . .
-
-WORKDIR /app/src
-RUN pnpm --filter @bros/ui build
-
-# UI host for prod without host pnpm. Not the desktop image. Appended kind:run layers stay on production.
+# UI host for prod without host pnpm. Runs the prebuilt Nitro server.
+# This stage does not install packages or rebuild the UI. Not the desktop image.
 FROM nodetools AS ui
 WORKDIR /app
-COPY --from=appbuild /app/src /app/src
-COPY --from=appbuild /app/docker /app/docker
-COPY --from=appbuild /app/docs/cli.md /app/docs/cli.md
-COPY --from=appbuild /app/lib /app/lib
+COPY src/ui/.output /app/src/ui/.output
+COPY scripts/docker /app/scripts/docker
+COPY docs/cli.md /app/docs/cli.md
+COPY lib /app/lib
 ENV NODE_ENV=production
 ENV BROS_DIR=/app
 ENV BROS_DESKTOP_STREAM_ORIGIN=http://bros:3000
 ENV BROS_TERMINAL_ORIGIN=http://bros:7681
 EXPOSE 3055
-CMD ["/bin/sh", "/app/docker/prod-entrypoint.sh"]
+CMD ["/bin/sh", "/app/scripts/docker/prod-entrypoint.sh"]
 
 FROM ghcr.io/linuxserver/baseimage-selkies:ubunturesolute-4eb74d68-ls53@sha256:beebd1f142f792e9767780a70cbc6c41c6c448e12fcda4504417404f1f118df3 AS runtime
 
@@ -92,10 +74,12 @@ COPY lib/desktop/managers/ /opt/bros/managers/
 COPY lib/desktop/app-services/ /opt/bros/app-services/
 COPY lib/desktop/desktop-gui.sh /opt/bros/desktop-gui.sh
 COPY lib/desktop/root/ /
-COPY docker/prod-entrypoint.sh /app/docker/prod-entrypoint.sh
-COPY docker/dev-entrypoint.sh /app/docker/dev-entrypoint.sh
-RUN chmod +x /opt/bros/ensure.sh /opt/bros/desktop-gui.sh /custom-services.d/ttyd /custom-services.d/app-services /custom-cont-init.d/bros-live \
-  && chmod +x /app/docker/prod-entrypoint.sh /app/docker/dev-entrypoint.sh
+COPY scripts/docker/prod-entrypoint.sh /app/scripts/docker/prod-entrypoint.sh
+COPY scripts/docker/dev-entrypoint.sh /app/scripts/docker/dev-entrypoint.sh
+RUN chmod +x /opt/bros/ensure.sh /opt/bros/desktop-gui.sh \
+  /usr/local/bin/bros-portals.sh /usr/local/bin/bros-gtk-theme.sh \
+  /custom-services.d/ttyd /custom-services.d/app-services /custom-cont-init.d/bros-live \
+  && chmod +x /app/scripts/docker/prod-entrypoint.sh /app/scripts/docker/dev-entrypoint.sh
 
 WORKDIR /home/bros/workspace
 EXPOSE 3000 7681
@@ -104,9 +88,6 @@ FROM runtime AS development
 
 FROM runtime AS production
 
-COPY --from=appbuild /app/vendor/bros-model/models /app/vendor/bros-model/models
-COPY --from=appbuild /app/vendor/bros-model/ollama /app/vendor/bros-model/ollama
-COPY --from=appbuild /app/vendor/bros-model/scripts /app/vendor/bros-model/scripts
-COPY --from=appbuild /app/lib /app/lib
-COPY --from=appbuild /app/docker /app/docker
+COPY lib /app/lib
+COPY scripts/docker /app/scripts/docker
 ENV NODE_ENV=production

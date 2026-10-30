@@ -4,7 +4,7 @@
 
 The CLI is a Rust binary. Usage is [docs/cli.md](docs/cli.md). A release install is that binary plus the Docker build tree. A source checkout is `cli/`.
 
-Implementation through **M7** complete. Install clones `BROS_HOME`, writes `~/.config/bros.yml`, and symlinks `~/.local/bin/bros`. Optional systemd --user. First `bros` start ensures docker app Ollama and the internal `bros` model. Docker hot-reload is `BROS_DEV=1 ./bros`.
+Implementation through **M7** complete. Release install unpacks into `BROS_HOME`, writes `~/.config/bros.yml`, and symlinks `~/.local/bin/bros` (no build; binary from tarball). `--from-src` clones and cargo-builds. Optional systemd --user. First `bros` start ensures docker app Ollama and the internal `bros` model. Docker hot-reload is `BROS_DEV=1 ./bros`.
 
 Product brand is **Bros**. Docker apps are Ollama and Whisper. The Bros container is the Selkies image plus the HTTP server. Host `cloudflared`, passkey sessions, and optional `proxy.public` are in the tree. The OpenCode package app is npm.
 
@@ -45,7 +45,7 @@ Not a milestone. Pick when needed:
 - Tests: chat stream coverage; e2e beyond `/api/health`
 - Custom packs live in `lib/apps/custom`. Only `README.md` there is tracked. A custom pack can later move to addon or core. An addon can later move to core.
 - Desktop package managers include uv and cargo. Nix stays Devbox global, with the store in the Desktop image.
-- OpenCode 2 (`ghcr.io/anomalyco/opencode:2.0.32`) serves on host **4097**. No `proxy.public`. Server password is in the service log. Do not fake a Bros-side prefix.
+- OpenCode package app serves on host **4096** (same as container). No `proxy.public`. Server password is in the service log. Do not fake a Bros-side prefix.
 - Settings: Chat prepend + assistant description are the `rules` and `personality` skills, plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes
 - Named `bros-data` / `bros-ollama-data` / docker app volumes: leftover volumes stay unused; start does not copy them into `$BROS_HOME/data`
@@ -57,14 +57,14 @@ Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in 
 
 ## Recent (M7 install)
 
-- `install.sh` clones `BROS_HOME` (`~/.bros`), writes `~/.config/bros.yml` if missing, symlinks `~/.local/bin/bros`, optional `bros service install` (systemd --user)
+- `install.sh` default unpacks release into `BROS_HOME` (`~/.bros`) with no cargo; `--from-src` clones and builds. Writes `~/.config/bros.yml` if missing, symlinks `~/.local/bin/bros`, optional `bros service install` (systemd --user). Checkout `scripts/build.sh` builds CLI + UI and refreshes repo-root `bros` only (not `BROS_BIN`). Release publish is CI only.
 - Dev compose is `BROS_DEV=1 ./bros` or `./bros --dev`. Default is production compose.
-- First start starts docker app Ollama and installs/updates internal model `bros` from `vendor/bros-model`
+- First start starts docker app Ollama. A source checkout copies `vendor/bros-model`. A release reads `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0` for product `0.0.1`) and downloads that packaged release on install and `bros update` when the local stamp is missing or older. A release tarball omits `vendor/`.
 
 ## Recent (internal specialist)
 
-- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). Docker app ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/apps/ollama/bros-model` and runs `ollama create bros` inside `bros-ollama`. Name is reserved (not listed; `Label:` titles only).
-- Model updates: bump the pinned submodule to the new bros-model tag/commit, then release a new Bros version. Checkout: `git submodule update --remote` (or pin a SHA) + `./bros update` when the GGUF size/mtime stamp differs. Do not treat host `ollama create` as the operator path.
+- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)) on a source checkout. Docker app ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/apps/ollama/bros-model` and runs `ollama create bros` inside `bros-ollama`. Name is reserved (not listed; `Label:` titles only). A release does not create model `bros` unless it is already in the Ollama store under `data/`.
+- A source checkout copies `vendor/bros-model`. A release downloads the tag in `lib/apps/core/ollama/BROS_MODEL_VERSION`. `ollama create` runs inside `bros-ollama`. The next Bros merge publishes `v0.0.1`. The next bros-model merge publishes `v1.0.0`. After both tags exist, commit types bump each repo, and a bros-model version change opens a Bros minor-bump pull request.
 
 ## Recent (Chat thread)
 
@@ -87,7 +87,7 @@ Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in 
 
 ## Recent (two Ollamas)
 
-- Docker app YAML: `containerPort` + `publish` (Ollama host **11435**, Whisper **8090**, OpenCode **4097**, Open WebUI **3080**, Firecrawl **3002**, Firecrawl UI **3081**, OpenJEV **8092**)
+- Docker app YAML: `containerPort` + `publish` (Ollama host **11435**, Whisper **8090**, OpenCode **4096**, Open WebUI **3080**, Firecrawl **3002**, Firecrawl UI **3081**, OpenJEV **8092**)
 - Host Ollama is its own Chat/Providers provider (`ollama-host`). Settings **Enable host Ollama** is off by default. Live scan: default **11434** first via `dockerHostCandidates()` / `127.0.0.1` (skip docker app **11435** / `bros-ollama`; app container cannot see host `/proc`), then Docker Ollama published ports (skip `bros-ollama` / **11435**), then leftover listen/published candidates. `GET /api/version` must be Ollama JSON `version`. Skip `bros-*` / **11435**. Manual `host_probe_port` override stays exclusive. `POST /api/providers/ollama-host/scan` busts the 30s cache.
 - Start fails only if the Bros **publish** port is taken; host :11434 does not skip `bros-ollama`
 

@@ -132,29 +132,39 @@ else
 fi
 # Session software OpenGL. labwc does not read profile.d.
 grep -q '^LIBGL_ALWAYS_SOFTWARE=' /home/bros/.config/labwc/environment || printf '%s\n' 'LIBGL_ALWAYS_SOFTWARE=1' >> /home/bros/.config/labwc/environment
+# File dialogs (Electron/GTK) need a session bus + xdg-desktop-portal.
+grep -q '^DBUS_SESSION_BUS_ADDRESS=' /home/bros/.config/labwc/environment || printf '%s\n' 'DBUS_SESSION_BUS_ADDRESS=unix:path=/home/bros/.XDG/bus' >> /home/bros/.config/labwc/environment
+grep -q '^GTK_USE_PORTAL=' /home/bros/.config/labwc/environment || printf '%s\n' 'GTK_USE_PORTAL=1' >> /home/bros/.config/labwc/environment
+grep -q '^GTK_THEME=' /home/bros/.config/labwc/environment || printf '%s\n' 'GTK_THEME=Adwaita-dark' >> /home/bros/.config/labwc/environment
+grep -q '^GTK_APPLICATION_PREFER_DARK_THEME=' /home/bros/.config/labwc/environment || printf '%s\n' 'GTK_APPLICATION_PREFER_DARK_THEME=1' >> /home/bros/.config/labwc/environment
+portal_line='/usr/local/bin/bros-portals.sh &'
+if [ -f /home/bros/.config/labwc/autostart ]; then
+  grep -q 'bros-portals\.sh' /home/bros/.config/labwc/autostart || printf '%s\n' "$portal_line" >> /home/bros/.config/labwc/autostart
+elif id "$desktop_user" >/dev/null 2>&1; then
+  runuser -u "$desktop_user" -- mkdir -p /home/bros/.config/labwc
+  runuser -u "$desktop_user" -- sh -c "printf '%s\n' \"$portal_line\" >> /home/bros/.config/labwc/autostart"
+else
+  mkdir -p /home/bros/.config/labwc
+  printf '%s\n' "$portal_line" >> /home/bros/.config/labwc/autostart
+fi
+
+# Dark GTK for portal choosers (home + gsettings).
+if id "$desktop_user" >/dev/null 2>&1; then
+  runuser -u "$desktop_user" -- env HOME=/home/bros /usr/local/bin/bros-gtk-theme.sh || true
+else
+  HOME=/home/bros /usr/local/bin/bros-gtk-theme.sh || true
+fi
+
 rc=/home/bros/.config/labwc/rc.xml
-rule='  <windowRule identifier="*cursor*" serverDecoration="no" />'
-if [ ! -f "$rc" ]; then
-  if id "$desktop_user" >/dev/null 2>&1; then
-    runuser -u "$desktop_user" -- tee "$rc" >/dev/null << EOF
-<?xml version="1.0"?>
-<labwc_config>
-  <windowRules>
-$rule
-  </windowRules>
-</labwc_config>
-EOF
-  else
-    cat > "$rc" << EOF
-<?xml version="1.0"?>
-<labwc_config>
-  <windowRules>
-$rule
-  </windowRules>
-</labwc_config>
-EOF
-  fi
-elif ! grep -F -q 'identifier="*cursor*"' "$rc"; then
+# CSD apps: no labwc title bar. Portal chooser: also undo Selkies maximize-all.
+rule_cursor='  <windowRule identifier="*cursor*" serverDecoration="no" />'
+rule_portal='  <windowRule identifier="xdg-desktop-portal-gtk" serverDecoration="no"><action name="UnMaximize" /></windowRule>'
+rule_zenity='  <windowRule identifier="zenity" serverDecoration="no"><action name="UnMaximize" /></windowRule>'
+ensure_rule() {
+  needle=$1
+  rule=$2
+  [ -f "$rc" ] || return 0
+  grep -F -q "$needle" "$rc" && return 0
   if grep -q '</windowRules>' "$rc"; then
     sed -i "s|</windowRules>|$rule\n  </windowRules>|" "$rc"
   elif grep -q '</labwc_config>' "$rc"; then
@@ -164,6 +174,35 @@ elif ! grep -F -q 'identifier="*cursor*"' "$rc"; then
   else
     printf '\n<windowRules>\n%s\n</windowRules>\n' "$rule" >> "$rc"
   fi
+}
+if [ ! -f "$rc" ]; then
+  if id "$desktop_user" >/dev/null 2>&1; then
+    runuser -u "$desktop_user" -- tee "$rc" >/dev/null << EOF
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+$rule_cursor
+$rule_portal
+$rule_zenity
+  </windowRules>
+</labwc_config>
+EOF
+  else
+    cat > "$rc" << EOF
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+$rule_cursor
+$rule_portal
+$rule_zenity
+  </windowRules>
+</labwc_config>
+EOF
+  fi
+else
+  ensure_rule 'identifier="*cursor*"' "$rule_cursor"
+  ensure_rule 'identifier="xdg-desktop-portal-gtk"' "$rule_portal"
+  ensure_rule 'identifier="zenity"' "$rule_zenity"
 fi
 
 # Image bins win over an older copy in the home mount.

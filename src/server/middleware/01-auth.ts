@@ -38,6 +38,7 @@ export default defineEventHandler(async (event) => {
     return
   }
 
+  // Host CLI: Authorization Bearer <proxy-key> for Bros /api/* (compose, check, rebuild).
   if (path.startsWith('/api/') && verifyProxyAuthorization(getRequestHeader(event, 'authorization'))) return
 
   if (path === '/login' || path === '/setup') return

@@ -33,7 +33,7 @@ function findCheckoutRoot(start: string): string | null {
   let dir = resolve(start)
   for (let i = 0; i < 10; i++) {
     const hasYaml = existsSync(join(dir, 'bros.yml')) || existsSync(join(dir, 'data', 'config', 'bros.yml'))
-    const hasCompose = existsSync(join(dir, 'docker-compose.yml')) && existsSync(join(dir, 'lib/apps'))
+    const hasCompose = existsSync(join(dir, 'lib/desktop/docker-compose.yml')) && existsSync(join(dir, 'lib/apps'))
     if (hasYaml || hasCompose) return dir
     const parent = resolve(dir, '..')
     if (parent === dir) break

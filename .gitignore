@@ -42,3 +42,6 @@ graphify-out
 # Built CLI. Source checkout symlinks this at bros.
 /bros
 /bros.tar.gz
+/bros.tar.gz.sha256
+/bros-*.tar.gz
+/bros-*.tar.gz.sha256

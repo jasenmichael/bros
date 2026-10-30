@@ -38,6 +38,14 @@ describe('desktopEntryIo', () => {
     expect(icon?.body.equals(Buffer.from('png'))).toBe(true)
   })
 
+  it('prefers icon.png beside the app config over a desktop icon scan', async () => {
+    const { readDesktopIcon } = await import('../../src/server/utils/desktopEntryIo')
+    const icon = await readDesktopIcon('cursor')
+    expect(execInBros).not.toHaveBeenCalled()
+    expect(icon?.mime).toBe('image/png')
+    expect([...(icon?.body.subarray(0, 4) || [])]).toEqual([0x89, 0x50, 0x4e, 0x47])
+  })
+
   it('uses icon.png beside the app config when Desktop has no icon file', async () => {
     execInBros.mockResolvedValueOnce({ code: 1, stdout: '', stderr: '' })
     const { readDesktopIcon } = await import('../../src/server/utils/desktopEntryIo')

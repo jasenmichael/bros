@@ -178,7 +178,8 @@ export function libraryApps(entries: DesktopEntry[], packages: GuiSource[], dock
         id: source.id,
         name: source.name || source.bin || source.spec || source.id,
         command: iface.command,
-        icon: byCommand.get(base)?.icon || base,
+        // Package tiles key icons by app id so icon.png beside the config wins.
+        icon: kind === 'package' ? source.id : (byCommand.get(base)?.icon || base),
         exec: '',
       })
     }

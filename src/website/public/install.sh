@@ -7,8 +7,11 @@
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 #
+# Default (release): unpack tarball into BROS_HOME, symlink BROS_BIN. No cargo.
+# --from-src: clone + cargo build (contributor path), then same BROS_BIN link.
+#
 # Env overrides:
-#   BROS_RELEASE_URL  Release tarball (default: GitHub latest bros.tar.gz)
+#   BROS_RELEASE_URL  Exact release tarball URL. Unset picks bros-<os>-<arch>.tar.gz
 #   BROS_REPO    Git clone URL for --from-src
 #   BROS_HOME    Install directory (default: ~/.bros). BROS_DIR is an alias.
 #   BROS_CONFIG  Bootstrap YAML (default: ~/.config/bros.yml)
@@ -17,7 +20,6 @@
 set -euo pipefail
 
 BROS_REPO="${BROS_REPO:-https://github.com/jasenmichael/bros.git}"
-BROS_RELEASE_URL="${BROS_RELEASE_URL:-https://github.com/jasenmichael/bros/releases/latest/download/bros.tar.gz}"
 if [[ -z "${BROS_HOME:-}" ]]; then
   BROS_HOME="${BROS_DIR:-${HOME}/.bros}"
 fi
@@ -57,18 +59,42 @@ check_docker() {
   die "Docker Compose not found. Install the Compose V2 plugin ('docker compose'), then re-run."
 }
 
+release_asset_name() {
+  local os arch
+  case "$(uname -s)" in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    *) die "unsupported OS: $(uname -s)" ;;
+  esac
+  case "$(uname -m)" in
+    x86_64|amd64) arch=amd64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    *) die "unsupported arch: $(uname -m)" ;;
+  esac
+  printf 'bros-%s-%s.tar.gz' "$os" "$arch"
+}
+
+release_url() {
+  if [[ -n "${BROS_RELEASE_URL:-}" ]]; then
+    printf '%s' "$BROS_RELEASE_URL"
+    return
+  fi
+  printf 'https://github.com/jasenmichael/bros/releases/latest/download/%s' "$(release_asset_name)"
+}
+
 unpack_release() {
   need_cmd curl
   need_cmd tar
   if [[ -d "$BROS_HOME/.git" ]]; then
     die "$BROS_HOME is a source checkout. Re-run with --from-src."
   fi
-  local tmp
+  local tmp url
+  url="$(release_url)"
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
-  info "Downloading $BROS_RELEASE_URL"
-  if ! curl -fL --retry 2 -o "$tmp/bros.tar.gz" "$BROS_RELEASE_URL"; then
-    die "release not found: $BROS_RELEASE_URL
+  info "Downloading $url"
+  if ! curl -fL --retry 2 -o "$tmp/bros.tar.gz" "$url"; then
+    die "release not found: $url
 Install from source: install.sh --from-src"
   fi
   mkdir -p "$BROS_HOME"
@@ -93,6 +119,13 @@ from_src() {
   info "Building CLI"
   cargo build --release --manifest-path "$BROS_HOME/cli/Cargo.toml"
   ln -sfn cli/target/release/bros "$BROS_HOME/bros"
+}
+
+ensure_dotenv() {
+  if [[ -f "$BROS_HOME/example.env" && ! -f "$BROS_HOME/.env" ]]; then
+    cp "$BROS_HOME/example.env" "$BROS_HOME/.env"
+    info "Wrote $BROS_HOME/.env from example.env"
+  fi
 }
 
 write_default_config() {
@@ -199,7 +232,7 @@ Usage:
   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 
 Options:
-  --from-src  Clone and cargo-build the CLI. Default unpacks a release.
+  --from-src  Clone and cargo-build the CLI (optional). Default unpacks a release (no build).
   --service   Install a systemd --user unit (Linux)
 
 Env: BROS_HOME BROS_DIR BROS_CONFIG BROS_BIN BROS_REPO BROS_REF BROS_RELEASE_URL
@@ -222,10 +255,23 @@ main() {
   else
     unpack_release
   fi
+  ensure_dotenv
   write_default_config
   link_bin
   maybe_install_service
+  setup_packaged_model
   print_next_steps
+}
+
+setup_packaged_model() {
+  if [[ ! -f "$BROS_HOME/lib/apps/core/ollama/BROS_MODEL_VERSION" ]]; then
+    return 0
+  fi
+  if [[ ! -x "$BROS_HOME/bros" ]]; then
+    return 0
+  fi
+  info "Installing the packaged model…"
+  BROS_MODEL_SETUP=1 "$BROS_HOME/bros" update
 }
 
 main "$@"
