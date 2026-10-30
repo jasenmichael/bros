@@ -24,6 +24,7 @@ enum UiHost {
 
 struct Opts {
     dev: bool,
+    use_runner: bool,
     verbose: bool,
     daemon: bool,
     config: Option<String>,
@@ -46,6 +47,10 @@ fn main() {
     }
     maybe_rebuild(&repo);
     load_dotenv(&repo.join(".env"));
+    let use_runner = opts.use_runner || env::var("BROS_USE_RUNNER").ok().as_deref() == Some("1");
+    if opts.dev && use_runner {
+        die("dev does not use the UI runner");
+    }
     if opts.dev {
         env::set_var("BROS_DEV", "1");
     }
@@ -70,16 +75,16 @@ fn main() {
     preflight_docker();
     let paths = export_host_env(&repo, opts.config.as_deref());
     match opts.command.as_str() {
-        "start" => cmd_start(&repo, &paths, opts.dev, daemon, true),
+        "start" => cmd_start(&repo, &paths, opts.dev, use_runner, daemon, true),
         "stop" => cmd_stop(&paths),
         "restart" => {
             cmd_stop(&paths);
-            cmd_start(&repo, &paths, opts.dev, daemon, true);
+            cmd_start(&repo, &paths, opts.dev, use_runner, daemon, true);
         }
         "status" => cmd_status(&repo, &paths, opts.dev),
         "run" => cmd_exec(&opts.rest),
         "shell" => cmd_exec(&["bash".into()]),
-        "update" | "upgrade" => cmd_update(&repo, &paths, opts.dev),
+        "update" | "upgrade" => cmd_update(&repo, &paths, opts.dev, use_runner),
         "check" => cmd_http(&paths, "POST", "/api/apps/check"),
         "service" => cmd_service(&opts.rest),
         "app" => cmd_app(&paths, &opts.rest),
@@ -90,6 +95,7 @@ fn main() {
 
 fn parse_args(args: Vec<String>) -> Opts {
     let mut dev = env::var("BROS_DEV").ok().as_deref() == Some("1");
+    let mut use_runner = false;
     let mut verbose = false;
     let mut daemon = false;
     let mut config = None;
@@ -104,6 +110,7 @@ fn parse_args(args: Vec<String>) -> Opts {
             "-h" | "--help" => help = true,
             "-v" | "--version" => version = true,
             "--dev" => dev = true,
+            "--use-runner" => use_runner = true,
             "--verbose" => verbose = true,
             "-D" | "--daemon" => daemon = true,
             "-i" | "--interactive" => daemon = false,
@@ -127,7 +134,7 @@ fn parse_args(args: Vec<String>) -> Opts {
     if command.is_empty() {
         command = "start".into();
     }
-    Opts { dev, verbose, daemon, config, command, rest, help, version: version && !help }
+    Opts { dev, use_runner, verbose, daemon, config, command, rest, help, version: version && !help }
 }
 
 fn is_stack_start(command: &str) -> bool {
@@ -155,7 +162,7 @@ fn walk_for_repo(start: Option<&Path>) -> Option<PathBuf> {
         dir.pop();
     }
     for _ in 0..8 {
-        if dir.join("docker-compose.yml").is_file() && dir.join("docs").join("cli.md").is_file() {
+        if dir.join("lib/desktop/docker-compose.yml").is_file() && dir.join("docs").join("cli.md").is_file() {
             return Some(dir);
         }
         if !dir.pop() {
@@ -177,7 +184,7 @@ fn version_of(repo: &Path) -> String {
             return ver;
         }
     }
-    "0.1.0".into()
+    "0.0.1".into()
 }
 
 fn json_string(text: &str, key: &str) -> Option<String> {
@@ -247,7 +254,10 @@ fn require_dev_tools(dev: bool, pnpm: bool, cargo: bool) -> Result<(), &'static 
     Ok(())
 }
 
-fn choose_ui(source: bool, dev: bool, pnpm: bool) -> Result<UiHost, &'static str> {
+fn choose_ui(source: bool, dev: bool, pnpm: bool, use_runner: bool) -> Result<UiHost, &'static str> {
+    if dev && use_runner {
+        return Err("dev does not use the UI runner");
+    }
     if !source {
         if dev {
             return Err("dev requires a source checkout");
@@ -255,7 +265,7 @@ fn choose_ui(source: bool, dev: bool, pnpm: bool) -> Result<UiHost, &'static str
         return Ok(UiHost::Runner);
     }
     require_dev_tools(dev, pnpm, true)?;
-    if dev || pnpm {
+    if dev || (pnpm && !use_runner) {
         Ok(UiHost::Host)
     } else {
         Ok(UiHost::Runner)
@@ -530,9 +540,10 @@ fn compose_args(repo: &Path, dev: bool, data: &Path) -> Vec<String> {
     if !VERBOSE.load(Ordering::SeqCst) {
         args.extend(["--progress".into(), "plain".into()]);
     }
-    args.extend(["-f".into(), repo.join("docker-compose.yml").to_string_lossy().into()]);
+    args.extend(["--project-directory".into(), repo.to_string_lossy().into()]);
+    args.extend(["-f".into(), repo.join("lib/desktop/docker-compose.yml").to_string_lossy().into()]);
     let overlay = if dev { "docker-compose.dev.yml" } else { "docker-compose.prod.yml" };
-    args.extend(["-f".into(), repo.join(overlay).to_string_lossy().into()]);
+    args.extend(["-f".into(), repo.join("lib/desktop").join(overlay).to_string_lossy().into()]);
     let apps = data.join("config/apps-compose.yml");
     if apps.is_file() {
         args.extend(["-f".into(), apps.to_string_lossy().into()]);
@@ -540,7 +551,7 @@ fn compose_args(repo: &Path, dev: bool, data: &Path) -> Vec<String> {
     args
 }
 
-fn cmd_start(repo: &Path, paths: &Paths, dev: bool, daemon: bool, announce: bool) {
+fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bool, announce: bool) {
     ensure_dirs(repo, &paths.data);
     arm_signals();
     let mode = if dev { "dev" } else { "prod" };
@@ -561,7 +572,7 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, daemon: bool, announce: bool
     remove_old_prefix();
     let source = plan::is_source(repo);
     let pnpm = source && on_path("pnpm");
-    let ui = choose_ui(source, dev, pnpm).unwrap_or_else(|msg| die(msg));
+    let ui = choose_ui(source, dev, pnpm, use_runner).unwrap_or_else(|msg| die(msg));
     let log = paths.data.join("var/logs/bros.log");
     if ui == UiHost::Host {
         ensure_node_modules(repo, &log);
@@ -977,8 +988,78 @@ fn api_addr() -> String {
 }
 
 fn http_code(paths: &Paths, method: &str, path: &str) -> (u16, String) {
+    http_code_wait(paths, method, path, 30)
+}
+
+fn http_code_wait(paths: &Paths, method: &str, path: &str, timeout_secs: u64) -> (u16, String) {
     let bearer = proxy_key(&paths.data);
-    plan::http_status(&api_addr(), method, path, bearer.as_deref()).unwrap_or((0, String::new()))
+    plan::http_status_for(&api_addr(), method, path, bearer.as_deref(), timeout_secs).unwrap_or((0, String::new()))
+}
+
+fn model_version_file(repo: &Path) -> std::path::PathBuf {
+    repo.join("lib/apps/core/ollama/BROS_MODEL_VERSION")
+}
+
+fn fetch_packaged_model(repo: &Path, paths: &Paths) {
+    let want_raw = fs::read_to_string(model_version_file(repo)).unwrap_or_default();
+    let want = want_raw.trim().trim_start_matches('v').trim();
+    if want.is_empty() {
+        return;
+    }
+    let dest = paths.data.join("apps/ollama/bros-model");
+    let stamp_path = dest.join(".bros-model-version");
+    let have = fs::read_to_string(&stamp_path).ok();
+    if !plan::model_needs_fetch(have.as_deref(), want) {
+        return;
+    }
+    let url = format!("https://github.com/jasenmichael/bros-model/releases/download/v{want}/bros-model.tar.gz");
+    let tmp = std::env::temp_dir().join(format!("bros-model-{}.tar.gz", std::process::id()));
+    let _ = fs::remove_file(&tmp);
+    let ok = Command::new("curl")
+        .args(["-fL", "--retry", "2", "-o"])
+        .arg(&tmp)
+        .arg(&url)
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false);
+    if !ok {
+        let _ = fs::remove_file(&tmp);
+        die(&format!("model release not found: {url}"));
+    }
+    fs::create_dir_all(&dest).unwrap_or_else(|err| die(&err.to_string()));
+    for part in ["models", "ollama", "scripts"] {
+        let _ = fs::remove_dir_all(dest.join(part));
+    }
+    let unpacked = Command::new("tar")
+        .args(["-xzf"])
+        .arg(&tmp)
+        .arg("-C")
+        .arg(&dest)
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false);
+    let _ = fs::remove_file(&tmp);
+    if !unpacked {
+        die("could not unpack model release");
+    }
+    fs::write(&stamp_path, format!("{want}\n")).unwrap_or_else(|err| die(&err.to_string()));
+    say(&format!("model {want}"));
+}
+
+fn install_packaged_model(repo: &Path, paths: &Paths, dev: bool, use_runner: bool) {
+    if !model_version_file(repo).is_file() {
+        return;
+    }
+    fetch_packaged_model(repo, paths);
+    let url = format!("{}/api/health", listen_url());
+    if !curl_ok(&url) {
+        say("Starting UI…");
+        cmd_start(repo, paths, dev, use_runner, true, false);
+    }
+    let (code, _) = http_code_wait(paths, "GET", "/api/providers", 200);
+    if !(200..300).contains(&code) {
+        say(&format!("Ollama model create was not confirmed ({code})"));
+    }
 }
 
 fn cmd_http(paths: &Paths, method: &str, path: &str) -> ! {
@@ -1007,13 +1088,19 @@ fn cmd_app(paths: &Paths, rest: &[String]) {
     cmd_http(paths, method, &path);
 }
 
-fn cmd_update(repo: &Path, paths: &Paths, dev: bool) {
+fn cmd_update(repo: &Path, paths: &Paths, dev: bool, use_runner: bool) {
+    if env::var("BROS_MODEL_SETUP").ok().as_deref() == Some("1") {
+        install_packaged_model(repo, paths, dev, use_runner);
+        return;
+    }
     if env::var("BROS_RELEASE_DONE").ok().as_deref() == Some("1") {
+        install_packaged_model(repo, paths, dev, use_runner);
         say("updated");
         return;
     }
     if env::var("BROS_UPDATE_PHASE").ok().as_deref() == Some("api") {
-        finish_image_update(repo, paths, dev);
+        install_packaged_model(repo, paths, dev, use_runner);
+        finish_image_update(repo, paths, dev, use_runner);
         return;
     }
     if !plan::is_source(repo) {
@@ -1032,17 +1119,17 @@ fn cmd_update(repo: &Path, paths: &Paths, dev: bool) {
     die(&format!("re-exec failed: {err}"));
 }
 
-fn finish_image_update(repo: &Path, paths: &Paths, dev: bool) {
+fn finish_image_update(repo: &Path, paths: &Paths, dev: bool, use_runner: bool) {
     let url = format!("{}/api/health", listen_url());
     if !curl_ok(&url) {
         say("Starting UI…");
-        cmd_start(repo, paths, dev, true, false);
+        cmd_start(repo, paths, dev, use_runner, true, false);
     }
     let (code, _) = http_code(paths, "POST", "/api/apps/check");
     if !(200..300).contains(&code) {
         say("Restarting UI…");
         kill_ui_listeners();
-        cmd_start(repo, paths, dev, true, false);
+        cmd_start(repo, paths, dev, use_runner, true, false);
     }
     let (code, _) = http_code(paths, "POST", "/api/apps/rebuild");
     if !(200..300).contains(&code) {
@@ -1051,8 +1138,18 @@ fn finish_image_update(repo: &Path, paths: &Paths, dev: bool) {
     say("Image rebuilt.");
 }
 
+fn release_download_url() -> String {
+    if let Ok(url) = env::var("BROS_RELEASE_URL") {
+        let url = url.trim();
+        if !url.is_empty() {
+            return url.to_string();
+        }
+    }
+    plan::default_release_url().unwrap_or_else(|err| die(&err))
+}
+
 fn release_update(repo: &Path) -> ! {
-    let url = env::var("BROS_RELEASE_URL").unwrap_or_else(|_| plan::RELEASE_URL.into());
+    let url = release_download_url();
     let tmp = repo.join(".release-next");
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).unwrap_or_else(|err| die(&err.to_string()));
@@ -1082,6 +1179,9 @@ fn release_update(repo: &Path) -> ! {
         die("could not unpack release");
     }
     if let Err(err) = plan::apply_release(repo, &tree) {
+        die(&err.to_string());
+    }
+    if let Err(err) = plan::ensure_dotenv(repo) {
         die(&err.to_string());
     }
     let _ = fs::remove_dir_all(&tmp);
@@ -1439,11 +1539,13 @@ mod tests {
         assert_eq!(require_dev_tools(true, false, true), Err("dev requires host pnpm"));
         assert_eq!(require_dev_tools(true, true, false), Err("dev requires host cargo"));
         assert_eq!(require_dev_tools(false, false, false), Ok(()));
-        assert_eq!(choose_ui(true, true, true), Ok(UiHost::Host));
-        assert_eq!(choose_ui(true, false, true), Ok(UiHost::Host));
-        assert_eq!(choose_ui(true, false, false), Ok(UiHost::Runner));
-        assert_eq!(choose_ui(false, false, true), Ok(UiHost::Runner));
-        assert_eq!(choose_ui(true, true, false), Err("dev requires host pnpm"));
+        assert_eq!(choose_ui(true, true, true, false), Ok(UiHost::Host));
+        assert_eq!(choose_ui(true, false, true, false), Ok(UiHost::Host));
+        assert_eq!(choose_ui(true, false, false, false), Ok(UiHost::Runner));
+        assert_eq!(choose_ui(false, false, true, false), Ok(UiHost::Runner));
+        assert_eq!(choose_ui(true, true, false, false), Err("dev requires host pnpm"));
+        assert_eq!(choose_ui(true, false, true, true), Ok(UiHost::Runner));
+        assert_eq!(choose_ui(true, true, true, true), Err("dev does not use the UI runner"));
     }
 
     #[test]

@@ -5,7 +5,29 @@ use std::path::Path;
 use std::process::{Command, Output};
 use std::time::Duration;
 
-pub const RELEASE_URL: &str = "https://github.com/jasenmichael/bros/releases/latest/download/bros.tar.gz";
+pub const RELEASE_DOWNLOAD_BASE: &str = "https://github.com/jasenmichael/bros/releases/latest/download";
+
+pub fn release_asset_name(os: &str, arch: &str) -> Result<String, String> {
+    let os = match os {
+        "linux" | "Linux" => "linux",
+        "darwin" | "Darwin" | "macos" => "darwin",
+        other => return Err(format!("unsupported OS: {other}")),
+    };
+    let arch = match arch {
+        "x86_64" | "amd64" => "amd64",
+        "aarch64" | "arm64" => "arm64",
+        other => return Err(format!("unsupported arch: {other}")),
+    };
+    Ok(format!("bros-{os}-{arch}.tar.gz"))
+}
+
+pub fn release_url(os: &str, arch: &str) -> Result<String, String> {
+    Ok(format!("{RELEASE_DOWNLOAD_BASE}/{}", release_asset_name(os, arch)?))
+}
+
+pub fn default_release_url() -> Result<String, String> {
+    release_url(std::env::consts::OS, std::env::consts::ARCH)
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Plan {
@@ -41,6 +63,18 @@ pub fn command_plan(command: &str, rest: &[String]) -> Plan {
 
 pub fn needs_rebuild(source: bool, main_newer: bool) -> bool {
     source && main_newer
+}
+
+pub fn ensure_dotenv(repo: &Path) -> std::io::Result<()> {
+    let dest = repo.join(".env");
+    if dest.exists() {
+        return Ok(());
+    }
+    let src = repo.join("example.env");
+    if !src.is_file() {
+        return Ok(());
+    }
+    fs::copy(&src, &dest).map(|_| ())
 }
 
 pub fn apply_release(dest: &Path, staging: &Path) -> std::io::Result<()> {
@@ -90,9 +124,44 @@ pub fn release_missing(url: &str) -> String {
     format!("release not found: {url}\nInstall from source: install.sh --from-src")
 }
 
-pub fn http_status(addr: &str, method: &str, path: &str, bearer: Option<&str>) -> Result<(u16, String), String> {
+pub fn model_needs_fetch(have: Option<&str>, want: &str) -> bool {
+    let want = normalize_ver(want);
+    if want.is_empty() {
+        return false;
+    }
+    let Some(have) = have.map(normalize_ver).filter(|text| !text.is_empty()) else {
+        return true;
+    };
+    version_cmp(&have, &want) == std::cmp::Ordering::Less
+}
+
+fn normalize_ver(raw: &str) -> String {
+    let text = raw.trim();
+    text.strip_prefix('v').unwrap_or(text).trim().to_string()
+}
+
+fn parse_ver(text: &str) -> Option<(u64, u64, u64)> {
+    let mut parts = text.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.parse().ok()?;
+    let patch = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((major, minor, patch))
+}
+
+fn version_cmp(left: &str, right: &str) -> std::cmp::Ordering {
+    match (parse_ver(left), parse_ver(right)) {
+        (Some(left), Some(right)) => left.cmp(&right),
+        (None, Some(_)) => std::cmp::Ordering::Less,
+        _ => std::cmp::Ordering::Equal,
+    }
+}
+
+pub fn http_status_for(addr: &str, method: &str, path: &str, bearer: Option<&str>, timeout_secs: u64) -> Result<(u16, String), String> {
     let mut stream = TcpStream::connect(addr).map_err(|err| err.to_string())?;
-    stream.set_read_timeout(Some(Duration::from_secs(30))).ok();
+    stream.set_read_timeout(Some(Duration::from_secs(timeout_secs))).ok();
     let auth = bearer.map(|token| format!("Authorization: Bearer {token}\r\n")).unwrap_or_default();
     let req = format!("{method} {path} HTTP/1.1\r\nHost: {addr}\r\n{auth}Content-Length: 0\r\nConnection: close\r\n\r\n");
     stream.write_all(req.as_bytes()).map_err(|err| err.to_string())?;
@@ -139,6 +208,24 @@ mod tests {
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
     use std::thread;
+
+    #[test]
+    fn release_asset_names_map_os_and_arch() {
+        assert_eq!(release_asset_name("linux", "x86_64").unwrap(), "bros-linux-amd64.tar.gz");
+        assert_eq!(release_asset_name("Linux", "amd64").unwrap(), "bros-linux-amd64.tar.gz");
+        assert_eq!(release_asset_name("linux", "aarch64").unwrap(), "bros-linux-arm64.tar.gz");
+        assert_eq!(release_asset_name("linux", "arm64").unwrap(), "bros-linux-arm64.tar.gz");
+        assert_eq!(release_asset_name("darwin", "x86_64").unwrap(), "bros-darwin-amd64.tar.gz");
+        assert_eq!(release_asset_name("Darwin", "amd64").unwrap(), "bros-darwin-amd64.tar.gz");
+        assert_eq!(release_asset_name("macos", "aarch64").unwrap(), "bros-darwin-arm64.tar.gz");
+        assert_eq!(release_asset_name("macos", "arm64").unwrap(), "bros-darwin-arm64.tar.gz");
+        assert!(release_asset_name("windows", "x86_64").unwrap_err().contains("unsupported OS"));
+        assert!(release_asset_name("linux", "arm").unwrap_err().contains("unsupported arch"));
+        assert_eq!(
+            release_url("linux", "x86_64").unwrap(),
+            "https://github.com/jasenmichael/bros/releases/latest/download/bros-linux-amd64.tar.gz",
+        );
+    }
 
     #[test]
     fn command_plan_splits_http_exec_and_systemd() {
@@ -189,6 +276,35 @@ mod tests {
     }
 
     #[test]
+    fn ensure_dotenv_copies_once() {
+        let root = std::env::temp_dir().join(format!("bros-env-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("example.env"), "# BROS_PORT=3055\n").unwrap();
+        ensure_dotenv(&root).unwrap();
+        assert_eq!(fs::read_to_string(root.join(".env")).unwrap(), "# BROS_PORT=3055\n");
+        assert!(root.join("example.env").is_file());
+        fs::write(root.join(".env"), "BROS_PORT=1\n").unwrap();
+        fs::write(root.join("example.env"), "# changed\n").unwrap();
+        ensure_dotenv(&root).unwrap();
+        assert_eq!(fs::read_to_string(root.join(".env")).unwrap(), "BROS_PORT=1\n");
+        assert_eq!(fs::read_to_string(root.join("example.env")).unwrap(), "# changed\n");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn model_fetch_compares_stamps() {
+        assert!(model_needs_fetch(None, "0.1.0"));
+        assert!(model_needs_fetch(Some(""), "0.1.0"));
+        assert!(model_needs_fetch(Some("0.1.0"), "0.2.0"));
+        assert!(model_needs_fetch(Some("v0.1.0"), "0.1.1"));
+        assert!(!model_needs_fetch(Some("0.2.0"), "0.1.0"));
+        assert!(!model_needs_fetch(Some("0.1.0"), "0.1.0"));
+        assert!(!model_needs_fetch(Some("v1.0.0"), "1.0.0"));
+        assert!(!model_needs_fetch(None, ""));
+    }
+
+    #[test]
     fn http_hits_the_paths_on_localhost() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
@@ -226,7 +342,7 @@ mod tests {
             ("POST", "/api/apps/pi/update"),
             ("POST", "/api/apps/compose"),
         ] {
-            assert_eq!(http_status(&addr, method, path, None).unwrap().0, 204, "{method} {path}");
+            assert_eq!(http_status_for(&addr, method, path, None, 30).unwrap().0, 204, "{method} {path}");
         }
         server.join().unwrap();
     }

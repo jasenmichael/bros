@@ -21,7 +21,6 @@ const CREATE_TIMEOUT_MS = 180_000
 type GgufStamp = { size: number; mtimeMs: number }
 
 let inflight: Promise<void> | null = null
-let loggedMissingGguf = false
 
 export function isInternalBrosModel(name: string): boolean {
   const n = name.trim()
@@ -40,7 +39,6 @@ export function refuseInternalBrosModel(name: string) {
 
 export function resetInternalBrosModelForTests() {
   inflight = null
-  loggedMissingGguf = false
 }
 
 export function vendorBrosModelDir(workingDir: string) {
@@ -109,21 +107,17 @@ async function dockerAppHasBros(): Promise<boolean> {
 
 async function ensureInternalBrosModelOnce() {
   const { workingDir, dataDir } = loadBootstrapConfig()
-  const gguf = vendorGgufPath(workingDir)
-  if (!existsSync(gguf)) {
-    if (!loggedMissingGguf) {
-      loggedMissingGguf = true
-      console.error(`internal bros model: missing packaged model: ${gguf}`)
-    }
-    return
-  }
-
+  const vendorGguf = vendorGgufPath(workingDir)
   const destDir = destBrosModelDir(dataDir)
+  const destGguf = join(destDir, GGUF_REL)
+  const gguf = existsSync(vendorGguf) ? vendorGguf : existsSync(destGguf) ? destGguf : ''
+  if (!gguf) return
+
   const identity = vendorStamp(gguf)
   const hasBros = await dockerAppHasBros()
   if (hasBros && stampMatches(readStamp(destDir), identity)) return
 
-  copyVendorTree(vendorBrosModelDir(workingDir), destDir)
+  if (existsSync(vendorGguf)) copyVendorTree(vendorBrosModelDir(workingDir), destDir)
 
   const { execInDockerApp } = await import('./docker')
   const res = await execInDockerApp(
@@ -138,7 +132,7 @@ async function ensureInternalBrosModelOnce() {
   writeStamp(destDir, identity)
 }
 
-/** DockerApp running only. Missing GGUF / create fail: log, do not throw. */
+/** Docker app running only. Missing GGUF: return. Create fail: log, do not throw. */
 export async function ensureInternalBrosModel() {
   if (inflight) return inflight
   inflight = ensureInternalBrosModelOnce()
