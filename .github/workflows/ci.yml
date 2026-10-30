@@ -13,13 +13,13 @@ concurrency:
 
 jobs:
   js:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
         with:
           package_json_file: src/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           # Same Node as the ui image so better-sqlite3 loads.
           node-version: 26.7.0
@@ -33,9 +33,9 @@ jobs:
         working-directory: src
 
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

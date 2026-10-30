@@ -15,13 +15,13 @@ concurrency:
 jobs:
   version:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.decide.outputs.version }}
       sha: ${{ steps.decide.outputs.sha }}
       release: ${{ steps.decide.outputs.release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
       - id: decide
@@ -40,15 +40,15 @@ jobs:
   ui:
     needs: version
     if: needs.version.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.version.outputs.sha }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           package_json_file: src/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           # Same Node as the ui image so better-sqlite3 loads.
           node-version: 26.7.0
@@ -59,7 +59,7 @@ jobs:
       - run: pnpm --filter @bros/ui build
         working-directory: src
       - run: tar -C src/ui -czf ui-output.tar.gz .output
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ui-output
           path: ui-output.tar.gz
@@ -73,12 +73,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             asset: bros-linux-amd64
             apt: ''
             linker: ''
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: aarch64-unknown-linux-gnu
             asset: bros-linux-arm64
             apt: gcc-aarch64-linux-gnu
@@ -94,7 +94,7 @@ jobs:
             apt: ''
             linker: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.version.outputs.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -122,7 +122,7 @@ jobs:
           mkdir -p artifact
           cp "cli/target/${TARGET}/release/bros" artifact/bros
           chmod 755 artifact/bros
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.asset }}
           path: artifact/bros
@@ -131,12 +131,12 @@ jobs:
   release:
     needs: [version, ui, cli]
     if: needs.version.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.version.outputs.sha }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: dist
       - name: Pack tarballs
