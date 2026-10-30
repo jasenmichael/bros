@@ -1,5 +1,5 @@
 import { listOllamaModels } from '../providers'
-import { sidecarOllamaUrl } from '../providers/ollamaHost'
+import { dockerAppOllamaUrl } from '../providers/ollamaHost'
 import { readCliPackages } from '../cli/packages'
 import { runCursorAcp } from './acp'
 import { cursorEnv, dockerExec, ensureCursorAgent, shQuote, syncGitCredentials } from './desktop'
@@ -25,6 +25,7 @@ import {
   parseTaskSpec,
   pullPlan,
   repoCwd,
+  resumeOrphanedPlanning,
   resolveProjectCwd,
   startAllowed,
   taskSpecText,
@@ -92,24 +93,34 @@ export async function listProjects() {
 }
 
 async function ollamaSpec(model: string, issueTitle: string, issueNumber: number): Promise<string> {
-  const base = sidecarOllamaUrl()
-  const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      messages: [{
-        role: 'user',
-        content: [
-          'Write a task spec as JSON with keys title, kind, summary, steps.',
-          'kind is feat, fix, docs, chore, test, refactor, perf, ci, or other.',
-          'steps is an array of short strings. No markdown outside the JSON.',
-          `Issue #${issueNumber}: ${issueTitle}`,
-        ].join('\n'),
-      }],
-    }),
-  })
+  const base = dockerAppOllamaUrl()
+  let res: Response
+  try {
+    res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(180_000),
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [{
+          role: 'user',
+          content: [
+            'Write a task spec as JSON with keys title, kind, summary, steps.',
+            'kind is feat, fix, docs, chore, test, refactor, perf, ci, or other.',
+            'steps is an array of short strings. No markdown outside the JSON.',
+            `Issue #${issueNumber}: ${issueTitle}`,
+          ].join('\n'),
+        }],
+      }),
+    })
+  }
+  catch (err) {
+    if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+      throw new Error('Ollama timed out')
+    }
+    throw err
+  }
   if (!res.ok) throw new Error(`Ollama ${res.status}`)
   const body = await res.json() as { message?: { content?: string } }
   return body.message?.content || ''
@@ -426,7 +437,7 @@ export async function board() {
   }
   let models: string[] = []
   try {
-    const listed = await listOllamaModels(sidecarOllamaUrl())
+    const listed = await listOllamaModels(dockerAppOllamaUrl())
     models = listed.map((row) => row.name)
   }
   catch {
@@ -495,6 +506,13 @@ async function sweep() {
     }
   }
   for (const job of listJobs()) {
+    if (resumeOrphanedPlanning(job.state, running.has(job.id))) {
+      // #region agent log
+      fetch('http://127.0.0.1:7605/ingest/96b79570-9183-497e-8dac-73f419b1ff97',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db6d6f'},body:JSON.stringify({sessionId:'db6d6f',runId:'post-fix',hypothesisId:'B',location:'loop.ts:sweep',message:'requeue orphaned planning',data:{id:job.id,issue:job.issueNumber},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      patchJob(job.id, { state: 'queued' })
+      job.state = 'queued'
+    }
     if (job.state === 'queued') await runPreflight(job.id)
   }
   if (settings.deleteBranch) {
@@ -520,7 +538,10 @@ export async function pump() {
     await sweep()
   }
   catch (error) {
-    console.error('[bros] agents', error)
+    // #region agent log
+    fetch('http://127.0.0.1:7605/ingest/96b79570-9183-497e-8dac-73f419b1ff97',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db6d6f'},body:JSON.stringify({sessionId:'db6d6f',runId:'post-fix',hypothesisId:'C',location:'loop.ts:pump',message:'sweep threw',data:{line:error instanceof Error?error.message.split('\n')[0]:String(error)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    console.error('[bros] agents', error instanceof Error ? error.message.split('\n')[0] : error)
   }
   finally {
     pumping = false

@@ -6,7 +6,7 @@ import {
   CLI_BRIDGE_MARK,
   brosCliSource,
   syncCliBridges,
-} from '../../src/server/utils/sidecars/cliBridge'
+} from '../../src/server/utils/docker-app/cliBridge'
 
 const pack = {
   id: 'cursor',
@@ -15,11 +15,11 @@ const pack = {
 }
 
 describe('cli source', () => {
-  it('uses the running sidecar, then the host bin', () => {
-    expect(brosCliSource({ hostBin: true, sidecarRunning: true })).toBe('sidecar')
-    expect(brosCliSource({ hostBin: true, sidecarRunning: false })).toBe('host')
-    expect(brosCliSource({ hostBin: false, sidecarRunning: true })).toBe('sidecar')
-    expect(brosCliSource({ hostBin: false, sidecarRunning: false })).toBe('none')
+  it('uses the running dockerApp, then the host bin', () => {
+    expect(brosCliSource({ hostBin: true, dockerAppRunning: true })).toBe('docker')
+    expect(brosCliSource({ hostBin: true, dockerAppRunning: false })).toBe('host')
+    expect(brosCliSource({ hostBin: false, dockerAppRunning: true })).toBe('docker')
+    expect(brosCliSource({ hostBin: false, dockerAppRunning: false })).toBe('none')
   })
 })
 
@@ -38,9 +38,9 @@ describe('cli bridge files', () => {
     return { hostBinDir, brosBinDir }
   }
 
-  function sync(hostBinDir: string, brosBinDir: string, running: Set<string>, sidecars = [pack]) {
+  function sync(hostBinDir: string, brosBinDir: string, running: Set<string>, dockerApps = [pack]) {
     syncCliBridges({
-      sidecars,
+      dockerApps,
       running,
       brosBinDir,
       hostBinDir,
@@ -48,7 +48,7 @@ describe('cli bridge files', () => {
     })
   }
 
-  it('keeps a real host binary and points Bros at the running sidecar', () => {
+  it('keeps a real host binary and points Bros at the running dockerApp', () => {
     const { hostBinDir, brosBinDir } = dirs()
     const real = join(hostBinDir, 'agent')
     writeFileSync(real, '#!/bin/sh\necho real\n', { mode: 0o755 })
@@ -56,7 +56,7 @@ describe('cli bridge files', () => {
     expect(readFileSync(real, 'utf8')).toBe('#!/bin/sh\necho real\n')
     const bros = readFileSync(join(brosBinDir, 'agent'), 'utf8')
     expect(bros).toContain(CLI_BRIDGE_MARK)
-    expect(bros).toContain('bros-sc-cursor')
+    expect(bros).toContain('bros-cursor')
     expect(bros).toContain("'-it'")
     expect(bros).toContain('-icrnl')
     expect(bros).not.toContain(real)
@@ -68,7 +68,7 @@ describe('cli bridge files', () => {
     const body = readFileSync(join(brosBinDir, 'agent'), 'utf8')
     expect(body).toContain(CLI_BRIDGE_MARK)
     expect(body).toContain('docker')
-    expect(body).toContain('bros-sc-cursor')
+    expect(body).toContain('bros-cursor')
     expect(body).toContain('/home/bros/.local/bin/agent')
     expect(() => readFileSync(join(hostBinDir, 'agent'), 'utf8')).toThrow()
   })
@@ -87,7 +87,7 @@ describe('cli bridge files', () => {
     expect(readFileSync(real, 'utf8')).toBe('#!/bin/sh\necho real\n')
   })
 
-  it('points Bros at the host bin when the sidecar is stopped', () => {
+  it('points Bros at the host bin when the dockerApp is stopped', () => {
     const { hostBinDir, brosBinDir } = dirs()
     const real = join(hostBinDir, 'agent')
     writeFileSync(real, '#!/bin/sh\necho real\n', { mode: 0o755 })
@@ -125,7 +125,7 @@ describe('cli bridge files', () => {
     expect(() => readFileSync(join(hostBinDir, 'bash'), 'utf8')).toThrow()
   })
 
-  it('removes the Bros wrapper when the sidecar stops', () => {
+  it('removes the Bros wrapper when the dockerApp stops', () => {
     const { hostBinDir, brosBinDir } = dirs()
     sync(hostBinDir, brosBinDir, new Set(['cursor']))
     sync(hostBinDir, brosBinDir, new Set())

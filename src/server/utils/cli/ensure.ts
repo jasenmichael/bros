@@ -10,6 +10,7 @@ export type EnsureStatus = {
   current: string
   version: string
   failures: string[]
+  steps: string[]
 }
 
 export function ensurePackages(packages: CliPackage[]): CliPackage[] {
@@ -42,14 +43,16 @@ export function readEnsureStatus(): EnsureStatus {
   try {
     const doc = JSON.parse(readFileSync(statusFile(), 'utf8')) as Record<string, unknown>
     const failures = Array.isArray(doc.failures) ? doc.failures.filter((id): id is string => typeof id === 'string') : []
+    const steps = Array.isArray(doc.steps) ? doc.steps.filter((id): id is string => typeof id === 'string') : []
     return {
       running: doc.running === true,
       current: typeof doc.current === 'string' ? doc.current : '',
       version: typeof doc.version === 'string' ? doc.version : '',
       failures,
+      steps,
     }
   } catch {
-    return { running: false, current: '', version: '', failures: [] }
+    return { running: false, current: '', version: '', failures: [], steps: [] }
   }
 }
 
@@ -97,8 +100,8 @@ async function runEnsure() {
   const packages = ensurePackages(enabledCliPackages())
   writeList(packages)
   try {
-    const { execInSidecar } = await import('../docker')
-    const res = await execInSidecar('desktop', ['bash', '/app/lib/sidecars/core/desktop/ensure.sh'], 1_800_000)
+    const { execInBros } = await import('../docker')
+    const res = await execInBros(['bash', '/app/lib/desktop/ensure.sh'], 1_800_000)
     if (res.code !== 0) console.error('desktop ensure', res.stderr || res.stdout)
   } catch (err) {
     console.error('desktop ensure', err)

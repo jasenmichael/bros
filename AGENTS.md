@@ -16,6 +16,8 @@ Before editing, read the file that owns the change. Update that file when the ch
 
 pnpm workspace root is `src/`.
 
+Dev requires host `pnpm` and `cargo`. The UI runs on the host. Prod needs Docker. Prod uses host `pnpm` for the UI when it exists, otherwise container `bros-ui`.
+
 Contributor loop:
 
 ```bash
@@ -29,7 +31,7 @@ App: http://127.0.0.1:3055. After Dockerfile or compose changes:
 BROS_DEV=1 ./bros update
 ```
 
-Optional host Node 22+:
+Dev host pnpm (the UI) and docs:
 
 ```bash
 pnpm --dir src install
@@ -41,25 +43,30 @@ Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/d
 
 ## Read before editing
 
-- Words: [GLOSSARY.md](GLOSSARY.md). Do not call the host command the CLI.
-- App behavior (chat, providers, sidecars, status, settings, tunnel, auth): [SPEC.md](SPEC.md), then the matching page under `docs/`
+- Words: [GLOSSARY.md](GLOSSARY.md). The `bros` binary is the CLI.
+- App behavior (chat, providers, apps, status, settings, tunnel, auth): [SPEC.md](SPEC.md), then the matching page under `docs/`
 - Ports, compose, layers, packages, and the utils folder rule: [STACK.md](STACK.md)
 - Dock, pages, visual UI: [DESIGN.md](DESIGN.md)
 - Milestone and follow-ups: [PLAN.md](PLAN.md)
 - Env: [docs/environment.md](docs/environment.md). Bootstrap YAML vs SQLite: [docs/configuration.md](docs/configuration.md)
 - HTTP API: [docs/api.md](docs/api.md)
-- A sidecar pack: [docs/sidecars.md](docs/sidecars.md) and `docs/sidecars/<id>.md`
+- A docker app pack: [docs/apps.md](docs/apps.md) and `docs/apps/<id>.md`; desktop: [docs/desktop.md](docs/desktop.md) and [docs/desktop-gui.md](docs/desktop-gui.md)
 - Chat routes or agent wording: [docs/agent.md](docs/agent.md) and [docs/agents.md](docs/agents.md). There is no `/agent` page. Chat is one completion. The job board is `/agents`.
 - Docs site and Pages: [docs/website.md](docs/website.md)
 
 ## Constraints
 
-- Product word is **sidecar** (`/sidecars`, `/api/sidecars`, `sidecar.yml`)
+- Product word is **app** (`/apps`, `GET /api/apps`). Compose control is `/api/apps/*`. Env disable keys are `BROS_APP_*` and `BROS_APPS_DISABLE`
 - Write real `/` paths. A corrupted `@bros/` path is not a package or a URL
-- pnpm workspace root is `src/` (`@bros/cli`, `@bros/ui`, `@bros/theme`, `@bros/docs`, `@bros/website`)
-- Prefer Docker via `BROS_DEV=1 ./bros`. Host Node talks to sidecar Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1`. Compose-app calls use Docker DNS (`ollama:11434`, `whisper:8000`)
-- Dev does not mount `/app/sidecars/{core,addon,custom}` (those mounts are production-only). Discovery uses `/app/lib/sidecars`. Custom packs live in `lib/sidecars/custom`. Only `README.md` there is tracked. A custom pack can later move to `lib/sidecars/addon/` or `lib/sidecars/core/`. An addon can later move to core. Mount and pack rules live in the Sidecars section of [SPEC.md](SPEC.md)
+- pnpm workspace root is `src/` (`@bros/ui`, `@bros/theme`, `@bros/docs`, `@bros/website`)
+- Prefer Docker via `BROS_DEV=1 ./bros`. Host Node talks to core Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1`. Compose-app calls use Docker DNS (`ollama:11434`, `whisper:8000`)
+- Dev discovers docker apps at `/app/lib/apps/core` and `/app/lib/apps/addon`, plus package apps under `/app/lib/apps`. Custom apps live in `data/config/apps`. A custom app can later move to `lib/apps/addon/` or `lib/apps/core/`. An addon can later move to core. Mount and pack rules live in the Apps section of [SPEC.md](SPEC.md)
 - Internal Ollama model `bros` is for app jobs (titles). It is not a Chat or Providers picker. Ensure path: `src/server/utils/internalBrosModel.ts`
+- Nix has one install. Run the [Devbox install script](https://www.jetify.com/docs/devbox/installing-devbox) as the non-root desktop user, and only when `devbox` is not already installed. Devbox installs Nix in single-user mode when Nix is not already present. Do not add another Nix installer (`nixos.org/nix/install`, a Nix tarball, the Determinate installer, or a Devbox GitHub release tarball).
+
+```bash
+curl -fsSL https://get.jetify.com/devbox | bash
+```
 
 ## Testing
 

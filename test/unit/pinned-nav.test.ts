@@ -25,7 +25,7 @@ function pinned(opts: {
 }
 
 describe('pinned nav', () => {
-  it('omits a nav link when a pinned sidecar is disabled or stopped', () => {
+  it('omits a nav link when a pinned dockerApp is disabled or stopped', () => {
     const items = pinnedNavItems([
       pinned({ id: 'opencode', name: 'OpenCode', disabled: true, running: true, publish: 4097 }),
       pinned({ id: 'other', name: 'Other', running: false, publish: 4101 }),
@@ -37,7 +37,7 @@ describe('pinned nav', () => {
     ])
   })
 
-  it('pins a forwarded package web UI while Desktop is up and the service is running', () => {
+  it('pins a published package web UI while the service is running', () => {
     const pkg = {
       id: 'paperclip',
       name: 'Paperclip',
@@ -45,15 +45,15 @@ describe('pinned nav', () => {
       forwardHost: true,
       serviceRunning: true,
       services: ['paperclipai run'],
-      interfaces: [{ type: 'webui', containerPort: 3100, publish: 3100 }],
+      interfaces: [{ type: 'webui', publish: 3100 }],
     }
-    expect(packageNavItems([pkg], true)).toEqual([
+    expect(packageNavItems([pkg])).toEqual([
       { label: 'Paperclip', to: 'http://127.0.0.1:3100/', icon: 'i-lucide-external-link', external: true },
     ])
-    expect(packageNavItems([pkg], true, true)[0]?.to).toBe('/paperclip/')
-    expect(packageNavItems([pkg], false)).toEqual([])
-    expect(packageNavItems([{ ...pkg, serviceRunning: false }], true)).toEqual([])
-    expect(packageNavItems([{ ...pkg, enabled: false }], true)).toEqual([])
-    expect(packageNavItems([{ ...pkg, forwardHost: false }], true)).toEqual([])
+    expect(packageNavItems([pkg], true)[0]?.to).toBe('/paperclip/')
+    expect(packageNavItems([{ ...pkg, serviceRunning: false }])).toEqual([])
+    expect(packageNavItems([{ ...pkg, enabled: false }])).toEqual([])
+    expect(packageNavItems([{ ...pkg, forwardHost: false }])).toEqual([])
+    expect(packageNavItems([{ ...pkg, navPinned: false }])).toEqual([])
   })
 })

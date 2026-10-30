@@ -1,12 +1,12 @@
 import { detectGpu } from '../../../utils/gpu'
-import { getProvider, upsertProvider, OLLAMA_SIDECAR_ID } from '../../../utils/providers'
-import { restartSidecar } from '../../../utils/docker'
+import { getProvider, upsertProvider, OLLAMA_DOCKER_APP_ID } from '../../../utils/providers'
+import { restartDockerApp } from '../../../utils/docker'
 import { requireProviderId } from '../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
   const id = requireProviderId(event)
-  if (id !== OLLAMA_SIDECAR_ID) {
-    throw createError({ statusCode: 400, statusMessage: 'GPU is only configurable on the Ollama sidecar' })
+  if (id !== OLLAMA_DOCKER_APP_ID) {
+    throw createError({ statusCode: 400, statusMessage: 'GPU is only configurable on the Ollama docker app' })
   }
 
   const body = await readBody<{ useGpu?: boolean; restart?: boolean }>(event)
@@ -15,10 +15,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'No GPU detected on host' })
   }
 
-  const existing = getProvider(OLLAMA_SIDECAR_ID)
+  const existing = getProvider(OLLAMA_DOCKER_APP_ID)
   const config = { ...(existing?.config || {}), useGpu: Boolean(body?.useGpu) }
   upsertProvider({
-    id: OLLAMA_SIDECAR_ID,
+    id: OLLAMA_DOCKER_APP_ID,
     name: existing?.name || 'Ollama (core)',
     kind: 'ollama',
     baseUrl: existing?.baseUrl,
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   let restarted = false
   if (body?.restart !== false) {
     try {
-      await restartSidecar('ollama')
+      await restartDockerApp('ollama')
       restarted = true
     }
     catch (err) {

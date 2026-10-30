@@ -6,8 +6,8 @@ import { readCliPackages, closeAppGui, startAppGui } from './cli/packages'
 import { loadBootstrapConfig } from './config'
 import { execArgv, libraryApps, libraryProcessId, pinKey, type LibraryApp, type LibraryKind } from './desktopEntries'
 import { readDesktopCatalog } from './desktopEntryIo'
-import { closeGuiWindow, dockerCommandError, ensureAppsRunning, ensureSidecarGui, execInSidecar } from './docker'
-import { discoverSidecars } from './sidecars/sidecars'
+import { closeGuiWindow, dockerCommandError, ensureAppsRunning, ensureDockerAppGui, execInBros } from './docker'
+import { discoverDockerApps } from './docker-app/dockerApps'
 
 export type DesktopPin = {
   id: string
@@ -19,9 +19,9 @@ export type DesktopPin = {
   command: string
 }
 
-const SCRIPT = '/app/lib/sidecars/core/desktop/desktop-gui.sh'
+const SCRIPT = '/app/lib/desktop/desktop-gui.sh'
 const FOOT = ['foot', '--working-directory=/home/bros/workspace']
-const KINDS = new Set<LibraryKind>(['terminal', 'package', 'sidecar', 'entry'])
+const KINDS = new Set<LibraryKind>(['terminal', 'package', 'docker', 'entry'])
 
 function pinsFile() {
   return join(loadBootstrapConfig().dataDir, 'config', 'desktop-pins.yml')
@@ -67,7 +67,7 @@ function writePins(pins: DesktopPin[]) {
 
 async function loadLibrary() {
   const { entries } = await readDesktopCatalog()
-  return libraryApps(entries, readCliPackages(), discoverSidecars().sidecars)
+  return libraryApps(entries, readCliPackages(), discoverDockerApps().dockerApps)
 }
 
 export async function addPin(input: { kind?: string, id?: string, command?: string }) {
@@ -90,7 +90,7 @@ export async function addPin(input: { kind?: string, id?: string, command?: stri
     icon: app.icon,
     kind: app.kind,
     exec: app.kind === 'entry' ? app.exec : '',
-    appId: app.kind === 'package' || app.kind === 'sidecar' ? app.id : '',
+    appId: app.kind === 'package' || app.kind === 'core' ? app.id : '',
     command: app.command,
   }
   pins.push(pin)
@@ -110,7 +110,7 @@ async function gui(action: 'start' | 'close' | 'stop', proc: string, argv: strin
   const args = action === 'start'
     ? [SCRIPT, 'start', proc, '--', ...argv]
     : [SCRIPT, action, proc]
-  const res = await execInSidecar('desktop', args)
+  const res = await execInBros(args)
   if (res.code !== 0) {
     const message = action === 'start' ? 'Desktop app failed to start' : 'Desktop app failed to stop'
     throw createError(dockerCommandError(500, message, res.stderr || res.stdout || message))
@@ -120,14 +120,14 @@ async function gui(action: 'start' | 'close' | 'stop', proc: string, argv: strin
 export async function openLibraryApp(app: LibraryApp) {
   if (app.kind === 'terminal') return gui('start', 'terminal', FOOT)
   if (app.kind === 'package') return startAppGui(app.id, app.command)
-  if (app.kind === 'sidecar') return ensureSidecarGui(app.id)
+  if (app.kind === 'core') return ensureDockerAppGui(app.id)
   return gui('start', pinProcessId(app.id), execArgv(app.exec))
 }
 
 export async function closeLibraryApp(app: LibraryApp) {
   if (app.kind === 'terminal') return gui('close', 'terminal')
   if (app.kind === 'package') return closeAppGui(app.id, app.command)
-  if (app.kind === 'sidecar') return closeGuiWindow(app.id)
+  if (app.kind === 'core') return closeGuiWindow(app.id)
   return gui('close', pinProcessId(app.id))
 }
 
@@ -142,7 +142,7 @@ export async function focusLibraryApp(input: { kind?: string, id?: string, comma
   })
   if (!app) fail(404, 'Desktop entry not found')
   await ensureAppsRunning()
-  const res = await execInSidecar('desktop', [SCRIPT, 'focus', libraryProcessId(app)])
+  const res = await execInBros([SCRIPT, 'focus', libraryProcessId(app)])
   if (res.code === 3) return openLibraryApp(app)
   if (res.code !== 0) {
     throw createError(dockerCommandError(500, 'Desktop window failed to focus', res.stderr || res.stdout || 'Desktop window failed to focus'))
@@ -152,7 +152,7 @@ export async function focusLibraryApp(input: { kind?: string, id?: string, comma
 function appFromPin(pin: DesktopPin): LibraryApp {
   return {
     kind: pin.kind,
-    id: pin.kind === 'package' || pin.kind === 'sidecar' ? pin.appId : pin.kind === 'terminal' ? 'terminal' : pin.id,
+    id: pin.kind === 'package' || pin.kind === 'core' ? pin.appId : pin.kind === 'terminal' ? 'terminal' : pin.id,
     name: pin.name,
     command: pin.command,
     icon: pin.icon,

@@ -6,7 +6,7 @@ function readSeen(): string | null {
   try { return sessionStorage.getItem(SEEN_KEY) } catch { return null }
 }
 
-/** Watch status for a sidecar Ollama recovery and toast once per recoveredAt. */
+/** Watch status for a dockerApp Ollama recovery and toast once per recoveredAt. */
 export default defineNuxtPlugin(() => {
   const toast = useToast()
   const seen = ref<string | null>(readSeen())

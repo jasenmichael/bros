@@ -63,12 +63,12 @@ const { data: modelsData } = await useFetch<{
 
 const orderedProviders = computed(() => {
   const rows = (modelsData.value?.providers || []).filter((p) => p.enabled !== false)
-  const sidecar = rows.filter((p) => p.id === 'ollama')
+  const dockerApp = rows.filter((p) => p.id === 'ollama')
   const host = rows.filter((p) => p.id === 'ollama-host')
   const popular = rows.filter((p) => p.popular)
   const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular)
   return [
-    ...sidecar,
+    ...dockerApp,
     ...host,
     ...popular,
     ...rest,

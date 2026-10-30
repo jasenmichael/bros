@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { guiAppProxyId } from '../../src/ui/utils/gui'
-import { injectDesktopStreamVisibility, isDesktopStreamPath } from '../../src/server/utils/sidecars/guiProxy'
-import { needsAuthGate } from '../../src/server/utils/sidecars/sidecarProxy'
-import { isReservedSidecarId, parseSidecarMeta, shouldAutostartSidecar } from '../../src/server/utils/sidecars/sidecars'
+import { injectDesktopStreamVisibility, isDesktopStreamPath } from '../../src/server/utils/docker-app/guiProxy'
+import { needsAuthGate } from '../../src/server/utils/docker-app/dockerAppProxy'
+import { isReservedDockerAppId, parseDockerAppMeta, shouldAutostartDockerApp } from '../../src/server/utils/docker-app/dockerApps'
 
 describe('desktop stream paths', () => {
   it('keeps bare /desktop as the page and proxies the stream prefix', () => {
@@ -18,6 +18,8 @@ describe('desktop stream paths', () => {
     const html = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
     const next = injectDesktopStreamVisibility(html)
     expect(next).toContain('data-bros-stream-visibility')
+    expect(next).toContain('data-bros-desktop-input')
+    expect(next).toContain('clipboardUpdateFromUI')
     expect(next.indexOf('data-bros-stream-visibility')).toBeLessThan(next.indexOf('<meta'))
     expect(injectDesktopStreamVisibility(next)).toBe(next)
     expect(injectDesktopStreamVisibility('<html><body>x</body></html>')).toMatch(/^<script data-bros-stream-visibility>/)
@@ -33,24 +35,24 @@ describe('desktop stream paths', () => {
     expect(needsAuthGate('/desktop/view/', [])).toBe(true)
     expect(needsAuthGate('/terminal', [])).toBe(true)
     expect(needsAuthGate('/terminal/session/', [])).toBe(true)
-    expect(() => parseSidecarMeta({
+    expect(() => parseDockerAppMeta({
       id: 'gimp',
       name: 'Gimp',
       interfaces: [{ type: 'gui', service: 'gimp', containerPort: 14500, publish: 14500 }],
     })).toThrow(/publish/)
-    expect(parseSidecarMeta({
+    expect(parseDockerAppMeta({
       id: 'gimp',
       name: 'Gimp',
       interfaces: [{ type: 'gui', service: 'gimp', command: 'gimp' }],
     }).interfaces[0].command).toBe('gimp')
-    expect(() => parseSidecarMeta({
+    expect(() => parseDockerAppMeta({
       id: 'gimp',
       name: 'Gimp',
       interfaces: [{ type: 'gui', service: 'gimp' }],
     })).toThrow(/command/)
-    expect(isReservedSidecarId('gui')).toBe(true)
-    expect(isReservedSidecarId('terminal')).toBe(true)
-    expect(shouldAutostartSidecar({
+    expect(isReservedDockerAppId('gui')).toBe(true)
+    expect(isReservedDockerAppId('terminal')).toBe(true)
+    expect(shouldAutostartDockerApp({
       id: 'gimp',
       interfaces: [{ type: 'gui', command: 'gimp' }],
     }, { autostart: true })).toBe(true)

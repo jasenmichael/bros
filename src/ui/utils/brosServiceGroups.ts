@@ -3,8 +3,8 @@ export type BrosManagedContainerView = {
   name: string
   service: string
   project: string
-  kind: 'app' | 'sidecar'
-  sidecarId: string | null
+  kind: 'app' | 'docker'
+  dockerAppId: string | null
   state: string
   status: string
   running: boolean
@@ -14,8 +14,8 @@ export type BrosManagedContainerView = {
 export type BrosServiceGroup = {
   key: string
   title: string
-  kind: 'app' | 'sidecar'
-  sidecarId: string | null
+  kind: 'app' | 'docker'
+  dockerAppId: string | null
   runningCount: number
   total: number
   containers: BrosManagedContainerView[]
@@ -23,19 +23,19 @@ export type BrosServiceGroup = {
 
 export function groupBrosServices(
   containers: BrosManagedContainerView[],
-  sidecarNames: Record<string, string> = {},
+  dockerAppNames: Record<string, string> = {},
 ): BrosServiceGroup[] {
   const groups: BrosServiceGroup[] = []
   const index = new Map<string, BrosServiceGroup>()
   for (const row of containers) {
-    const key = row.kind === 'app' ? 'app' : `sc:${row.sidecarId || row.project}`
+    const key = row.kind === 'app' ? 'app' : `docker:${row.dockerAppId || row.project}`
     let group = index.get(key)
     if (!group) {
       group = {
         key,
-        title: row.kind === 'app' ? 'App' : (sidecarNames[row.sidecarId || ''] || row.sidecarId || row.project),
+        title: row.kind === 'app' ? 'App' : (dockerAppNames[row.dockerAppId || ''] || row.dockerAppId || row.project),
         kind: row.kind,
-        sidecarId: row.sidecarId,
+        dockerAppId: row.dockerAppId,
         runningCount: 0,
         total: 0,
         containers: [],

@@ -35,7 +35,7 @@ describe('upsertProvider config merge', () => {
       name: 'Ollama',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
-      config: { mode: 'sidecar', useGpu: true },
+      config: { mode: 'docker', useGpu: true },
     })
 
     upsertProvider({
@@ -65,7 +65,7 @@ describe('upsertProvider config merge', () => {
       name: 'Ollama',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
-      config: { mode: 'sidecar', useGpu: false },
+      config: { mode: 'docker', useGpu: false },
     })
 
     expect(ensureDefaultUseGpu(true)).toBe(false)
@@ -87,7 +87,7 @@ describe('upsertProvider config merge', () => {
       name: 'Ollama',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
-      config: { mode: 'sidecar', useGpu: true },
+      config: { mode: 'docker', useGpu: true },
     })
 
     expect(ensureDefaultUseGpu(false)).toBe(false)
@@ -102,7 +102,7 @@ describe('upsertProvider config merge', () => {
       name: 'Ollama',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
-      config: { mode: 'sidecar', useGpu: true },
+      config: { mode: 'docker', useGpu: true },
     })
 
     expect(rememberCustomOllamaModel('freehuntx/qwen3-coder:14b')).toEqual(['freehuntx/qwen3-coder:14b'])
@@ -110,13 +110,13 @@ describe('upsertProvider config merge', () => {
     expect(rememberCustomOllamaModel('not a name')).toEqual(['freehuntx/qwen3-coder:14b'])
     expect(listCustomOllamaModels()).toEqual(['freehuntx/qwen3-coder:14b'])
     expect(getProvider('ollama')?.config).toMatchObject({
-      mode: 'sidecar',
+      mode: 'docker',
       useGpu: true,
       customModels: ['freehuntx/qwen3-coder:14b'],
     })
   })
 
-  it('seeds sidecar and host system providers and refuses to delete them', async () => {
+  it('seeds dockerApp and host system providers and refuses to delete them', async () => {
     const {
       ensureDefaultProviders,
       getProvider,
@@ -134,11 +134,11 @@ describe('upsertProvider config merge', () => {
     expect(() => deleteProvider('ollama-host')).toThrow(/Cannot delete built-in ollama-host/)
   })
 
-  it('migrates stored Ollama sidecar/host names without embedding a port', async () => {
+  it('migrates stored Ollama dockerApp/host names without embedding a port', async () => {
     const { upsertProvider, ensureDefaultProviders, getProvider } = await import('../../src/server/utils/providers')
     upsertProvider({
       id: 'ollama',
-      name: 'Ollama sidecar',
+      name: 'Ollama dockerApp',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
     })
@@ -225,7 +225,7 @@ describe('upsertProvider config merge', () => {
 
     upsertProvider({
       id: 'ollama',
-      name: 'Ollama sidecar',
+      name: 'Ollama dockerApp',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
       config: { useGpu: true },
@@ -242,14 +242,14 @@ describe('upsertProvider config merge', () => {
   it('setProviderEnabled only flips that provider', async () => {
     const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
     ensureDefaultProviders()
-    const sidecarBefore = getProvider('ollama')
+    const dockerAppBefore = getProvider('ollama')
     await setProviderEnabled('openai', false)
     await setProviderEnabled('ollama-host', false)
     expect(getProvider('openai')?.enabled).toBe(false)
     expect(getProvider('ollama-host')?.enabled).toBe(false)
     expect(getProvider('ollama')?.enabled).toBe(true)
-    expect(getProvider('ollama')?.baseUrl).toBe(sidecarBefore?.baseUrl)
-    expect(getProvider('ollama')?.config).toEqual(sidecarBefore?.config)
+    expect(getProvider('ollama')?.baseUrl).toBe(dockerAppBefore?.baseUrl)
+    expect(getProvider('ollama')?.config).toEqual(dockerAppBefore?.config)
   })
 
   it('new custom providers default Chat off', async () => {
@@ -408,10 +408,10 @@ describe('upsertProvider config merge', () => {
     }
   })
 
-  it('turning Chat off does not call sidecar stop', async () => {
+  it('turning Chat off does not call dockerApp stop', async () => {
     const docker = await import('../../src/server/utils/docker')
-    const stop = vi.spyOn(docker, 'stopSidecar')
-    const start = vi.spyOn(docker, 'startSidecar')
+    const stop = vi.spyOn(docker, 'stopDockerApp')
+    const start = vi.spyOn(docker, 'startDockerApp')
     const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
     ensureDefaultProviders()
     await setProviderEnabled('ollama', false)
@@ -434,7 +434,7 @@ describe('upsertProvider config merge', () => {
     ensureDefaultProviders()
     upsertProvider({
       id: 'ollama',
-      name: 'Ollama sidecar',
+      name: 'Ollama dockerApp',
       kind: 'ollama',
       config: { useGpu: true, customModels: ['freehuntx/qwen3-coder:14b'] },
     })

@@ -1,0 +1,148 @@
+# Selkies Wayland session. The UI host is not this container.
+# Stream and ttyd publish on localhost high ports.
+services:
+  bros:
+    build:
+      context: ../..
+      dockerfile: ${BROS_DESKTOP_DOCKERFILE:-lib/desktop/Dockerfile}
+      target: production
+      additional_contexts:
+        apps: ${BROS_HOST_DATA_DIR:?unset}/build/desktop
+    image: bros:latest
+    container_name: bros
+    hostname: bros
+    group_add:
+      - "${BROS_DOCKER_GID:-0}"
+    shm_size: "1gb"
+    stdin_open: true
+    tty: true
+    working_dir: /home/bros/workspace
+    ports:
+      - "127.0.0.1:${BROS_STREAM_PORT:-3300}:3000"
+      - "127.0.0.1:${BROS_TTYD_PORT:-7681}:7681"
+    environment:
+      PUID: "${BROS_HOST_UID:-1000}"
+      PGID: "${BROS_HOST_GID:-1000}"
+      HOME: /home/bros
+      XDG_DATA_HOME: /home/bros/.local/share
+      XDG_STATE_HOME: /home/bros/.local/state
+      XDG_CACHE_HOME: /home/bros/.cache
+      XDG_CONFIG_HOME: /home/bros/.config
+      PIXELFLUX_WAYLAND: "true"
+      SELKIES_MODE: websockets
+      SUBFOLDER: /desktop/view/
+      BROS_DIR: /app
+      BROS_NODE_VERSION: ${BROS_NODE_VERSION:-26.7.0}
+      npm_config_prefix: /home/bros/.local
+      PNPM_HOME: /home/bros/.local/share/pnpm
+      npm_config_store_dir: /home/bros/.local/share/pnpm/store
+      BUN_INSTALL: /home/bros/.bun
+      DENO_INSTALL_ROOT: /home/bros/.deno
+      DENO_DIR: /home/bros/.deno/cache
+      UV_CACHE_DIR: /home/bros/.cache/uv
+      CARGO_HOME: /home/bros/.cargo
+      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:?unset}
+      BROS_HOST_REPO: ${BROS_HOST_REPO:?unset}
+      BROS_HOST_UID: ${BROS_HOST_UID:-1000}
+      BROS_HOST_GID: ${BROS_HOST_GID:-1000}
+      BROS_DOCKER_GID: ${BROS_DOCKER_GID:-0}
+      BROS_HOST_HOME: /host-home
+      BROS_HOST_HOME_BIND: ${BROS_HOST_HOME_BIND:-${HOME}}
+      BROS_OLLAMA_MODELS_DIR: /app/data/home/.ollama/models
+      BROS_PORT: ${BROS_PORT:-3055}
+      BROS_HOST: ${BROS_HOST:-0.0.0.0}
+      BROS_DEV: ${BROS_DEV:-}
+      BROS_DAEMON: ${BROS_DAEMON:-}
+      BROS_HOME: ${BROS_HOME:-}
+      BROS_BIN: ${BROS_BIN:-}
+      BROS_CONFIG_HOST: ${BROS_CONFIG_HOST:-}
+      BROS_PUBLIC_URL: ${BROS_PUBLIC_URL:-}
+      BROS_WORKING_DIR: ${BROS_WORKING_DIR:-}
+      BROS_OLLAMA_PORT: ${BROS_OLLAMA_PORT:-11435}
+      BROS_WHISPER_PORT: ${BROS_WHISPER_PORT:-}
+      BROS_NETWORK: ${BROS_NETWORK:-bros}
+      BROS_HOST_GATEWAY: ${BROS_HOST_GATEWAY:-host.docker.internal}
+      BROS_TUNNEL_HOST: ${BROS_TUNNEL_HOST:-}
+      BROS_APPS_DISABLE: ${BROS_APPS_DISABLE:-}
+      BROS_APP_OPENWEBUI: ${BROS_APP_OPENWEBUI:-}
+      BROS_APP_FIRECRAWL: ${BROS_APP_FIRECRAWL:-}
+      BROS_APP_FIRECRAWL_UI: ${BROS_APP_FIRECRAWL_UI:-}
+      BROS_APP_OPENJEV: ${BROS_APP_OPENJEV:-}
+      BROS_APP_PI: ${BROS_APP_PI:-}
+      BROS_APP_OMNIROUTE: ${BROS_APP_OMNIROUTE:-}
+      TZ: Etc/UTC
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}:/app/data
+      - ${BROS_HOST_DATA_DIR:?unset}/config/apps:/opt/bros/apps
+      - ${BROS_HOST_DATA_DIR:?unset}/home:/home/bros
+      - ${BROS_HOST_DATA_DIR:?unset}/home/nix:/nix
+      - ${BROS_HOST_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives
+      - ${BROS_HOST_DATA_DIR:?unset}/cache/apt/lists:/var/lib/apt/lists
+      - ${BROS_HOST_DATA_DIR:?unset}/cache/deb:/var/cache/bros/debs
+      - ${BROS_HOST_DATA_DIR:?unset}/var/logs:/var/log/bros
+      - ${BROS_HOST_WORKSPACE:?unset}:/home/bros/workspace
+      - ${BROS_HOST_REPO:?unset}:${BROS_HOST_REPO:?unset}:ro
+      - ${BROS_CONFIG_HOST:-./data/config/bros.yml}:/app/bros.yml:ro
+      - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
+      - ${BROS_HOST_HOME_BIND:-${HOME}}:${BROS_HOST_HOME_BIND:-${HOME}}:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - bros-x11:/tmp/.X11-unix
+      - bros-run:/tmp/bros-run
+      - ${BROS_HOST_REPO:?unset}/lib/desktop/root/custom-cont-init.d/bros-live:/custom-cont-init.d/bros-live:ro
+    restart: unless-stopped
+    networks:
+      - bros
+
+  # Prod UI when the host has no pnpm. `docker compose up` does not start this.
+  bros-ui:
+    profiles: ["ui"]
+    build:
+      context: ../..
+      dockerfile: ${BROS_DESKTOP_DOCKERFILE:-lib/desktop/Dockerfile}
+      target: ui
+    image: bros-ui:latest
+    container_name: bros-ui
+    working_dir: /app
+    ports:
+      - "${BROS_PORT:-3055}:${BROS_PORT:-3055}"
+    environment:
+      HOME: /home/bros
+      BROS_DIR: /app
+      BROS_HOME: ${BROS_HOME:-}
+      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:?unset}
+      BROS_HOST_REPO: ${BROS_HOST_REPO:?unset}
+      BROS_HOST_UID: ${BROS_HOST_UID:-1000}
+      BROS_HOST_GID: ${BROS_HOST_GID:-1000}
+      BROS_HOST_WORKSPACE: ${BROS_HOST_WORKSPACE:-}
+      BROS_PORT: ${BROS_PORT:-3055}
+      BROS_HOST: ${BROS_HOST:-0.0.0.0}
+      BROS_CONFIG_HOST: ${BROS_CONFIG_HOST:-}
+      BROS_DESKTOP_STREAM_ORIGIN: http://bros:3000
+      BROS_TERMINAL_ORIGIN: http://bros:7681
+      BROS_OLLAMA_PORT: ${BROS_OLLAMA_PORT:-11435}
+      BROS_NETWORK: ${BROS_NETWORK:-bros}
+      NODE_ENV: production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${BROS_HOST_DATA_DIR:?unset}:/app/data
+      - ${BROS_HOST_REPO:?unset}:${BROS_HOST_REPO:?unset}:ro
+      - ${BROS_CONFIG_HOST:-./data/config/bros.yml}:/app/bros.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - bros
+
+networks:
+  bros:
+    external: true
+    name: bros
+
+volumes:
+  bros-x11:
+    name: bros-x11
+    external: true
+  bros-run:
+    name: bros-run
+    external: true

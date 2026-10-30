@@ -16,7 +16,7 @@ tags:
   - name: Providers
   - name: Chat
   - name: Agents
-  - name: Sidecars
+  - name: DockerApps
   - name: Settings
   - name: Tunnel
   - name: Spec
@@ -82,7 +82,7 @@ components:
       required: true
       schema: { type: string }
       description: Provider slug (`ollama`, `ollama-host`, popular id, or custom).
-    SidecarId:
+    DockerAppId:
       name: id
       in: path
       required: true
@@ -119,7 +119,7 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     Unavailable:
-      description: Sidecar unreachable
+      description: DockerApp unreachable
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -154,7 +154,7 @@ paths:
   /api/status:
     get:
       tags: [Health]
-      summary: App, Docker, disk, GPU, sidecars, containers, tunnel, enableHostOllama
+      summary: App, Docker, disk, GPU, dockerApps, containers, tunnel, enableHostOllama
       responses:
         '200':
           description: Status payload including viaTunnel, enableHostOllama, containers (Bros-managed Docker), and ollamaRestartNotice
@@ -215,7 +215,7 @@ paths:
       summary: List providers with health and models
       responses:
         '200':
-          description: providers, activePulls, sidecar/host meta
+          description: providers, activePulls, dockerApp/host meta
           content:
             application/json:
               schema:
@@ -467,7 +467,7 @@ paths:
       tags: [Providers]
       parameters:
         - $ref: '#/components/parameters/ProviderId'
-      summary: Sidecar GPU preference (`id` must be ollama; host 400)
+      summary: DockerApp GPU preference (`id` must be ollama; host 400)
       requestBody:
         content:
           application/json:
@@ -616,35 +616,35 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '413': { $ref: '#/components/responses/PayloadTooLarge' }
         '503': { $ref: '#/components/responses/Unavailable' }
-  /api/sidecars:
+  /api/apps:
     get:
-      tags: [Sidecars]
-      summary: List sidecars
+      tags: [Apps]
+      summary: List apps (docker and packages)
       responses:
-        '200': { description: sidecars, errors, viaTunnel, ollamaRestartNotice }
+        '200': { description: apps, docker, packages, errors, viaTunnel, ollamaRestartNotice }
         '401': { $ref: '#/components/responses/Unauthorized' }
     post:
-      tags: [Sidecars]
-      summary: Write an additional sidecar
+      tags: [DockerApps]
+      summary: Write a custom docker app
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [id, sidecarYml, composeYml]
+              required: [id, configYml, composeYml]
               properties:
                 id: { type: string }
-                sidecarYml: { type: string }
+                configYml: { type: string }
                 composeYml: { type: string }
       responses:
-        '200': { description: Created sidecar }
+        '200': { description: Created docker app }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/from-repo:
+  /api/apps/from-repo:
     post:
-      tags: [Sidecars]
-      summary: Clone a sidecar repo
+      tags: [DockerApps]
+      summary: Clone a docker app repo
       requestBody:
         required: true
         content:
@@ -659,42 +659,42 @@ paths:
         '200': { description: Clone result }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/start:
+  /api/apps/{id}/start:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
+        - $ref: '#/components/parameters/DockerAppId'
       summary: Start (ollama 400). body gui true starts the window on the desktop
       responses:
         '200': { description: Runtime }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/stop:
+  /api/apps/{id}/stop:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
+        - $ref: '#/components/parameters/DockerAppId'
       summary: Stop (ollama 400; via-tunnel may 403). body gui true stops the window process only
       responses:
         '200': { description: Runtime }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/restart:
+  /api/apps/{id}/restart:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
+        - $ref: '#/components/parameters/DockerAppId'
       summary: Restart (ollama 400)
       responses:
         '200': { description: Runtime }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/settings:
+  /api/apps/{id}/settings:
     patch:
-      tags: [Sidecars]
+      tags: [DockerApps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
+        - $ref: '#/components/parameters/DockerAppId'
       summary: Autostart, pin, exposeHost, hostProbePort
       requestBody:
         content:
@@ -710,29 +710,20 @@ paths:
         '200': { description: Settings }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/logs:
+  /api/apps/{id}/files:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
-      summary: Container logs
-      responses:
-        '200': { description: Log text or JSON }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/files:
-    get:
-      tags: [Sidecars]
-      parameters:
-        - $ref: '#/components/parameters/SidecarId'
-      summary: Editable sidecar files
+        - $ref: '#/components/parameters/DockerAppId'
+      summary: Editable docker app files
       responses:
         '200': { description: File map }
         '401': { $ref: '#/components/responses/Unauthorized' }
     put:
-      tags: [Sidecars]
+      tags: [DockerApps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
-      summary: Write sidecar files
+        - $ref: '#/components/parameters/DockerAppId'
+      summary: Write docker app files
       requestBody:
         content:
           application/json:
@@ -741,18 +732,18 @@ paths:
         '200': { description: Saved }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-  /api/sidecars/{id}/update:
+  /api/apps/{id}/repo:
     post:
-      tags: [Sidecars]
+      tags: [Apps]
       parameters:
-        - $ref: '#/components/parameters/SidecarId'
-      summary: git pull for a cloned sidecar
+        - $ref: '#/components/parameters/DockerAppId'
+      summary: git pull for a cloned docker app
       responses:
-        '200': { description: Update result }
+        '200': { description: Pull result }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/apps/{id}/open:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Start one package GUI on the desktop display
       parameters:
         - name: id
@@ -771,7 +762,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/apps/{id}/close:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Stop that display. Desktop stays up
       parameters:
         - name: id
@@ -790,14 +781,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/apps/ensure:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Ensure queue status for the toast
       responses:
         '200': { description: Ensure status }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/apps/{id}/disable:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Disable an addon app and queue removal
       parameters:
         - name: id
@@ -810,8 +801,8 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /api/apps/{id}/logs:
     get:
-      tags: [Sidecars]
-      summary: Tail of an app service log
+      tags: [DockerApps]
+      summary: Docker compose logs, or a package service log
       parameters:
         - name: id
           in: path
@@ -823,14 +814,14 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /api/apps/versions:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Installed versions for enabled package apps
       responses:
         '200': { description: '{ versions }' }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/apps/{id}/update:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Check whether an app update is available
       parameters:
         - name: id
@@ -841,8 +832,8 @@ paths:
         '200': { description: '{ available, version?, latest? }' }
         '401': { $ref: '#/components/responses/Unauthorized' }
     post:
-      tags: [Sidecars]
-      summary: Update one package or sidecar app
+      tags: [DockerApps]
+      summary: Update one package or pull a docker app image
       parameters:
         - name: id
           in: path
@@ -854,7 +845,7 @@ paths:
         '409': { description: Rebuild already running }
   /api/apps/{id}/enable:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Enable an addon app and queue ensure
       parameters:
         - name: id
@@ -867,7 +858,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /api/apps/{id}/service:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Start, stop, or restart an app service
       parameters:
         - name: id
@@ -890,7 +881,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /api/apps/rebuild:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Rebuild Desktop for the current run set
       responses:
         '200': { description: '{ install }' }
@@ -898,7 +889,7 @@ paths:
         '409': { description: Rebuild already running }
   /api/apps/{id}/ui:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Update package web UI forward and nav pin
       parameters:
         - name: id
@@ -918,14 +909,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/drawer:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Desktop entries and library
       responses:
         '200': { description: '{ entries, library }' }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/icons:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Desktop entry icon bytes
       parameters:
         - name: name
@@ -937,7 +928,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
   /api/desktop/entry:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Open or close a desktop entry window
       requestBody:
         content:
@@ -952,7 +943,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/focus:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Focus a library app window, or open one
       requestBody:
         content:
@@ -968,7 +959,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/pins:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Pin a library app
       requestBody:
         content:
@@ -976,7 +967,7 @@ paths:
             schema:
               type: object
               properties:
-                kind: { type: string, enum: [terminal, package, sidecar, entry] }
+                kind: { type: string, enum: [terminal, package, dockerApp, entry] }
                 id: { type: string }
                 command: { type: string }
       responses:
@@ -985,7 +976,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/pins/{id}:
     delete:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Unpin a library app
       parameters:
         - name: id
@@ -997,7 +988,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/pins/{id}/open:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Open the pinned app
       parameters:
         - name: id
@@ -1009,7 +1000,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/pins/{id}/close:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Close the newest window for that pin
       parameters:
         - name: id
@@ -1021,7 +1012,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/desktop/terminal:
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Open or close a foot window
       requestBody:
         content:
@@ -1036,13 +1027,13 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/cli/packages:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Package installs on Desktop
       responses:
         '200': { description: '{ packages }' }
         '401': { $ref: '#/components/responses/Unauthorized' }
     post:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Add an install in the running desktop container
       requestBody:
         required: true
@@ -1065,7 +1056,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/cli/packages/{id}:
     patch:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Replace one install in the running desktop container
       parameters:
         - name: id
@@ -1092,7 +1083,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
     delete:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Remove one install
       parameters:
         - name: id
@@ -1104,7 +1095,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/cli/suggest:
     get:
-      tags: [Sidecars]
+      tags: [DockerApps]
       summary: Package name suggestions
       parameters:
         - name: kind
@@ -1203,7 +1194,7 @@ paths:
       tags: [Health]
       summary: Home hub summary
       responses:
-        '200': { description: Chats, providers, sidecars, attention, tunnel }
+        '200': { description: Chats, providers, dockerApps, attention, tunnel }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/mcp:
     get:

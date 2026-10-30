@@ -183,12 +183,12 @@ export function updateConversationTitle(id: string, title: string) {
   return getConversation(id)
 }
 
-/** Sidecar specialist `bros`. Ignores conversation modelId. */
+/** DockerApp specialist `bros`. Ignores conversation modelId. */
 export async function generateChatTitle(_modelId: string, userPrompt: string): Promise<string> {
   return specialistLabel(userPrompt)
 }
 
-/** First successful assistant reply only. Sidecar bros. Failure keeps New chat / first-line fallback. */
+/** First successful assistant reply only. DockerApp bros. Failure keeps New chat / first-line fallback. */
 export async function maybeAutoTitle(
   conversationId: string,
   generate: (modelId: string, userPrompt: string) => Promise<string> = generateChatTitle,

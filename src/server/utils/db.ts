@@ -16,8 +16,8 @@ export const sessions = sqliteTable('sessions', {
   expiresAt: integer('expires_at', { mode: 'number' }).notNull(),
 })
 
-export const sidecarSettings = sqliteTable('sidecar_settings', {
-  sidecarId: text('sidecar_id').primaryKey(),
+export const dockerAppSettings = sqliteTable('app_settings', {
+  dockerAppId: text('app_id').primaryKey(),
   autostart: integer('autostart', { mode: 'boolean' }).notNull().default(false),
   navPinned: integer('nav_pinned', { mode: 'boolean' }).notNull().default(false),
   hostMode: text('host_mode').notNull().default('auto'),
@@ -159,8 +159,8 @@ function migrate(sqlite: Database.Database) {
       created_at INTEGER NOT NULL,
       expires_at INTEGER NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS sidecar_settings (
-      sidecar_id TEXT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS app_settings (
+      app_id TEXT PRIMARY KEY,
       autostart INTEGER NOT NULL DEFAULT 0,
       nav_pinned INTEGER NOT NULL DEFAULT 0,
       host_mode TEXT NOT NULL DEFAULT 'auto',
@@ -247,19 +247,19 @@ function migrate(sqlite: Database.Database) {
       started_at INTEGER NOT NULL
     );
   `)
-  const cols = sqlite.prepare('PRAGMA table_info(sidecar_settings)').all() as Array<{ name: string }>
+  const cols = sqlite.prepare('PRAGMA table_info(app_settings)').all() as Array<{ name: string }>
   if (!cols.some((c) => c.name === 'host_mode')) {
-    sqlite.exec(`ALTER TABLE sidecar_settings ADD COLUMN host_mode TEXT NOT NULL DEFAULT 'auto'`)
+    sqlite.exec(`ALTER TABLE app_settings ADD COLUMN host_mode TEXT NOT NULL DEFAULT 'auto'`)
   }
   if (!cols.some((c) => c.name === 'host_probe_port')) {
-    sqlite.exec(`ALTER TABLE sidecar_settings ADD COLUMN host_probe_port INTEGER`)
+    sqlite.exec(`ALTER TABLE app_settings ADD COLUMN host_probe_port INTEGER`)
   }
   if (!cols.some((c) => c.name === 'expose_host')) {
-    sqlite.exec(`ALTER TABLE sidecar_settings ADD COLUMN expose_host INTEGER NOT NULL DEFAULT 1`)
+    sqlite.exec(`ALTER TABLE app_settings ADD COLUMN expose_host INTEGER NOT NULL DEFAULT 1`)
   }
   const exposeDefault = sqlite.prepare(`SELECT value FROM meta WHERE key = 'cli_expose_default_on'`).get() as { value: string } | undefined
   if (!exposeDefault) {
-    sqlite.exec(`UPDATE sidecar_settings SET expose_host = 1`)
+    sqlite.exec(`UPDATE app_settings SET expose_host = 1`)
     sqlite.prepare(`INSERT INTO meta (key, value) VALUES ('cli_expose_default_on', '1')`).run()
   }
   const msgCols = sqlite.prepare('PRAGMA table_info(messages)').all() as Array<{ name: string }>

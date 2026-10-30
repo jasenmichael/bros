@@ -1,15 +1,15 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { DESKTOP_SIDECAR_ID, defaultSidecarAutostart, shouldAutostartSidecar } from '../../src/server/utils/sidecars/sidecars'
-import { packageUpdateAction, parseCliPackage, seedCliPackages, cliApplyAction, updateCommand } from '../../src/server/utils/cli/packages'
-import { buildVersionScript, nodePin, nodeUpdateAvailable, parseVersionScriptOutput, parseVersionText, versionCommand } from '../../src/server/utils/cli/versionProbe'
+import { defaultDockerAppAutostart, shouldAutostartDockerApp } from '../../src/server/utils/docker-app/dockerApps'
+import { claimDirArgs, enableAddonApp, packageUpdateAction, parseCliPackage, readCliPackages, readStoredPackages, seedCliPackages, cliApplyAction, updateCommand, writeCliPackages } from '../../src/server/utils/cli/packages'
+import { buildVersionScript, nodePin, nodeUpdateAvailable, parseVersionScriptOutput, parseVersionText, versionCommand, versionShell } from '../../src/server/utils/cli/versionProbe'
 import { managerForms } from '../../src/server/utils/cli/managers'
 import { debTracksLatest } from '../../src/server/utils/cli/managers/deb'
-import { debCachePath, debTracksLatest as debTracksLatestInstall, releaseKey } from '../../lib/sidecars/core/desktop/managers/deb.mjs'
-import { run, runCacheDir } from '../../lib/sidecars/core/desktop/managers/run.mjs'
+import { debCachePath, debTracksLatest as debTracksLatestInstall, releaseKey } from '../../lib/desktop/managers/deb.ts'
+import { run, runCacheDir } from '../../lib/desktop/managers/run.ts'
 import { nixPrefix, nixSuggestionNames, npmSuggestionNames, readNixSearchConfig } from '../../src/server/utils/cli/managers/search'
 
 describe('cli packages', () => {
@@ -121,21 +121,22 @@ describe('cli packages', () => {
   })
 
   it('installs core apt tools from core-apt.yml, including unzip', () => {
-    const dir = join(dirname(fileURLToPath(import.meta.url)), '../../lib/sidecars/core/desktop')
+    const dir = join(dirname(fileURLToPath(import.meta.url)), '../../lib/desktop')
     const utils = readFileSync(join(dir, 'core-apt.yml'), 'utf8')
     expect(utils).toMatch(/name: unzip/)
     expect(utils).toMatch(/clis: unzip, funzip, unzipsfx, zipgrep, zipinfo/)
     expect(readFileSync(join(dir, 'Dockerfile'), 'utf8')).toContain('core-apt.yml')
   })
 
-  it('always autostarts the core CLI sidecar', () => {
-    expect(DESKTOP_SIDECAR_ID).toBe('desktop')
-    expect(defaultSidecarAutostart('desktop')).toBe(true)
-    expect(defaultSidecarAutostart('opencode')).toBe(false)
-    expect(defaultSidecarAutostart('mine')).toBe(false)
-    expect(shouldAutostartSidecar({ id: 'desktop', disabled: true }, { autostart: false })).toBe(true)
-    expect(shouldAutostartSidecar({ id: 'opencode' }, { autostart: false })).toBe(false)
-    expect(shouldAutostartSidecar({ id: 'opencode' }, { autostart: true })).toBe(true)
+  it('autostarts Ollama always; other docker apps follow SQLite autostart', () => {
+    expect(defaultDockerAppAutostart('ollama')).toBe(true)
+    expect(defaultDockerAppAutostart('whisper')).toBe(false)
+    expect(defaultDockerAppAutostart('opencode')).toBe(false)
+    expect(defaultDockerAppAutostart('mine')).toBe(false)
+    expect(shouldAutostartDockerApp({ id: 'ollama', disabled: true }, { autostart: false })).toBe(true)
+    expect(shouldAutostartDockerApp({ id: 'whisper' }, { autostart: true })).toBe(false)
+    expect(shouldAutostartDockerApp({ id: 'opencode' }, { autostart: false })).toBe(false)
+    expect(shouldAutostartDockerApp({ id: 'opencode' }, { autostart: true })).toBe(true)
   })
 
   it('caches a deb by release key and skips curl when that run tree exists', () => {
@@ -189,6 +190,11 @@ describe('cli packages', () => {
       { id: 'jq', kind: 'apt', spec: 'jq' },
       { id: 'cursor', kind: 'deb', spec: 'https://example.com/cursor/latest', bin: 'cursor' },
     ]
+    expect(versionShell('true')).toBe([
+      'eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true',
+      '. "$HOME/.cargo/env" 2>/dev/null || true',
+      'true',
+    ].join('\n'))
     expect(buildVersionScript(probed).split('\n').filter((line) => line === 'echo')).toHaveLength(2)
     expect(parseVersionScriptOutput('@@jq\n1.8.1-4ubuntu2\n@@cursor\n3.27.6-1792578269\n', probed)).toEqual([
       { id: 'jq', version: '1.8.1-4ubuntu2' },
@@ -198,6 +204,60 @@ describe('cli packages', () => {
     expect(packageUpdateAction('run')).toBe('rebuild')
     expect(packageUpdateAction('deb')).toBe('exec')
     expect(packageUpdateAction('npm')).toBe('exec')
+  })
+
+  it('chowns a root-owned desktop build dir through docker as root', () => {
+    expect(claimDirArgs('/data/build/desktop', 1000, 1000)).toEqual([
+      'run', '--rm', '-u', '0', '--entrypoint', 'chown', '-v', '/data/build/desktop:/claim', 'bros:latest', '-R', '1000:1000', '/claim',
+    ])
+  })
+
+  it('records addon enable in enabled-apps and drops shipped copies', () => {
+    const root = mkdtempSync(join(tmpdir(), 'bros-enable-'))
+    const keys = ['BROS_DIR', 'BROS_HOME', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_HOST_REPO', 'BROS_HOST_DATA_DIR'] as const
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
+    for (const key of keys) delete process.env[key]
+    process.env.BROS_DIR = root
+    const put = (dir: string, body: string) => {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'config.yml'), body)
+    }
+    try {
+      put(join(root, 'lib', 'apps', 'core', 'node'), 'id: node\nname: Node\nkind: nix\nspec: nodejs\nbin: node\n')
+      put(join(root, 'lib', 'apps', 'addon', 'demo'), 'id: demo\nname: Demo\nkind: npm\nspec: demo\nbin: demo\n')
+      put(join(root, 'lib', 'apps', 'addon', 'opencode'), 'id: opencode\nname: OpenCode\nkind: npm\nspec: "@opencode/cli"\nbin: opencode\nservices:\n  - command: opencode serve\n')
+      put(join(root, 'lib', 'apps', 'addon', 'jq'), 'id: jq\nname: jq\nkind: apt\nspec: jq\nbin: jq\n')
+      const apps = join(root, 'data', 'config', 'apps')
+      put(join(apps, 'opencode'), 'id: opencode\nkind: npm\nspec: "@opencode/cli"\nbin: opencode\nenabled: true\n')
+      put(join(apps, 'jq'), 'id: jq\nkind: apt\nspec: jq\nbin: jq\nenabled: false\n')
+      put(join(apps, 'node'), 'id: node\nkind: nix\nspec: nodejs\nbin: node\nenabled: true\n')
+      put(join(apps, 'herdr'), 'id: herdr\nkind: run\nspec: curl -fsSL https://example.com/install | bash\nbin: herdr\n')
+      enableAddonApp('demo')
+      const listed = readFileSync(join(root, 'data', 'config', 'enabled-apps'), 'utf8').trim().split('\n')
+      expect(listed).toEqual(['demo', 'opencode'])
+      expect(existsSync(join(apps, 'demo', 'config.yml'))).toBe(false)
+      expect(existsSync(join(apps, 'opencode'))).toBe(false)
+      expect(existsSync(join(apps, 'jq'))).toBe(false)
+      expect(existsSync(join(apps, 'node'))).toBe(false)
+      expect(existsSync(join(apps, 'herdr', 'config.yml'))).toBe(true)
+      writeCliPackages(readStoredPackages())
+      expect(existsSync(join(apps, 'herdr', 'config.yml'))).toBe(true)
+      expect(existsSync(join(apps, 'demo'))).toBe(false)
+      expect(existsSync(join(apps, 'opencode'))).toBe(false)
+      const rows = readCliPackages()
+      expect(rows.find((row) => row.id === 'opencode')).toMatchObject({ enabled: true, services: [{ command: 'opencode serve' }] })
+      expect(rows.find((row) => row.id === 'demo')?.enabled).toBe(true)
+      expect(rows.find((row) => row.id === 'jq')?.enabled).toBe(false)
+      expect(rows.find((row) => row.id === 'node')?.enabled).toBe(true)
+      expect(rows.find((row) => row.id === 'herdr')).toMatchObject({ tier: 'custom', enabled: true })
+      expect(readFileSync(join(root, 'data', 'config', 'enabled-apps'), 'utf8')).not.toMatch(/^(node|herdr|jq)$/m)
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key]
+        else process.env[key] = saved[key]
+      }
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('rebuilds a package change instead of installing into the running container', () => {

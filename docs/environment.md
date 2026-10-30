@@ -21,38 +21,41 @@ Server settings live in `$BROS_HOME/data/config/bros.yml`. Chat prepend and assi
 | `BROS_HOME` | same as `BROS_DIR` | Alias |
 | `BROS_BIN` | `$HOME/.local/bin/bros` | Symlink to `$BROS_DIR/bros` |
 | `BROS_HOST_DATA_DIR` | `$BROS_HOME/data` | Persistent binds |
-| `BROS_HOST_WORKSPACE` | `$BROS_HOST_DATA_DIR/home/workspace` | Desktop workspace bind |
-| `BROS_HOST_REPO` | directory of the `bros` script | Desktop image context and Desktop `/app` bind |
+| `BROS_HOST_WORKSPACE` | `bros.yml` `workspace` when that path is a host path, else `$BROS_HOST_DATA_DIR/home/workspace` | Desktop workspace bind. A set value wins. Not exported when the data dir is empty, `/app/data`, or `/data` |
+| `BROS_HOST_REPO` | directory of the `bros` script | Repo bind and image build context |
 | `BROS_HOST_HOME_BIND` | `$HOME` | Host home bind |
-| `BROS_PORT` | `3055` | App port |
-| `BROS_HOST` | `0.0.0.0` | Listen address. `127.0.0.1` stays on this machine |
-| `BROS_DEV` | `0` | `1` selects `docker-compose.dev.yml`. Same as `./bros --dev` |
+| `BROS_PORT` | `3055` | UI host port |
+| `BROS_HOST` | `0.0.0.0` | UI listen address. `127.0.0.1` stays on this machine |
+| `BROS_STREAM_PORT` | `3300` | Selkies host port, bound to `127.0.0.1` |
+| `BROS_TTYD_PORT` | `7681` | ttyd host port, bound to `127.0.0.1` |
+| `BROS_DESKTOP_STREAM_ORIGIN` | `http://127.0.0.1:$BROS_STREAM_PORT` on the host UI, `http://bros:3000` in `bros-ui` | `/desktop/view/` proxy target |
+| `BROS_TERMINAL_ORIGIN` | `http://127.0.0.1:$BROS_TTYD_PORT` on the host UI, `http://bros:7681` in `bros-ui` | `/terminal/session` proxy target |
+| `BROS_DEV` | `0` | `1` selects `docker-compose.dev.yml`. Same as `./bros --dev`. Dev requires host pnpm and cargo |
 | `BROS_NODE_VERSION` | `node -v` where `./bros` runs, else `26.7.0` | Desktop Node pin. Ensure installs `nodejs@` that version. Check offers an update only when the installed Node is missing or lower |
-| `BROS_DEVBOX_VERSION` | `0.18.4` | Desktop Devbox binary pin. A change applies on the next Desktop image build |
 
 ## User
 
 | Variable | Default | Role |
 | --- | --- | --- |
-| `BROS_HOST_UID` | `id -u` | Compose user on the app and sidecars |
-| `BROS_HOST_GID` | `id -g` | Compose group on the app and sidecars |
+| `BROS_HOST_UID` | `id -u` | Compose user on the app and docker apps |
+| `BROS_HOST_GID` | `id -g` | Compose group on the app and docker apps |
 | `BROS_HOST_GATEWAY` | `host.docker.internal` | Host probe from the app container |
 | `BROS_NETWORK` | `bros` | Docker network. `./bros` creates it when missing |
 
-## Sidecars
+## Docker apps (env names keep `BROS_APP_*`)
 
-Unset does not start an addon. `0`, `false`, `off`, or `no` omits that shipped addon from discovery. It does not autostart and does not reserve its id or slug. A custom pack may use that id. Autostart is SQLite and defaults off. Ollama, Desktop, and Whisper ignore these.
+Unset does not start an addon. `0`, `false`, `off`, or `no` marks that shipped addon disabled in discovery. It stays listed, does not autostart, and still reserves its id or slug. Autostart is SQLite and defaults off; boot honors it for non-core docker apps. Ollama, Desktop, and Whisper ignore these.
 
 | Variable | Default | Role |
 | --- | --- | --- |
-| `BROS_SIDECARS_DISABLE` | empty | Comma list of addon ids |
-| `BROS_SIDECAR_OPENCODE` | `0` | Env-disable the OpenCode sidecar. It stays listed, does not autostart, and Start still runs it. The id stays reserved. `1` clears the disable and allows Autostart. The app compose file supplies `0` when this is unset |
-| `BROS_SIDECAR_OPENWEBUI` | unset | Skip Open WebUI |
-| `BROS_SIDECAR_FIRECRAWL` | unset | Skip Firecrawl |
-| `BROS_SIDECAR_FIRECRAWL_UI` | unset | Skip Firecrawl UI (`firecrawl-ui`) |
-| `BROS_SIDECAR_OPENJEV` | unset | Skip OpenJEV |
-| `BROS_SIDECAR_PI` | unset | Skip Pi |
-| `BROS_SIDECAR_OMNIROUTE` | unset | Skip OmniRoute |
+| `BROS_APPS_DISABLE` | empty | Comma list of addon ids |
+| `BROS_APP_OPENCODE` | unset | Env-disable a docker app whose id is `opencode`. No shipped OpenCode docker app |
+| `BROS_APP_OPENWEBUI` | unset | Skip Open WebUI |
+| `BROS_APP_FIRECRAWL` | unset | Skip Firecrawl |
+| `BROS_APP_FIRECRAWL_UI` | unset | Skip Firecrawl UI (`firecrawl-ui`) |
+| `BROS_APP_OPENJEV` | unset | Skip OpenJEV |
+| `BROS_APP_PI` | unset | Skip Pi |
+| `BROS_APP_OMNIROUTE` | unset | Skip OmniRoute |
 
 ## Host ports
 
@@ -60,7 +63,7 @@ In-container Bros uses Docker DNS, not these.
 
 | Variable | Default | Role |
 | --- | --- | --- |
-| `BROS_OLLAMA_PORT` | `11435` | Sidecar Ollama |
+| `BROS_OLLAMA_PORT` | `11435` | Docker app Ollama |
 | `BROS_OPENCODE_PORT` | `4097` | OpenCode |
 | `BROS_OPENWEBUI_PORT` | `3080` | Open WebUI |
 | `BROS_FIRECRAWL_PORT` | `3002` | Firecrawl API |
@@ -68,6 +71,7 @@ In-container Bros uses Docker DNS, not these.
 | `BROS_WHISPER_PORT` | `8090` | Whisper |
 | `BROS_OPENJEV_PORT` | `8092` | OpenJEV |
 | `BROS_OMNIROUTE_PORT` | `20128` | OmniRoute dashboard and `/v1` |
+| `OMNIROUTE_JWT_SECRET` | unset | OmniRoute dashboard JWT. Else `$BROS_HOST_DATA_DIR/apps/omniroute/.env`. Never a pack-dir `.env` |
 
 ## Firecrawl
 
@@ -93,7 +97,7 @@ In-container Bros uses Docker DNS, not these.
 | `OPENJEV_MAX_MODEL_LEN` | `65536` | Max model length |
 | `OPENJEV_MODEL_ROUTES` | `laya-1.0=http://laya:8080,verdict-1.4=http://verdict:8080` | Encoder routes |
 
-## Sidecar keys
+## Docker app keys
 
 Empty. Not a Providers bootstrap. Do not commit a real value.
 

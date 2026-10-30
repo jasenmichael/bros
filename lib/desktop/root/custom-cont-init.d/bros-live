@@ -1,0 +1,281 @@
+#!/bin/bash
+# shortcut: abc stays so Selkies scripts keep that name; bros is the same uid listed first. Drop this if Selkies adds a username setting.
+if id abc >/dev/null 2>&1; then
+  uid=$(id -u abc)
+  gid=$(id -g abc)
+  if ! id bros >/dev/null 2>&1; then
+    useradd --non-unique --no-create-home --uid "$uid" --gid "$gid" --home-dir /home/bros --shell /bin/bash bros
+  elif [ "$(id -u bros)" != "$uid" ] || [ "$(id -g bros)" != "$gid" ]; then
+    mkdir -p /run/bros-empty
+    usermod -d /run/bros-empty bros
+    usermod -o -u "$uid" -g "$gid" bros
+    usermod -d /home/bros bros
+  fi
+  if id bros >/dev/null 2>&1; then
+    tmp=$(mktemp)
+    awk 'BEGIN{FS=OFS=":"} $1=="bros"{b=$0; next} {o[++n]=$0} END{if (b != "") print b; for (i = 1; i <= n; i++) print o[i]}' /etc/passwd > "$tmp"
+    if [ -s "$tmp" ] && grep -q '^bros:' "$tmp"; then
+      cat "$tmp" > /etc/passwd
+    fi
+    rm -f "$tmp"
+  fi
+fi
+for f in /etc/sudoers /etc/sudoers.d/*; do
+  [ -f "$f" ] || continue
+  grep -q '^abc[[:space:]]' "$f" || continue
+  while IFS= read -r line; do
+    rule=${line#abc}
+    grep -qxF "bros${rule}" "$f" || printf 'bros%s\n' "$rule" >> "$f"
+  done << EOF
+$(grep '^abc[[:space:]]' "$f")
+EOF
+done
+mkdir -p /opt/bros/apps /tmp/bros-run
+chmod 1777 /tmp/bros-run /tmp/.X11-unix || true
+# Home writes as desktop user. Root mkdir/cp under /home/bros leaves root-owned
+# trees that break the session and package tools.
+desktop_user=bros
+id bros >/dev/null 2>&1 || desktop_user=abc
+if id "$desktop_user" >/dev/null 2>&1; then
+  runuser -u "$desktop_user" -- mkdir -p \
+    /home/bros/.local/app-bins \
+    /home/bros/.local/bin \
+    /home/bros/.local/share/pnpm/store \
+    /home/bros/.bun/bin \
+    /home/bros/.deno/bin \
+    /home/bros/.deno/cache \
+    /home/bros/workspace
+else
+  mkdir -p /home/bros/.local/app-bins /home/bros/.local/bin /home/bros/.local/share/pnpm/store /home/bros/.bun/bin /home/bros/.deno/bin /home/bros/.deno/cache /home/bros/workspace
+fi
+# launch.sh beside an app config. This loop does not name an app.
+install_launch() {
+  dir=$1
+  [ -f "$dir/launch.sh" ] || return 0
+  [ -f "$dir/config.yml" ] || return 0
+  bin=$(awk '/^bin: / { print $2; exit }' "$dir/config.yml")
+  case "$bin" in
+    ''|*[!A-Za-z0-9._+-]*) return 0 ;;
+  esac
+  if id "$desktop_user" >/dev/null 2>&1; then
+    runuser -u "$desktop_user" -- cp "$dir/launch.sh" "/home/bros/.local/app-bins/$bin"
+    runuser -u "$desktop_user" -- chmod 755 "/home/bros/.local/app-bins/$bin"
+  else
+    cp "$dir/launch.sh" "/home/bros/.local/app-bins/$bin"
+    chmod 755 "/home/bros/.local/app-bins/$bin"
+  fi
+}
+for dir in /app/lib/apps/core/* /app/lib/apps/addon/* /opt/bros/apps/*; do
+  [ -d "$dir" ] || continue
+  install_launch "$dir"
+done
+# group_add is only on the s6 root process. foot and ttyd run as abc.
+gid=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)
+if [ -z "$gid" ] || [ "$gid" = "0" ]; then
+  gid=${BROS_DOCKER_GID:-0}
+fi
+if [ "$gid" != "0" ] && id abc >/dev/null 2>&1; then
+  name=$(getent group "$gid" | cut -d: -f1)
+  if [ -z "$name" ]; then
+    groupadd -g "$gid" dockersock
+    name=$(getent group "$gid" | cut -d: -f1)
+  fi
+  [ -n "$name" ] && usermod -aG "$name" abc
+  [ -n "$name" ] && id bros >/dev/null 2>&1 && usermod -aG "$name" bros
+fi
+# PUID sets HOME=/home/bros for root too. Root docker then owns ~/.docker 0700 and
+# compose-as-bros dies ("compose is not a docker command" / unknown -p). Park root
+# CLI config under /root; bros-server sets DOCKER_CONFIG back for user bros.
+mkdir -p /root/.docker
+printf '%s' '/root/.docker' > /run/s6/container_environment/DOCKER_CONFIG
+if id bros >/dev/null 2>&1; then
+  mkdir -p /home/bros/.docker
+  chown -R "$(id -u bros):$(id -g bros)" /home/bros/.docker
+fi
+# foot reads ~/.bashrc. ttyd sources the same path file.
+if id "$desktop_user" >/dev/null 2>&1; then
+  runuser -u "$desktop_user" -- touch /home/bros/.bashrc
+else
+  touch /home/bros/.bashrc
+fi
+grep -q '/etc/profile.d/bros-path.sh' /home/bros/.bashrc || printf '\n%s\n' '[ -f /etc/profile.d/bros-path.sh ] && . /etc/profile.d/bros-path.sh' >> /home/bros/.bashrc
+# In-desktop foot opens in the desktop home workspace.
+foot_line='foot --working-directory=/home/bros/workspace'
+found=0
+for f in \
+  /home/bros/.config/labwc/autostart \
+  /defaults/autostart_wayland \
+  /defaults/autostart
+do
+  [ -f "$f" ] || continue
+  grep -q '^foot\( \|$\)' "$f" || continue
+  sed -i "s|^foot.*|$foot_line|" "$f"
+  found=1
+done
+if [ "$found" -eq 0 ]; then
+  if id "$desktop_user" >/dev/null 2>&1; then
+    runuser -u "$desktop_user" -- mkdir -p /home/bros/.config/labwc
+    runuser -u "$desktop_user" -- sh -c "printf '%s\n' \"$foot_line\" >> /home/bros/.config/labwc/autostart"
+  else
+    mkdir -p /home/bros/.config/labwc
+    printf '%s\n' "$foot_line" >> /home/bros/.config/labwc/autostart
+  fi
+fi
+
+# Cursor draws its own title bar. labwc's bar is the second min/fullscreen/close row.
+if id "$desktop_user" >/dev/null 2>&1; then
+  runuser -u "$desktop_user" -- mkdir -p /home/bros/.config/labwc
+  runuser -u "$desktop_user" -- touch /home/bros/.config/labwc/environment
+else
+  mkdir -p /home/bros/.config/labwc
+  touch /home/bros/.config/labwc/environment
+fi
+# Session software OpenGL. labwc does not read profile.d.
+grep -q '^LIBGL_ALWAYS_SOFTWARE=' /home/bros/.config/labwc/environment || printf '%s\n' 'LIBGL_ALWAYS_SOFTWARE=1' >> /home/bros/.config/labwc/environment
+rc=/home/bros/.config/labwc/rc.xml
+rule='  <windowRule identifier="*cursor*" serverDecoration="no" />'
+if [ ! -f "$rc" ]; then
+  if id "$desktop_user" >/dev/null 2>&1; then
+    runuser -u "$desktop_user" -- tee "$rc" >/dev/null << EOF
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+$rule
+  </windowRules>
+</labwc_config>
+EOF
+  else
+    cat > "$rc" << EOF
+<?xml version="1.0"?>
+<labwc_config>
+  <windowRules>
+$rule
+  </windowRules>
+</labwc_config>
+EOF
+  fi
+elif ! grep -F -q 'identifier="*cursor*"' "$rc"; then
+  if grep -q '</windowRules>' "$rc"; then
+    sed -i "s|</windowRules>|$rule\n  </windowRules>|" "$rc"
+  elif grep -q '</labwc_config>' "$rc"; then
+    sed -i "s|</labwc_config>|  <windowRules>\n$rule\n  </windowRules>\n</labwc_config>|" "$rc"
+  elif grep -q '</openbox_config>' "$rc"; then
+    sed -i "s|</openbox_config>|  <windowRules>\n$rule\n  </windowRules>\n</openbox_config>|" "$rc"
+  else
+    printf '\n<windowRules>\n%s\n</windowRules>\n' "$rule" >> "$rc"
+  fi
+fi
+
+# Image bins win over an older copy in the home mount.
+shopt -s nullglob
+for cfg in /opt/bros/enabled-apps/*/config.yml; do
+  [ -f "$cfg" ] || continue
+  while read -r name; do
+    case "$name" in
+      ''|*[!A-Za-z0-9._+-]*) continue ;;
+    esac
+    if [ -e "/usr/local/bin/$name" ] || [ -e "/usr/bin/$name" ]; then
+      target="/home/bros/.local/bin/$name"
+      if [ -f "$target" ] || [ -L "$target" ]; then
+        rm -f "$target"
+      fi
+    fi
+  done << EOF
+$(awk '
+  /^bin: / { print $2 }
+  /^clis: / {
+    line = $0
+    sub(/^clis: */, "", line)
+    n = split(line, a, ",")
+    for (i = 1; i <= n; i++) {
+      gsub(/ /, "", a[i])
+      if (a[i] != "") print a[i]
+    }
+  }
+' "$cfg")
+EOF
+done
+
+# Herdr restores a cwd from an older mount. A missing directory keeps the server from listening.
+session=/home/bros/.config/herdr/session.json
+if [ -f "$session" ] && command -v node >/dev/null 2>&1; then
+  missing=$(node - "$session" << 'JS'
+const fs = require('fs')
+const doc = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const dirs = []
+for (const workspace of doc.workspaces || []) {
+  if (workspace.identity_cwd) dirs.push(workspace.identity_cwd)
+  for (const tab of workspace.tabs || []) {
+    for (const pane of Object.values(tab.panes || {})) {
+      if (pane && pane.cwd) dirs.push(pane.cwd)
+    }
+  }
+}
+const gone = dirs.find((dir) => !fs.existsSync(dir))
+if (gone) process.stdout.write(gone)
+JS
+)
+  if [ -n "$missing" ]; then
+    mv "$session" "${session}.bak"
+  fi
+fi
+
+# OmniRoute JWT and any other pack .env must be readable by user bros. Compose
+# cwd is the pack dir and always opens .env there. Image/build as root leaves
+# mode 0600 root-only files that break Start. Secrets live under data.
+bros_uid=$(id -u bros 2>/dev/null || echo 1000)
+bros_gid=$(id -g bros 2>/dev/null || echo 1000)
+omni_pack=/app/lib/apps/addon/omniroute/.env
+omni_data=/app/data/apps/omniroute/.env
+mkdir -p /app/data/apps/omniroute
+if [ -f "$omni_pack" ]; then
+  if [ ! -s "$omni_data" ]; then
+    cp "$omni_pack" "$omni_data"
+  fi
+  rm -f "$omni_pack"
+fi
+if [ ! -s "$omni_data" ]; then
+  printf 'OMNIROUTE_JWT_SECRET=%s\n' "$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')" > "$omni_data"
+fi
+chown "$bros_uid:$bros_gid" /app/data/apps/omniroute "$omni_data" 2>/dev/null || true
+chmod 700 /app/data/apps/omniroute 2>/dev/null || true
+chmod 600 "$omni_data" 2>/dev/null || true
+if [ -f "$omni_data" ]; then
+  # Export for Nitro composeEnv (JWT_SECRET interpolation on Start).
+  omni_secret=$(awk -F= '/^[[:space:]]*OMNIROUTE_JWT_SECRET[[:space:]]*=/ { sub(/^[^=]*=/, ""); gsub(/\r/, ""); print; exit }' "$omni_data")
+  if [ -n "$omni_secret" ]; then
+    printf '%s' "$omni_secret" > /run/s6/container_environment/OMNIROUTE_JWT_SECRET
+  fi
+fi
+# Drop leftover root-only pack .env files so compose-as-bros never EACCES.
+for f in /app/lib/apps/*/*/.env; do
+  [ -f "$f" ] || continue
+  if ! su -s /bin/sh bros -c "test -r \"$f\"" 2>/dev/null; then
+    rm -f "$f"
+  fi
+done
+
+# Mounts are already in place. Install Devbox only when that binary is missing.
+# The script installs Nix in single-user mode when Nix is not already on PATH.
+mkdir -p /etc/nix /var/log/bros/apps
+if id "$desktop_user" >/dev/null 2>&1; then
+  runuser -u "$desktop_user" -- mkdir -p /home/bros/.local/share/devbox /home/bros/.local/state/nix
+else
+  mkdir -p /home/bros/.local/share/devbox /home/bros/.local/state/nix
+fi
+printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' 'build-users-group =' 'use-xdg-base-directories = true' > /etc/nix/nix.conf
+printf '%s\n' 'export PATH="/home/bros/.local/app-bins:${PATH}"' 'export LIBGL_ALWAYS_SOFTWARE=1' > /etc/profile.d/bros-path.sh
+nix_bin=
+for cand in /nix/store/*-nix-*/bin/nix /home/bros/.nix-profile/bin/nix /nix/var/nix/profiles/default/bin/nix; do
+  [ -x "$cand" ] || continue
+  nix_bin=$cand
+  break
+done
+install_path="/home/bros/.local/bin:${PATH}"
+if [ -n "$nix_bin" ]; then
+  install_path="$(dirname "$nix_bin"):$install_path"
+fi
+if id abc >/dev/null 2>&1; then
+  runuser -u abc -- env HOME=/home/bros PATH="$install_path" bash -lc 'command -v devbox >/dev/null' \
+    || runuser -u abc -- env HOME=/home/bros PATH="$install_path" FORCE=1 bash -lc 'curl -fsSL https://get.jetify.com/devbox | bash'
+fi

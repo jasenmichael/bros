@@ -11,5 +11,5 @@ research — facts, sources, or anything that needs the live web
 docs — documentation, a README, or a spec
 rewrite — edit, shorten, or change tone of text the user already has
 data — pull structured fields out of a document or a paste
-ops — Docker, sidecars, config, deploy, or Bros itself
+ops — Docker, docker apps, config, deploy, or Bros itself
 plan — break work into steps or choose an approach

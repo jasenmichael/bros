@@ -11,7 +11,7 @@ async function syncContainerLogs() {
   const containers = await listBrosManagedContainers()
   for (const container of containers) {
     if (!container.running || followed.has(container.id)) continue
-    const file = containerLogFile(dir, container.service, container.sidecarId)
+    const file = containerLogFile(dir, container.service, container.dockerAppId)
     const child = followContainerLog(container.id, file)
     followed.set(container.id, child)
     child.on('close', () => {

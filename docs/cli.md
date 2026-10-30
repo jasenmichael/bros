@@ -1,65 +1,79 @@
 ---
 title: bros
-description: bros commands, flags, and which Docker entry each command uses.
+description: bros commands, flags, and which process each command uses.
 ---
 
 # bros
 
-Host `bros` only needs Docker. It picks the dev or prod compose file, starts a container, and forwards the remaining arguments to `src/cli` in that image. `BROS_DEV=1` or `--dev` selects the dev compose file.
+The CLI is a Rust binary in `cli/`. `cargo build --release --manifest-path cli/Cargo.toml` writes one program, `cli/target/release/bros`, for the host OS and architecture. A checkout symlink `bros` points at that program. There is no directory of builds for other systems. A release tree has no `cli/Cargo.toml` and does not need cargo or Node. `-h` and `-v` print this file and the version without Docker, pnpm, or cargo.
 
-Three entries:
+Dev (`BROS_DEV=1` or `--dev`) is a source checkout only. It requires host `pnpm` and `cargo`. The UI is always `pnpm --dir src --filter @bros/ui dev` on the host. Dev never starts container `bros-ui`.
 
-| Entry | When |
-| --- | --- |
-| Full start | No command, or `start`. `docker compose up` of Bros and the sidecars. Prod uses `--build`. Dev does not. |
-| One-off | `stop`, `status`, `restart`, `check`, `update` / `upgrade`, `service`, `--help`, `--version`. `docker compose run --rm` (no host port). The container exits. Sidecars are not started for these, except `restart`, which stops and then does a full start. |
-| Exec | `run` and `shell`, only when container `bros-desktop` is already up. They do not start the stack. |
+A release runs the UI in container `bros-ui`. A source prod start uses host `pnpm` when it is on `PATH`, otherwise container `bros-ui` (compose profile `ui`, Node 26.7.0). One UI at a time.
+
+Container `bros` is the desktop. The UI host listens on `BROS_PORT` (3055). Selkies publishes on `127.0.0.1:${BROS_STREAM_PORT:-3300}`. ttyd publishes on `127.0.0.1:${BROS_TTYD_PORT:-7681}`.
+
+The CLI starts and stops the desktop, the UI, and docker apps. After `/api/health`, `check`, image rebuild, `app check`, `app update`, and writing `apps-compose.yml` are API calls. `run` and `shell` are `docker exec` into container `bros`. `service` is host `systemctl --user`. `status` is the CLI.
+
+Operator lines go to the terminal. Compose, BuildKit, and UI output append to `$BROS_HOST_DATA_DIR/var/logs/bros.log`. `--verbose` also prints those engine lines. Ctrl+C closes that pipe before the stop lines.
+
+Repo root is the directory of `bros`, symlink-resolved. `BROS_HOME` and `BROS_DIR` fill each other. Data is `BROS_HOST_DATA_DIR` or `$BROS_HOME/data`. `BROS_HOST_WORKSPACE` keeps a set value. Otherwise it is `bros.yml` `workspace` when that path is a host path, else `$BROS_HOST_DATA_DIR/home/workspace`. No workspace is exported when the data dir is empty, `/app/data`, or `/data`. Config is `--config`, else `$BROS_HOST_DATA_DIR/config/bros.yml`, else `$BROS_HOME/bros.yml`.
+
+`vendor/bros-model` is initialized by a source install and source `bros update`. The UI does not run `git submodule`.
 
 ## Commands
 
-| Command | Entry | What it does |
-| --- | --- | --- |
-| `start` | Full start | Same as `bros` with no command. Shows a `Starting UI…` spinner until `/api/health` answers, then prints `http://<host>:<port>` and, when a tunnel URL is set, that URL on the next line. After compose is up, the Ollama sidecar starts if needed and the internal `bros` model is stamped. A stamp miss warns and does not fail the start. |
-| `stop` | One-off | Stop every `bros-sc-*` sidecar and `bros-desktop`, then the core container. Prints `Bros exited.` and exits 0. Does not create data dirs. Container ids print only with `--verbose`. |
-| `status` | One-off | Compose ps and the health check. |
-| `restart` | One-off, then full start | Stop, then the same start as `bros start`. |
-| `check` | One-off | Look for git, image, and model updates. Prompt before updating when stdin is a TTY. |
-| `update` | One-off | Git pull and submodule on the host, then a rebuild of the app and Desktop images. The local `bros` image is built, not pulled from a registry. A base already present at its pinned digest is reused. A missing base is pulled once. Model stamp when Ollama is already up. Replaces a running `bros` container and a running Desktop container. Does not start either when it is stopped. Does not pull or replace other sidecars. Alias: `upgrade`. |
-| `service install` | One-off | Linux systemd --user unit. `ExecStart` is `bros -D`. |
-| `service uninstall` | One-off | Disable and remove that unit. |
-| `service status` | One-off | `systemctl --user status bros`. |
-| `run <command>` | Exec | Run that command in container `bros-desktop` (service `desktop`, workdir `$HOME/workspace`). Example: `bros run agent`. |
-| `shell` | Exec | Open the Bros terminal on the host. Same container and `bash` as `/terminal`. |
-| `app check <id>` | One-off | Check one package app or sidecar app. Prints the installed version, then `Update available` or `Up to date`. A run command has no version check. A deb URL reports an update only when a path segment is `latest` and the resolved URL changed. |
-| `app update <id>` | One-off | Update that app. A package app uses its package manager. A run app writes a force stamp and rebuilds Desktop so that curl runs again. A registry sidecar image pulls and recreates. A local image (compose `build`, no registry in the name) rebuilds and recreates. Check on a local image does not pull. |
+| Command | What it does |
+| --- | --- |
+| `start` | Same as `bros` with no command. Starts the UI, waits for `/api/health`, writes `apps-compose.yml` through the API, then desktop `compose up -d --no-deps bros` (prod adds `--build`). Prints the listen URL, LAN URLs, and the tunnel URL when one is set. UI autostart brings up Ollama and stamps the internal `bros` model. |
+| `stop` | Stop the UI host, every `bros-*` container, then container `bros`. Prints `Bros exited.` and exits 0. Does not create data dirs. Does not need pnpm or cargo. |
+| `status` | Compose ps, `/api/health`, and an Ollama probe. No Node. |
+| `restart` | Stop, then start. |
+| `check` | `POST /api/apps/check` after `/api/health`. |
+| `update` | Release: download `bros.tar.gz` (`BROS_RELEASE_URL` overrides), replace the install except `data/`, re-exec. Source: on `main`/`master`, `git pull --ff-only` (fails if that pull fails). On any other branch: loud skip. Then `git submodule update --init`, `cargo build --release`, re-exec, then `POST /api/apps/rebuild`. A running `bros` container is replaced with `--no-deps`. Docker apps are not updated. Alias: `upgrade`. |
+| `service install` | Linux systemd --user unit. `ExecStart` is `bros -D`. |
+| `service uninstall` | Disable and remove that unit. |
+| `service status` | `systemctl --user status bros`. |
+| `run <command>` | `docker exec` in container `bros` (workdir `/home/bros/workspace`). Example: `bros run agent`. |
+| `shell` | `docker exec` `bash` in container `bros`. Same shell as `/terminal`. |
+| `app check <id>` | `GET /api/apps/<id>/update` after `/api/health`. |
+| `app update <id>` | `POST /api/apps/<id>/update` after `/api/health`. |
 
-If `bros-desktop` is not running, `run` and `shell` exit and tell you to start Bros.
+If container `bros` is not running, `run` and `shell` exit and tell you to start Bros.
+
+A desktop recreate does not restart docker apps. A docker app restarts when its own compose, image, env, command, or volumes changed, or when that recreate changes a volume host path the app mounts.
 
 ## Options
 
 | Flag | What it does |
 | --- | --- |
-| `--dev` | Dev compose (`docker-compose.dev.yml`). Same as `BROS_DEV=1`. |
-| `-D`, `--daemon` | Full start in the background: `docker compose up --build -d`. Ignored when dev is on. Dev stays in the foreground. |
-| `-i`, `--interactive` | Foreground full start. Default. One Ctrl+C or SIGTERM stops the full stack (tunnel helper, sidecars, then core), prints `Bros exited.`, and exits 0. A second Ctrl+C exits 130. |
-| `-c`, `--config PATH` | Host `bros.yml` mounted at `/app/bros.yml`. Read on the full-start path. |
-| `--verbose` | Show the Docker compose log prefix, including `Image … Building` / `Built`. Output stays prefixed with `[bros]`. Image-build step lines and the Nitro file list stay hidden. A failed build still prints the error. |
+| `--dev` | Dev compose (`docker-compose.dev.yml`). Same as `BROS_DEV=1`. Requires host pnpm and cargo. |
+| `-D`, `--daemon` | Full start in the background. The UI survives exit. Ignored when dev is on. Dev stays in the foreground. |
+| `-i`, `--interactive` | Foreground full start. Default. One Ctrl+C or SIGTERM stops the full stack, prints `Bros exited.`, and exits 0. A second Ctrl+C exits 130. |
+| `-c`, `--config PATH` | Host `bros.yml`. |
+| `--verbose` | Print engine lines on the terminal as well as the log file. |
 | `-h`, `--help` | This file, with the YAML frontmatter removed. |
-| `-v`, `--version` | Version. |
+| `-v`, `--version` | Version from `VERSION`, else `src/package.json`, else `0.1.0`. |
 
 ## Env
 
 | Name | What it changes |
 | --- | --- |
-| `BROS_DIR` | App directory. Default: directory of the `bros` script, symlink-resolved. |
-| `BROS_HOME` | Alias for `BROS_DIR`. |
-| `BROS_PORT` | App host port. Default `3055`. |
-| `BROS_HOST` | App host address. Default `0.0.0.0`. |
-| `BROS_DEV=1` | Dev compose. Same as `--dev`. |
+| `BROS_DIR` | App directory. Default: directory of `bros`, symlink-resolved. |
+| `BROS_HOME` | Alias for `BROS_DIR`. Each fills the other when only one is set. |
+| `BROS_HOST_DATA_DIR` | Data directory. Default `$BROS_HOME/data`. |
+| `BROS_HOST_WORKSPACE` | Desktop workspace bind. See the resolve rules above. |
+| `BROS_PORT` | UI host port. Default `3055`. |
+| `BROS_HOST` | UI listen address. Default `0.0.0.0`. |
+| `BROS_STREAM_PORT` | Host port for Selkies. Default `3300`, bound to `127.0.0.1`. |
+| `BROS_TTYD_PORT` | Host port for ttyd. Default `7681`, bound to `127.0.0.1`. |
+| `BROS_DESKTOP_STREAM_ORIGIN` | Proxy target for `/desktop/view/`. |
+| `BROS_TERMINAL_ORIGIN` | Proxy target for `/terminal/session`. |
+| `BROS_DEV=1` | Dev. Same as `--dev`. |
 
-`BROS_BIN` defaults to `~/.local/bin/bros`. Data binds default to `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`).
+`BROS_BIN` defaults to `~/.local/bin/bros`.
 
-`--verbose` sets `BROS_VERBOSE=1`. `-D` sets `BROS_DAEMON=1`. `./bros` overwrites both from those flags, so `.env` cannot.
+`--verbose` sets `BROS_VERBOSE=1`. `-D` sets `BROS_DAEMON=1`.
 
 ## Examples
 

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { eq } from 'drizzle-orm'
-import { getDb, sidecarSettings } from '../db'
-import { appRunsInDocker, dockerHostCandidates, sidecarReachUrl } from '../hostProbe'
-import { projectName } from '../sidecars/sidecars'
+import { getDb, dockerAppSettings } from '../db'
+import { appRunsInDocker, dockerHostCandidates, dockerAppReachUrl } from '../hostProbe'
+import { projectName } from '../docker-app/dockerApps'
 
 export type PublishedHostPort = {
   port: number
@@ -11,16 +11,16 @@ export type PublishedHostPort = {
   image?: string
 }
 
-export const OLLAMA_SIDECAR_DNS = 'http://ollama:11434'
-export const OLLAMA_SIDECAR_PUBLISH = 11435
+export const OLLAMA_DOCKER_APP_DNS = 'http://ollama:11434'
+export const OLLAMA_DOCKER_APP_PUBLISH = 11435
 export const OLLAMA_HOST_DEFAULT_PORT = 11434
 export const OLLAMA_BROS_PROJECT = projectName('ollama')
 
-export type OllamaChatSource = 'host' | 'sidecar'
+export type OllamaChatSource = 'host' | 'docker'
 
-/** Persist only host | sidecar. Legacy `external` rows resolve like unset mode. */
+/** Persist only host | docker. `external` rows resolve like unset mode. */
 export function normalizeOllamaMode(mode?: string | null): OllamaChatSource | undefined {
-  if (mode === 'host' || mode === 'sidecar') return mode
+  if (mode === 'host' || mode === 'docker') return mode
   return undefined
 }
 
@@ -76,12 +76,12 @@ export function hostOllamaUrl(port: number, host?: string | null): string {
   return `http://${host || dockerHostCandidates()[0]}:${port}`
 }
 
-/** Reachable sidecar Ollama: Docker DNS in-container, publish port on host Node. */
-export function sidecarOllamaUrl(): string {
-  return sidecarReachUrl({
+/** Reachable dockerApp Ollama: Docker DNS in-container, publish port on host Node. */
+export function dockerAppOllamaUrl(): string {
+  return dockerAppReachUrl({
     service: 'ollama',
     containerPort: 11434,
-    publish: OLLAMA_SIDECAR_PUBLISH,
+    publish: OLLAMA_DOCKER_APP_PUBLISH,
     envPortKey: 'BROS_OLLAMA_PORT',
   })
 }
@@ -111,12 +111,12 @@ async function ownerProject(port: number): Promise<string | undefined> {
   }
 }
 
-async function ownerIsBrosSidecar(port: number): Promise<boolean> {
+async function ownerIsBrosDockerApp(port: number): Promise<boolean> {
   try {
     const { publishedPortOwner } = await import('../docker')
     const owner = await publishedPortOwner(port)
     if (!owner) return false
-    return isBrosSidecarProject(owner.project) || isBrosOllamaSidecar(owner.project, owner.containerName)
+    return isBrosDockerAppProject(owner.project) || isBrosOllamaDockerApp(owner.project, owner.containerName)
   } catch {
     return false
   }
@@ -124,7 +124,7 @@ async function ownerIsBrosSidecar(port: number): Promise<boolean> {
 
 export function readOllamaManualPort(): number | null {
   if (testManualPort !== undefined) return testManualPort
-  const row = getDb().select().from(sidecarSettings).where(eq(sidecarSettings.sidecarId, 'ollama')).get()
+  const row = getDb().select().from(dockerAppSettings).where(eq(dockerAppSettings.dockerAppId, 'ollama')).get()
   const n = row?.hostProbePort
   return typeof n === 'number' && n > 0 ? n : null
 }
@@ -172,35 +172,35 @@ async function listDockerPublishedPorts(): Promise<PublishedHostPort[]> {
   }
 }
 
-function isBrosSidecarProject(project?: string) {
-  return Boolean(project && (project === OLLAMA_BROS_PROJECT || project.startsWith('bros-sc-')))
+function isBrosDockerAppProject(project?: string) {
+  return Boolean(project && (project === OLLAMA_BROS_PROJECT || project.startsWith('bros-')))
 }
 
-function isBrosOllamaSidecar(project?: string, containerName?: string) {
+function isBrosOllamaDockerApp(project?: string, containerName?: string) {
   if (project === OLLAMA_BROS_PROJECT) return true
   const name = (containerName || '').replace(/^\//, '').toLowerCase()
-  return name === 'bros-sc-ollama' || name.startsWith('bros-sc-ollama-')
+  return name === 'bros-ollama' || name.startsWith('bros-ollama-')
 }
 
-function skipSidecarPort(
+function skipDockerAppPort(
   port: number,
   project?: string,
-  sidecarPorts?: Set<number>,
+  dockerAppPorts?: Set<number>,
   containerName?: string,
 ) {
-  if (port === OLLAMA_SIDECAR_PUBLISH) return true
-  if (sidecarPorts?.has(port)) return true
-  if (isBrosOllamaSidecar(project, containerName)) return true
-  return isBrosSidecarProject(project)
+  if (port === OLLAMA_DOCKER_APP_PUBLISH) return true
+  if (dockerAppPorts?.has(port)) return true
+  if (isBrosOllamaDockerApp(project, containerName)) return true
+  return isBrosDockerAppProject(project)
 }
 
 async function probeAllowedHostPort(
   port: number,
-  sidecarPorts: Set<number>,
+  dockerAppPorts: Set<number>,
   timeoutMs?: number,
 ): Promise<{ version: string; host: string } | null> {
-  if (skipSidecarPort(port, undefined, sidecarPorts)) return null
-  if (await ownerIsBrosSidecar(port)) return null
+  if (skipDockerAppPort(port, undefined, dockerAppPorts)) return null
+  if (await ownerIsBrosDockerApp(port)) return null
   return probeOllamaVersion(port, timeoutMs)
 }
 
@@ -220,7 +220,7 @@ export async function findHostOllama(opts?: { bustCache?: boolean }): Promise<Ho
         port: null,
         version: null,
         host: null,
-        error: `Port ${manual} is the Bros Ollama sidecar, not a host install.`,
+        error: `Port ${manual} is the Bros Ollama docker app, not a host install.`,
         manual: true,
       })
     }
@@ -238,26 +238,26 @@ export async function findHostOllama(opts?: { bustCache?: boolean }): Promise<Ho
   }
 
   const published = await listDockerPublishedPorts()
-  const sidecarPorts = new Set(
+  const dockerAppPorts = new Set(
     published
-      .filter((row) => isBrosSidecarProject(row.project) || isBrosOllamaSidecar(row.project, row.containerName))
+      .filter((row) => isBrosDockerAppProject(row.project) || isBrosOllamaDockerApp(row.project, row.containerName))
       .map((row) => row.port),
   )
-  sidecarPorts.add(OLLAMA_SIDECAR_PUBLISH)
+  dockerAppPorts.add(OLLAMA_DOCKER_APP_PUBLISH)
   const ollamaDocker: number[] = []
   const otherDocker: number[] = []
   for (const row of published) {
-    if (skipSidecarPort(row.port, row.project, sidecarPorts, row.containerName)) continue
+    if (skipDockerAppPort(row.port, row.project, dockerAppPorts, row.containerName)) continue
     if (isOllamaLikeContainer(row.image, row.containerName)) ollamaDocker.push(row.port)
     else otherDocker.push(row.port)
   }
 
   // Privileged /proc ports are almost never Ollama; skip to avoid probing ssh/dns on every GET.
-  const listen = readHostListenPorts().filter((port) => port >= 1024 && !skipSidecarPort(port, undefined, sidecarPorts))
+  const listen = readHostListenPorts().filter((port) => port >= 1024 && !skipDockerAppPort(port, undefined, dockerAppPorts))
   const seen = new Set<number>()
   const ordered: number[] = []
   const push = (port: number) => {
-    if (seen.has(port) || skipSidecarPort(port, undefined, sidecarPorts)) return
+    if (seen.has(port) || skipDockerAppPort(port, undefined, dockerAppPorts)) return
     seen.add(port)
     ordered.push(port)
   }
@@ -268,7 +268,7 @@ export async function findHostOllama(opts?: { bustCache?: boolean }): Promise<Ho
   for (const port of [...otherDocker].sort((a, b) => a - b)) push(port)
 
   for (const port of ordered) {
-    const hit = await probeAllowedHostPort(port, sidecarPorts, 400)
+    const hit = await probeAllowedHostPort(port, dockerAppPorts, 400)
     if (hit) return store({ port, version: hit.version, host: hit.host, error: null, manual: false })
   }
   return store({ port: null, version: null, host: null, error: null, manual: false })
@@ -304,8 +304,8 @@ export async function resolveOllamaChat(mode?: string | null): Promise<{
     ? { port: hostHit.port, version: hostHit.version }
     : null
 
-  if (persisted === 'sidecar') {
-    return { source: 'sidecar', baseUrl: sidecarOllamaUrl(), host, hostError: hostHit.error }
+  if (persisted === 'docker') {
+    return { source: 'docker', baseUrl: dockerAppOllamaUrl(), host, hostError: hostHit.error }
   }
   if (persisted === 'host') {
     if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port, hostHit.host), host, hostError: hostHit.error }
@@ -317,5 +317,5 @@ export async function resolveOllamaChat(mode?: string | null): Promise<{
     }
   }
   if (host) return { source: 'host', baseUrl: hostOllamaUrl(host.port, hostHit.host), host, hostError: hostHit.error }
-  return { source: 'sidecar', baseUrl: sidecarOllamaUrl(), host, hostError: hostHit.error }
+  return { source: 'docker', baseUrl: dockerAppOllamaUrl(), host, hostError: hostHit.error }
 }

@@ -4,8 +4,8 @@ import { groupBrosServices, type BrosManagedContainerView } from '../../src/ui/u
 function row(partial: Partial<BrosManagedContainerView> & Pick<BrosManagedContainerView, 'id' | 'service' | 'kind'>): BrosManagedContainerView {
   return {
     name: partial.name || partial.service,
-    project: partial.project || (partial.kind === 'app' ? 'bros' : `bros-sc-${partial.sidecarId || 'x'}`),
-    sidecarId: partial.kind === 'app' ? null : (partial.sidecarId || 'x'),
+    project: partial.project || (partial.kind === 'app' ? 'bros' : `bros-${partial.dockerAppId || 'x'}`),
+    dockerAppId: partial.kind === 'app' ? null : (partial.dockerAppId || 'x'),
     state: partial.state || (partial.running === false ? 'exited' : 'running'),
     status: partial.status || 'Up',
     running: partial.running ?? true,
@@ -15,12 +15,12 @@ function row(partial: Partial<BrosManagedContainerView> & Pick<BrosManagedContai
 }
 
 describe('groupBrosServices', () => {
-  it('groups app first then each sidecar pack', () => {
+  it('groups app first then each dockerApp pack', () => {
     const groups = groupBrosServices([
       row({ id: 'a', service: 'bros', kind: 'app', ports: [3055] }),
-      row({ id: 'o', service: 'ollama', kind: 'sidecar', sidecarId: 'ollama', ports: [11435] }),
-      row({ id: 'r', service: 'redis', kind: 'sidecar', sidecarId: 'firecrawl', running: false }),
-      row({ id: 'f', service: 'api', kind: 'sidecar', sidecarId: 'firecrawl', ports: [3002], running: false }),
+      row({ id: 'o', service: 'ollama', kind: 'docker', dockerAppId: 'ollama', ports: [11435] }),
+      row({ id: 'r', service: 'redis', kind: 'docker', dockerAppId: 'firecrawl', running: false }),
+      row({ id: 'f', service: 'api', kind: 'docker', dockerAppId: 'firecrawl', ports: [3002], running: false }),
     ], { ollama: 'Ollama', firecrawl: 'Firecrawl' })
 
     expect(groups.map((g) => g.title)).toEqual(['App', 'Ollama', 'Firecrawl'])

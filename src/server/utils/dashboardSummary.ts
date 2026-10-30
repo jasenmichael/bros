@@ -1,13 +1,13 @@
 import { getRequestHost, type H3Event } from 'h3'
 import { getDiskSpace } from './disk'
-import { autostartFailure, pingDocker, sidecarPhase, sidecarRuntime } from './docker'
+import { autostartFailure, pingDocker, dockerAppPhase, dockerAppRuntime } from './docker'
 import { formatSizeBytes } from './providers/ollamaLibrary'
-import { discoverSidecars, type SidecarMeta } from './sidecars/sidecars'
+import { discoverDockerApps, type DockerAppMeta } from './docker-app/dockerApps'
 import { loadBootstrapConfig } from './config'
 import { readTunnelStatus, tunnelPublicPayload } from './tunnel'
 import { advertisedTunnelHost, tunnelHostname, viaTunnelFromEvent } from './viaTunnel'
 import { listConversations } from './chat/chat'
-import { ensureDefaultProviders, listProviders, OLLAMA_HOST_ID, OLLAMA_SIDECAR_ID } from './providers'
+import { ensureDefaultProviders, listProviders, OLLAMA_HOST_ID, OLLAMA_DOCKER_APP_ID } from './providers'
 import { isHostOllamaEnabled } from './settings'
 import { listActivePullsByProvider } from './providers/ollamaPullJobs'
 
@@ -62,18 +62,18 @@ export function selectDashboardProviders(
   opts: { hostEnabled: boolean; ollamaPhase: DashboardPhase | null },
 ): { ready: number; items: DashboardProviderItem[] } {
   const rank = (id: string) => {
-    if (id === OLLAMA_SIDECAR_ID) return 0
+    if (id === OLLAMA_DOCKER_APP_ID) return 0
     if (id === OLLAMA_HOST_ID) return 1
     return 2
   }
   const items = rows
     .filter((row) => {
       if (row.id === OLLAMA_HOST_ID) return opts.hostEnabled
-      if (row.id === OLLAMA_SIDECAR_ID) return true
+      if (row.id === OLLAMA_DOCKER_APP_ID) return true
       return row.enabled
     })
     .map((row) => {
-      if (row.id === OLLAMA_SIDECAR_ID) {
+      if (row.id === OLLAMA_DOCKER_APP_ID) {
         const phase = opts.ollamaPhase ?? 'stopped'
         return {
           id: row.id,
@@ -93,7 +93,7 @@ export function selectDashboardProviders(
 
   const ready = items.filter((item) => {
     if (!item.chatOn) return false
-    if (item.id === OLLAMA_SIDECAR_ID) return opts.ollamaPhase === 'running'
+    if (item.id === OLLAMA_DOCKER_APP_ID) return opts.ollamaPhase === 'running'
     return true
   }).length
 
@@ -103,7 +103,7 @@ export function selectDashboardProviders(
 export function buildAttention(input: {
   dockerOk: boolean
   dockerError: string | null
-  sidecars: Array<{ id: string; name: string; phase: DashboardPhase; error: string | null }>
+  dockerApps: Array<{ id: string; name: string; phase: DashboardPhase; error: string | null }>
   diskFreeBytes: number | null
   diskTotalBytes: number | null
   diskFreeLabel: string | null
@@ -118,19 +118,20 @@ export function buildAttention(input: {
       href: '/status',
     })
   }
-  for (const sidecar of input.sidecars) {
-    if (sidecar.phase !== 'error') continue
+  for (const dockerApp of input.dockerApps) {
+    if (dockerApp.id !== 'ollama' && dockerApp.id !== 'whisper') continue
+    if (dockerApp.phase !== 'error') continue
     items.push({
-      id: `sidecar:${sidecar.id}`,
-      text: sidecar.error ? `${sidecar.name}: ${sidecar.error}` : `${sidecar.name} is in error`,
-      href: '/sidecars',
+      id: `dockerApp:${dockerApp.id}`,
+      text: dockerApp.error ? `${dockerApp.name}: ${dockerApp.error}` : `${dockerApp.name} is in error`,
+      href: '/apps',
     })
   }
   if (input.ollamaPhase === 'stopped') {
     items.push({
       id: 'ollama',
       text: 'Ollama is stopped',
-      href: '/sidecars',
+      href: '/apps',
     })
   }
   if (diskNeedsAttention(input.diskFreeBytes, input.diskTotalBytes)) {
@@ -150,34 +151,35 @@ export function buildAttention(input: {
   return items
 }
 
-async function sidecarState(sidecar: SidecarMeta): Promise<{ phase: DashboardPhase; error: string | null }> {
+async function dockerAppState(dockerApp: DockerAppMeta): Promise<{ phase: DashboardPhase; error: string | null }> {
   try {
-    const runtime = await sidecarRuntime(sidecar)
-    const problem = sidecar.error || (!runtime.status.running ? runtime.warning : undefined) || autostartFailure(sidecar.id) || null
-    const phase = sidecarPhase(sidecar.id, runtime.status.running, problem || undefined)
+    const runtime = await dockerAppRuntime(dockerApp)
+    const problem = dockerApp.error
+      || (runtime.status.running ? null : (runtime.warning || autostartFailure(dockerApp.id) || null))
+    const phase = dockerAppPhase(dockerApp.id, runtime.status.running, problem || undefined)
     return { phase, error: phase === 'error' ? (problem || 'error') : null }
   }
   catch (err) {
     const message = err instanceof Error ? err.message : 'status failed'
-    return { phase: sidecarPhase(sidecar.id, false, message), error: message }
+    return { phase: dockerAppPhase(dockerApp.id, false, message), error: message }
   }
 }
 
-function sidecarRank(sidecar: { id: string; kind: string }) {
-  if (sidecar.id === 'ollama') return 0
-  if (sidecar.id === 'whisper') return 1
-  if (sidecar.kind === 'core') return 2
+function dockerAppRank(dockerApp: { id: string; kind: string }) {
+  if (dockerApp.id === 'ollama') return 0
+  if (dockerApp.id === 'whisper') return 1
+  if (dockerApp.kind === 'core') return 2
   return 3
 }
 
 export async function getDashboardSummary(event: H3Event) {
   const docker = await pingDocker()
   const disk = getDiskSpace()
-  const { sidecars } = discoverSidecars()
-  const visible = sidecars.filter((sidecar) => !sidecar.disabled)
+  const { dockerApps } = discoverDockerApps()
+  const visible = dockerApps.filter((dockerApp) => !dockerApp.disabled)
   const states = new Map<string, { phase: DashboardPhase; error: string | null }>()
-  await Promise.all(visible.map(async (sidecar) => {
-    states.set(sidecar.id, await sidecarState(sidecar))
+  await Promise.all(visible.map(async (dockerApp) => {
+    states.set(dockerApp.id, await dockerAppState(dockerApp))
   }))
 
   const cfg = loadBootstrapConfig()
@@ -193,7 +195,7 @@ export async function getDashboardSummary(event: H3Event) {
 
   ensureDefaultProviders()
   const hostEnabled = isHostOllamaEnabled()
-  const ollamaPhase = states.get(OLLAMA_SIDECAR_ID)?.phase ?? null
+  const ollamaPhase = states.get(OLLAMA_DOCKER_APP_ID)?.phase ?? null
   const providerRows = listProviders()
     .filter((row) => row.id !== OLLAMA_HOST_ID || hostEnabled)
     .map((row) => ({ id: row.id, name: row.name, enabled: row.enabled }))
@@ -213,19 +215,19 @@ export async function getDashboardSummary(event: H3Event) {
   }
   pulls.sort((a, b) => (names.get(a.providerId) || a.providerId).localeCompare(names.get(b.providerId) || b.providerId) || a.model.localeCompare(b.model))
 
-  const sidecarItems = visible
-    .map((sidecar) => {
-      const state = states.get(sidecar.id) ?? { phase: 'stopped' as const, error: null }
+  const dockerAppItems = visible
+    .map((dockerApp) => {
+      const state = states.get(dockerApp.id) ?? { phase: 'stopped' as const, error: null }
       return {
-        id: sidecar.id,
-        name: sidecar.name,
-        kind: sidecar.kind,
+        id: dockerApp.id,
+        name: dockerApp.name,
+        kind: dockerApp.kind,
         phase: state.phase,
         error: state.error,
-        openUrl: webuiOpenUrl(sidecar.interfaces, viaTunnel),
+        openUrl: webuiOpenUrl(dockerApp.interfaces, viaTunnel),
       }
     })
-    .sort((a, b) => sidecarRank(a) - sidecarRank(b) || a.name.localeCompare(b.name))
+    .sort((a, b) => dockerAppRank(a) - dockerAppRank(b) || a.name.localeCompare(b.name))
 
   const freeBytes = Number.isFinite(disk.freeBytes) ? disk.freeBytes : null
   const totalBytes = disk.totalBytes || null
@@ -240,7 +242,7 @@ export async function getDashboardSummary(event: H3Event) {
     attention: buildAttention({
       dockerOk: docker.ok,
       dockerError: docker.error ?? null,
-      sidecars: sidecarItems,
+      dockerApps: dockerAppItems,
       diskFreeBytes: freeBytes,
       diskTotalBytes: totalBytes,
       diskFreeLabel: freeBytes != null ? (formatSizeBytes(freeBytes) ?? null) : null,
@@ -258,10 +260,10 @@ export async function getDashboardSummary(event: H3Event) {
       items: providers.items,
       pulls,
     },
-    sidecars: {
-      running: sidecarItems.filter((item) => item.phase === 'running').length,
-      total: sidecarItems.length,
-      items: sidecarItems.map(({ id, name, phase, openUrl }) => ({ id, name, phase, openUrl })),
+    dockerApps: {
+      running: dockerAppItems.filter((item) => item.phase === 'running').length,
+      total: dockerAppItems.length,
+      items: dockerAppItems.map(({ id, name, phase, openUrl }) => ({ id, name, phase, openUrl })),
     },
     tunnel: tunnelPublicPayload(tunnel, cfg.publicUrl),
   }

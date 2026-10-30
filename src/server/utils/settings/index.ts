@@ -29,17 +29,17 @@ const WHISPER_ID = 'whisper'
 
 /**
  * Off: persist `'0'`, then stop a healthy package (stop errors are logged).
- * On: pull images, start the sidecar, then persist `'1'`. A failed pull or start leaves the flag off.
+ * On: pull images, start the dockerApp, then persist `'1'`. A failed pull or start leaves the flag off.
  */
 export async function setWhisperEnabled(enabled: boolean): Promise<boolean> {
   if (!enabled) {
     patchBrosYaml({ enable_whisper: false })
     try {
-      const { getSidecar } = await import('../sidecars/sidecars')
-      const sidecar = getSidecar(WHISPER_ID)
-      if (sidecar && !sidecar.error) {
-        const { stopSidecar } = await import('../docker')
-        await stopSidecar(WHISPER_ID)
+      const { getDockerApp } = await import('../docker-app/dockerApps')
+      const dockerApp = getDockerApp(WHISPER_ID)
+      if (dockerApp && !dockerApp.error) {
+        const { stopDockerApp } = await import('../docker')
+        await stopDockerApp(WHISPER_ID)
       }
     } catch (err) {
       console.error('whisper stop failed', err)
@@ -47,9 +47,9 @@ export async function setWhisperEnabled(enabled: boolean): Promise<boolean> {
     return false
   }
 
-  const { pullSidecarImages, startSidecar } = await import('../docker')
-  await pullSidecarImages(WHISPER_ID)
-  await startSidecar(WHISPER_ID)
+  const { pullDockerAppImages, startDockerApp } = await import('../docker')
+  await pullDockerAppImages(WHISPER_ID)
+  await startDockerApp(WHISPER_ID)
   patchBrosYaml({ enable_whisper: true })
   return true
 }

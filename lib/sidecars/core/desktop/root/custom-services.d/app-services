@@ -1,7 +1,0 @@
-#!/usr/bin/with-contenv bash
-set -eu
-nix_node=/home/bros/.local/share/devbox/global/default/.devbox/nix/profile/default/bin/node
-if [ -x "$nix_node" ] && [ ! -x /usr/local/bin/node ]; then
-  ln -sfn "$nix_node" /usr/local/bin/node
-fi
-exec node /opt/bros/app-services/supervise.mjs

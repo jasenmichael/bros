@@ -8,9 +8,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
 describe('desktop install progress', () => {
   it('flushes a heartbeat while the phase is still running', async () => {
     const child = spawn(process.execPath, [
+      '--experimental-strip-types',
       '--input-type=module',
       '-e',
-      `import { pulse } from './lib/sidecars/core/desktop/managers/progress.mjs'
+      `import { pulse } from './lib/desktop/managers/progress.ts'
 pulse('cursor: download', 200)
 setInterval(() => {}, 1e9)`,
     ], {

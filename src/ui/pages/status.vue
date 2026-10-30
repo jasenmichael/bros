@@ -21,14 +21,14 @@ type StatusPayload = {
     name: string
     service: string
     project: string
-    kind: 'app' | 'sidecar'
-    sidecarId: string | null
+    kind: 'app' | 'docker'
+    dockerAppId: string | null
     state: string
     status: string
     running: boolean
     ports: number[]
   }>
-  sidecars: Array<{
+  dockerApps: Array<{
     id: string
     name: string
     source: string
@@ -55,7 +55,7 @@ if (import.meta.client) {
 </script>
 
 <template>
-  <BrosPageShell title="Status" description="Live health for the Bros app, Docker, disk, GPU, host tunnel, and sidecars.">
+  <BrosPageShell title="Status" description="Live health for the Bros app, Docker, disk, GPU, host tunnel, and docker apps.">
     <div class="mb-4 flex justify-end">
       <UButton size="sm" color="neutral" variant="outline" :loading="pending" @click="() => refresh()">Refresh</UButton>
     </div>
@@ -97,7 +97,7 @@ if (import.meta.client) {
       </article>
       <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
         <h2 class="text-lg font-medium text-white">Tunnel</h2>
-        <p class="mt-2 text-sm text-[var(--bros-muted)]">Host cloudflared (not a sidecar)</p>
+        <p class="mt-2 text-sm text-[var(--bros-muted)]">Host cloudflared (not a docker app)</p>
         <p class="mt-1 text-sm text-white">
           {{ data?.tunnel?.running ? 'running' : 'stopped' }}
           <span v-if="data?.tunnel?.publicUrl || data?.tunnel?.hostname || data?.tunnelHost"> · {{ data.tunnel?.publicUrl || data.tunnel?.hostname || data.tunnelHost }}</span>
@@ -114,11 +114,11 @@ if (import.meta.client) {
     <BrosServiceGroups
       class="mt-8"
       :containers="data?.containers || []"
-      :sidecar-names="Object.fromEntries((data?.sidecars || []).map((row) => [row.id, row.name]))"
+      :docker-app-names="Object.fromEntries((data?.dockerApps || []).map((row) => [row.id, row.name]))"
       :show-app-link="false"
     />
 
-    <h2 class="mt-8 mb-3 text-lg font-medium text-white">Sidecars</h2>
+    <h2 class="mt-8 mb-3 text-lg font-medium text-white">Apps</h2>
     <div class="overflow-x-auto rounded-xl border border-[var(--bros-border)]">
       <table class="min-w-full text-left text-sm">
         <thead class="bg-[#121820] text-[var(--bros-muted)]">
@@ -133,7 +133,7 @@ if (import.meta.client) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in (data?.sidecars || []).filter((row) => row.id !== 'cloudflared')" :key="row.id" class="border-t border-[var(--bros-border)]">
+          <tr v-for="row in (data?.dockerApps || []).filter((row) => row.id !== 'cloudflared')" :key="row.id" class="border-t border-[var(--bros-border)]">
             <td class="px-3 py-2 text-white">{{ row.name }}</td>
             <td class="px-3 py-2 font-mono text-[var(--bros-muted)]">
               {{ row.hostPort ?? '—' }}
@@ -149,7 +149,7 @@ if (import.meta.client) {
             <td class="px-3 py-2">
               <UButton
                 v-if="row.hasContainer"
-                :to="`/sidecars/${row.id}/logs`"
+                :to="`/apps/${row.id}/logs`"
                 size="xs"
                 color="neutral"
                 variant="soft"

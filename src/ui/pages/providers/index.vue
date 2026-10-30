@@ -43,8 +43,8 @@ const { data, refresh, pending } = await useFetch<{
   activePulls?: Record<string, PullJob[]>
   ollamaError: string | null
   hostOllamaError?: string | null
-  sidecarPublish?: number
-  sidecarDns?: string
+  dockerAppPublish?: number
+  dockerAppDns?: string
   hostOllama?: { port: number; version: string } | null
   hostProbePort?: number | null
 }>('/api/providers')
@@ -107,11 +107,11 @@ watchEffect(() => {
 
 const listedProviders = computed(() => {
   const rows = data.value?.providers || []
-  const sidecar = rows.filter((p) => p.id === 'ollama')
+  const dockerApp = rows.filter((p) => p.id === 'ollama')
   const host = rows.filter((p) => p.id === 'ollama-host')
   const popular = rows.filter((p) => p.popular)
   const rest = rows.filter((p) => p.id !== 'ollama' && p.id !== 'ollama-host' && !p.popular)
-  return [...sidecar, ...host, ...popular, ...rest]
+  return [...dockerApp, ...host, ...popular, ...rest]
 })
 
 const ollamaProviders = computed(() =>
@@ -431,7 +431,7 @@ function hostPortFromUrl(raw: string | null | undefined) {
 
 function endpointLabel(p: Provider) {
   if (p.id === 'ollama') {
-    return `127.0.0.1:${data.value?.sidecarPublish || p.port || 11435}`
+    return `127.0.0.1:${data.value?.dockerAppPublish || p.port || 11435}`
   }
   if (p.id === 'ollama-host') {
     const port = p.port || data.value?.hostOllama?.port || data.value?.hostProbePort
@@ -442,7 +442,7 @@ function endpointLabel(p: Provider) {
 
 function endpointUrl(p: Provider) {
   if (p.id === 'ollama') {
-    return `http://127.0.0.1:${data.value?.sidecarPublish || p.port || 11435}/`
+    return `http://127.0.0.1:${data.value?.dockerAppPublish || p.port || 11435}/`
   }
   if (p.id === 'ollama-host') {
     const port = p.port || data.value?.hostOllama?.port || data.value?.hostProbePort
@@ -738,7 +738,7 @@ async function saveHostPort() {
     const raw = hostPortDraft.value.trim()
     const n = raw ? Number(raw) : null
     const port = n && n > 0 ? n : null
-    await $fetch('/api/sidecars/ollama/settings', {
+    await $fetch('/api/apps/ollama/settings', {
       method: 'PATCH',
       body: { hostProbePort: port },
     })
@@ -774,7 +774,7 @@ async function scanHost() {
 </script>
 
 <template>
-  <BrosPageShell class="w-full" title="Providers" description="Ollama sidecar, host Ollama, popular services, and custom OpenAI-compatible providers.">
+  <BrosPageShell class="w-full" title="Providers" description="Ollama docker app, host Ollama, popular services, and custom OpenAI-compatible providers.">
     <p v-if="err" class="mb-4 text-sm text-red-400">{{ err }}</p>
     <div v-if="pending" class="text-[var(--bros-muted)]">Loading…</div>
 
@@ -843,7 +843,7 @@ async function scanHost() {
                 {{ selected?.statusMessage || 'Host Ollama is unreachable. Pull and Chat need the host daemon.' }}
               </p>
               <p class="text-xs text-amber-200">
-                Pull and chat use the host Ollama disk. Sidecar models stay in $BROS_HOME/data/home/.ollama.
+                Pull and chat use the host Ollama disk. DockerApp models stay in $BROS_HOME/data/home/.ollama.
               </p>
               <p class="text-xs text-[var(--bros-muted)]">
                 Run the host Ollama daemon with <span class="font-mono">OLLAMA_NOPRUNE=1</span> so incomplete pulls are not pruned. Bros cannot set host daemon env.
@@ -984,7 +984,7 @@ async function scanHost() {
                 No NVIDIA GPU detected — recommendations favor small CPU-friendly models.
               </p>
               <p class="text-xs text-[var(--bros-muted)]">
-                Sidecar publishes :{{ data?.sidecarPublish || 11435 }} (Chat uses {{ data?.sidecarDns || 'http://ollama:11434' }} on the Docker network).
+                Docker app publishes :{{ data?.dockerAppPublish || 11435 }} (Chat uses {{ data?.dockerAppDns || 'http://ollama:11434' }} on the Docker network).
               </p>
               <p v-if="data?.ollamaError" class="text-sm text-amber-400">{{ data.ollamaError }}</p>
               <p v-if="diskLabel" class="text-xs text-[var(--bros-muted)]">

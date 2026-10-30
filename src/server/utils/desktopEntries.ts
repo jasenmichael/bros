@@ -8,7 +8,7 @@ export type DesktopEntry = {
   command: string
 }
 
-export type LibraryKind = 'terminal' | 'package' | 'sidecar' | 'entry'
+export type LibraryKind = 'terminal' | 'package' | 'docker' | 'entry'
 
 export type LibraryApp = {
   kind: LibraryKind
@@ -138,19 +138,22 @@ function guiCommand(command: string) {
 export function pinKey(app: { kind: LibraryKind, id: string, command?: string }) {
   if (app.kind === 'terminal') return 'terminal'
   if (app.kind === 'package') return `pkg-${app.id}-${guiCommand(app.command || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '') || 'gui'}`
-  if (app.kind === 'sidecar') return `side-${app.id}`
+  if (app.kind === 'core') return `side-${app.id}`
   return app.id
 }
 
 export function libraryProcessId(app: { kind: LibraryKind, id: string, command?: string }) {
   if (app.kind === 'terminal') return 'terminal'
   if (app.kind === 'package') return guiAppProxyId(app.id, app.command || '')
-  if (app.kind === 'sidecar') return app.id
+  if (app.kind === 'core') return app.id
   return pinProcessId(app.id)
 }
 
+/** Selkies image terminals. Exact basename so a name that merely contains one of these stays. */
+const HIDDEN_ENTRY_COMMANDS = new Set(['uxterm', 'xterm', 'footclient', 'st'])
+
 /** One tile per launch. A configured gui command absorbs a desktop entry with the same basename. */
-export function libraryApps(entries: DesktopEntry[], packages: GuiSource[], sidecars: GuiSource[]): LibraryApp[] {
+export function libraryApps(entries: DesktopEntry[], packages: GuiSource[], dockerApps: GuiSource[]): LibraryApp[] {
   const byCommand = new Map<string, DesktopEntry>()
   for (const entry of entries) if (!byCommand.has(entry.command)) byCommand.set(entry.command, entry)
   const used = new Set<string>(['foot'])
@@ -162,7 +165,7 @@ export function libraryApps(entries: DesktopEntry[], packages: GuiSource[], side
     icon: byCommand.get('foot')?.icon || '',
     exec: '',
   }]
-  const pushGui = (kind: 'package' | 'sidecar', source: GuiSource) => {
+  const pushGui = (kind: 'package' | 'docker', source: GuiSource) => {
     for (const iface of source.interfaces || []) {
       if (iface.type !== 'gui' || !iface.command) continue
       const base = guiCommand(iface.command)
@@ -175,15 +178,15 @@ export function libraryApps(entries: DesktopEntry[], packages: GuiSource[], side
         id: source.id,
         name: source.name || source.bin || source.spec || source.id,
         command: iface.command,
-        icon: byCommand.get(base)?.icon || '',
+        icon: byCommand.get(base)?.icon || base,
         exec: '',
       })
     }
   }
   for (const pkg of packages) pushGui('package', pkg)
-  for (const side of sidecars) pushGui('sidecar', side)
+  for (const side of dockerApps) pushGui('docker', side)
   for (const entry of entries) {
-    if (used.has(entry.command)) continue
+    if (used.has(entry.command) || HIDDEN_ENTRY_COMMANDS.has(entry.command)) continue
     used.add(entry.command)
     out.push({
       kind: 'entry',

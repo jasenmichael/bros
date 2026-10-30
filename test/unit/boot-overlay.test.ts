@@ -8,7 +8,7 @@ describe('boot overlay', () => {
     expect(bootOverlayVisible(null, true)).toBe(true)
     expect(bootOverlayVisible({ booting: true })).toBe(true)
     expect(bootOverlayVisible({ booting: false })).toBe(false)
-    const laterStart = { booting: false, sidecars: [{ autostart: true, phase: 'starting' }] }
+    const laterStart = { booting: false, dockerApps: [{ autostart: true, phase: 'starting' }] }
     expect(bootOverlayVisible(laterStart)).toBe(false)
     expect(bootOverlayVisible({ booting: true }, false)).toBe(true)
   })

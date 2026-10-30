@@ -11,16 +11,35 @@ export function desktopHome(): string {
 export function syncGitCredentials(token: string, home = desktopHome()) {
   mkdirSync(home, { recursive: true })
   const credPath = join(home, '.git-credentials')
-  const prior = existsSync(credPath) ? readFileSync(credPath, 'utf8').split('\n') : []
+  let prior: string[] = []
+  try {
+    if (existsSync(credPath)) prior = readFileSync(credPath, 'utf8').split('\n')
+  } catch {
+    // Root-owned or otherwise unreadable file must not kill Nitro boot.
+    prior = []
+  }
   const kept = prior.filter((line) => line.trim() && !line.includes('github.com'))
   if (token) kept.push(`https://x-access-token:${encodeURIComponent(token)}@github.com`)
-  writeFileSync(credPath, `${kept.join('\n')}${kept.length ? '\n' : ''}`, { mode: 0o600 })
-  chmodSync(credPath, 0o600)
+  try {
+    writeFileSync(credPath, `${kept.join('\n')}${kept.length ? '\n' : ''}`, { mode: 0o600 })
+    chmodSync(credPath, 0o600)
+  } catch {
+    return
+  }
   const configPath = join(home, '.gitconfig')
-  const config = existsSync(configPath) ? readFileSync(configPath, 'utf8') : ''
+  let config = ''
+  try {
+    if (existsSync(configPath)) config = readFileSync(configPath, 'utf8')
+  } catch {
+    return
+  }
   if (!config.includes('helper = store')) {
     const next = `${config.trim()}\n[credential]\n\thelper = store\n`
-    writeFileSync(configPath, next.startsWith('\n') ? next.slice(1) : next, { mode: 0o600 })
+    try {
+      writeFileSync(configPath, next.startsWith('\n') ? next.slice(1) : next, { mode: 0o600 })
+    } catch {
+      // leave gitconfig alone when unwritable
+    }
   }
 }
 
@@ -35,7 +54,7 @@ export function dockerArgs(input: { argv: string[], cwd?: string, env?: Record<s
     args.push('-e', `${key}=${value}`)
   }
   if (input.cwd) args.push('-w', input.cwd)
-  args.push('bros-desktop', ...input.argv)
+  args.push('bros', ...input.argv)
   return args
 }
 

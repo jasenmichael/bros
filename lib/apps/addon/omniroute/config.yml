@@ -1,0 +1,17 @@
+kind: docker
+id: omniroute
+slug: omniroute
+name: OmniRoute
+description: OpenAI-compatible gateway (diegosouzapw/omniroute). Bros publishes host port 20128. Providers and combos are set in OmniRoute, not in Bros.
+
+interfaces:
+  - type: webui
+    service: omniroute
+    containerPort: 20128
+    publish: 20128
+    slug: omniroute
+  - type: openai
+    service: omniroute
+    containerPort: 20128
+    publish: 20128
+    basePath: /v1

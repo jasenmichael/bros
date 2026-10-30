@@ -1,7 +1,7 @@
 import { getRequestHeader, getRequestHost, type H3Event } from 'h3'
 import { loadBootstrapConfig } from './config'
 
-export const CLOUDFLARED_SIDECAR_ID = 'cloudflared'
+export const CLOUDFLARED_DOCKER_APP_ID = 'cloudflared'
 
 export const TUNNEL_STOP_LOCKED_MESSAGE =
   'Cannot stop the Cloudflare tunnel while you are connected through it.'
@@ -92,7 +92,7 @@ export function tunnelHostname(input: {
 }
 
 export function cloudflaredStopBlocked(id: string, viaTunnel: boolean): boolean {
-  return viaTunnel && id === CLOUDFLARED_SIDECAR_ID
+  return viaTunnel && id === CLOUDFLARED_DOCKER_APP_ID
 }
 
 /** Turn the Cloudflare tunnel on/off. On starts the host cloudflared process if it is down. */

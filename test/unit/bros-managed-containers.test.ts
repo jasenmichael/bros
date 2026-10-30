@@ -12,12 +12,12 @@ function item(partial: BrosContainerListItem): BrosContainerListItem {
 
 describe('Bros-managed Docker inventory', () => {
   it('reads a compose container-name conflict', () => {
-    const text = 'Error response from daemon: Conflict. The container name "/bros-sc-cursor-cursor-1" is already in use by container "029be4c5ca63".'
-    expect(containerNameConflict(text)).toBe('bros-sc-cursor-cursor-1')
+    const text = 'Error response from daemon: Conflict. The container name "/bros-cursor-cursor-1" is already in use by container "029be4c5ca63".'
+    expect(containerNameConflict(text)).toBe('bros-cursor-cursor-1')
     expect(containerNameConflict('nope')).toBeNull()
   })
 
-  it('keeps the app container and every bros-sc-* compose service', () => {
+  it('keeps the app container and every bros-* compose service', () => {
     const app = item({
       Id: '1',
       Names: ['/bros'],
@@ -32,12 +32,12 @@ describe('Bros-managed Docker inventory', () => {
     })
     const redis = item({
       Id: '2',
-      Names: ['/bros-sc-firecrawl-redis-1'],
+      Names: ['/bros-firecrawl-redis-1'],
       State: 'exited',
       Status: 'Exited (0) 3 minutes ago',
       Image: 'redis:alpine',
       Labels: {
-        'com.docker.compose.project': 'bros-sc-firecrawl',
+        'com.docker.compose.project': 'bros-firecrawl',
         'com.docker.compose.service': 'redis',
       },
       Ports: [],
@@ -57,7 +57,7 @@ describe('Bros-managed Docker inventory', () => {
     const mappedApp = toBrosManagedContainer(app)
     expect(mappedApp).toMatchObject({
       kind: 'app',
-      sidecarId: null,
+      dockerAppId: null,
       service: 'bros',
       running: true,
       ports: [3055],
@@ -65,8 +65,8 @@ describe('Bros-managed Docker inventory', () => {
 
     const mappedRedis = toBrosManagedContainer(redis)
     expect(mappedRedis).toMatchObject({
-      kind: 'sidecar',
-      sidecarId: 'firecrawl',
+      kind: 'docker',
+      dockerAppId: 'firecrawl',
       service: 'redis',
       running: false,
       state: 'exited',

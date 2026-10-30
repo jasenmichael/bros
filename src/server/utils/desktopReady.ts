@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process'
 
-const SCRIPT = '/app/lib/sidecars/core/desktop/desktop-ready.sh'
+const SCRIPT = '/app/lib/desktop/desktop-ready.sh'
 const FALLBACK = 'selkies ttyd x11 wayland'
 
 function readDesktopReady(): Promise<{ code: number, gaps: string }> {
   return new Promise((resolve) => {
-    execFile('docker', ['exec', 'bros-desktop', 'bash', SCRIPT], { timeout: 15_000 }, (err, stdout) => {
+    execFile('docker', ['exec', 'bros', 'bash', SCRIPT], { timeout: 15_000 }, (err, stdout) => {
       const code = typeof (err as { code?: unknown } | null)?.code === 'number'
         ? (err as { code: number }).code
         : err ? 1 : 0

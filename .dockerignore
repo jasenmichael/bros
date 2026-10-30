@@ -13,6 +13,9 @@ graphify-out
 *.sqlite-journal
 .env
 .env.*
+**/.env
+**/.env.*
 *.log
 sidecars
 src/website
+host/target

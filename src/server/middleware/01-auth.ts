@@ -1,8 +1,8 @@
 import { SESSION_COOKIE, hasPasscode, isSessionValid, ensureAppSecret, ensurePasskey, ensureProxyKey, verifyProxyAuthorization } from '../utils/auth'
 import { ensureDefaultProviders } from '../utils/providers'
 import { getDb } from '../utils/db'
-import { autostartSidecars, servicesBootPending, shouldRunAutostart } from '../utils/docker'
-import { matchPublicProxyTarget, needsAuthGate, publicProxyIds } from '../utils/sidecars/sidecarProxy'
+import { autostartDockerApps, servicesBootPending, shouldRunAutostart } from '../utils/docker'
+import { matchPublicProxyTarget, needsAuthGate, publicProxyIds } from '../utils/docker-app/dockerAppProxy'
 
 let bootstrapped = false
 let autostartDone = false
@@ -19,10 +19,10 @@ function bootstrapOnce() {
 
 export default defineEventHandler(async (event) => {
   bootstrapOnce()
-  // Image build prerenders routes in-process. Sidecar autostart is for the serving process only.
+  // Image build prerenders routes in-process. DockerApp autostart is for the serving process only.
   if (shouldRunAutostart() && !autostartDone) {
     autostartDone = true
-    autostartSidecars().catch((err) => console.error('autostart error', err))
+    autostartDockerApps().catch((err) => console.error('autostart error', err))
   }
   event.context.brosBooting = servicesBootPending()
 
@@ -37,6 +37,8 @@ export default defineEventHandler(async (event) => {
   ) {
     return
   }
+
+  if (path.startsWith('/api/') && verifyProxyAuthorization(getRequestHeader(event, 'authorization'))) return
 
   if (path === '/login' || path === '/setup') return
 

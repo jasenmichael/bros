@@ -92,7 +92,7 @@ describe('Chat page', () => {
     expect(wrapper.find('.bros-chat--empty').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__thread').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Host :11434')
-    expect(wrapper.text()).not.toContain('Sidecar :11435')
+    expect(wrapper.text()).not.toContain('DockerApp :11435')
     expect(wrapper.find('.bros-chat__provider').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__provider-wrap').exists()).toBe(true)
     expect(wrapper.find('.bros-chat__provider-sizer').exists()).toBe(true)
@@ -173,7 +173,7 @@ describe('Chat page', () => {
     expect(vm.modelName).toBe('gpt-4o-mini')
   })
 
-  it('orders providers sidecar, host, popular, then custom', async () => {
+  it('orders providers dockerApp, host, popular, then custom', async () => {
     const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { orderedProviders: Array<{ id: string }> }

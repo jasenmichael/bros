@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assertOllamaAutostartLocked,
-  assertSidecarUiActionAllowed,
+  assertDockerAppUiActionAllowed,
   decideOllamaRecovery,
   OLLAMA_AUTOSTART_LOCKED_MESSAGE,
   OLLAMA_HEALTH_DEBOUNCE_MS,
@@ -13,44 +13,44 @@ import {
   peekOllamaRestartNotice,
   resetOllamaHealthForTests,
   runOllamaHealthCheck,
-} from '../../src/server/utils/sidecars/ollamaMustRun'
+} from '../../src/server/utils/docker-app/ollamaMustRun'
 
-describe('ollama must-run sidecar', () => {
+describe('ollama must-run dockerApp', () => {
   afterEach(() => {
     resetOllamaHealthForTests()
   })
 
   it('rejects UI start, stop, and restart for ollama with 400', () => {
     try {
-      assertSidecarUiActionAllowed('ollama', 'start')
+      assertDockerAppUiActionAllowed('ollama', 'start')
       expect.unreachable()
     }
     catch (err) {
       expect(err).toMatchObject({ statusCode: 400, statusMessage: OLLAMA_START_LOCKED_MESSAGE })
     }
     try {
-      assertSidecarUiActionAllowed('ollama', 'stop')
+      assertDockerAppUiActionAllowed('ollama', 'stop')
       expect.unreachable()
     }
     catch (err) {
       expect(err).toMatchObject({ statusCode: 400, statusMessage: OLLAMA_STOP_LOCKED_MESSAGE })
     }
     try {
-      assertSidecarUiActionAllowed('ollama', 'restart')
+      assertDockerAppUiActionAllowed('ollama', 'restart')
       expect.unreachable()
     }
     catch (err) {
       expect(err).toMatchObject({ statusCode: 400, statusMessage: OLLAMA_RESTART_LOCKED_MESSAGE })
     }
     try {
-      assertSidecarUiActionAllowed('whisper', 'start')
+      assertDockerAppUiActionAllowed('whisper', 'start')
       expect.unreachable()
     }
     catch (err) {
       expect(err).toMatchObject({ statusCode: 400, statusMessage: WHISPER_UI_LOCKED_MESSAGE })
     }
-    expect(() => assertSidecarUiActionAllowed('opencode', 'stop')).not.toThrow()
-    expect(() => assertSidecarUiActionAllowed('openwebui', 'restart')).not.toThrow()
+    expect(() => assertDockerAppUiActionAllowed('opencode', 'stop')).not.toThrow()
+    expect(() => assertDockerAppUiActionAllowed('openwebui', 'restart')).not.toThrow()
   })
 
   it('rejects turning ollama autostart off', () => {
@@ -107,7 +107,25 @@ describe('ollama must-run sidecar', () => {
     expect(peekOllamaRestartNotice()).toEqual(first)
   })
 
-  it('restarts a running sidecar after two version probe misses', async () => {
+  it('does not start again until the debounce after a failed start', async () => {
+    const start = vi.fn(async () => {
+      throw new Error('WARNING: Error loading config file\nUsage:  docker [OPTIONS] COMMAND')
+    })
+    const deps = {
+      projectRunning: async () => false,
+      probeOk: async () => false,
+      pullActive: () => false,
+      start,
+      restart: vi.fn(async () => {}),
+    }
+    await expect(runOllamaHealthCheck(1_000, deps)).rejects.toThrow(/config file/)
+    expect(start).toHaveBeenCalledTimes(1)
+    const during = await runOllamaHealthCheck(1_000 + 1_000, deps)
+    expect(during).toBeNull()
+    expect(start).toHaveBeenCalledTimes(1)
+  })
+
+  it('restarts a running dockerApp after two version probe misses', async () => {
     const start = vi.fn(async () => {})
     const restart = vi.fn(async () => {})
     const deps = {

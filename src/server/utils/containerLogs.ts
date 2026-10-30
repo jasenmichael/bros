@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path'
 
 export const CONTAINER_LOG_ROTATE_BYTES = 5 * 1024 * 1024
 
-export function containerLogFile(logsDir: string, service: string, sidecarId?: string | null) {
-  const base = sidecarId && sidecarId !== service ? `${sidecarId}-${service}` : service
+export function containerLogFile(logsDir: string, service: string, dockerAppId?: string | null) {
+  const base = dockerAppId && dockerAppId !== service ? `${dockerAppId}-${service}` : service
   const safe = base.replace(/[^a-zA-Z0-9._-]/g, '_') || 'container'
   return join(logsDir, `${safe}.log`)
 }

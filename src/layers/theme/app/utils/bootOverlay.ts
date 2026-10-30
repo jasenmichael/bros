@@ -1,4 +1,4 @@
-export type BootSidecar = {
+export type BootDockerApp = {
   id?: string
   name?: string
   autostart?: boolean

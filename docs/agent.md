@@ -11,4 +11,4 @@ The job board is [Agents](/docs/agents) at `/agents`.
 
 A later cut can drive Chat tools through OpenCode or OpenHands. Bros does not embed the OpenHands SDK.
 
-Tunneled sidecar APIs are separate from chat. See [Tunnel](/docs/tunnel).
+Tunneled docker app APIs are separate from chat. See [Tunnel](/docs/tunnel).
