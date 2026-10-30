@@ -11,7 +11,7 @@ describe('docs layer pages', () => {
     expect(wrapper.text()).toContain('Getting started')
     expect(wrapper.text()).toContain('Install')
     expect(wrapper.text()).toContain('App')
-    expect(wrapper.text()).toContain('Sidecars')
+    expect(wrapper.text()).toContain('Docker apps')
     expect(wrapper.text()).toContain('Development')
     expect(wrapper.text()).toContain('Popular services')
     expect(wrapper.text()).toContain('Configuration')

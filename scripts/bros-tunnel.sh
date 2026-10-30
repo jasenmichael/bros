@@ -357,7 +357,7 @@ bros_tunnel_wizard() {
   fi
 
   echo ""
-  echo "Cloudflare tunnel setup (host cloudflared — not a Docker sidecar)"
+  echo "Cloudflare tunnel setup (host cloudflared — not a Docker dockerApp)"
   echo ""
 
   if [[ "$need_install" -eq 1 ]]; then
@@ -492,10 +492,10 @@ bros_tunnel_start_helper() {
     echo "error: missing $script" >&2
     return 1
   }
-  if declare -F prefix_lines >/dev/null 2>&1; then
-    prefix_lines "Starting host tunnel helper…"
+  if [[ -t 1 ]]; then
+    printf '\033[34m[bros]\033[0m %s\n' "Starting host tunnel helper…"
   else
-    echo "Starting host tunnel helper…"
+    echo "[bros] Starting host tunnel helper…"
   fi
   nohup env \
     PATH="${PATH}" \
@@ -542,13 +542,13 @@ bros_tunnel_stop_helper() {
   bros_tunnel_stop_cloudflared
 }
 
-# Leftover Docker sidecar from before host cloudflared.
-bros_tunnel_cleanup_sidecar() {
+# Leftover Docker dockerApp from before host cloudflared.
+bros_tunnel_cleanup_dockerApp() {
   local leftover
-  docker compose -p bros-sc-cloudflared down --timeout 10 --remove-orphans >/dev/null 2>&1 || true
-  leftover="$(docker ps -aq --filter 'name=bros-sc-cloudflared' 2>/dev/null || true)"
+  docker compose -p bros-cloudflared down --timeout 10 --remove-orphans >/dev/null 2>&1 || true
+  leftover="$(docker ps -aq --filter 'name=bros-cloudflared' 2>/dev/null || true)"
   if [[ -n "$leftover" ]]; then
-    echo "Removing leftover cloudflared sidecar containers…"
+    echo "Removing leftover cloudflared dockerApp containers…"
     # shellcheck disable=SC2086
     docker stop $leftover >/dev/null 2>&1 || true
     # shellcheck disable=SC2086

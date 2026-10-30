@@ -3,7 +3,7 @@ import { docsIndexGroups } from '../../utils/docsNav'
 
 useSeoMeta({
   title: 'Docs',
-  description: 'Bros usage: install, app, sidecars, models, and development.',
+  description: 'Bros usage: install, app, docker apps, models, and development.',
 })
 
 const groups = docsIndexGroups()

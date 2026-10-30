@@ -102,14 +102,14 @@ describe('conversation title persist', () => {
     expect(listConversations()).toHaveLength(0)
   })
 
-  it('titles from sidecar bros with Label: after the first assistant reply', async () => {
+  it('titles from dockerApp bros with Label: after the first assistant reply', async () => {
     const { addMessage, createConversation, generateChatTitle, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
     addMessage(convo!.id, 'assistant', 'Volumes persist data.')
-    const { sidecarOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
+    const { dockerAppOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(String(url)).toBe(`${sidecarOllamaUrl()}/api/chat`)
+      expect(String(url)).toBe(`${dockerAppOllamaUrl()}/api/chat`)
       const body = JSON.parse(String(init?.body || '{}')) as { model?: string; stream?: boolean; messages?: Array<{ content?: string }> }
       expect(body.model).toBe('bros')
       expect(body.stream).toBe(false)
@@ -126,10 +126,10 @@ describe('conversation title persist', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toMatch(/11436|22000|127\.0\.0\.1:11434/)
   })
 
-  it('still titles via sidecar bros when ollama is disabled for chat', async () => {
+  it('still titles via dockerApp bros when ollama is disabled for chat', async () => {
     const { addMessage, createConversation, generateChatTitle, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
     const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
-    const { sidecarOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
+    const { dockerAppOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
     ensureDefaultProviders()
     await setProviderEnabled('ollama', false)
     expect(getProvider('ollama')?.enabled).toBe(false)
@@ -137,7 +137,7 @@ describe('conversation title persist', () => {
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
     addMessage(convo!.id, 'assistant', 'Volumes persist data.')
     const fetchMock = vi.fn(async (url: string) => {
-      expect(String(url)).toBe(`${sidecarOllamaUrl()}/api/chat`)
+      expect(String(url)).toBe(`${dockerAppOllamaUrl()}/api/chat`)
       return new Response(JSON.stringify({ message: { content: 'Docker volumes' } }), { status: 200 })
     })
     vi.stubGlobal('fetch', fetchMock)

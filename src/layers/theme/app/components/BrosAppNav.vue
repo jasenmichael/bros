@@ -172,7 +172,7 @@ function linkTitle(item: BrosNavItem) {
               <span v-if="!(iconMode && isDesktop)" class="bros-nav-label">{{ item.label }}</span>
             </a>
             <p v-if="!props.pinnedItems.length && !(iconMode && isDesktop)" class="bros-nav-panel__hint">
-              Pin a sidecar web UI from Sidecars to show it here.
+              Pin an app web UI from Apps to show it here.
             </p>
           </template>
 

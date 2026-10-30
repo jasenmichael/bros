@@ -149,8 +149,8 @@ describe('ensureDataLayout', () => {
     const dir = mkdtempSync(join(tmpdir(), 'bros-data-'))
     try {
       ensureDataLayout(dir)
-      expect(existsSync(join(dir, 'sidecars'))).toBe(false)
-      expect(existsSync(join(dir, 'sidecar-repos'))).toBe(false)
+      expect(existsSync(join(dir, 'dockerApps'))).toBe(false)
+      expect(existsSync(join(dir, 'dockerApp-repos'))).toBe(false)
       expect(existsSync(join(dir, 'var/logs'))).toBe(true)
       expect(existsSync(join(dir, 'var/tunnel'))).toBe(true)
     } finally {

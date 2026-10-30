@@ -6,7 +6,12 @@ import { SESSION_COOKIE, isSessionValid } from '../auth'
 import { ensureAppsRunning } from '../docker'
 
 export const CLI_TERMINAL_PREFIX = '/terminal/session'
-export const CLI_TERMINAL_ORIGIN = 'http://desktop:7681'
+export const CLI_TERMINAL_ORIGIN = 'http://127.0.0.1:7681'
+
+/** Host UI uses the published localhost port. Container `bros-ui` uses `http://bros:7681`. */
+export function cliTerminalOrigin(): string {
+  return process.env.BROS_TERMINAL_ORIGIN?.trim() || CLI_TERMINAL_ORIGIN
+}
 
 export function isCliTerminalPath(pathname: string): boolean {
   const path = pathname.split(/[?#]/)[0] || ''
@@ -30,7 +35,7 @@ export function proxyCliTerminalHttp(event: H3Event) {
   const headers: Record<string, string> = {}
   const cookie = getRequestHeader(event, 'cookie')
   if (cookie) headers.cookie = cookie
-  return proxyRequest(event, `${CLI_TERMINAL_ORIGIN}${url.pathname}${url.search}`, { headers })
+  return proxyRequest(event, `${cliTerminalOrigin()}${url.pathname}${url.search}`, { headers })
 }
 
 export async function upgradeCliTerminal(req: IncomingMessage, socket: Duplex, head: Buffer) {
@@ -42,7 +47,7 @@ export async function upgradeCliTerminal(req: IncomingMessage, socket: Duplex, h
   }
   try {
     await ensureAppsRunning()
-    await proxyUpgrade(CLI_TERMINAL_ORIGIN, req, socket, head, { xfwd: true, changeOrigin: true })
+    await proxyUpgrade(cliTerminalOrigin(), req, socket, head, { xfwd: true, changeOrigin: true })
   } catch (err) {
     console.error('[bros] cli terminal', err)
     try {

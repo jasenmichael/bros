@@ -2,7 +2,7 @@
 import { launchDesktop } from '../utils/desktopLaunch'
 
 type App = {
-  kind: 'terminal' | 'package' | 'sidecar' | 'entry'
+  kind: 'terminal' | 'package' | 'docker' | 'entry'
   id: string
   name: string
   command: string
@@ -132,7 +132,7 @@ onMounted(() => {
   document.addEventListener('pointerdown', away)
   document.addEventListener('pointerdown', clearMenu)
   poll = window.setInterval(() => {
-    if (open.value && !busy.value) void refresh()
+    if (!busy.value) void refresh()
   }, 4000)
 })
 onBeforeUnmount(() => {

@@ -1,14 +1,15 @@
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createError } from 'h3'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { loadBootstrapConfig } from '../config'
-import { discoverSidecars, getSidecar } from '../sidecars/sidecars'
+import { discoverDockerApps } from '../docker-app/dockerApps'
 import { guiAppProxyId } from '../../../ui/utils/gui'
 import { managerByKind, packageManagers } from './managers'
 import { debTracksLatest } from './managers/deb'
-import { buildVersionScript, nodePin, nodeUpdateAvailable, parseOutdated, parseVersionScriptOutput, parseVersionText, versionCommand } from './versionProbe'
+import { buildVersionScript, nodePin, nodeUpdateAvailable, parseOutdated, parseVersionScriptOutput, parseVersionText, versionCommand, versionShell } from './versionProbe'
 
 export const CLI_PACKAGE_KINDS = packageManagers().map((manager) => manager.kind)
 export type CliPackageKind = (typeof CLI_PACKAGE_KINDS)[number]
@@ -102,6 +103,9 @@ function hasAppConfig(dir: string): boolean {
 }
 
 export function hasCliApps(): boolean {
+  const root = catalogRoot()
+  if (['core', 'addon'].some((tier) => isDir(join(root, tier)))) return true
+  if (existsSync(enabledAppsFile())) return true
   const dir = cliAppsDir()
   if (!existsSync(dir)) return false
   if (existsSync(cliPackagesFile())) return true
@@ -381,20 +385,109 @@ function migrateLegacyCliApps() {
   if (packages.length) writeCliPackages(packages)
 }
 
+function enabledAppsFile(): string {
+  return join(loadBootstrapConfig().dataDir, 'config', 'enabled-apps')
+}
+
+function readEnabledAddonIds(): Set<string> {
+  try {
+    const ids = new Set<string>()
+    for (const line of readFileSync(enabledAppsFile(), 'utf8').split('\n')) {
+      const id = line.trim()
+      if (id) ids.add(id)
+    }
+    return ids
+  } catch {
+    return new Set()
+  }
+}
+
+function shippedDirs(): Map<string, 'core' | 'addon'> {
+  const out = new Map<string, 'core' | 'addon'>()
+  const root = catalogRoot()
+  for (const tier of ['core', 'addon'] as const) {
+    const dir = join(root, tier)
+    if (!isDir(dir)) continue
+    for (const name of readdirSync(dir)) {
+      if (existsSync(join(dir, name, 'config.yml'))) out.set(name, tier)
+    }
+  }
+  return out
+}
+
+function addonPackageIds(): Set<string> {
+  return new Set(readCatalog().filter((pkg) => pkg.tier === 'addon').map((pkg) => pkg.id))
+}
+
+function writeEnabledAddonIds(ids: Iterable<string>) {
+  const file = enabledAppsFile()
+  const addons = addonPackageIds()
+  const lines = [...new Set(ids)].map((id) => id.trim()).filter((id) => addons.has(id)).sort()
+  mkdirSync(join(file, '..'), { recursive: true })
+  if (!lines.length) {
+    if (existsSync(file)) unlinkSync(file)
+    return
+  }
+  writeFileSync(file, `${lines.join('\n')}\n`)
+}
+
+/** Copies of shipped apps are not custom apps. `enabled: false` stays off. Core never goes in the file. */
+function absorbShippedCopies(dir: string) {
+  const shipped = shippedDirs()
+  if (!shipped.size) return
+  const addons = addonPackageIds()
+  const enable = readEnabledAddonIds()
+  let changed = false
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name)
+    if (!shipped.has(name) || !isDir(path)) continue
+    const file = join(path, 'config.yml')
+    if (addons.has(name) && existsSync(file)) {
+      const pkg = readAppFile(name, file)
+      if (pkg && pkg.enabled !== false && !enable.has(name)) {
+        enable.add(name)
+        changed = true
+      }
+    }
+    rmSync(path, { recursive: true, force: true })
+  }
+  if (changed) writeEnabledAddonIds(enable)
+}
+
+function rememberAddonEnable(packages: CliPackage[]) {
+  const addons = addonPackageIds()
+  const enable = readEnabledAddonIds()
+  let changed = false
+  for (const pkg of packages) {
+    if (!addons.has(pkg.id)) continue
+    if (pkg.enabled === false) {
+      if (enable.delete(pkg.id)) changed = true
+    } else if (pkg.enabled === true && !enable.has(pkg.id)) {
+      enable.add(pkg.id)
+      changed = true
+    }
+  }
+  if (changed) writeEnabledAddonIds(enable)
+}
+
 export function readStoredPackages(): CliPackage[] {
   migrateLegacyCliApps()
   const dir = cliAppsDir()
   if (!existsSync(dir)) return seedCliPackages()
   migrateFlatApps(dir)
+  absorbShippedCopies(dir)
+  const shipped = shippedDirs()
   try {
-    if (hasAppConfig(dir)) return readYamlApps(dir)
+    if (hasAppConfig(dir)) return readYamlApps(dir).filter((pkg) => !shipped.has(pkg.id))
     const raw = JSON.parse(readFileSync(cliPackagesFile(), 'utf8')) as unknown
     if (!Array.isArray(raw)) return []
-    return raw.flatMap((row) => {
+    const packages = raw.flatMap((row) => {
       if (!row || typeof row !== 'object' || typeof (row as { id?: unknown }).id !== 'string') return []
       const pkg = asPackage((row as { id: string }).id, row as Record<string, unknown>)
       return pkg ? [pkg] : []
     })
+    rememberAddonEnable(packages)
+    return packages.filter((pkg) => !shipped.has(pkg.id))
   } catch {
     return seedCliPackages()
   }
@@ -455,7 +548,7 @@ export function patchAppUi(id: string, patch: AppUi): AppUi {
 
 function withAppUi(pkg: CliPackage, ui = readAppUi()): CliPackage {
   const row = ui[pkg.id]
-  const web = (pkg.interfaces || []).some((iface) => iface.type === 'webui' && iface.containerPort && iface.publish)
+  const web = (pkg.interfaces || []).some((iface) => iface.type === 'webui' && iface.publish)
   return {
     ...pkg,
     ...(web ? { forwardHost: row?.forwardHost !== false, navPinned: row?.navPinned === true } : {}),
@@ -464,13 +557,13 @@ function withAppUi(pkg: CliPackage, ui = readAppUi()): CliPackage {
 
 export function readCliPackages(): CliPackage[] {
   const stored = readStoredPackages()
+  const enabledIds = readEnabledAddonIds()
   const ui = readAppUi()
   const used = new Set<string>()
   const out: CliPackage[] = []
   for (const row of readCatalog()) {
     used.add(row.id)
-    const over = stored.find((pkg) => pkg.id === row.id)
-    const enabled = row.tier === 'core' ? true : over?.enabled === true
+    const enabled = row.tier === 'core' ? true : enabledIds.has(row.id)
     out.push(withAppUi({ ...row, enabled }, ui))
   }
   for (const row of stored) {
@@ -487,16 +580,12 @@ export function enabledCliPackages(packages = readCliPackages()): CliPackage[] {
 export function writeCliPackages(packages: CliPackage[]) {
   const dir = cliAppsDir()
   mkdirSync(dir, { recursive: true })
-  const ids = new Set(packages.map((pkg) => pkg.id))
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name)
-    if (name.endsWith('.yml')) {
-      if (!ids.has(name.slice(0, -4))) unlinkSync(path)
-      continue
-    }
-    if (isDir(path) && existsSync(join(path, 'config.yml')) && !ids.has(name)) rmSync(path, { recursive: true, force: true })
-  }
-  for (const pkg of packages) {
+  migrateFlatApps(dir)
+  absorbShippedCopies(dir)
+  rememberAddonEnable(packages)
+  const shipped = shippedDirs()
+  const custom = packages.filter((pkg) => !shipped.has(pkg.id))
+  for (const pkg of custom) {
     const doc = {
       id: pkg.id,
       name: pkg.name || pkg.bin || pkg.id,
@@ -546,12 +635,43 @@ export function enabledAppsDir(): string {
   return join(loadBootstrapConfig().dataDir, 'build', 'desktop')
 }
 
+export function claimDirArgs(dir: string, uid: number, gid: number, image = 'bros:latest'): string[] {
+  return ['run', '--rm', '-u', '0', '--entrypoint', 'chown', '-v', `${dir}:/claim`, image, '-R', `${uid}:${gid}`, '/claim']
+}
+
+function claimImage(): string {
+  for (const image of ['bros:latest', 'bros:dev']) {
+    if (spawnSync('docker', ['image', 'inspect', image], { stdio: 'ignore' }).status === 0) return image
+  }
+  return 'bros:latest'
+}
+
+// ponytail: one docker chown of this directory. A nested mount the daemon cannot chown still fails the retry.
+function claimDir(dir: string) {
+  const uid = process.getuid?.()
+  const gid = process.getgid?.()
+  if (uid == null || gid == null) return
+  const result = spawnSync('docker', claimDirArgs(dir, uid, gid, claimImage()), { stdio: 'inherit' })
+  if (result.status !== 0) throw new Error(`cannot claim ${dir}: docker chown failed`)
+}
+
+function needsClaim(dir: string): boolean {
+  const uid = process.getuid?.()
+  if (uid == null) return false
+  if (statSync(dir).uid !== uid) return true
+  return readdirSync(dir).some((name) => statSync(join(dir, name)).uid !== uid)
+}
+
+function ensureWritable(dir: string) {
+  if (needsClaim(dir)) claimDir(dir)
+}
+
 function repoRoot(): string {
   return process.env.BROS_HOST_REPO?.trim() || loadBootstrapConfig().workingDir
 }
 
 function desktopDockerfileTemplate(): string {
-  return join(repoRoot(), 'lib', 'sidecars', 'core', 'desktop', 'Dockerfile')
+  return join(repoRoot(), 'lib', 'desktop', 'Dockerfile')
 }
 
 function desktopAppStampFile(): string {
@@ -604,15 +724,13 @@ export function appLayerOrder<T extends { id: string; tier?: string }>(packages:
 }
 
 export function desktopAppsDockerfile(base: string, packages: { id: string; tier?: string; kind?: string }[]): string {
-  const body = base
-    .replace(/^# syntax=docker\/dockerfile:1\n/, '')
-    .replace(/\nCOPY core\/desktop\/enabled-apps\/ \S+\nRUN BROS_IMAGE_INSTALL=1 node \/opt\/bros\/install\.mjs[^\n]*\n/, '\n')
-    .replace(/^COPY core\/desktop\//gm, 'COPY --from=sidecars core/desktop/')
   const layers = appLayerOrder(packages).filter((pkg) => pkg.kind === 'run').map((pkg) => {
     if (!APP_ID.test(pkg.id)) throw new Error(`bad app id ${pkg.id}`)
-    return `COPY ${pkg.id} /opt/bros/enabled-apps/${pkg.id}\nRUN --mount=type=cache,id=bros-pkg,target=/var/cache/bros \\\n  --mount=type=bind,from=brosnode,source=/usr/local/bin/node,target=/tmp/bros-node \\\n  BROS_IMAGE_INSTALL=1 /tmp/bros-node /opt/bros/install.mjs --only ${pkg.id}`
+    return `COPY --from=apps ${pkg.id} /opt/bros/enabled-apps/${pkg.id}\nRUN --mount=type=cache,id=bros-pkg,target=/var/cache/bros \\\n  BROS_IMAGE_INSTALL=1 /usr/local/bin/node /opt/bros/install.ts --only ${pkg.id}`
   })
-  return `# syntax=docker/dockerfile:1\n${body.trim()}\n${layers.join('\n')}\n`
+  const body = base.replace(/\s+$/, '')
+  if (!layers.length) return `${body}\n`
+  return `${body}\n${layers.join('\n')}\n`
 }
 
 function runStampsFile() {
@@ -669,6 +787,7 @@ export function packageUpdateAction(kind: string): 'rebuild' | 'exec' {
 export function prepareDesktopAppBuild(): { hash: string; changed: boolean } {
   const dir = enabledAppsDir()
   mkdirSync(dir, { recursive: true })
+  ensureWritable(dir)
   const packages = enabledCliPackages()
   const ids = new Set(packages.map((pkg) => pkg.id))
   for (const name of readdirSync(dir)) {
@@ -725,7 +844,7 @@ export function appsComposeBody(packages: CliPackage[]): string {
       .map((iface) => `${iface.publish}:${iface.containerPort}`)
   })
   if (!volumes.length && !ports.length) return ''
-  const lines = ['services:', '  desktop:']
+  const lines = ['services:', '  bros:']
   if (ports.length) lines.push('    ports:', ...ports.map((port) => `      - "${port}"`))
   if (volumes.length) lines.push('    volumes:', ...volumes.map((vol) => `      - ${vol}`))
   return `${lines.join('\n')}\n`
@@ -738,7 +857,50 @@ export function writeAppsCompose(packages: CliPackage[]) {
     if (existsSync(file)) unlinkSync(file)
     return
   }
+  mkdirSync(join(file, '..'), { recursive: true })
   writeFileSync(file, body)
+}
+
+export function volumeHostPaths(text: string): string[] {
+  const hosts: string[] = []
+  let inVolumes = false
+  for (const line of text.split('\n')) {
+    if (!line.trim() || line.trim().startsWith('#')) continue
+    const indent = line.match(/^\s*/)?.[0].length ?? 0
+    if (/^\s*volumes:\s*$/.test(line)) {
+      inVolumes = true
+      continue
+    }
+    if (inVolumes && indent <= 4 && !line.trim().startsWith('-')) inVolumes = false
+    if (!inVolumes || !line.trim().startsWith('-')) continue
+    const spec = line.trim().slice(2).trim().replace(/^["']|["']$/g, '')
+    const host = spec.split(':')[0]
+    if (host) hosts.push(host)
+  }
+  return hosts
+}
+
+/** Host paths added or removed between two apps-compose bodies. Ports do not count. */
+export function changedVolumeHosts(before: string, after: string): string[] {
+  const prev = new Set(volumeHostPaths(before))
+  const next = new Set(volumeHostPaths(after))
+  return [...next].filter(host => !prev.has(host)).concat([...prev].filter(host => !next.has(host)))
+}
+
+/** Docker apps whose compose mounts a host path the desktop recreate changed. */
+export function dockerAppsRemounting(
+  changedHosts: string[],
+  apps: { id: string, compose: string }[],
+  dataDir: string,
+): string[] {
+  if (!changedHosts.length) return []
+  const hosts = new Set(changedHosts)
+  return apps.filter((app) => {
+    const text = app.compose
+      .replaceAll('${BROS_HOST_DATA_DIR:?unset}', dataDir)
+      .replaceAll('${BROS_HOST_DATA_DIR}', dataDir)
+    return volumeHostPaths(text).some(host => hosts.has(host))
+  }).map(app => app.id)
 }
 
 export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boolean }): Promise<{ code: number; stderr: string; rebuild: boolean }> {
@@ -749,8 +911,7 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
     writeAppsCompose(packages)
     const changed = before.trim() !== readAppsComposeText().trim()
     const list = prepareDesktopAppBuild()
-    const sidecar = getSidecar('desktop')
-    const running = !!sidecar && !sidecar.error && (await (await docker()).getProjectStatus(sidecar)).running
+    const running = await (await docker()).brosContainerRunning()
     const rebuild = !!opts?.rebuild
     const action = cliApplyAction(running, changed, rebuild)
     if (action === 'skip') {
@@ -759,11 +920,19 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
       return { code: 0, stderr: '', rebuild: false }
     }
     if (!opts?.claimed) release = claim(true)
-    const started = await (await docker()).startSidecar('desktop', {
-      forceRecreate: changed,
-      rebuild,
-    })
-    return { code: 0, stderr: started.warning || '', rebuild: action === 'recreate' }
+    const started = await (await docker()).rebuildBrosContainer({ build: rebuild || list.changed, forceRecreate: changed })
+    if (started.code === 0 && changed) {
+      const hosts = changedVolumeHosts(before, readAppsComposeText())
+      const dataDir = process.env.BROS_HOST_DATA_DIR || loadBootstrapConfig().dataDir
+      const apps = discoverDockerApps().dockerApps.map((app) => {
+        const file = join(app.dir, 'docker-compose.yml')
+        return { id: app.id, compose: existsSync(file) ? readFileSync(file, 'utf8') : '' }
+      })
+      for (const id of dockerAppsRemounting(hosts, apps, dataDir)) {
+        await (await docker()).startDockerApp(id, { forceRecreate: true })
+      }
+    }
+    return { code: started.code, stderr: started.stderr || '', rebuild: action === 'recreate' }
   } catch (err) {
     if ((err as { statusCode?: number }).statusCode === 409) throw err
     const message = err instanceof Error ? err.message : 'Rebuild failed'
@@ -773,11 +942,11 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
   }
 }
 
-export type AppUpdateKind = 'package' | 'sidecar'
+export type AppUpdateKind = 'package' | 'docker'
 
-export function appUpdateKind(id: string, packages: { id: string }[], sidecarIds: string[]): AppUpdateKind | null {
+export function appUpdateKind(id: string, packages: { id: string }[], dockerAppIds: string[]): AppUpdateKind | null {
   if (packages.some((pkg) => pkg.id === id)) return 'package'
-  if (sidecarIds.includes(id)) return 'sidecar'
+  if (dockerAppIds.includes(id)) return 'docker'
   return null
 }
 
@@ -792,7 +961,7 @@ export function updateCommand(pkg: CliPackage): string[] {
   if (pkg.kind === 'pnpm') return ['pnpm', 'update', '-g', pkg.spec]
   if (pkg.kind === 'bun') return ['bun', 'update', '-g', pkg.spec]
   if (pkg.kind === 'apt') return ['apt-get', 'install', '-y', pkg.spec]
-  if (pkg.kind === 'deb') return ['node', '/opt/bros/managers/deb.mjs', 'install', pkg.id, pkg.spec]
+  if (pkg.kind === 'deb') return ['node', '/opt/bros/managers/deb.ts', 'install', pkg.id, pkg.spec]
   if (pkg.kind === 'deno') return ['deno', 'install', '-g', '-A', '-f', pkg.spec]
   if (pkg.kind === 'uv') {
     const name = pkg.spec.split('==')[0] || pkg.spec
@@ -812,8 +981,8 @@ export function updateCommand(pkg: CliPackage): string[] {
 
 export async function updateApp(id: string): Promise<{ kind: AppUpdateKind; code: number; stderr: string }> {
   const packages = enabledCliPackages()
-  const sidecars = discoverSidecars().sidecars.map((sidecar) => sidecar.id)
-  const kind = appUpdateKind(id, packages, sidecars)
+  const dockerApps = discoverDockerApps().dockerApps.map((dockerApp) => dockerApp.id)
+  const kind = appUpdateKind(id, packages, dockerApps)
   if (!kind) {
     const err = new Error('App not found') as Error & { statusCode: number }
     err.statusCode = 404
@@ -830,13 +999,13 @@ export async function updateApp(id: string): Promise<{ kind: AppUpdateKind; code
         const res = await applyCliPackages({ rebuild: true, claimed: true })
         return { kind, code: res.code, stderr: res.stderr || '' }
       }
-      const res = await (await docker()).execInSidecar('desktop', updateCommand(pkg), 600_000)
+      const res = await (await docker()).execInBros(updateCommand(pkg), 600_000)
       return { kind, code: res.code, stderr: res.stderr || '' }
     } finally {
       release()
     }
   }
-  const res = await (await docker()).pullSidecar(id)
+  const res = await (await docker()).pullDockerApp(id)
   return { kind, code: res.code, stderr: res.stderr || '' }
 }
 
@@ -848,10 +1017,13 @@ export type AppCheck = {
   run?: boolean
 }
 
+/** Desktop user. `cursor --version` exits when this probe runs as root. */
+const VERSION_USER = 'bros'
+
 async function installedVersion(pkg: CliPackage): Promise<string | undefined> {
   const cmd = versionCommand(pkg)
   if (!cmd) return undefined
-  const res = await (await docker()).execInSidecar('desktop', ['bash', '-lc', cmd], 60_000)
+  const res = await (await docker()).execInBros(['bash', '-lc', versionShell(cmd)], 60_000, VERSION_USER)
   return parseVersionText(pkg.kind, pkg.spec, res.stdout || '') || undefined
 }
 
@@ -859,21 +1031,21 @@ export async function probeAppVersions(): Promise<{ id: string; version: string 
   const packages = enabledCliPackages()
   const script = buildVersionScript(packages)
   if (!script) return []
-  const res = await (await docker()).execInSidecar('desktop', ['bash', '-lc', script], 60_000)
+  const res = await (await docker()).execInBros(['bash', '-lc', versionShell(script)], 60_000, VERSION_USER)
   return parseVersionScriptOutput(res.stdout || '', packages)
 }
 
 export async function checkAppUpdate(id: string): Promise<AppCheck> {
   const packages = enabledCliPackages()
-  const sidecars = discoverSidecars().sidecars.map((sidecar) => sidecar.id)
-  const kind = appUpdateKind(id, packages, sidecars)
+  const dockerApps = discoverDockerApps().dockerApps.map((dockerApp) => dockerApp.id)
+  const kind = appUpdateKind(id, packages, dockerApps)
   if (!kind) {
     const err = new Error('App not found') as Error & { statusCode: number }
     err.statusCode = 404
     throw err
   }
-  if (kind === 'sidecar') {
-    const res = await (await docker()).pullSidecar(id, { dryRun: true })
+  if (kind === 'core') {
+    const res = await (await docker()).pullDockerApp(id, { dryRun: true })
     const text = `${res.stdout}\n${res.stderr}`
     return { kind, available: /download|pulling|newer/i.test(text) && !/up to date/i.test(text) }
   }
@@ -891,10 +1063,10 @@ export async function checkAppUpdate(id: string): Promise<AppCheck> {
   const version = await installedVersion(pkg)
   if (pkg.kind === 'deb') {
     if (!debTracksLatest(pkg.spec)) return { kind, available: false, ...(version ? { version } : {}) }
-    const res = await (await docker()).execInSidecar('desktop', ['node', '/opt/bros/managers/deb.mjs', 'check', pkg.id, pkg.spec], 120_000)
+    const res = await (await docker()).execInBros(['node', '/opt/bros/managers/deb.ts', 'check', pkg.id, pkg.spec], 120_000)
     return { kind, available: (res.stdout || '').trim() === 'yes', ...(version ? { version } : {}) }
   }
-  const res = await (await docker()).execInSidecar('desktop', updateCommand(pkg).slice(0, 1).concat(['outdated', '-g', pkg.spec]), 120_000)
+  const res = await (await docker()).execInBros(updateCommand(pkg).slice(0, 1).concat(['outdated', '-g', pkg.spec]), 120_000)
   const parsed = parseOutdated(`${res.stdout || ''}\n${res.stderr || ''}`, pkg.spec)
   const available = res.code !== 0 && !!(res.stdout || '').trim()
   const current = parsed.current || version
@@ -906,28 +1078,30 @@ export async function checkAppUpdate(id: string): Promise<AppCheck> {
   }
 }
 
-export function disableAddonApp(id: string) {
+function requireAddon(id: string): CliPackage {
   const row = readCatalog().find((pkg) => pkg.id === id && pkg.tier === 'addon')
   if (!row) {
     const err = new Error('Addon app not found') as Error & { statusCode: number }
     err.statusCode = 404
     throw err
   }
-  const stored = readStoredPackages().filter((pkg) => pkg.id !== id)
-  stored.push({ ...row, enabled: false })
-  writeCliPackages(stored)
+  return row
+}
+
+export function disableAddonApp(id: string) {
+  requireAddon(id)
+  readStoredPackages()
+  const ids = readEnabledAddonIds()
+  ids.delete(id)
+  writeEnabledAddonIds(ids)
 }
 
 export function enableAddonApp(id: string) {
-  const row = readCatalog().find((pkg) => pkg.id === id && pkg.tier === 'addon')
-  if (!row) {
-    const err = new Error('Addon app not found') as Error & { statusCode: number }
-    err.statusCode = 404
-    throw err
-  }
-  const stored = readStoredPackages().filter((pkg) => pkg.id !== id)
-  stored.push({ ...row, enabled: true })
-  writeCliPackages(stored)
+  requireAddon(id)
+  readStoredPackages()
+  const ids = readEnabledAddonIds()
+  ids.add(id)
+  writeEnabledAddonIds(ids)
 }
 
 export function appServicesFile() {
@@ -1004,7 +1178,7 @@ export async function startAppGui(id: string, command?: string) {
   const args = iface.args ? iface.args.split(/\s+/).filter(Boolean) : []
   const dock = await docker()
   await dock.ensureAppsRunning()
-  const res = await dock.execInSidecar('desktop', ['/app/lib/sidecars/core/desktop/desktop-gui.sh', 'start', guiAppProxyId(id, iface.command), '--', iface.command, ...args])
+  const res = await dock.execInBros(['/app/lib/desktop/desktop-gui.sh', 'start', guiAppProxyId(id, iface.command), '--', iface.command, ...args])
   if (res.code !== 0) {
     throw createError(dock.dockerCommandError(500, 'Desktop app failed to start', res.stderr || res.stdout || 'Desktop app failed to start'))
   }
@@ -1023,7 +1197,7 @@ async function endAppGui(id: string, command: string | undefined, action: 'close
     err.statusCode = 404
     throw err
   }
-  return (await docker()).execInSidecar('desktop', ['/app/lib/sidecars/core/desktop/desktop-gui.sh', action, guiAppProxyId(id, cmd)])
+  return (await docker()).execInBros(['/app/lib/desktop/desktop-gui.sh', action, guiAppProxyId(id, cmd)])
 }
 
 export function stopAppGui(id: string, command?: string) {

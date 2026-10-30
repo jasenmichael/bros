@@ -1,7 +1,7 @@
 import { ofetch } from 'ofetch'
 
 export type LaunchRef = {
-  kind: 'terminal' | 'package' | 'sidecar' | 'entry'
+  kind: 'terminal' | 'package' | 'docker' | 'entry'
   id: string
   command?: string
 }
@@ -25,9 +25,9 @@ export async function launchDesktop(app: LaunchRef, action: 'open' | 'close' | '
     })
     return
   }
-  if (app.kind === 'sidecar') {
+  if (app.kind === 'core') {
     const path = action === 'close' ? 'stop' : 'start'
-    await api(`/api/sidecars/${app.id}/${path}`, {
+    await api(`/api/apps/${app.id}/${path}`, {
       method: 'POST',
       body: { gui: true, ...(action === 'close' ? { one: true } : {}) },
     })

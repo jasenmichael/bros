@@ -13,7 +13,7 @@ export default defineNuxtPlugin(() => {
   let primed = false
   let holding = ''
   const { data, refresh } = useFetch<EnsureStatus>('/api/apps/ensure', {
-    key: 'bros-desktop-ensure',
+    key: 'bros-ensure',
     lazy: true,
     server: false,
   })

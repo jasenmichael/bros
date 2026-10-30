@@ -100,8 +100,8 @@ async function runEnsure() {
   const packages = ensurePackages(enabledCliPackages())
   writeList(packages)
   try {
-    const { execInSidecar } = await import('../docker')
-    const res = await execInSidecar('desktop', ['bash', '/app/lib/sidecars/core/desktop/ensure.sh'], 1_800_000)
+    const { execInBros } = await import('../docker')
+    const res = await execInBros(['bash', '/app/lib/desktop/ensure.sh'], 1_800_000)
     if (res.code !== 0) console.error('desktop ensure', res.stderr || res.stdout)
   } catch (err) {
     console.error('desktop ensure', err)

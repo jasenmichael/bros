@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import { join } from 'pathe'
 import { loadBootstrapConfig } from './config'
-import { sidecarOllamaUrl } from './providers/ollamaHost'
+import { dockerAppOllamaUrl } from './providers/ollamaHost'
 
 export const INTERNAL_BROS_MODEL = 'bros'
 export const VENDOR_BROS_MODEL_REL = 'vendor/bros-model'
@@ -52,7 +52,7 @@ export function vendorGgufPath(workingDir: string) {
 }
 
 export function destBrosModelDir(dataDir: string) {
-  return join(dataDir, 'sidecars', 'ollama', 'bros-model')
+  return join(dataDir, 'apps', 'ollama', 'bros-model')
 }
 
 function readStamp(destDir: string): GgufStamp | null {
@@ -93,9 +93,9 @@ function copyVendorTree(vendorRoot: string, destRoot: string) {
   }
 }
 
-async function sidecarHasBros(): Promise<boolean> {
+async function dockerAppHasBros(): Promise<boolean> {
   try {
-    const res = await fetch(`${sidecarOllamaUrl().replace(/\/$/, '')}/api/tags`, {
+    const res = await fetch(`${dockerAppOllamaUrl().replace(/\/$/, '')}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     })
     if (!res.ok) return false
@@ -120,13 +120,13 @@ async function ensureInternalBrosModelOnce() {
 
   const destDir = destBrosModelDir(dataDir)
   const identity = vendorStamp(gguf)
-  const hasBros = await sidecarHasBros()
+  const hasBros = await dockerAppHasBros()
   if (hasBros && stampMatches(readStamp(destDir), identity)) return
 
   copyVendorTree(vendorBrosModelDir(workingDir), destDir)
 
-  const { execInSidecar } = await import('./docker')
-  const res = await execInSidecar(
+  const { execInDockerApp } = await import('./docker')
+  const res = await execInDockerApp(
     'ollama',
     ['bash', '/bros-model/scripts/install-ollama.sh'],
     CREATE_TIMEOUT_MS,
@@ -138,7 +138,7 @@ async function ensureInternalBrosModelOnce() {
   writeStamp(destDir, identity)
 }
 
-/** Sidecar running only. Missing GGUF / create fail: log, do not throw. */
+/** DockerApp running only. Missing GGUF / create fail: log, do not throw. */
 export async function ensureInternalBrosModel() {
   if (inflight) return inflight
   inflight = ensureInternalBrosModelOnce()

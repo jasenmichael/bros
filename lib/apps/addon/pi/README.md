@@ -1,6 +1,6 @@
 # Pi
 
-Addon pack `lib/sidecars/addon/pi`.
+Addon pack `lib/apps/addon/pi`.
 
 `data/home/.pi` holds Pi state (auth, settings, sessions). It is mounted at `/home/bros/.pi`.
 

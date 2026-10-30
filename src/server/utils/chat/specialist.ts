@@ -1,9 +1,9 @@
 import { INTERNAL_BROS_MODEL } from '../internalBrosModel'
-import { ollamaBaseUrlFor, OLLAMA_SIDECAR_ID } from '../providers'
+import { ollamaBaseUrlFor, OLLAMA_DOCKER_APP_ID } from '../providers'
 
-/** Sidecar specialist `bros`. Short `Label:` tag. Ignores the conversation model. */
+/** DockerApp specialist `bros`. Short `Label:` tag. Ignores the conversation model. */
 export async function specialistLabel(userText: string): Promise<string> {
-  const base = await ollamaBaseUrlFor(OLLAMA_SIDECAR_ID)
+  const base = await ollamaBaseUrlFor(OLLAMA_DOCKER_APP_ID)
   const res = await fetch(`${base.replace(/\/$/, '')}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

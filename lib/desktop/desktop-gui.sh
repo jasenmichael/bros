@@ -318,8 +318,8 @@ if [ -n "$container" ]; then
 else
   log="$slot/err"
   : > "$log"
-  # Devbox bins for this child only. sidecar-bins stays first so launch.sh wins.
-  launch='eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true; export PATH="/home/bros/.local/sidecar-bins:$PATH"; export LIBGL_ALWAYS_SOFTWARE=1; exec "$@"'
+  # Devbox bins for this child only. app-bins stays first so launch.sh wins.
+  launch='eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true; export PATH="/home/bros/.local/app-bins:$PATH"; export LIBGL_ALWAYS_SOFTWARE=1; exec "$@"'
   if id abc >/dev/null 2>&1; then
     setsid runuser -u abc -- env \
       HOME=/home/bros \

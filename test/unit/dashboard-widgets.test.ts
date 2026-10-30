@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { markAutostartFailed, sidecarPhase, sidecarPortWarning } from '../../src/server/utils/docker'
+import { markAutostartFailed, dockerAppPhase, dockerAppPortWarning } from '../../src/server/utils/docker'
 import { parseMeminfo } from '../../src/server/utils/memory'
 import {
   buildAttention,
@@ -10,35 +10,35 @@ import {
 
 const GiB = 1024 * 1024 * 1024
 
-describe('sidecarPhase', () => {
+describe('dockerAppPhase', () => {
   it('reports starting only while the container is not running', () => {
-    expect(sidecarPhase('ollama', false)).toBe('stopped')
-    expect(sidecarPhase('ollama', true)).toBe('running')
-    expect(sidecarPhase('ollama', false, 'Port 11435 is already in use.')).toBe('error')
-    expect(sidecarPhase('ollama', true, 'stale')).toBe('error')
+    expect(dockerAppPhase('ollama', false)).toBe('stopped')
+    expect(dockerAppPhase('ollama', true)).toBe('running')
+    expect(dockerAppPhase('ollama', false, 'Port 11435 is already in use.')).toBe('error')
+    expect(dockerAppPhase('ollama', true, 'stale')).toBe('running')
     markAutostartFailed('paperclip')
-    expect(sidecarPhase('paperclip', false)).toBe('error')
-    expect(sidecarPhase('paperclip', true)).toBe('running')
-    expect(sidecarPhase('paperclip', false)).toBe('stopped')
+    expect(dockerAppPhase('paperclip', false)).toBe('error')
+    expect(dockerAppPhase('paperclip', true)).toBe('running')
+    expect(dockerAppPhase('paperclip', false)).toBe('stopped')
   })
 })
 
-describe('sidecarPortWarning', () => {
-  it('does not warn when a stopped autostart-off sidecar has a taken port', () => {
-    expect(sidecarPortWarning({
+describe('dockerAppPortWarning', () => {
+  it('does not warn when a stopped autostart-off dockerApp has a taken port', () => {
+    expect(dockerAppPortWarning({
       running: false,
       autostart: false,
       portOccupied: true,
       ours: false,
       hostPort: 3100,
     })).toBeUndefined()
-    expect(sidecarPortWarning({
+    expect(dockerAppPortWarning({
       running: false,
       autostart: true,
       portOccupied: true,
       ours: false,
       hostPort: 3100,
-    })).toBe('Port 3100 is already in use. Bros sidecar cannot start until it is free.')
+    })).toBe('Port 3100 is already in use. Bros docker app cannot start until it is free.')
   })
 })
 
@@ -84,7 +84,7 @@ describe('dashboard hub', () => {
       .toBe('http://127.0.0.1:8092/docs')
   })
 
-  it('warns on docker, sidecar errors, stopped Ollama, low disk, and no chat', () => {
+  it('warns on docker, dockerApp errors, stopped Ollama, low disk, and no chat', () => {
     expect(diskNeedsAttention(1.5 * GiB, 20 * GiB)).toBe(true)
     expect(diskNeedsAttention(3 * GiB, 100 * GiB)).toBe(true)
     expect(diskNeedsAttention(20 * GiB, 100 * GiB)).toBe(false)
@@ -92,20 +92,24 @@ describe('dashboard hub', () => {
     const items = buildAttention({
       dockerOk: false,
       dockerError: 'socket down',
-      sidecars: [{ id: 'opencode', name: 'OpenCode', phase: 'error', error: 'port in use' }],
+      dockerApps: [
+        { id: 'opencode', name: 'OpenCode', phase: 'error', error: 'port in use' },
+        { id: 'whisper', name: 'Whisper', phase: 'error', error: 'Failed to start dockerApp' },
+      ],
       diskFreeBytes: 1 * GiB,
       diskTotalBytes: 20 * GiB,
       diskFreeLabel: '1 GB',
       chatReady: 0,
       ollamaPhase: 'stopped',
     })
-    expect(items.map((item) => item.id)).toEqual(['docker', 'sidecar:opencode', 'ollama', 'disk'])
+    expect(items.map((item) => item.id)).toEqual(['docker', 'dockerApp:whisper', 'ollama', 'disk'])
+    expect(items.find((item) => item.href === '/apps')?.href).toBe('/apps')
     expect(items.find((item) => item.id === 'chat')).toBeUndefined()
 
     const chatOff = buildAttention({
       dockerOk: true,
       dockerError: null,
-      sidecars: [],
+      dockerApps: [],
       diskFreeBytes: 40 * GiB,
       diskTotalBytes: 100 * GiB,
       diskFreeLabel: '40 GB',

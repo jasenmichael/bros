@@ -5,16 +5,16 @@ import { decryptSecret, encryptSecret } from '../auth'
 import { getDb, providers } from '../db'
 import { isInternalBrosModel, refuseInternalBrosModel } from '../internalBrosModel'
 import { isValidOllamaPullName } from './ollamaLibrary'
-import { findHostOllama, hostOllamaUrl, sidecarOllamaUrl, OLLAMA_SIDECAR_DNS } from './ollamaHost'
+import { findHostOllama, hostOllamaUrl, dockerAppOllamaUrl, OLLAMA_DOCKER_APP_DNS } from './ollamaHost'
 import { PROVIDER_PRESETS, getProviderPreset, isPopularProvider } from './presets'
 
 export type ProviderKind = 'ollama' | 'openai' | 'anthropic'
 
-export const OLLAMA_SIDECAR_ID = 'ollama'
+export const OLLAMA_DOCKER_APP_ID = 'ollama'
 export const OLLAMA_HOST_ID = 'ollama-host'
-export const SYSTEM_PROVIDER_IDS = [OLLAMA_SIDECAR_ID, OLLAMA_HOST_ID] as const
+export const SYSTEM_PROVIDER_IDS = [OLLAMA_DOCKER_APP_ID, OLLAMA_HOST_ID] as const
 
-/** Provider-row health. Not sidecar process lifecycle (that stays running/stopped on Status). */
+/** Provider-row health. Not dockerApp process lifecycle (that stays running/stopped on Status). */
 export type ProviderStatus = 'ready' | 'needs_key' | 'invalid_key' | 'unreachable'
 
 export type ProviderHealth = {
@@ -34,13 +34,13 @@ export function providerNeedsApiKey(kind: ProviderKind) {
   return kind === 'openai' || kind === 'anthropic'
 }
 
-/** Ollama sidecar + host start Chat-on. Popular/custom start Chat-off. */
+/** Ollama dockerApp + host start Chat-on. Popular/custom start Chat-off. */
 export function defaultChatEnabled(kind: ProviderKind) {
   return kind === 'ollama'
 }
 
 export function isSystemProvider(id: string) {
-  return id === OLLAMA_SIDECAR_ID || id === OLLAMA_HOST_ID
+  return id === OLLAMA_DOCKER_APP_ID || id === OLLAMA_HOST_ID
 }
 
 export function isReservedProviderId(id: string) {
@@ -128,7 +128,7 @@ export function deleteProvider(id: string) {
   getDb().delete(providers).where(eq(providers.id, id)).run()
 }
 
-/** Chat picker only. Does not start/stop sidecars, host Ollama, or other providers. */
+/** Chat picker only. Does not start/stop dockerApps, host Ollama, or other providers. */
 export function isChatSelectionEnabled(row: { enabled?: boolean } | null | undefined) {
   return row?.enabled !== false
 }
@@ -226,26 +226,26 @@ export async function disableUnhealthyKeyedChat() {
   return healthById
 }
 
-const SIDECAR_LEGACY_NAMES = new Set(['Ollama', 'Ollama sidecar'])
+const DOCKER_APP_LEGACY_NAMES = new Set(['Ollama', 'Ollama dockerApp', 'Ollama sidecar'])
 const HOST_LEGACY_NAMES = new Set(['Ollama host'])
 
 export function ensureDefaultProviders() {
-  const sidecar = getProvider(OLLAMA_SIDECAR_ID)
-  if (!sidecar) {
+  const dockerApp = getProvider(OLLAMA_DOCKER_APP_ID)
+  if (!dockerApp) {
     upsertProvider({
-      id: OLLAMA_SIDECAR_ID,
+      id: OLLAMA_DOCKER_APP_ID,
       name: 'Ollama (core)',
       kind: 'ollama',
-      baseUrl: OLLAMA_SIDECAR_DNS,
+      baseUrl: OLLAMA_DOCKER_APP_DNS,
       config: {},
     })
   }
-  else if (SIDECAR_LEGACY_NAMES.has(sidecar.name)) {
+  else if (DOCKER_APP_LEGACY_NAMES.has(dockerApp.name)) {
     upsertProvider({
-      id: OLLAMA_SIDECAR_ID,
+      id: OLLAMA_DOCKER_APP_ID,
       name: 'Ollama (core)',
       kind: 'ollama',
-      baseUrl: sidecar.baseUrl || OLLAMA_SIDECAR_DNS,
+      baseUrl: dockerApp.baseUrl || OLLAMA_DOCKER_APP_DNS,
     })
   }
   const host = getProvider(OLLAMA_HOST_ID)
@@ -297,7 +297,7 @@ export function ensureDefaultProviders() {
   }
 }
 
-export function listCustomOllamaModels(providerId = OLLAMA_SIDECAR_ID): string[] {
+export function listCustomOllamaModels(providerId = OLLAMA_DOCKER_APP_ID): string[] {
   const raw = getProvider(providerId)?.config?.customModels
   if (!Array.isArray(raw)) return []
   return raw.filter((n): n is string => (
@@ -330,7 +330,7 @@ export function setOllamaModelChatEnabled(providerId: string, name: string, enab
 }
 
 /** Append a typed/community pull name to an Ollama provider config.customModels. */
-export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_SIDECAR_ID): string[] {
+export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_DOCKER_APP_ID): string[] {
   ensureDefaultProviders()
   const trimmed = name.trim()
   const existing = listCustomOllamaModels(providerId)
@@ -388,7 +388,7 @@ export function ensureDefaultUseGpu(gpuAvailable: boolean): boolean {
   return Boolean(raw) && gpuAvailable
 }
 
-export async function listOllamaModels(baseUrl: string, providerId = OLLAMA_SIDECAR_ID) {
+export async function listOllamaModels(baseUrl: string, providerId = OLLAMA_DOCKER_APP_ID) {
   const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`, {
     signal: AbortSignal.timeout(4000),
   })
@@ -445,7 +445,7 @@ export async function probeProviderHealth(id: string): Promise<ProviderHealth> {
       kind: 'unreachable',
       message: id === OLLAMA_HOST_ID
         ? 'Host Ollama is unreachable.'
-        : 'Ollama sidecar is unreachable',
+        : 'Ollama docker app is unreachable',
     }
   }
 
@@ -584,19 +584,19 @@ export async function deleteOllamaModel(baseUrl: string, name: string) {
   return { ok: true }
 }
 
-export async function ollamaBaseUrlFor(providerId = OLLAMA_SIDECAR_ID): Promise<string> {
+export async function ollamaBaseUrlFor(providerId = OLLAMA_DOCKER_APP_ID): Promise<string> {
   if (providerId === OLLAMA_HOST_ID) {
     const hit = await findHostOllama()
     if (hit.port != null) return hostOllamaUrl(hit.port, hit.host)
     const p = getProvider(OLLAMA_HOST_ID)
     return p?.baseUrl || hostOllamaUrl(11434)
   }
-  return sidecarOllamaUrl()
+  return dockerAppOllamaUrl()
 }
 
 /** @deprecated use ollamaBaseUrlFor */
 export async function ollamaBaseUrlFromProvider(): Promise<string> {
-  return ollamaBaseUrlFor(OLLAMA_SIDECAR_ID)
+  return ollamaBaseUrlFor(OLLAMA_DOCKER_APP_ID)
 }
 
 function errorMessage(err: unknown): string {

@@ -26,7 +26,7 @@ type Summary = {
       percent: number | null
     }>
   }
-  sidecars?: {
+  dockerApps?: {
     running: number
     total: number
     items: Array<{
@@ -61,7 +61,7 @@ if (import.meta.client) {
 <template>
   <BrosPageShell
     title="Dashboard"
-    description="Recent chats, providers on for chat, sidecar state, and the host tunnel."
+    description="Recent chats, providers on for chat, docker app state, and the host tunnel."
   >
     <section
       v-if="summary?.attention?.length"
@@ -85,10 +85,10 @@ if (import.meta.client) {
         :loading="!summary"
         :providers="summary?.providers"
       />
-      <DashboardSidecars
+      <DashboardDockerApps
         class="lg:col-span-2"
         :loading="!summary"
-        :sidecars="summary?.sidecars"
+        :dockerApps="summary?.dockerApps"
       />
       <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
         <div class="flex items-center justify-between gap-3">

@@ -8,13 +8,13 @@ export XDG_DATA_HOME="$HOME_DIR/.local/share"
 export XDG_STATE_HOME="$HOME_DIR/.local/state"
 export XDG_CACHE_HOME="$HOME_DIR/.cache"
 export XDG_CONFIG_HOME="$HOME_DIR/.config"
-export PATH="/home/bros/.local/sidecar-bins:$PATH"
+export PATH="/home/bros/.local/app-bins:$PATH"
 LIST=/opt/bros/apps/ensure.list
 REMOVE=/opt/bros/apps/ensure.remove
 STATUS=/var/log/bros/ensure.json
-INSTALL=/opt/bros/install.mjs
-if [ -f /app/lib/sidecars/core/desktop/install.mjs ]; then
-  INSTALL=/app/lib/sidecars/core/desktop/install.mjs
+INSTALL=/opt/bros/install.ts
+if [ -f /app/lib/desktop/install.ts ]; then
+  INSTALL=/app/lib/desktop/install.ts
 fi
 mkdir -p /var/log/bros /etc/nix "$HOME_DIR/.local/bin" "$XDG_DATA_HOME/devbox" "$XDG_STATE_HOME/nix"
 if [ ! -f /etc/nix/nix.conf ]; then
@@ -106,8 +106,8 @@ bins_ok() {
   while [ -n "$rest" ]; do
     name=${rest%%,*}
     if [ "$rest" = "$name" ]; then rest=; else rest=${rest#*,}; fi
-    # sidecar-bins holds launch.sh. It is not the installed package.
-    as_user "p=\$(PATH=\$(printf '%s' \"\$PATH\" | tr ':' '\n' | grep -v '/[.]local/sidecar-bins\$' | paste -sd: -) command -v $(printf '%q' "$name")) && test -x \"\$p\"" || return 1
+    # app-bins holds launch.sh. It is not the installed package.
+    as_user "p=\$(PATH=\$(printf '%s' \"\$PATH\" | tr ':' '\n' | grep -v '/[.]local/app-bins\$' | paste -sd: -) command -v $(printf '%q' "$name")) && test -x \"\$p\"" || return 1
   done
 }
 

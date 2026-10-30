@@ -3,7 +3,7 @@ import {
   advertisedTunnelHost,
   applyTunnelPower,
   cloudflaredStopBlocked,
-  CLOUDFLARED_SIDECAR_ID,
+  CLOUDFLARED_DOCKER_APP_ID,
   hostnameFromPublicUrl,
   isViaTunnel,
   TUNNEL_STOP_LOCKED_MESSAGE,
@@ -151,6 +151,6 @@ describe('applyTunnelPower', () => {
     })
     expect(result).toEqual({ ok: false, error: TUNNEL_STOP_LOCKED_MESSAGE })
     expect(stop).not.toHaveBeenCalled()
-    expect(CLOUDFLARED_SIDECAR_ID).toBe('cloudflared')
+    expect(CLOUDFLARED_DOCKER_APP_ID).toBe('cloudflared')
   })
 })

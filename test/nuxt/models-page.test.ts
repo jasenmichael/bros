@@ -80,8 +80,8 @@ mockNuxtImport('useFetch', () => {
         ],
         activePulls: {},
         ollamaError: null,
-        sidecarPublish: 11435,
-        sidecarDns: 'http://ollama:11434',
+        dockerAppPublish: 11435,
+        dockerAppDns: 'http://ollama:11434',
         hostOllama: null,
       }),
       refresh: async () => {},
@@ -133,7 +133,7 @@ describe('Providers page', () => {
     expect(wrapper.text()).not.toContain('running :11435')
     expect(wrapper.text()).toContain('Add custom')
     expect(wrapper.text()).toContain('No custom providers yet.')
-    expect(wrapper.text()).not.toContain('Sidecar DNS')
+    expect(wrapper.text()).not.toContain('DockerApp DNS')
     expect(wrapper.text()).not.toContain('Paid providers')
     expect(wrapper.text()).not.toContain('External URL')
     expect(wrapper.text()).not.toContain('Pull')
@@ -184,7 +184,7 @@ describe('Providers page', () => {
     expect(customList?.classes()).toContain('w-full')
   })
 
-  it('expands then collapses the sidecar pull panel from the chevron without losing selection', async () => {
+  it('expands then collapses the dockerApp pull panel from the chevron without losing selection', async () => {
     const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ModelsPage)
     const expanders = wrapper.findAll('[aria-label="Expand models"]')
@@ -204,16 +204,16 @@ describe('Providers page', () => {
     expect(visibleText(wrapper)).not.toContain('Use GPU')
   })
 
-  it('shows a Chat switch and ban delete on sidecar installed rows, with confirm', async () => {
+  it('shows a Chat switch and ban delete on dockerApp installed rows, with confirm', async () => {
     const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ModelsPage)
     expect(wrapper.text()).not.toContain('llama3.2')
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
-    const sidecarCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
-    expect(sidecarCard?.text()).toContain('llama3.2')
-    expect(sidecarCard?.text()).toContain('2000 MB')
-    expect(sidecarCard?.text()).not.toContain('Delete')
+    const dockerAppCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
+    expect(dockerAppCard?.text()).toContain('llama3.2')
+    expect(dockerAppCard?.text()).toContain('2000 MB')
+    expect(dockerAppCard?.text()).not.toContain('Delete')
     expect(wrapper.find('[aria-label="Enable llama3.2 for chat"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="Delete llama3.2"]').exists()).toBe(true)
     expect(document.querySelector('[role="dialog"]')).toBeNull()
@@ -229,7 +229,7 @@ describe('Providers page', () => {
     cancel!.click()
     await wrapper.vm.$nextTick()
     expect(document.querySelector('[role="dialog"][data-state="open"]')).toBeNull()
-    expect(sidecarCard?.text()).toContain('llama3.2')
+    expect(dockerAppCard?.text()).toContain('llama3.2')
   })
 
   it('applies the same installed-row controls on the host card', async () => {
@@ -268,19 +268,19 @@ describe('Providers page', () => {
     expect(hostCard!.text()).toContain('Host Ollama is unreachable')
     expect(hostCard!.text()).toContain('Save port')
     expect(hostCard!.text()).not.toContain('Use GPU')
-    const sidecarCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
-    expect(sidecarCard?.text()).not.toContain('user/name:tag')
+    const dockerAppCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
+    expect(dockerAppCard?.text()).not.toContain('user/name:tag')
   })
 
-  it('shows sidecar GPU settings after models, not in a modal', async () => {
+  it('shows dockerApp GPU settings after models, not in a modal', async () => {
     const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ModelsPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
-    const sidecarCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
-    expect(sidecarCard?.text()).toContain('Use GPU')
-    expect(sidecarCard?.text()).toContain('GPU detected')
-    expect(sidecarCard?.text()).toContain('Sidecar publishes')
+    const dockerAppCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
+    expect(dockerAppCard?.text()).toContain('Use GPU')
+    expect(dockerAppCard?.text()).toContain('GPU detected')
+    expect(dockerAppCard?.text()).toContain('DockerApp publishes')
     expect(document.querySelector('[role="dialog"]')).toBeNull()
 
     const hostCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (host') && li.text().includes('Unreachable'))
@@ -371,11 +371,11 @@ describe('Providers page', () => {
     const wrapper = await mountSuspended(ModelsPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
-    const sidecarCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
-    expect(sidecarCard?.text()).toContain('qwen2.5:0.5b')
-    expect(sidecarCard?.text()).toContain('42%')
-    expect(sidecarCard?.text()).toContain('downloading')
-    expect(sidecarCard?.text()).toContain('Stop')
+    const dockerAppCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
+    expect(dockerAppCard?.text()).toContain('qwen2.5:0.5b')
+    expect(dockerAppCard?.text()).toContain('42%')
+    expect(dockerAppCard?.text()).toContain('downloading')
+    expect(dockerAppCard?.text()).toContain('Stop')
     expect(wrapper.find('[aria-label="Enable qwen2.5:0.5b for chat"]').exists()).toBe(false)
     expect(wrapper.find('[aria-label="Stop pull qwen2.5:0.5b"]').exists()).toBe(true)
     expect(wrapper.find('[aria-label="Delete qwen2.5:0.5b"]').exists()).toBe(true)

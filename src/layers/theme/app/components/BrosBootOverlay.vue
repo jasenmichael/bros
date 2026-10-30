@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { bootOverlayVisible, type BootSidecar } from '../utils/bootOverlay'
+import { bootOverlayVisible, type BootDockerApp } from '../utils/bootOverlay'
 
 const booting = useState('brosBooting', () => false)
 if (import.meta.server) {
@@ -13,13 +13,13 @@ const { data: health, refresh: refreshHealth } = useFetch<{ booting?: boolean }>
   dedupe: 'defer',
 })
 
-const { data, refresh } = useFetch<{ sidecars?: BootSidecar[] }>('/api/status', {
+const { data, refresh } = useFetch<{ dockerApps?: BootDockerApp[] }>('/api/status', {
   lazy: true,
   server: false,
   dedupe: 'defer',
 })
 
-const rows = computed(() => (data.value?.sidecars || []).filter((row) => row.autostart && !row.disabled))
+const rows = computed(() => (data.value?.dockerApps || []).filter((row) => row.autostart && !row.disabled))
 const open = computed(() => bootOverlayVisible(
   health.value ? { booting: health.value.booting } : null,
   booting.value,

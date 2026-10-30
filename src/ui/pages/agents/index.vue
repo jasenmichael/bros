@@ -443,7 +443,7 @@ function clearToken(which: 'github' | 'cursor') {
         <summary class="cursor-pointer text-lg font-medium text-white">Runtime</summary>
         <p v-if="draft.runtime === 'claude' && !data?.apps.claude" class="mt-4 text-sm text-amber-100">
           Claude is a Desktop image layer. Enable it, then rebuild Desktop.
-          <NuxtLink class="underline" to="/settings/desktop">Desktop settings</NuxtLink>
+          <NuxtLink class="underline" to="/apps">Apps</NuxtLink>
         </p>
         <div class="mt-4 grid gap-4 md:grid-cols-2">
           <label class="block text-sm text-[var(--bros-muted)]">

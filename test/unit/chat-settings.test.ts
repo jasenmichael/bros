@@ -125,9 +125,9 @@ describe('chat settings persist and stream payload', () => {
 
   it('does not inject chat settings into bros Label: title generate', async () => {
     const { generateChatTitle } = await import('../../src/server/utils/chat/chat')
-    const { sidecarOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
+    const { dockerAppOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(String(url)).toBe(`${sidecarOllamaUrl()}/api/chat`)
+      expect(String(url)).toBe(`${dockerAppOllamaUrl()}/api/chat`)
       const body = JSON.parse(String(init?.body || '{}')) as { messages?: Array<{ role?: string; content?: string }> }
       expect(body.messages).toEqual([{ role: 'user', content: 'Label: Explain Docker volumes' }])
       return new Response(JSON.stringify({ message: { content: 'Docker volumes' } }), { status: 200 })

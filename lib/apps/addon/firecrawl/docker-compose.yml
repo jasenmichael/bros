@@ -28,7 +28,7 @@ services:
     user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
     command: redis-server --bind 0.0.0.0
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/sidecars/firecrawl/redis:/data
+      - ${BROS_HOST_DATA_DIR:?unset}/apps/firecrawl/redis:/data
     restart: unless-stopped
     networks:
       - firecrawl
@@ -44,7 +44,7 @@ services:
       retries: 3
       start_period: 5s
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/sidecars/firecrawl/rabbitmq:/var/lib/rabbitmq
+      - ${BROS_HOST_DATA_DIR:?unset}/apps/firecrawl/rabbitmq:/var/lib/rabbitmq
     restart: unless-stopped
     networks:
       - firecrawl
@@ -57,7 +57,7 @@ services:
       POSTGRES_PASSWORD: "${BROS_FIRECRAWL_POSTGRES_PASSWORD:-bros-firecrawl-local-trusted-network-only-32b}"
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/sidecars/firecrawl/postgres:/var/lib/postgresql/data
+      - ${BROS_HOST_DATA_DIR:?unset}/apps/firecrawl/postgres:/var/lib/postgresql/data
     restart: unless-stopped
     networks:
       - firecrawl

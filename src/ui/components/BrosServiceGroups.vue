@@ -3,11 +3,11 @@ import { groupBrosServices, type BrosManagedContainerView } from '~/utils/brosSe
 
 const props = defineProps<{
   containers: BrosManagedContainerView[]
-  sidecarNames?: Record<string, string>
+  dockerAppNames?: Record<string, string>
   showAppLink?: boolean
 }>()
 
-const groups = computed(() => groupBrosServices(props.containers || [], props.sidecarNames || {}))
+const groups = computed(() => groupBrosServices(props.containers || [], props.dockerAppNames || {}))
 
 function stateColor(state: string) {
   if (state === 'running') return 'success'
@@ -23,7 +23,7 @@ function portLabel(ports: number[]) {
 <template>
   <section>
     <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--bros-muted)]">Bros services</h2>
-    <p class="mb-3 text-xs text-[var(--bros-muted)]">Docker containers Bros manages — app plus every sidecar service.</p>
+    <p class="mb-3 text-xs text-[var(--bros-muted)]">Docker containers Bros manages — app plus every docker app service.</p>
     <p v-if="!groups.length" class="text-sm text-[var(--bros-muted)]">No Bros-managed containers.</p>
     <div v-else class="grid gap-3 sm:grid-cols-2">
       <article
@@ -52,8 +52,8 @@ function portLabel(ports: number[]) {
         </ul>
         <div class="mt-3 flex flex-wrap gap-2">
           <UButton
-            v-if="group.sidecarId"
-            :to="`/sidecars/${group.sidecarId}/logs`"
+            v-if="group.dockerAppId"
+            :to="`/apps/${group.dockerAppId}/logs`"
             size="xs"
             color="neutral"
             variant="ghost"

@@ -5,7 +5,7 @@ node_modules
 dist
 data
 data-
-docs/adr/
+cli/target
 lib/sidecars/core/cli/build-apps/*.yml
 .pnpm-store
 *.sqlite
@@ -38,3 +38,7 @@ graphify-out
 .cursor/
 
 .ua/
+
+# Built CLI. Source checkout symlinks this at bros.
+/bros
+/bros.tar.gz

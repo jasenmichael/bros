@@ -1,0 +1,60 @@
+---
+title: Firecrawl docker app
+description: Self-hosted Firecrawl scrape API on host port 3002.
+---
+
+# Firecrawl docker app
+
+Shipped **addon** package `lib/apps/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_APP_FIRECRAWL=0` or `BROS_APPS_DISABLE=firecrawl`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
+
+There is **no** Firecrawl product Web UI on this pack. The interface is `api` (`basePath` `/v2`), so there is no Open button and no Pin. Copy lists `http://127.0.0.1:3002/v2` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/apps/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this docker app.
+
+Auth is off (`USE_DB_AUTHENTICATION=false`). Trusted network only — do not expose this baseline to the public internet. `ALLOW_LOCAL_WEBHOOKS` and `TEST_SUITE_SELF_HOSTED` are on so scrape/webhook of localhost and RFC1918 is allowed. From the API container, host apps are `http://host.docker.internal:<port>/` (not `http://127.0.0.1:<port>/`).
+
+## Ports
+
+- API container: **3002**
+- Host publish: **3002** (`BROS_FIRECRAWL_PORT` override)
+- Playwright **3000** stays internal. Bros never publishes host **3000** or **8080**.
+
+On the `bros` Docker network, other containers use `http://firecrawl:3002`.
+
+## Stack
+
+Compose uses GHCR images (`ghcr.io/firecrawl/firecrawl:2.11.162`, playwright-service + nuq-postgres `:latest`), Redis, and RabbitMQ. PostgreSQL queue. No FoundationDB. No queue-admin UI. No Fire-engine.
+
+RAM: upstream limits on the API (8G) and Playwright (4G). Give Docker several GB.
+
+`OLLAMA_BASE_URL=http://ollama:11434` so LLM extract can use docker app Ollama. Core scrape/markdown does not need an LLM.
+
+Open-source self-host does **not** include Fire-engine, screenshots, page actions, or Cloud-only agent/browser features. Details: [self-host guide](https://docs.firecrawl.dev/contributing/self-host).
+
+## Verify
+
+After the stack is up:
+
+```bash
+curl --fail --silent --show-error --max-time 5 \
+  http://127.0.0.1:3002/v0/health/readiness
+```
+
+Expect `{"status":"ok"}`. Then one scrape:
+
+```bash
+curl --fail-with-body --silent --show-error --max-time 75 \
+  -X POST http://127.0.0.1:3002/v2/scrape \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com","formats":["markdown"],"timeout":60000}'
+```
+
+A success body has `"success": true` and `data.markdown`.
+
+## Binds
+
+- `$BROS_HOST_DATA_DIR/apps/firecrawl/redis` → Redis `/data`
+- `$BROS_HOST_DATA_DIR/apps/firecrawl/rabbitmq` → RabbitMQ `/var/lib/rabbitmq`
+- `$BROS_HOST_DATA_DIR/apps/firecrawl/postgres` → Postgres `/var/lib/postgresql/data`
+
+Postgres password: `BROS_FIRECRAWL_POSTGRES_PASSWORD` (default is a long local-only string). The database is not published to the host.
+
+Hub: [Docker apps](/docs/apps).

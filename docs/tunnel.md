@@ -5,17 +5,17 @@ description: Host cloudflared named vs quick tunnel, install, login, Status erro
 
 # Tunnel
 
-The Dashboard **Tunnel** card and `/status` control a **host** `cloudflared` process. Bros inside Docker cannot spawn it. It is not a sidecar.
+The Dashboard **Tunnel** card and `/status` control a **host** `cloudflared` process. Bros inside Docker cannot spawn it. It is not a docker app.
 
-The tunnel exposes the Bros app at `http://<BROS_HOST>:<BROS_PORT>` (default `http://127.0.0.1:3055`). One hostname. Catch-all is `http_status:404`. Sidecar Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls sidecars via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
+The tunnel exposes the Bros app at `http://<BROS_HOST>:<BROS_PORT>` (default `http://127.0.0.1:3055`). One hostname. Catch-all is `http_status:404`. Docker app Open/Pin stay `http://127.0.0.1:<publish>/` (LAN) unless the webui has `proxy.public` — then via-tunnel Open/Pin is same-host `/${id}/`. No shipped pack opts in today (OpenCode still serves `/`). Chat, Providers, and Whisper STT on the tunneled URL: the browser calls Bros `/api/*`; Bros calls docker apps via Docker DNS (`http://ollama:11434`, `http://whisper:8000`) on network `bros`.
 
 `/desktop` and `/desktop/view/` use this same hostname. No extra tunnel. No published desktop port. The proxy key does not authorize `/desktop`.
 
 The same hostname proxies every `api` and `openai` interface. Bros strips `/<id>` and forwards the rest. `https://<tunnel>/ollama/api/...` reaches `http://ollama:11434/api/...`. `https://<tunnel>/ollama/v1/...` reaches `http://ollama:11434/v1/...`. Whisper (`/whisper/v1`), Firecrawl (`/firecrawl/v2`), Open WebUI (`/openwebui/api`, `/openwebui/openai/v1`), and OpenJEV (`/openjev/v1`) use the same rule. A logged-in browser session works. External clients send `Authorization: Bearer` the proxy key from Settings. That key does not log into Bros. Host Ollama is not on this path.
 
-## Sidecar UIs
+## Docker app UIs
 
-Do **not** add extra Cloudflare hostnames or tunnels for sidecars. Web UI path proxy exists only for native-base UIs that set `proxy.public` in `sidecar.yml`. No shipped pack does that until OpenCode honors a base path. OpenCode stays LAN. API proxies above do not require `proxy.public`. See [Sidecars](/docs/sidecars).
+Do **not** add extra Cloudflare hostnames or tunnels for docker apps. Web UI path proxy exists only for native-base UIs that set `proxy.public` in `config.yml`. No shipped pack does that until OpenCode honors a base path. OpenCode stays LAN. API proxies above do not require `proxy.public`. See [Docker apps](/docs/apps).
 
 ## Prerequisites
 

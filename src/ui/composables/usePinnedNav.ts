@@ -1,4 +1,4 @@
-import { sidecarWebUiLinks } from '../utils/sidecars/sidecarHostLinks'
+import { dockerAppWebUiLinks } from '../utils/docker-app/dockerAppHostLinks'
 
 export type PinnedNavItem = {
   label: string
@@ -7,7 +7,7 @@ export type PinnedNavItem = {
   external?: boolean
 }
 
-type SidecarNavRow = {
+type DockerAppNavRow = {
   id: string
   name: string
   packageSlug: string
@@ -25,7 +25,7 @@ type SidecarNavRow = {
 
 /**
  * Dock links for pinned web UIs.
- * A stored pin stays; the dock skips a sidecar that is disabled or not running.
+ * A stored pin stays; the dock skips a dockerApp that is disabled or not running.
  */
 type PackageNavRow = {
   id: string
@@ -38,13 +38,12 @@ type PackageNavRow = {
   interfaces?: Array<{ type: string; containerPort?: number; publish?: number }>
 }
 
-export function packageNavItems(rows: PackageNavRow[], desktopRunning: boolean, viaTunnel = false): PinnedNavItem[] {
-  if (!desktopRunning) return []
+export function packageNavItems(rows: PackageNavRow[], viaTunnel = false): PinnedNavItem[] {
   const out: PinnedNavItem[] = []
   for (const pkg of rows) {
     if (!pkg.navPinned || pkg.enabled === false || pkg.forwardHost === false) continue
     if (pkg.services?.length && !pkg.serviceRunning) continue
-    const face = (pkg.interfaces || []).find((row) => row.type === 'webui' && row.containerPort && row.publish)
+    const face = (pkg.interfaces || []).find((row) => row.type === 'webui' && row.publish)
     if (!face?.publish) continue
     out.push({
       label: pkg.name || pkg.id,
@@ -56,12 +55,12 @@ export function packageNavItems(rows: PackageNavRow[], desktopRunning: boolean, 
   return out
 }
 
-export function pinnedNavItems(rows: SidecarNavRow[], viaTunnel = false): PinnedNavItem[] {
+export function pinnedNavItems(rows: DockerAppNavRow[], viaTunnel = false): PinnedNavItem[] {
   const out: PinnedNavItem[] = []
   for (const s of rows) {
     if (!s.settings?.navPinned) continue
     if (s.disabled || !s.status?.running) continue
-    for (const link of sidecarWebUiLinks(s, { viaTunnel })) {
+    for (const link of dockerAppWebUiLinks(s, { viaTunnel })) {
       out.push({
         label: link.label,
         to: link.to,
@@ -74,20 +73,20 @@ export function pinnedNavItems(rows: SidecarNavRow[], viaTunnel = false): Pinned
 }
 
 /**
- * Shared fetch for nav-pinned sidecar web UIs.
+ * Shared fetch for nav-pinned dockerApp web UIs.
  * Refresh after pin toggles and after start/stop: `await refreshPinnedNav()`.
  */
 export function usePinnedNav() {
   const route = useRoute()
   const skip = computed(() => route.path === '/login' || route.path === '/setup')
 
-  const { data, refresh, pending, error } = useFetch<{ sidecars: SidecarNavRow[]; viaTunnel?: boolean }>('/api/sidecars', {
-    key: 'bros-sidecars-nav',
+  const { data, refresh, pending, error } = useFetch<{ docker: DockerAppNavRow[]; viaTunnel?: boolean }>('/api/apps', {
+    key: 'bros-apps-nav',
     lazy: true,
     server: false,
     immediate: false,
     watch: false,
-    default: () => ({ sidecars: [] }),
+    default: () => ({ docker: [] }),
   })
   const apps = useFetch<{ packages: PackageNavRow[] }>('/api/cli/packages', {
     key: 'bros-package-nav',
@@ -109,10 +108,9 @@ export function usePinnedNav() {
 
   const pinnedItems = computed(() => {
     const viaTunnel = Boolean(data.value?.viaTunnel)
-    const desktop = (data.value?.sidecars || []).find((row) => row.id === 'desktop')
     return [
-      ...pinnedNavItems(data.value?.sidecars || [], viaTunnel),
-      ...packageNavItems(apps.data.value?.packages || [], Boolean(desktop?.status?.running), viaTunnel),
+      ...pinnedNavItems(data.value?.docker || [], viaTunnel),
+      ...packageNavItems(apps.data.value?.packages || [], viaTunnel),
     ]
   })
 

@@ -178,7 +178,7 @@ function dropInterface(index: number) {
   <UModal
     :open="open"
     :title="editing ? 'Edit app' : 'Add app'"
-    :description="editing ? 'Change this app on the CLI sidecar.' : 'Install an app on the CLI sidecar.'"
+    :description="editing ? 'Change this app on the CLI docker app.' : 'Install an app on the CLI docker app.'"
     @update:open="emit('update:open', $event)"
   >
     <template #body>

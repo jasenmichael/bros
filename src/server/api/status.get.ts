@@ -1,12 +1,12 @@
 import { getRequestHost } from 'h3'
 import { getDiskSpace } from '../utils/disk'
-import { listBrosManagedContainers, pingDocker, projectHasContainers, servicesBootPending, sidecarPhase, sidecarRuntime } from '../utils/docker'
+import { listBrosManagedContainers, pingDocker, projectHasContainers, servicesBootPending, dockerAppPhase, dockerAppRuntime } from '../utils/docker'
 import { detectGpuCached } from '../utils/gpu'
 import { formatSizeBytes } from '../utils/providers/ollamaLibrary'
-import { discoverSidecars } from '../utils/sidecars/sidecars'
+import { discoverDockerApps } from '../utils/docker-app/dockerApps'
 import { loadBootstrapConfig } from '../utils/config'
 import { readTunnelStatus, tunnelPublicPayload } from '../utils/tunnel'
-import { peekOllamaRestartNotice } from '../utils/sidecars/ollamaMustRun'
+import { peekOllamaRestartNotice } from '../utils/docker-app/ollamaMustRun'
 import { isHostOllamaEnabled } from '../utils/settings'
 import { advertisedTunnelHost, tunnelHostname, viaTunnelFromEvent } from '../utils/viaTunnel'
 
@@ -15,10 +15,10 @@ export default defineEventHandler(async (event) => {
   const disk = getDiskSpace()
   const gpu = await detectGpuCached()
   const containers = await listBrosManagedContainers()
-  const { sidecars, errors } = discoverSidecars()
-  const items = await Promise.all(sidecars.map(async (s) => {
+  const { dockerApps, errors } = discoverDockerApps()
+  const items = await Promise.all(dockerApps.map(async (s) => {
     try {
-      const runtime = await sidecarRuntime(s)
+      const runtime = await dockerAppRuntime(s)
       let hasContainer = false
       try {
         hasContainer = await projectHasContainers(s.id)
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
         running: runtime.status.running,
         services: runtime.status.services,
         hasContainer,
-        phase: sidecarPhase(s.id, runtime.status.running, problem),
+        phase: dockerAppPhase(s.id, runtime.status.running, problem),
       }
     }
     catch (err) {
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
         running: false,
         hasContainer: false,
         services: [],
-        phase: sidecarPhase(s.id, false, err instanceof Error ? err.message : 'status failed'),
+        phase: dockerAppPhase(s.id, false, err instanceof Error ? err.message : 'status failed'),
       }
     }
   }))
@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
     containers,
     enableHostOllama: isHostOllamaEnabled(),
     booting: servicesBootPending(),
-    sidecars: items,
+    dockerApps: items,
     errors,
     ollamaRestartNotice: peekOllamaRestartNotice(),
   }

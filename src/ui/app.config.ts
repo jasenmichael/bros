@@ -4,12 +4,9 @@ export default defineAppConfig({
   bros: {
     navItems: [
       { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
-      { label: 'New chat', to: '/chat', icon: 'i-lucide-message-square', exact: true },
-      { label: 'Agents', to: '/agents', icon: 'i-lucide-list-todo', exact: true },
-      { label: 'Providers', to: '/providers', icon: 'i-lucide-cpu' },
-      { label: 'Sidecars', to: '/sidecars', icon: 'i-lucide-container' },
-      { label: 'Terminal', to: '/terminal', icon: 'i-lucide-terminal', exact: true },
       { label: 'Desktop', to: '/desktop', icon: 'i-lucide-app-window', exact: true },
+      { label: 'Terminal', to: '/terminal', icon: 'i-lucide-terminal', exact: true },
+      { label: 'Apps', to: '/apps', icon: 'i-lucide-container' },
       { label: 'Status', to: '/status', icon: 'i-lucide-activity' },
     ],
     bottomItems: [

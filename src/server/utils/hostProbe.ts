@@ -19,7 +19,7 @@ export function appRunsInDocker(): boolean {
   return existsSync('/.dockerenv') || composeAppSignals()
 }
 
-export type SidecarReachOpts = {
+export type DockerAppReachOpts = {
   service: string
   containerPort: number
   publish: number
@@ -27,10 +27,10 @@ export type SidecarReachOpts = {
 }
 
 /**
- * Bros → sidecar HTTP: Docker DNS in-container, host publish on `pnpm --dir src ui:dev`.
+ * Bros → dockerApp HTTP: Docker DNS in-container, host publish on `pnpm --dir src ui:dev`.
  * Open/Pin stay `hostUiUrl` (`127.0.0.1:<publish>`).
  */
-export function sidecarReachUrl(opts: SidecarReachOpts, env: NodeJS.ProcessEnv = process.env): string {
+export function dockerAppReachUrl(opts: DockerAppReachOpts, env: NodeJS.ProcessEnv = process.env): string {
   if (appRunsInDocker()) return `http://${opts.service}:${opts.containerPort}`
   let publish = opts.publish
   if (opts.envPortKey) {

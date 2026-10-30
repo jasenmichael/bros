@@ -62,7 +62,6 @@ function moveRel(root: string, from: string, to: string) {
 const RENAMES = [
   ['skills', 'config/skills'],
   ['rules/assistant.md', 'config/assistant.md'],
-  ['apps', 'config/apps'],
   ['apps-compose.yml', 'config/apps-compose.yml'],
   ['logs', 'var/logs'],
   ['tunnel', 'var/tunnel'],

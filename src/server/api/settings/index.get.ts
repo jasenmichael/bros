@@ -2,7 +2,7 @@ import { loadBootstrapConfig } from '../../utils/config'
 import { ensureProxyKey, hasPasscode, proxyPublicOrigin } from '../../utils/auth'
 import { dataRepairPlan } from '../../utils/repairData'
 import { isHostOllamaEnabled, isWhisperEnabled } from '../../utils/settings'
-import { listApiProxyPaths } from '../../utils/sidecars/sidecarProxy'
+import { listApiProxyPaths } from '../../utils/docker-app/dockerAppProxy'
 
 export default defineEventHandler(() => {
   const cfg = loadBootstrapConfig()

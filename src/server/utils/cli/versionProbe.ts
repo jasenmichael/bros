@@ -37,6 +37,15 @@ export function parseVersionText(_kind: string, _spec: string, text: string): st
   return raw.match(/v?(\d+\.\d+[0-9A-Za-z.+~-]*)/)?.[1] || null
 }
 
+/** Same PATH as the desktop terminal: Devbox from `~/.bashrc`, then `~/.cargo/env`. Login `bash -lc` skips `.bashrc`. */
+export function versionShell(body: string): string {
+  return [
+    'eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true',
+    '. "$HOME/.cargo/env" 2>/dev/null || true',
+    body,
+  ].join('\n')
+}
+
 export function buildVersionScript(packages: ProbeApp[]): string {
   const lines: string[] = []
   for (const pkg of packages) {

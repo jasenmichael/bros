@@ -4,15 +4,15 @@ Use these words in docs and architecture notes. One definition each.
 
 ## bros
 
-The host command. The default action is start. Dev is `BROS_DEV=1 ./bros` or `./bros --dev`. Do not call this command the CLI.
+The CLI. The text command typed in a terminal. The default action is start. Dev is `BROS_DEV=1 ./bros` or `./bros --dev`. The directory `cli/` is this Rust tree.
 
 ## cli interface
 
-An interface type on a sidecar: a command, no URL. Not the desktop sidecar. The Terminal page lists them under Expose CLIs.
+An interface type: a command, no URL. On a docker app. The Terminal page lists them under Expose CLIs.
 
 ## Browser app
 
-Chat, Agents, Providers, Sidecars, Status, Settings, `/desktop`, and `/terminal`.
+Chat, Agents, Providers, Apps, Status, Settings, `/desktop`, and `/terminal`.
 
 ## Docs
 
@@ -20,7 +20,7 @@ Repo `docs/` served at `/docs` in the app and on the site. The app does not over
 
 ## Provider
 
-A Chat backend row: the Ollama sidecar, host Ollama, a Popular service, or a custom OpenAI-compatible endpoint. The page is `/providers`.
+A Chat backend row: the Ollama core app, host Ollama, a Popular service, or a custom OpenAI-compatible endpoint. The page is `/providers`.
 
 ## Model
 
@@ -78,44 +78,32 @@ The `/settings` page and the YAML toggles `enable_host_ollama` and `enable_whisp
 
 ## Status
 
-The `/status` page. Bros app, Docker, disk, GPU, the host tunnel, and each sidecar.
+The `/status` page. Bros app, Docker, disk, GPU, the host tunnel, and each docker app.
 
 ## Bootstrap
 
 `$BROS_DIR/data/config/bros.yml` plus data-dir files (passkey, proxy key, session secret).
 
-## Sidecar
-
-A Docker pack described by `sidecar.yml`. The product word is sidecar.
-
 ## Desktop home
 
-One host directory. Desktop mounts the whole directory as its home. A sidecar mounts only the home subdirectories it declares.
-
-## core sidecar
-
-A pack under `lib/sidecars/core/`. Ollama and Desktop always start. Whisper starts only while Settings **Enable Whisper** is on. Env disable does not apply. The same tier on an app is always enabled.
-
-## addon sidecar
-
-A shipped pack under `lib/sidecars/addon/`. A fresh install does not start it. Autostart is off until the user turns it on or presses Start. An env disable keeps it listed and does not autostart it. Start still runs it, and the id stays reserved. The same tier on an app is shipped, listed, and off until enabled.
-
-## custom sidecar
-
-A user pack under `lib/sidecars/custom`. Same controls as an addon sidecar. Only `README.md` in that directory is tracked. The same tier on an app is user-defined and uses that install when enabled.
+One host directory. Desktop mounts the whole directory as its home. A docker app mounts only the home subdirectories its compose file binds.
 
 ## Desktop
 
-The core sidecar `desktop`. Always on. No host port. Image and container `bros-desktop`. The card is Desktop (core). `/desktop` is the Selkies stream of one Wayland session.
+The Wayland session inside container `bros`. Container and image name are `bros`. `/desktop` is the Selkies stream of that session.
+
+## UI host
+
+The Node process that serves the browser app. Dev runs it on the host with `pnpm`. Prod runs it on the host when `pnpm` is on `PATH`, otherwise in container `bros-ui`. It listens on `BROS_PORT`. It is not the desktop container.
 
 ## desktop user
 
-The user `bros` in the Desktop container. Foot, the Terminal shell, and package processes are this user.
+The user `bros` in the Bros container. Foot, the Terminal shell, and package processes are this user.
 _Avoid_: terminal user
 
 ## Terminal
 
-The `/terminal` page. The shell inside the desktop sidecar. It is the same user as the desktop user.
+The `/terminal` page. The shell inside the Bros container. It is the same user as the desktop user.
 
 ## desktop entry
 
@@ -124,7 +112,7 @@ _Avoid_: desktop app, .desktop app
 
 ## pinned launcher
 
-A library app the user chose to keep on the Drawer. Terminal, a package gui, a sidecar gui, or a desktop entry. Not a package install. 
+A library app the user chose to keep on the Drawer. Terminal, a package gui, a docker-app gui, or a desktop entry. Not a package install.
 _Avoid_: pin, custom app
 
 ## Drawer
@@ -134,20 +122,37 @@ _Avoid_: shelf
 
 ## app
 
-A sidecar or a package install. Every sidecar is an app. Core, addon, and custom are the tiers for both. It can expose one or more `webui`, `gui`, or `cli` interfaces.
+A package install or a docker app. Core, addon, and custom are app tiers. The store page is `/apps`.
+
+## core app
+
+A shipped app under `lib/apps/core/<id>/`. Package cores (node, cargo, …) or docker cores (Ollama, Whisper). Docker cores are enabled by default; Settings may disable Whisper. Ollama stays enabled until a later Settings option exists.
 
 ## package app
 
-A package install. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. A `kind: run` app is a Desktop image layer. Other kinds install into the Desktop home after the session is up. Runs inside `bros-desktop`.
+A package install inside Desktop. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. Kinds are node, npm, pnpm, bun, deno, uv, cargo, apt, deb, nix, and run. A `kind: run` app is a Desktop image layer. Other kinds install into the Desktop home after the session is up. Runs inside container `bros`.
+
+## docker app
+
+An app whose `docker-compose.yml` is its own project. Kind is `docker`. Not a package manager. Interfaces are `cli`, `gui`, `api`, `webui`, and `openapi`. Shipped cores live in `lib/apps/core/<id>/`. Shipped addons live in `lib/apps/addon/<id>/`. Custom lives in `data/config/apps/<id>/`. Listed on `/apps`. Volume binds live in compose only.
+
+## addon app
+
+A shipped app under `lib/apps/addon/<id>/`. Docker addons stay stopped until Start or Autostart. Package addons are off until enabled. Also a card on `/apps`.
+
+## custom app
+
+An app under `data/config/apps/<id>/`. Not in the repo. Same directory shape as a shipped app. A custom package app is enabled when written. A custom docker app stays stopped until Start. Moving that directory to `lib/apps/addon/<id>/` or `lib/apps/core/<id>/` makes it an addon or a core app. The id and the kind stay. Enable flags stay outside the directory in `data/config/enabled-apps`. An addon package id in that file is not a custom app.
 
 ## desktop build
 
 The Docker build context for `kind: run` apps. Bros writes it to `$BROS_DIR/data/build/desktop`. It is not an install prefix.
 
-## sidecar app
-
-A sidecar. Its process stays in its own container. Desktop reaches it through a `cli` wrapper, a `gui` window, or a `webui` address.
-
 ## package manager
 
-npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. node, cargo, pnpm, bun, deno, and uv are core apps. npm is a kind. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.
+npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. node, cargo, pnpm, bun, deno, and uv are core apps. npm is a kind. `docker` is not a package manager. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.
+
+## global package
+
+A top-level package a package manager reports inside the Desktop home. Not an app until a config exists.
+_Avoid_: stray package

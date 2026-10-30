@@ -2,7 +2,7 @@
 import { launchDesktop } from '../utils/desktopLaunch'
 
 type App = {
-  kind: 'terminal' | 'package' | 'sidecar' | 'entry'
+  kind: 'terminal' | 'package' | 'docker' | 'entry'
   id: string
   name: string
   command: string
@@ -11,6 +11,7 @@ type App = {
   windows: number
 }
 
+const emit = defineEmits<{ opened: [] }>()
 const note = ref('')
 const busy = ref(false)
 const q = ref('')
@@ -52,6 +53,7 @@ async function open(app: App) {
   try {
     await launchDesktop(app, 'open')
     await refresh()
+    emit('opened')
   } catch (err: unknown) {
     note.value = errText(err)
   } finally {
@@ -109,20 +111,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-4 pb-16">
+  <div class="p-4 pb-14">
     <p v-if="note" class="mb-3 text-sm text-amber-300">{{ note }}</p>
-    <input
-      v-model="q"
-      type="search"
-      placeholder="Type to search apps..."
-      class="mb-4 w-full rounded-full border border-[var(--bros-border)] bg-[#0f1419] px-4 py-2 text-sm text-white outline-none focus:border-[var(--bros-accent)]"
-    >
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+    <div class="relative mb-4 w-full max-w-xs">
+      <UIcon name="i-lucide-search" class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[var(--bros-muted)]" aria-hidden="true" />
+      <input
+        v-model="q"
+        type="search"
+        placeholder="Type to search apps..."
+        class="w-full rounded-full border border-[var(--bros-border)] bg-[#0f1419] py-2 pr-4 pl-9 text-sm text-white outline-none focus:border-[var(--bros-accent)]"
+      >
+    </div>
+    <div class="flex flex-wrap justify-center gap-2">
       <button
         v-for="app in shown"
         :key="appKey(app)"
         type="button"
-        class="flex flex-col items-center gap-2 rounded-xl px-2 py-3 hover:bg-white/10 disabled:opacity-50"
+        class="flex w-[6.5rem] shrink-0 flex-col items-center gap-2 rounded-xl px-2 py-3 hover:bg-white/10 disabled:opacity-50"
         :disabled="busy"
         @click="open(app)"
         @contextmenu="openMenu(app, $event)"

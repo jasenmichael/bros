@@ -1,30 +1,22 @@
 <script setup lang="ts">
 import {
-  sidecarCardBlocks,
-  sidecarOpenLinks,
-  sidecarTypePills,
-  sidecarWebUiLinks,
-  type SidecarCardBlock,
-} from '../../utils/sidecars/sidecarHostLinks'
-import { sidecarKindLabel } from '../../utils/sidecars/sidecarSourceLabel'
-import {
-  addSidecarBusy,
-  isSidecarBusy,
-  isSidecarRowBusy,
-  removeSidecarBusy,
-  sidecarBusyKey,
-} from '../../utils/sidecars/sidecarBusy'
+  addDockerAppBusy,
+  isDockerAppBusy,
+  removeDockerAppBusy,
+  dockerAppBusyKey,
+} from '../../utils/docker-app/dockerAppBusy'
+import type { CliAppDraft, CliManagerForm } from '../../components/CliAppDialog.vue'
 
-useSeoMeta({ title: 'Sidecars' })
+useSeoMeta({ title: 'Apps' })
 
-type SidecarKind = 'core' | 'addon' | 'additional'
+type DockerAppKind = 'core' | 'addon' | 'custom'
 
-type SidecarRow = {
+type DockerAppRow = {
   id: string
   name: string
   description: string
   source: string
-  kind: SidecarKind
+  kind: DockerAppKind
   disabled?: boolean
   editable?: boolean
   gitUrl?: string
@@ -42,15 +34,50 @@ type SidecarRow = {
     proxy?: { public?: boolean }
   }>
   settings: { autostart: boolean; navPinned: boolean; hostMode?: string; exposeHost?: boolean; hostProbePort?: number | null }
-  cli?: Array<{ bin: string; hostInstalled: boolean; source: 'host' | 'sidecar' | 'none' }>
+  cli?: Array<{ bin: string; hostInstalled: boolean; source: 'host' | 'docker' | 'none' }>
   status: { running: boolean; services: Array<{ name: string; state: string }> }
   hostPort?: number
   warning?: string
   hasContainer?: boolean
-  password?: string
 }
 
-const { data, refresh, pending } = await useFetch<{ sidecars: SidecarRow[]; errors: string[]; viaTunnel?: boolean }>('/api/sidecars')
+type PackageRow = {
+  role: 'package'
+  id: string
+  name?: string
+  description?: string
+  kind: string
+  spec?: string
+  args?: string
+  bin?: string
+  clis?: string[]
+  volumes?: string[]
+  tier?: 'core' | 'addon' | 'custom'
+  enabled?: boolean
+  forwardHost?: boolean
+  navPinned?: boolean
+  services?: Array<{ command: string }>
+  serviceRunning?: boolean
+  interfaces?: Array<{ type: string; command?: string; args?: string; containerPort?: number; publish?: number; basePath?: string }>
+}
+
+const route = useRoute()
+const router = useRouter()
+
+const { data, refresh, pending } = await useFetch<{
+  docker: DockerAppRow[]
+  packages: PackageRow[]
+  errors: string[]
+  viaTunnel?: boolean
+}>('/api/apps')
+
+const { data: pkgMeta, refresh: refreshPkg } = await useFetch<{
+  managers: CliManagerForm[]
+  rebuildPending?: boolean
+}>('/api/cli/packages?rebuild=1')
+
+const dockerRows = computed(() => data.value?.docker || [])
+const packageRows = computed(() => data.value?.packages || [])
 const busy = ref(new Set<string>())
 const statusRefreshingId = ref<string | null>(null)
 const copiedUrl = ref('')
@@ -67,51 +94,19 @@ async function refreshStatus(id: string) {
 }
 
 function markBusy(key: string) {
-  busy.value = addSidecarBusy(busy.value, key)
+  busy.value = addDockerAppBusy(busy.value, key)
 }
 
 function clearBusy(key: string) {
-  busy.value = removeSidecarBusy(busy.value, key)
+  busy.value = removeDockerAppBusy(busy.value, key)
 }
 
 function isBusy(id: string, action: string) {
-  return isSidecarBusy(busy.value, id, action)
-}
-
-function hasGui(s: SidecarRow) {
-  return s.interfaces.some((iface) => iface.type === 'gui')
-}
-
-function rowBusy(id: string) {
-  return isSidecarRowBusy(busy.value, id)
+  return isDockerAppBusy(busy.value, id, action)
 }
 
 function hasBusy(key: string) {
   return busy.value.has(key)
-}
-
-function isCore(s: SidecarRow) {
-  return s.kind === 'core' || s.id === 'ollama'
-}
-
-function kindLabel(s: SidecarRow) {
-  return sidecarKindLabel(s.source, s.kind, s.gitUrl)
-}
-
-function typePills(s: SidecarRow) {
-  return sidecarTypePills(s)
-}
-
-function openLinks(s: SidecarRow) {
-  return sidecarOpenLinks(s, { viaTunnel: data.value?.viaTunnel })
-}
-
-function pinLinks(s: SidecarRow) {
-  return sidecarWebUiLinks(s, { viaTunnel: data.value?.viaTunnel })
-}
-
-function cardBlocks(s: SidecarRow): SidecarCardBlock[] {
-  return sidecarCardBlocks(s, { viaTunnel: data.value?.viaTunnel })
 }
 
 async function copyUrl(url: string) {
@@ -141,11 +136,11 @@ function actionErrorMessage(err: unknown) {
 const { refreshPinnedNav } = usePinnedNav()
 
 async function act(id: string, action: 'start' | 'stop' | 'restart') {
-  const key = sidecarBusyKey(id, action)
+  const key = dockerAppBusyKey(id, action)
   markBusy(key)
   actionNote.value = ''
   try {
-    const res = await $fetch<{ warning?: string }>(`/api/sidecars/${id}/${action}`, { method: 'POST' })
+    const res = await $fetch<{ warning?: string }>(`/api/apps/${id}/${action}`, { method: 'POST' })
     actionNote.value = res?.warning || ''
     await refresh()
   } catch (err: unknown) {
@@ -163,10 +158,10 @@ async function patchSettings(id: string, body: {
   exposeHost?: boolean
   hostProbePort?: number | null
 }) {
-  const key = sidecarBusyKey(id, 'settings')
+  const key = dockerAppBusyKey(id, 'settings')
   markBusy(key)
   try {
-    await $fetch(`/api/sidecars/${id}/settings`, { method: 'PATCH', body })
+    await $fetch(`/api/apps/${id}/settings`, { method: 'PATCH', body })
     await refresh()
     await refreshPinnedNav()
   } finally {
@@ -178,13 +173,13 @@ const addOpen = ref(false)
 const repoOpen = ref(false)
 const addForm = ref({
   id: '',
-  sidecarYml: '',
+  configYml: '',
   composeYml: '',
 })
 const repoForm = ref({ url: '', name: '' })
 const formError = ref('')
 const editingId = ref<string | null>(null)
-const editFiles = ref({ sidecarYml: '', composeYml: '' })
+const editFiles = ref({ configYml: '', composeYml: '' })
 const restartTarget = ref<{ id: string; reason: string } | null>(null)
 
 function toggleAdd() {
@@ -201,12 +196,12 @@ function toggleRepo() {
 }
 
 function fillAddTemplate() {
-  const id = addForm.value.id.trim().toLowerCase() || 'my-sidecar'
-  if (!addForm.value.sidecarYml.trim()) {
-    addForm.value.sidecarYml = [
+  const id = addForm.value.id.trim().toLowerCase() || 'my-app'
+  if (!addForm.value.configYml.trim()) {
+    addForm.value.configYml = [
       `id: ${id}`,
       `name: ${id}`,
-      'description: Additional sidecar',
+      'description: Additional app',
       'interfaces:',
       '  - type: webui',
       `    service: ${id}`,
@@ -242,15 +237,15 @@ async function createCustom() {
     return
   }
   fillAddTemplate()
-  const sidecarYml = addForm.value.sidecarYml.replace(/^id:\s*\S+/m, `id: ${id}`)
+  const configYml = addForm.value.configYml.replace(/^id:\s*\S+/m, `id: ${id}`)
   markBusy('create')
   try {
-    await $fetch('/api/sidecars', {
+    await $fetch('/api/apps', {
       method: 'POST',
-      body: { id, sidecarYml, composeYml: addForm.value.composeYml },
+      body: { id, configYml, composeYml: addForm.value.composeYml },
     })
     addOpen.value = false
-    addForm.value = { id: '', sidecarYml: '', composeYml: '' }
+    addForm.value = { id: '', configYml: '', composeYml: '' }
     await refresh()
   } catch (err: unknown) {
     formError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
@@ -268,7 +263,7 @@ async function cloneRepo() {
   }
   markBusy('clone')
   try {
-    await $fetch('/api/sidecars/from-repo', {
+    await $fetch('/api/apps/from-repo', {
       method: 'POST',
       body: { url: repoForm.value.url.trim(), name: repoForm.value.name.trim() || undefined },
     })
@@ -283,13 +278,13 @@ async function cloneRepo() {
   }
 }
 
-async function openEdit(s: SidecarRow) {
+async function openEdit(s: DockerAppRow) {
   formError.value = ''
-  const key = sidecarBusyKey(s.id, 'edit')
+  const key = dockerAppBusyKey(s.id, 'edit')
   markBusy(key)
   try {
-    const files = await $fetch<{ sidecarYml: string; composeYml: string }>(`/api/sidecars/${s.id}/files`)
-    editFiles.value = { sidecarYml: files.sidecarYml, composeYml: files.composeYml }
+    const files = await $fetch<{ configYml: string; composeYml: string }>(`/api/apps/${s.id}/files`)
+    editFiles.value = { configYml: files.configYml, composeYml: files.composeYml }
     editingId.value = s.id
     if (!cardOpen(s.id)) toggleCard(s.id)
   } catch (err: unknown) {
@@ -304,18 +299,18 @@ async function saveEdit() {
   const id = editingId.value
   if (!id) return
   formError.value = ''
-  const key = sidecarBusyKey(id, 'save')
+  const key = dockerAppBusyKey(id, 'save')
   markBusy(key)
   try {
-    const res = await $fetch<{ composeChanged: boolean }>(`/api/sidecars/${id}/files`, {
+    const res = await $fetch<{ composeChanged: boolean }>(`/api/apps/${id}/files`, {
       method: 'PUT',
       body: editFiles.value,
     })
     editingId.value = null
     await refresh()
-    const row = data.value?.sidecars.find((s) => s.id === id)
+    const row = data.value?.docker.find((s) => s.id === id)
     if (row?.hasContainer || row?.status.running || res.composeChanged) {
-      restartTarget.value = { id, reason: 'Saved files. Restart this sidecar to apply compose changes?' }
+      restartTarget.value = { id, reason: 'Saved files. Restart this app to apply compose changes?' }
     }
   } catch (err: unknown) {
     formError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
@@ -325,9 +320,9 @@ async function saveEdit() {
   }
 }
 
-async function checkImage(s: SidecarRow) {
+async function checkImage(s: DockerAppRow) {
   formError.value = ''
-  const key = sidecarBusyKey(s.id, 'check')
+  const key = dockerAppBusyKey(s.id, 'check')
   markBusy(key)
   try {
     const res = await $fetch<{ available: boolean }>(`/api/apps/${s.id}/update`)
@@ -340,9 +335,9 @@ async function checkImage(s: SidecarRow) {
   }
 }
 
-async function updateImage(s: SidecarRow) {
+async function updateImage(s: DockerAppRow) {
   formError.value = ''
-  const key = sidecarBusyKey(s.id, 'image')
+  const key = dockerAppBusyKey(s.id, 'image')
   markBusy(key)
   try {
     const res = await $fetch<{ code: number; stderr: string }>(`/api/apps/${s.id}/update`, { method: 'POST' })
@@ -356,15 +351,15 @@ async function updateImage(s: SidecarRow) {
   }
 }
 
-async function updateRepo(s: SidecarRow) {
+async function updateRepo(s: DockerAppRow) {
   formError.value = ''
-  const key = sidecarBusyKey(s.id, 'update')
+  const key = dockerAppBusyKey(s.id, 'update')
   markBusy(key)
   try {
-    const res = await $fetch<{ composeChanged: boolean }>(`/api/sidecars/${s.id}/update`, { method: 'POST' })
+    const res = await $fetch<{ composeChanged: boolean }>(`/api/apps/${s.id}/repo`, { method: 'POST' })
     await refresh()
     if (res.composeChanged) {
-      restartTarget.value = { id: s.id, reason: 'Compose changed after git pull. Restart this sidecar?' }
+      restartTarget.value = { id: s.id, reason: 'Compose changed after git pull. Restart this app?' }
     } else {
       actionNote.value = 'Repo already up to date.'
     }
@@ -383,9 +378,292 @@ async function confirmRestart() {
   await act(target.id, 'restart')
 }
 
+async function enablePackage(id: string) {
+  formError.value = ''
+  const key = dockerAppBusyKey(id, 'enable')
+  markBusy(key)
+  try {
+    await $fetch(`/api/apps/${id}/enable`, { method: 'POST' })
+    await refresh()
+    await refreshPkg()
+  } catch (err: unknown) {
+    formError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
+      || (err instanceof Error ? err.message : 'Enable failed')
+  } finally {
+    clearBusy(key)
+  }
+}
+
+async function disablePackage(id: string) {
+  formError.value = ''
+  const key = dockerAppBusyKey(id, 'disable')
+  markBusy(key)
+  try {
+    await $fetch(`/api/apps/${id}/disable`, { method: 'POST' })
+    await refresh()
+    await refreshPkg()
+  } catch (err: unknown) {
+    formError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage
+      || (err instanceof Error ? err.message : 'Disable failed')
+  } finally {
+    clearBusy(key)
+  }
+}
+
+function installText(code: number, stderr: string | undefined, fallback: string) {
+  if (code === 0) return stderr || ''
+  return stderr || fallback
+}
+
+function errText(err: unknown) {
+  if (err && typeof err === 'object' && 'data' in err) {
+    const body = (err as { data?: { statusMessage?: string; message?: string } }).data
+    if (body?.statusMessage) return body.statusMessage
+    if (body?.message) return body.message
+  }
+  return err instanceof Error ? err.message : 'Request failed'
+}
+
+const dialogOpen = ref(false)
+const editingPkg = ref<PackageRow | null>(null)
+const pkgForm = ref<CliAppDraft | null>(null)
+const rebuildLock = ref(false)
+const versions = ref<Record<string, string>>({})
+const latest = ref<Record<string, string>>({})
+const updates = ref<Record<string, boolean>>({})
+
+function cliDraftInterfaces(pkg: PackageRow): CliAppDraft['interfaces'] {
+  const rows: CliAppDraft['interfaces'] = (pkg.interfaces || []).map((row) => ({
+    type: row.type as CliAppDraft['interfaces'][number]['type'],
+    command: row.command || '',
+    args: row.args || '',
+    containerPort: row.containerPort ? String(row.containerPort) : '',
+    publish: row.publish ? String(row.publish) : '',
+    basePath: row.basePath || '',
+  }))
+  const names = [pkg.bin, ...(pkg.clis || [])].filter((name): name is string => !!name)
+  const cli = rows.find((row) => row.type === 'cli')
+  if (cli) {
+    const listed = cli.command.split(',').map((part) => part.trim()).filter(Boolean)
+    for (const name of names) if (!listed.includes(name)) listed.push(name)
+    cli.command = listed.join(', ')
+  } else if (names.length) {
+    rows.unshift({ type: 'cli', command: names.join(', '), args: '', containerPort: '', publish: '', basePath: '' })
+  }
+  return rows
+}
+
+function openAddPackage() {
+  editingPkg.value = null
+  pkgForm.value = null
+  actionNote.value = ''
+  dialogOpen.value = true
+}
+
+function openEditPackage(pkg: PackageRow) {
+  editingPkg.value = pkg
+  pkgForm.value = {
+    kind: pkg.kind,
+    spec: pkg.spec || '',
+    args: pkg.args || '',
+    volumes: (pkg.volumes || []).join('\n'),
+    interfaces: cliDraftInterfaces(pkg),
+  }
+  actionNote.value = ''
+  dialogOpen.value = true
+}
+
+async function savePackage(body: CliAppDraft) {
+  const id = editingPkg.value?.id
+  pkgForm.value = body
+  dialogOpen.value = false
+  rebuildLock.value = true
+  actionNote.value = ''
+  try {
+    const saved = id
+      ? await $fetch<{ install: { code: number; stderr: string } }>(`/api/cli/packages/${id}`, { method: 'PATCH', body })
+      : await $fetch<{ install: { code: number; stderr: string } }>('/api/cli/packages', { method: 'POST', body })
+    actionNote.value = installText(saved.install.code, saved.install.stderr, 'Rebuild failed')
+  } catch (err: unknown) {
+    actionNote.value = errText(err)
+    dialogOpen.value = true
+  } finally {
+    rebuildLock.value = false
+    await refresh()
+    await refreshPkg()
+  }
+}
+
+async function removePackage() {
+  const id = editingPkg.value?.id
+  const rebuild = editingPkg.value?.kind === 'run'
+  if (!id) return
+  dialogOpen.value = false
+  actionNote.value = ''
+  if (rebuild) rebuildLock.value = true
+  if (rebuild) {
+    useToast().add({
+      id: 'apps-rebuild',
+      title: 'Rebuilding Desktop',
+      description: 'Removing this app and restarting.',
+      duration: 0,
+    })
+  }
+  try {
+    const saved = await $fetch<{ install: { code: number; stderr: string } }>(`/api/cli/packages/${id}`, { method: 'DELETE' })
+    editingPkg.value = null
+    actionNote.value = installText(saved.install.code, saved.install.stderr, 'Rebuild failed')
+    if (rebuild) {
+      useToast().remove('apps-rebuild')
+      useToast().add({
+        title: saved.install.code === 0 ? 'Apps container restarted' : 'Apps rebuild failed',
+        description: installText(saved.install.code, saved.install.stderr, 'Rebuild failed') || undefined,
+        color: saved.install.code !== 0 ? 'error' : saved.install.stderr ? 'warning' : 'success',
+      })
+    }
+  } catch (err: unknown) {
+    if (rebuild) useToast().remove('apps-rebuild')
+    actionNote.value = errText(err)
+    dialogOpen.value = true
+  } finally {
+    rebuildLock.value = false
+    await refresh()
+    await refreshPkg()
+  }
+}
+
+async function loadVersions() {
+  try {
+    const res = await $fetch<{ versions: { id: string; version: string }[] }>('/api/apps/versions')
+    const next = { ...versions.value }
+    for (const row of res.versions || []) if (row.version) next[row.id] = row.version
+    versions.value = next
+  } catch {
+    // Desktop down: no version text
+  }
+}
+
+onMounted(() => { void loadVersions() })
+
+async function setService(id: string, action: 'start' | 'stop' | 'restart') {
+  const key = dockerAppBusyKey(id, action)
+  markBusy(key)
+  actionNote.value = ''
+  try {
+    await $fetch(`/api/apps/${id}/service`, { method: 'POST', body: { action } })
+    await refresh()
+  } catch (err: unknown) {
+    actionNote.value = errText(err)
+    await refresh()
+  } finally {
+    clearBusy(key)
+  }
+}
+
+async function checkPackage(id: string) {
+  const key = dockerAppBusyKey(id, 'check')
+  if (rebuildLock.value || busy.value.has(key)) return
+  markBusy(key)
+  actionNote.value = ''
+  try {
+    const res = await $fetch<{ available: boolean; version?: string; latest?: string }>(`/api/apps/${id}/update`)
+    if (res.version) versions.value = { ...versions.value, [id]: res.version }
+    updates.value = { ...updates.value, [id]: !!res.available }
+    latest.value = { ...latest.value, [id]: res.available && res.latest ? res.latest : '' }
+    actionNote.value = res.available ? 'Update available' : 'Up to date'
+  } catch (err: unknown) {
+    actionNote.value = errText(err)
+  } finally {
+    clearBusy(key)
+  }
+}
+
+async function updatePackage(pkg: PackageRow) {
+  const key = dockerAppBusyKey(pkg.id, 'update')
+  if (busy.value.has(key) || (rebuildLock.value && !busy.value.has(key))) return
+  const run = pkg.kind === 'run'
+  markBusy(key)
+  if (run) rebuildLock.value = true
+  actionNote.value = ''
+  if (run) {
+    useToast().add({
+      id: 'apps-rebuild',
+      title: 'Rebuilding Desktop',
+      description: 'Updating this app and restarting.',
+      duration: 0,
+    })
+  }
+  try {
+    const res = await $fetch<{ code: number; stderr: string }>(`/api/apps/${pkg.id}/update`, { method: 'POST' })
+    if (res.code !== 0 || res.stderr) actionNote.value = installText(res.code, res.stderr, 'Update failed')
+    if (run) {
+      useToast().remove('apps-rebuild')
+      useToast().add({
+        title: res.code === 0 ? 'Apps container restarted' : 'Apps rebuild failed',
+        description: installText(res.code, res.stderr, 'Rebuild failed') || undefined,
+        color: res.code !== 0 ? 'error' : res.stderr ? 'warning' : 'success',
+      })
+    }
+    if (res.code === 0) {
+      await loadVersions()
+      latest.value = { ...latest.value, [pkg.id]: '' }
+      updates.value = { ...updates.value, [pkg.id]: false }
+    }
+  } catch (err: unknown) {
+    if (run) useToast().remove('apps-rebuild')
+    actionNote.value = errText(err)
+  } finally {
+    clearBusy(key)
+    if (run) rebuildLock.value = false
+    await refresh()
+  }
+}
+
+async function patchPackageUi(id: string, body: { forwardHost?: boolean; navPinned?: boolean }) {
+  const key = dockerAppBusyKey(id, 'settings')
+  markBusy(key)
+  actionNote.value = ''
+  try {
+    const saved = await $fetch<{ install: { code: number; stderr: string } }>(`/api/apps/${id}/ui`, { method: 'POST', body })
+    if (body.forwardHost !== undefined) actionNote.value = installText(saved.install.code, saved.install.stderr, 'Forward failed')
+    if (body.navPinned !== undefined) await refreshPinnedNav()
+    await refresh()
+  } catch (err: unknown) {
+    actionNote.value = errText(err)
+  } finally {
+    clearBusy(key)
+  }
+}
+
+async function rebuildDesktop() {
+  if (rebuildLock.value) return
+  rebuildLock.value = true
+  actionNote.value = ''
+  useToast().add({ id: 'apps-rebuild', title: 'Rebuilding Desktop', description: 'Installing run apps and swapping the container.', duration: 0 })
+  try {
+    const res = await $fetch<{ install: { code: number; stderr: string } }>('/api/apps/rebuild', { method: 'POST' })
+    useToast().remove('apps-rebuild')
+    useToast().add({
+      title: res.install.code === 0 ? 'Desktop container replaced' : 'Desktop rebuild failed',
+      description: installText(res.install.code, res.install.stderr, 'Rebuild failed') || undefined,
+      color: res.install.code !== 0 ? 'error' : res.install.stderr ? 'warning' : 'success',
+    })
+  } catch (err: unknown) {
+    useToast().remove('apps-rebuild')
+    actionNote.value = errText(err)
+  } finally {
+    rebuildLock.value = false
+    await refresh()
+    await refreshPkg()
+  }
+}
+
+const APP_TYPES = ['docker', 'npm', 'pnpm', 'bun', 'deno', 'uv', 'cargo', 'nix', 'apt', 'deb', 'run'] as const
+
 const stateFilter = ref<'all' | 'running' | 'stopped'>('all')
 const typeFilter = ref('all')
 const kindFilter = ref<'all' | 'core' | 'addon' | 'custom'>('all')
+const managerFilter = ref('all')
 const openCards = ref<string[]>([])
 
 const stateTabs = [
@@ -407,9 +685,13 @@ const kindTabs = [
   { id: 'addon' as const, label: 'Addon' },
   { id: 'custom' as const, label: 'Custom' },
 ]
+const managerTabs = [
+  { id: 'all', label: 'All' },
+  ...APP_TYPES.map((id) => ({ id, label: id })),
+]
 
-function cardKind(s: SidecarRow): 'core' | 'addon' | 'custom' {
-  if (s.kind === 'core' || s.id === 'ollama') return 'core'
+function cardKind(s: DockerAppRow): 'core' | 'addon' | 'custom' {
+  if (s.kind === 'core') return 'core'
   if (s.kind === 'addon') return 'addon'
   return 'custom'
 }
@@ -430,13 +712,74 @@ function tabOn(on: boolean) {
     : 'rounded-md px-2.5 py-1 text-sm text-[var(--bros-muted)] hover:text-white'
 }
 
-const filtered = computed(() => (data.value?.sidecars || []).filter((s) => {
+function packageTier(p: PackageRow): 'core' | 'addon' | 'custom' {
+  if ((p.tier || 'addon') === 'core') return 'core'
+  if (p.tier === 'custom') return 'custom'
+  return 'addon'
+}
+
+function packageRunning(p: PackageRow) {
+  return (p.services?.length || 0) > 0 && !!p.serviceRunning
+}
+
+function packageStopped(p: PackageRow) {
+  return (p.services?.length || 0) > 0 && !p.serviceRunning
+}
+
+const filtered = computed(() => dockerRows.value.filter((s) => {
+  if (managerFilter.value !== 'all' && managerFilter.value !== 'docker') return false
   if (stateFilter.value === 'running' && !s.status.running) return false
   if (stateFilter.value === 'stopped' && s.status.running) return false
   if (kindFilter.value !== 'all' && cardKind(s) !== kindFilter.value) return false
   if (typeFilter.value !== 'all' && !s.interfaces.some((iface) => iface.type === typeFilter.value)) return false
   return true
 }))
+
+const filteredPackages = computed(() => packageRows.value.filter((p) => {
+  if (managerFilter.value !== 'all' && p.kind !== managerFilter.value) return false
+  if (stateFilter.value === 'running' && !packageRunning(p)) return false
+  if (stateFilter.value === 'stopped' && !packageStopped(p)) return false
+  if (kindFilter.value !== 'all' && packageTier(p) !== kindFilter.value) return false
+  if (typeFilter.value !== 'all' && !(p.interfaces || []).some((iface) => iface.type === typeFilter.value)) return false
+  return true
+}))
+
+type SectionRow = { role: 'docker'; row: DockerAppRow } | { role: 'package'; row: PackageRow }
+
+const sections = computed(() => {
+  const groups = new Map<string, SectionRow[]>()
+  for (const row of filtered.value) {
+    const list = groups.get('docker') || []
+    list.push({ role: 'docker', row })
+    groups.set('docker', list)
+  }
+  for (const row of filteredPackages.value) {
+    const key = row.kind || 'package'
+    const list = groups.get(key) || []
+    list.push({ role: 'package', row })
+    groups.set(key, list)
+  }
+  const known = APP_TYPES.filter((id) => groups.has(id))
+  const extra = [...groups.keys()].filter((id) => !APP_TYPES.includes(id as typeof APP_TYPES[number]))
+  return [...known, ...extra].map((id) => ({ id, rows: groups.get(id) || [] }))
+})
+
+watch([stateFilter, typeFilter, kindFilter, managerFilter], () => {
+  const q: Record<string, string> = {}
+  if (stateFilter.value !== 'all') q.state = stateFilter.value
+  if (typeFilter.value !== 'all') q.type = typeFilter.value
+  if (kindFilter.value !== 'all') q.kind = kindFilter.value
+  if (managerFilter.value !== 'all') q.manager = managerFilter.value
+  router.replace({ query: q })
+}, { flush: 'post' })
+
+onMounted(() => {
+  const q = route.query
+  if (q.state === 'running' || q.state === 'stopped') stateFilter.value = q.state
+  if (typeof q.type === 'string' && typeTabs.some((t) => t.id === q.type)) typeFilter.value = q.type as typeof typeFilter.value
+  if (q.kind === 'core' || q.kind === 'addon' || q.kind === 'custom') kindFilter.value = q.kind
+  if (typeof q.manager === 'string' && managerTabs.some((t) => t.id === q.manager)) managerFilter.value = q.manager
+})
 
 /** Two-up only when this section has 2+ rows. Columns follow the section container, not the viewport. */
 function sectionTwoCol(count: number) {
@@ -445,13 +788,140 @@ function sectionTwoCol(count: number) {
 
 function sectionGridClass(count: number) {
   return sectionTwoCol(count)
-    ? 'grid items-stretch gap-4 grid-cols-1 @3xl/sidecar:grid-cols-2'
+    ? 'grid items-stretch gap-4 grid-cols-1 @3xl/dockerApp:grid-cols-2'
     : 'grid gap-4 grid-cols-1'
+}
+
+function cardKey(item: SectionRow) {
+  return `${item.role}:${item.row.id}`
+}
+
+function dockerOf(item: SectionRow) {
+  return item.role === 'docker' ? item.row : null
+}
+
+function packageOf(item: SectionRow) {
+  return item.role === 'package' ? item.row : null
+}
+
+function cardVersion(item: SectionRow) {
+  if (item.role !== 'package' || item.row.enabled === false) return ''
+  return versions.value[item.row.id] || ''
+}
+
+function cardLatest(item: SectionRow) {
+  if (item.role !== 'package' || item.row.enabled === false) return ''
+  return latest.value[item.row.id] || ''
+}
+
+function cardUpdateReady(item: SectionRow) {
+  return item.role === 'package' && item.row.enabled !== false && !!updates.value[item.row.id]
+}
+
+function onRun(item: SectionRow, action: 'start' | 'stop' | 'restart') {
+  if (item.role === 'docker') return act(item.row.id, action)
+  return setService(item.row.id, action)
+}
+
+function onEdit(item: SectionRow) {
+  if (item.role === 'docker') return openEdit(item.row)
+  return openEditPackage(item.row)
+}
+
+function onCheck(item: SectionRow) {
+  if (item.role === 'docker') return checkImage(item.row)
+  return checkPackage(item.row.id)
+}
+
+function onUpdateImage(item: SectionRow) {
+  if (item.role === 'docker') return updateImage(item.row)
+}
+
+function onUpdateRepo(item: SectionRow) {
+  if (item.role === 'docker') return updateRepo(item.row)
+}
+
+function onUpdatePackage(item: SectionRow) {
+  if (item.role === 'package') return updatePackage(item.row)
+}
+
+function onAutostart(item: SectionRow, value: boolean) {
+  if (item.role === 'docker') return patchSettings(item.row.id, { autostart: value })
+}
+
+function onPin(item: SectionRow, value: boolean) {
+  if (item.role === 'docker') return patchSettings(item.row.id, { navPinned: value })
+  return patchPackageUi(item.row.id, { navPinned: value })
+}
+
+function onForward(item: SectionRow, value: boolean) {
+  if (item.role === 'package') return patchPackageUi(item.row.id, { forwardHost: value })
+}
+
+function onEnable(item: SectionRow) {
+  if (item.role === 'package') return enablePackage(item.row.id)
+}
+
+function onDisable(item: SectionRow) {
+  if (item.role === 'package') return disablePackage(item.row.id)
+}
+
+type GlobalName = { name: string; owned: boolean }
+type GlobalScan = { kind: string; names: GlobalName[]; error?: string }
+const globals = ref<GlobalScan[] | null>(null)
+const scanning = ref(false)
+const adoptTarget = ref<{ kind: string; name: string } | null>(null)
+
+async function scanGlobals() {
+  scanning.value = true
+  formError.value = ''
+  actionNote.value = ''
+  try {
+    const res = await $fetch<{ kinds: GlobalScan[] }>('/api/cli/packages/globals')
+    const rows = res.kinds.filter((row) => row.names.length || row.error)
+    const errors = rows.filter((row) => row.error && !row.names.length)
+    if (rows.length && errors.length === rows.length && errors.every((row) => row.error === errors[0]?.error)) {
+      formError.value = errors[0]?.error || 'Scan failed'
+      globals.value = []
+      return
+    }
+    globals.value = rows
+    if (!rows.length) actionNote.value = 'No global packages.'
+  } catch (err: unknown) {
+    formError.value = actionErrorMessage(err)
+  } finally {
+    scanning.value = false
+  }
+}
+
+function askAdopt(kind: string, name: string) {
+  adoptTarget.value = { kind, name }
+}
+
+async function confirmAdopt() {
+  const target = adoptTarget.value
+  if (!target) return
+  adoptTarget.value = null
+  const key = `global:${target.kind}:${target.name}`
+  markBusy(key)
+  formError.value = ''
+  try {
+    await $fetch('/api/cli/packages/globals', { method: 'POST', body: { kind: target.kind, spec: target.name } })
+    const row = globals.value?.find((item) => item.kind === target.kind)
+    const name = row?.names.find((item) => item.name === target.name)
+    if (name) name.owned = true
+    await refresh()
+    await refreshPkg()
+  } catch (err: unknown) {
+    formError.value = actionErrorMessage(err)
+  } finally {
+    clearBusy(key)
+  }
 }
 </script>
 
 <template>
-  <BrosPageShell title="Sidecars" description="Core always runs. Addon and custom stay stopped until you turn Autostart on or press Start.">
+  <BrosPageShell title="Apps" description="Core apps boot with Bros (Whisper follows Settings). Other docker apps use Autostart or Start. A package with a service uses those same Start, Stop, and Restart buttons.">
     <div v-if="data?.errors?.length" class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
       <p v-for="(err, i) in data.errors" :key="i">{{ err }}</p>
     </div>
@@ -463,14 +933,17 @@ function sectionGridClass(count: number) {
     </div>
 
     <div v-if="pending && !data" class="text-[var(--bros-muted)]">Loading…</div>
-    <div v-else class="@container/sidecar space-y-4">
+    <div v-else class="@container/dockerApp space-y-4">
       <div class="flex justify-start">
         <div class="flex flex-wrap gap-2">
-          <UButton size="sm" color="primary" variant="soft" @click="toggleAdd">Add sidecar</UButton>
+          <UButton size="sm" color="primary" variant="soft" @click="toggleAdd">Add app</UButton>
+          <UButton size="sm" color="neutral" variant="outline" @click="openAddPackage">Add package</UButton>
           <UButton size="sm" color="neutral" variant="outline" @click="toggleRepo">From a repo</UButton>
+          <UButton size="sm" color="neutral" variant="outline" :loading="scanning" @click="scanGlobals">Scan</UButton>
+          <UButton v-if="pkgMeta?.rebuildPending" size="sm" color="neutral" variant="soft" :disabled="rebuildLock" @click="rebuildDesktop">Rebuild</UButton>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-3" data-sidecar-filters>
+      <div class="flex flex-wrap items-center gap-3" data-app-filters>
         <div :class="filterGroupClass" role="group" aria-label="Run state">
           <button
             v-for="opt in stateTabs"
@@ -491,7 +964,7 @@ function sectionGridClass(count: number) {
             @click="typeFilter = opt.id"
           >{{ opt.label }}</button>
         </div>
-        <div :class="filterGroupClass" role="group" aria-label="Sidecar kind">
+        <div :class="filterGroupClass" role="group" aria-label="App kind">
           <button
             v-for="opt in kindTabs"
             :key="opt.id"
@@ -501,12 +974,46 @@ function sectionGridClass(count: number) {
             @click="kindFilter = opt.id"
           >{{ opt.label }}</button>
         </div>
+        <div :class="filterGroupClass" role="group" aria-label="Package manager">
+          <button
+            v-for="opt in managerTabs"
+            :key="opt.id"
+            type="button"
+            :class="tabOn(managerFilter === opt.id)"
+            :aria-pressed="managerFilter === opt.id"
+            @click="managerFilter = opt.id"
+          >{{ opt.label }}</button>
+        </div>
       </div>
-      <p class="text-sm text-[var(--bros-muted)]">Core always runs and has no Restart. Addon and custom stay stopped until Autostart is on and Bros restarts, or you press Start.</p>
+      <div v-if="globals?.length" class="space-y-1 text-sm" data-global-packages>
+        <p class="text-[var(--bros-muted)]">Plain names are already apps. An Adopt control is not an app yet. Adopt writes a custom config and does not install.</p>
+        <p v-for="row in globals" :key="row.kind">
+          <span class="text-[var(--bros-muted)]">{{ row.kind }}: </span>
+          <template v-if="row.error && !row.names.length"> {{ row.error }}</template>
+          <template v-else>
+            <template v-for="(item, i) in row.names" :key="item.name">
+              <span v-if="i">, </span>
+              <span v-if="item.owned">{{ item.name }}</span>
+              <UTooltip v-else text="Adopt as a custom app. Does not install.">
+                <button
+                  type="button"
+                  class="underline disabled:opacity-50"
+                  :disabled="hasBusy(`global:${row.kind}:${item.name}`)"
+                  :aria-label="`Adopt ${item.name}`"
+                  @click="askAdopt(row.kind, item.name)"
+                >{{ item.name }}</button>
+              </UTooltip>
+            </template>
+          </template>
+        </p>
+      </div>
+      <p class="text-sm text-[var(--bros-muted)]">
+        Core docker has no Start, Stop, or Restart. A package with a service uses those same buttons.
+      </p>
 
       <div v-if="addOpen" class="space-y-3 rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
-          <UInput v-model="addForm.id" placeholder="id slug (not ollama / whisper / opencode / openwebui / firecrawl / firecrawl-ui)" aria-label="Sidecar id" />
-          <UTextarea v-model="addForm.sidecarYml" placeholder="sidecar.yml" aria-label="sidecar.yml" :rows="8" class="font-mono text-xs" />
+          <UInput v-model="addForm.id" placeholder="id slug (not ollama / whisper / opencode / openwebui / firecrawl / firecrawl-ui)" aria-label="App id" />
+          <UTextarea v-model="addForm.configYml" placeholder="config.yml" aria-label="config.yml" :rows="8" class="font-mono text-xs" />
           <UTextarea v-model="addForm.composeYml" placeholder="docker-compose.yml" aria-label="docker-compose.yml" :rows="10" class="font-mono text-xs" />
           <div class="flex gap-2">
             <UButton size="sm" color="primary" :loading="hasBusy('create')" @click="createCustom">Create</UButton>
@@ -515,274 +1022,84 @@ function sectionGridClass(count: number) {
         </div>
 
       <div v-if="repoOpen" class="space-y-3 rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
-          <UInput v-model="repoForm.url" placeholder="https://github.com/org/sidecars.git" aria-label="Git repo URL" />
+          <UInput v-model="repoForm.url" placeholder="https://github.com/org/apps.git" aria-label="Git repo URL" />
           <UInput v-model="repoForm.name" placeholder="folder name (optional)" aria-label="Repo folder name" />
-          <p class="text-xs text-[var(--bros-muted)]">Clones into lib/sidecars/custom/&lt;name&gt;/ and loads that tree’s sidecars/ dir.</p>
+          <p class="text-xs text-[var(--bros-muted)]">Clones into data/config/apps/&lt;name&gt;/ and loads that tree’s apps.</p>
           <div class="flex gap-2">
             <UButton size="sm" color="primary" :loading="hasBusy('clone')" @click="cloneRepo">Clone</UButton>
             <UButton size="sm" color="neutral" variant="ghost" @click="() => { repoOpen = false }">Cancel</UButton>
           </div>
         </div>
 
-      <p v-if="!filtered.length" class="text-sm text-[var(--bros-muted)]">None.</p>
+      <p v-if="!sections.length" class="text-sm text-[var(--bros-muted)]">None.</p>
 
-      <div
-        :class="sectionGridClass(filtered.length)"
-        data-sidecar-section="list"
-        :data-sidecar-grid="sectionTwoCol(filtered.length) ? 'multi' : 'single'"
-      >
-        <article
-          v-for="s in filtered"
-          :key="s.id"
-          :data-sidecar-card="s.id"
-          :data-card-layout="sectionTwoCol(filtered.length) ? 'compact' : 'wide'"
-          class="flex h-full flex-col rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 px-[15px] py-[8px]"
-          :class="sectionTwoCol(filtered.length) ? 'min-h-[202px]' : undefined"
+      <template v-for="section in sections" :key="section.id">
+        <h2
+          class="text-sm font-medium text-[var(--bros-muted)]"
+          :class="section.id === sections[0]?.id ? undefined : 'pt-2'"
+        >{{ section.id }}</h2>
+        <div
+          :class="sectionGridClass(section.rows.length)"
+          :data-app-section="section.id === 'docker' ? 'list' : section.id"
+          :data-app-grid="section.id === 'docker' ? (sectionTwoCol(section.rows.length) ? 'multi' : 'single') : undefined"
         >
-          <div class="flex min-w-0 flex-1 flex-col gap-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h3 class="text-lg font-medium text-white">{{ s.name }} ({{ kindLabel(s) }})</h3>
-                  <div v-if="typePills(s).length" class="flex flex-wrap gap-1" data-sidecar-types>
-                    <UBadge v-for="label in typePills(s)" :key="label" variant="soft">
-                      {{ label }}
-                    </UBadge>
-                  </div>
-                </div>
-                <p class="mt-1 text-sm text-[var(--bros-muted)]">{{ s.description }}</p>
-              </div>
-                  <div class="flex shrink-0 items-center gap-1">
-                    <UButton
-                      icon="i-lucide-refresh-cw"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      :loading="statusRefreshingId === s.id"
-                      aria-label="Refresh sidecar status"
-                      @click="refreshStatus(s.id)"
-                    />
-                    <UBadge :color="s.disabled ? 'neutral' : s.status.running ? 'success' : 'error'" variant="subtle">
-                      {{ s.disabled ? 'disabled' : s.status.running ? 'running' : 'stopped' }}
-                    </UBadge>
-                  </div>
-                </div>
-
-            <div class="mt-auto flex flex-col gap-3">
-            <div class="flex flex-nowrap items-center gap-2" data-sidecar-actions>
-                <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <UButton
-                  v-if="s.id === 'desktop'"
-                  to="/terminal"
-                  size="sm"
-                  color="primary"
-                  variant="outline"
-                  class="px-1.5"
-                >Terminal</UButton>
-                <UButton
-                  v-if="!isCore(s)"
-                  size="sm"
-                  color="success"
-                  variant="outline"
-                  class="px-1.5"
-                  :class="s.status.running && !s.error ? 'bg-success/10' : undefined"
-                  :loading="isBusy(s.id, 'start')"
-                  :disabled="!!s.error || (rowBusy(s.id) && !isBusy(s.id, 'start'))"
-                  @click="act(s.id, 'start')"
-                >Start</UButton>
-                <UButton
-                  v-if="!isCore(s)"
-                  size="sm"
-                  color="error"
-                  variant="outline"
-                  class="px-1.5"
-                  :class="!s.status.running && !s.error ? 'bg-error/10' : undefined"
-                  :loading="isBusy(s.id, 'stop')"
-                  :disabled="rowBusy(s.id) && !isBusy(s.id, 'stop')"
-                  @click="act(s.id, 'stop')"
-                >Stop</UButton>
-                <UButton
-                  v-if="!isCore(s)"
-                  size="sm"
-                  color="neutral"
-                  variant="outline"
-                  class="px-1.5"
-                  :loading="isBusy(s.id, 'restart')"
-                  :disabled="!!s.error || (rowBusy(s.id) && !isBusy(s.id, 'restart'))"
-                  @click="act(s.id, 'restart')"
-                >Restart</UButton>
-                <UButton
-                  v-for="link in openLinks(s)"
-                  :key="link.to"
-                  size="sm"
-                  color="primary"
-                  variant="soft"
-                  class="px-1.5"
-                  :to="link.to"
-                  :target="link.external ? '_blank' : undefined"
-                >
-                  Open {{ link.label }} (:{{ link.hostPort }})
-                </UButton>
-                <UButton
-                  v-if="hasGui(s)"
-                  :to="'/desktop'"
-                  size="sm"
-                  color="primary"
-                  variant="soft"
-                  class="px-1.5"
-                >Open {{ s.name }}</UButton>
-                <UButton
-                  size="sm"
-                  color="neutral"
-                  variant="ghost"
-                  class="px-1.5"
-                  :to="`/sidecars/${s.id}/logs`"
-                >Logs</UButton>
-                <UButton
-                  v-if="s.editable"
-                  size="sm"
-                  color="neutral"
-                  variant="ghost"
-                  class="px-1.5"
-                  :loading="isBusy(s.id, 'edit')"
-                  @click="openEdit(s)"
-                >Edit</UButton>
-                <UButton
-                  v-if="!(s.gitUrl || (s.source !== 'shipped' && s.source !== 'custom'))"
-                  size="sm"
-                  color="neutral"
-                  variant="ghost"
-                  class="px-1.5"
-                  :loading="isBusy(s.id, 'check')"
-                  @click="checkImage(s)"
-                >Check</UButton>
-                <UButton
-                  v-if="!(s.gitUrl || (s.source !== 'shipped' && s.source !== 'custom'))"
-                  size="sm"
-                  color="neutral"
-                  variant="ghost"
-                  class="px-1.5"
-                  :loading="isBusy(s.id, 'image')"
-                  @click="updateImage(s)"
-                >Update</UButton>
-                <UButton
-                  v-if="s.gitUrl || (s.source !== 'shipped' && s.source !== 'custom')"
-                  size="sm"
-                  color="neutral"
-                  variant="ghost"
-                  class="px-1.5"
-                  :loading="isBusy(s.id, 'update')"
-                  @click="updateRepo(s)"
-                >Update</UButton>
-                </div>
-                <p v-if="s.password" class="flex items-center gap-2 text-xs text-[var(--bros-muted)]">
-                  Password
-                  <button type="button" class="font-mono text-white" @click="copyUrl(s.password || '')">{{ s.password }}</button>
-                </p>
-                <UButton
-                  class="ml-auto shrink-0"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :icon="cardOpen(s.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                  :aria-expanded="cardOpen(s.id)"
-                  :aria-label="cardOpen(s.id) ? 'Hide sidecar details' : 'Show sidecar details'"
-                  @click="toggleCard(s.id)"
-                />
-              </div>
-            <div v-if="!isCore(s) || pinLinks(s).length" class="flex flex-wrap items-center gap-4 text-sm" data-sidecar-toggles>
-              <label v-if="!isCore(s)" class="flex items-center gap-2 text-[var(--bros-muted)]">
-                <USwitch
-                  :model-value="s.settings.autostart && !s.disabled"
-                  :disabled="rowBusy(s.id) || s.disabled"
-                  @update:model-value="(v: boolean) => patchSettings(s.id, { autostart: v })"
-                />
-                Autostart
-              </label>
-              <label v-if="pinLinks(s).length" class="flex items-center gap-2 text-[var(--bros-muted)]">
-                <USwitch
-                  :model-value="s.settings.navPinned"
-                  :disabled="rowBusy(s.id)"
-                  @update:model-value="(v: boolean) => patchSettings(s.id, { navPinned: v })"
-                />
-                Pin in nav
-              </label>
-            </div>
-            </div>
-
-            <div v-show="cardOpen(s.id)" class="space-y-4" data-sidecar-details>
-              <p v-if="s.error" class="text-sm text-red-400">{{ s.error }}</p>
-              <p v-else-if="s.warning" class="text-sm text-amber-300">{{ s.warning }}</p>
-              <p v-if="s.disabled" class="text-sm text-[var(--bros-muted)]">Env-disabled: not autostarted. Start still works.</p>
-                <div v-for="block in cardBlocks(s)" :key="block.label" class="space-y-2" :data-card-block="block.label">
-                  <p class="text-xs font-medium tracking-wide text-[var(--bros-muted)]">{{ block.label }}</p>
-                  <div
-                    v-for="(row, index) in block.rows"
-                    :key="row.url || row.command || index"
-                    class="flex items-center gap-2 rounded-lg border border-[var(--bros-border)] bg-[var(--bros-bg)]/60 px-3 py-2"
-                  >
-                    <div class="min-w-0 flex-1">
-                      <p v-if="row.command" class="truncate font-mono text-sm text-white">{{ row.command }}</p>
-                      <template v-else-if="row.url">
-                        <a
-                          v-if="row.network !== 'bros'"
-                          :href="row.url"
-                          class="block truncate font-mono text-sm text-[var(--bros-accent)] hover:underline"
-                          :title="row.url"
-                          @click.prevent="copyUrl(row.url)"
-                        >{{ row.url }}</a>
-                        <button
-                          v-else
-                          type="button"
-                          class="block w-full truncate text-left font-mono text-sm text-white"
-                          :title="row.url"
-                          @click="copyUrl(row.url)"
-                        >{{ row.url }}</button>
-                        <p v-if="row.network" class="text-[0.65rem] text-[var(--bros-muted)]">
-                          {{ row.network === 'host' ? 'Reachable from host' : 'Bros Docker network' }}
-                        </p>
-                      </template>
-                    </div>
-                    <UButton
-                      v-if="row.url"
-                      size="xs"
-                      color="neutral"
-                      variant="soft"
-                      :icon="copiedUrl === row.url ? 'i-lucide-check' : 'i-lucide-copy'"
-                      :aria-label="copiedUrl === row.url ? 'Copied' : 'Copy URL'"
-                      @click="copyUrl(row.url)"
-                    />
-                  </div>
-                </div>
-
-                <p v-if="s.id === 'desktop'" class="text-xs text-[var(--bros-muted)]">
-                  Terminal shell is bash. Bros does not expose bash to the host. Other sidecar CLIs are on Terminal under Expose CLIs.
-                </p>
-
-                <div class="flex flex-wrap items-center gap-4 text-sm">
-                  <p v-for="row in s.cli || []" :key="row.bin" class="text-xs text-[var(--bros-muted)]">
-                    {{ row.bin }}: Bros uses {{ row.source }}<span v-if="row.hostInstalled"> (host installed)</span>
-                  </p>
-                </div>
-
-                <div v-if="editingId === s.id" class="space-y-3">
-                  <UTextarea v-model="editFiles.sidecarYml" :rows="8" class="font-mono text-xs" />
-                  <UTextarea v-model="editFiles.composeYml" :rows="10" class="font-mono text-xs" />
-                  <div class="flex gap-2">
-                    <UButton size="sm" color="primary" :loading="isBusy(s.id, 'save')" @click="() => { void saveEdit() }">Save</UButton>
-                    <UButton size="sm" color="neutral" variant="ghost" @click="() => { editingId = null }">Cancel</UButton>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </article>
-      </div>
+          <AppCard
+            v-for="item in section.rows"
+            :key="cardKey(item)"
+            :docker="dockerOf(item)"
+            :pkg="packageOf(item)"
+            :layout="sectionTwoCol(section.rows.length) ? 'compact' : 'wide'"
+            :open="cardOpen(cardKey(item))"
+            :busy="busy"
+            :refreshing="statusRefreshingId === item.row.id"
+            :copied-url="copiedUrl"
+            :editing="item.role === 'docker' && editingId === item.row.id"
+            :edit-dockerApp="editFiles.configYml"
+            :edit-compose="editFiles.composeYml"
+            :via-tunnel="data?.viaTunnel"
+            :version="cardVersion(item)"
+            :latest="cardLatest(item)"
+            :update-ready="cardUpdateReady(item)"
+            :rebuild-lock="rebuildLock"
+            @refresh="refreshStatus(item.row.id)"
+            @toggle="toggleCard(cardKey(item))"
+            @run="onRun(item, $event)"
+            @copy="copyUrl"
+            @edit="onEdit(item)"
+            @save="saveEdit"
+            @cancel-edit="editingId = null"
+            @update:edit-dockerApp="editFiles.configYml = $event"
+            @update:edit-compose="editFiles.composeYml = $event"
+            @check="onCheck(item)"
+            @update-image="onUpdateImage(item)"
+            @update-repo="onUpdateRepo(item)"
+            @update-package="onUpdatePackage(item)"
+            @autostart="onAutostart(item, $event)"
+            @pin="onPin(item, $event)"
+            @forward="onForward(item, $event)"
+            @enable="onEnable(item)"
+            @disable="onDisable(item)"
+          />
+        </div>
+      </template>
     </div>
 
     <UModal
+      v-if="adoptTarget"
+      :open="!!adoptTarget"
+      title="Adopt as a custom app?"
+      :description="adoptTarget ? `Adopt ${adoptTarget.name} as a custom ${adoptTarget.kind} app?` : ''"
+      @update:open="(v: boolean) => { if (!v) adoptTarget = null }"
+    >
+      <template #footer>
+        <UButton color="neutral" variant="ghost" @click="() => { adoptTarget = null }">Not now</UButton>
+        <UButton color="primary" :loading="adoptTarget ? hasBusy(`global:${adoptTarget.kind}:${adoptTarget.name}`) : false" @click="confirmAdopt">Adopt</UButton>
+      </template>
+    </UModal>
+    <UModal
       v-if="restartTarget"
       :open="!!restartTarget"
-      title="Restart sidecar?"
+      title="Restart app?"
       :description="restartTarget.reason"
       @update:open="(v: boolean) => { if (!v) restartTarget = null }"
     >
@@ -791,5 +1108,15 @@ function sectionGridClass(count: number) {
         <UButton color="primary" :loading="restartTarget ? isBusy(restartTarget.id, 'restart') : false" @click="confirmRestart">Restart</UButton>
       </template>
     </UModal>
+    <CliAppDialog
+      v-model:open="dialogOpen"
+      :editing="!!editingPkg"
+      :initial="pkgForm"
+      :busy="rebuildLock"
+      :error="dialogOpen ? actionNote : ''"
+      :managers="pkgMeta?.managers || []"
+      @save="savePackage"
+      @remove="removePackage"
+    />
   </BrosPageShell>
 </template>

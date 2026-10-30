@@ -2,7 +2,7 @@ import { isOllamaModelChatEnabled, parseDisabledOllamaModels } from '../../../ui
 import { ensureInternalBrosModel } from '../internalBrosModel'
 import { clearDonePullsForInstalled, listActivePullsByProvider } from './ollamaPullJobs'
 import { assertHostOllamaVisible, isHostOllamaEnabled } from '../settings'
-import { findHostOllama, readOllamaManualPort, sidecarOllamaUrl, OLLAMA_SIDECAR_DNS, OLLAMA_SIDECAR_PUBLISH } from './ollamaHost'
+import { findHostOllama, readOllamaManualPort, dockerAppOllamaUrl, OLLAMA_DOCKER_APP_DNS, OLLAMA_DOCKER_APP_PUBLISH } from './ollamaHost'
 import { getProviderPreset, isPopularProvider, POPULAR_PROVIDER_IDS } from './presets'
 import {
   disableUnhealthyKeyedChat,
@@ -15,7 +15,7 @@ import {
   ollamaBaseUrlFor,
   probeOllamaRunning,
   OLLAMA_HOST_ID,
-  OLLAMA_SIDECAR_ID,
+  OLLAMA_DOCKER_APP_ID,
   type ProviderHealth,
   type ProviderStatus,
 } from './index'
@@ -85,8 +85,8 @@ export async function buildProvidersView() {
   const errors: Record<string, string> = {}
   const modelsByProvider: Record<string, ProviderModelRow[]> = {}
 
-  const sidecarRunning = await probeOllamaRunning(sidecarOllamaUrl())
-  if (sidecarRunning) {
+  const dockerAppRunning = await probeOllamaRunning(dockerAppOllamaUrl())
+  if (dockerAppRunning) {
     await ensureInternalBrosModel()
   }
 
@@ -100,13 +100,13 @@ export async function buildProvidersView() {
     let health: ProviderHealth
     let statusMessage: string | null = null
     let port: number | null = null
-    if (p.id === OLLAMA_SIDECAR_ID) {
-      health = sidecarRunning
+    if (p.id === OLLAMA_DOCKER_APP_ID) {
+      health = dockerAppRunning
         ? { ok: true, kind: 'ready', message: 'Ready' }
-        : { ok: false, kind: 'unreachable', message: 'Ollama sidecar is unreachable' }
-      port = OLLAMA_SIDECAR_PUBLISH
-      const sidecarError = errors[p.id]
-      if (sidecarError) statusMessage = sidecarError
+        : { ok: false, kind: 'unreachable', message: 'Ollama docker app is unreachable' }
+      port = OLLAMA_DOCKER_APP_PUBLISH
+      const dockerAppError = errors[p.id]
+      if (dockerAppError) statusMessage = dockerAppError
     }
     else if (p.id === OLLAMA_HOST_ID) {
       const manual = readOllamaManualPort()
@@ -148,7 +148,7 @@ export async function buildProvidersView() {
 
   const popularIndex = new Map(POPULAR_PROVIDER_IDS.map((id, i) => [id, i]))
   const rank = (id: string) => {
-    if (id === OLLAMA_SIDECAR_ID) return 0
+    if (id === OLLAMA_DOCKER_APP_ID) return 0
     if (id === OLLAMA_HOST_ID) return 1
     if (popularIndex.has(id)) return 2 + (popularIndex.get(id) || 0)
     return 100
@@ -158,10 +158,10 @@ export async function buildProvidersView() {
   return {
     providers,
     activePulls: listActivePullsByProvider(),
-    ollamaError: errors[OLLAMA_SIDECAR_ID] || null,
+    ollamaError: errors[OLLAMA_DOCKER_APP_ID] || null,
     hostOllamaError: hostHit.error,
-    sidecarPublish: OLLAMA_SIDECAR_PUBLISH,
-    sidecarDns: OLLAMA_SIDECAR_DNS,
+    dockerAppPublish: OLLAMA_DOCKER_APP_PUBLISH,
+    dockerAppDns: OLLAMA_DOCKER_APP_DNS,
     hostOllama: host,
     hostProbePort: readOllamaManualPort(),
   }

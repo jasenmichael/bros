@@ -185,6 +185,11 @@ export function issueOnBoard(input: {
   return false
 }
 
+/** Planning lives in memory. After a restart the row is still planning and nothing else will touch it. */
+export function resumeOrphanedPlanning(state: string | null | undefined, inFlight: boolean): boolean {
+  return state === 'planning' && !inFlight
+}
+
 export function autoEnqueue(input: {
   state?: string | null
   completedAt?: number | null

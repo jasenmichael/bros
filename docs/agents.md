@@ -20,7 +20,7 @@ Bros never merges. **Delete branch after merge** (default on) deletes the job br
 
 ## Flow
 
-**Auto preflight** (default on) enqueues PreFlight about every 30 seconds. **start preflight** still works when that is off. PreFlight uses the Bros Ollama sidecar and the selected preflight model. It writes a Task Spec. Auto preflight accepts that spec. Otherwise the job waits on Needs you.
+**Auto preflight** (default on) enqueues PreFlight about every 30 seconds. **start preflight** still works when that is off. PreFlight uses the Bros Ollama docker app and the selected preflight model. It writes a Task Spec. Auto preflight accepts that spec. Otherwise the job waits on Needs you.
 
 **Approve implement** (or **Auto-approve implement**, default off) runs the selected runtime in the background inside Desktop. The cwd is `/home/bros/workspace/<repo>`. If that directory is missing, Bros clones the GitHub repo into it once, then checks out the issue branch there. No second clone. No git worktree. The agent does not commit, push, or open the pull request. Bros commits, pushes, and stops at `awaiting_pr`.
 
@@ -32,7 +32,7 @@ One runtime for every project. Default Cursor.
 
 Cursor runs `cursor-agent acp` from the Desktop home (`~/.local/bin/cursor-agent`). When that file is missing, Bros installs it as the desktop user before the first job. The Agents page does not enable the Agent app. See [Agent](/docs/apps/agent).
 
-Claude runs the Claude addon. `kind: run` installs on a Desktop rebuild. The page says so and links to `/settings/desktop`. See [Claude](/docs/apps/claude).
+Claude runs the Claude addon. `kind: run` installs on a Desktop rebuild. The page says so and links to `/apps`. See [Claude](/docs/apps/claude).
 
 ## GitHub token
 
@@ -42,6 +42,6 @@ The same token is a mode `0600` git credential for `https://github.com` under th
 
 ## Settings
 
-Under Add project, **Runtime** starts closed. Open it for the runtime, optional Cursor API key, GitHub token, preflight model (models already on the Bros Ollama sidecar), Auto preflight, Auto-approve implement, Auto-approve PR, and Delete branch after merge.
+Under Add project, **Runtime** starts closed. Open it for the runtime, optional Cursor API key, GitHub token, preflight model (models already on the Bros Ollama docker app), Auto preflight, Auto-approve implement, Auto-approve PR, and Delete branch after merge.
 
 HTTP: [API](/docs/api).

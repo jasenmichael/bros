@@ -22,7 +22,7 @@ describe('desktop rebuild', () => {
   })
 
   it('names the session gaps', () => {
-    const script = readFileSync(join(root, 'lib/sidecars/core/desktop/desktop-ready.sh'), 'utf8')
+    const script = readFileSync(join(root, 'lib/desktop/desktop-ready.sh'), 'utf8')
     expect(script).not.toContain('exec node')
     expect(script).toContain('selkies')
     expect(script).toContain('ttyd')

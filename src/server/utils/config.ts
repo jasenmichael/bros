@@ -3,8 +3,8 @@ import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join, resolve } from 'pathe'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
-import { brosYamlInData, configDir, migrateDataLayout } from './dataLayout'
-import { resolveWorkspaceHost } from './homePaths'
+import { brosYamlInData, configDir, migrateDataLayout } from './dataLayout.ts'
+import { resolveWorkspaceHost } from './homePaths.ts'
 
 export type BootstrapConfig = {
   /** App directory (`BROS_DIR`). */
@@ -33,7 +33,7 @@ function findCheckoutRoot(start: string): string | null {
   let dir = resolve(start)
   for (let i = 0; i < 10; i++) {
     const hasYaml = existsSync(join(dir, 'bros.yml')) || existsSync(join(dir, 'data', 'config', 'bros.yml'))
-    const hasCompose = existsSync(join(dir, 'docker-compose.yml')) && existsSync(join(dir, 'lib/sidecars'))
+    const hasCompose = existsSync(join(dir, 'docker-compose.yml')) && existsSync(join(dir, 'lib/apps'))
     if (hasYaml || hasCompose) return dir
     const parent = resolve(dir, '..')
     if (parent === dir) break
@@ -119,7 +119,7 @@ export function patchBrosYaml(patch: Partial<FileConfig>, cwd = process.cwd()): 
 }
 
 /**
- * Host path for sidecar Compose binds. In-container `/app/data` is not a bind source.
+ * Host path for dockerApp Compose binds. In-container `/app/data` is not a bind source.
  */
 export function hostDataDirForBinds(): string {
   const explicit = process.env.BROS_HOST_DATA_DIR?.trim()
@@ -130,7 +130,7 @@ export function hostDataDirForBinds(): string {
   if (home && home !== '/app') return resolve(home, 'data')
   const { dataDir, workingDir } = loadBootstrapConfig()
   if (workingDir === '/app' || dataDir === '/app/data' || dataDir === '/data') {
-    throw new Error('BROS_HOST_DATA_DIR is unset; cannot bind sidecar volumes')
+    throw new Error('BROS_HOST_DATA_DIR is unset; cannot bind docker app volumes')
   }
   return dataDir
 }
@@ -179,7 +179,7 @@ export function ensureDataLayout(dataDir: string) {
   mkdirSync(configDir(dataDir), { recursive: true })
   mkdirSync(join(dataDir, 'config', 'skills'), { recursive: true })
   mkdirSync(join(dataDir, 'config', 'apps'), { recursive: true })
-  mkdirSync(join(dataDir, 'home', '.local', 'sidecar-bins'), { recursive: true })
+  mkdirSync(join(dataDir, 'home', '.local', 'app-bins'), { recursive: true })
   mkdirSync(join(dataDir, 'home', 'workspace'), { recursive: true })
   mkdirSync(join(dataDir, 'home', '.agents', 'skills'), { recursive: true })
   mkdirSync(join(dataDir, 'var', 'logs'), { recursive: true })

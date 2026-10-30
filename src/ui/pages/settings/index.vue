@@ -166,8 +166,8 @@ async function logout() {
   <BrosPageShell title="Settings" description="Personality and rules skills, Whisper, bootstrap paths (read-only), proxy key, and passkey.">
     <div class="max-w-xl space-y-6">
       <p class="text-sm text-[var(--bros-muted)]">
-        <NuxtLink to="/settings/desktop" class="text-white underline">Desktop settings</NuxtLink>
-        install apps into Desktop.
+        Install and configure apps on
+        <NuxtLink to="/apps" class="text-white underline">Apps</NuxtLink>.
       </p>
       <form class="space-y-3" @submit.prevent="saveChat">
         <h2 class="text-lg font-medium text-white">Chat</h2>
@@ -191,7 +191,7 @@ async function logout() {
           <span class="space-y-1">
             <span class="block text-sm text-white">Enable Whisper</span>
             <p class="text-sm text-[var(--bros-muted)]">
-              Speech-to-text for Chat. Off by default. Turning this on pulls the Whisper images, then starts the sidecar.
+              Speech-to-text for Chat. Off by default. Turning this on pulls the Whisper images, then starts the docker app.
             </p>
           </span>
           <USwitch
@@ -282,14 +282,14 @@ async function logout() {
       <div class="space-y-3">
         <h2 class="text-lg font-medium text-white">Proxy key</h2>
         <p class="text-sm text-[var(--bros-muted)]">
-          External clients send <span class="font-mono">Authorization: Bearer</span> this key on tunneled sidecar APIs.
+          External clients send <span class="font-mono">Authorization: Bearer</span> this key on tunneled docker app APIs.
           It does not log into Bros. Cursor uses the URL as Override OpenAI Base URL and this key as the OpenAI API key.
         </p>
         <div class="font-mono text-sm text-white break-all">{{ data?.proxyKey || '…' }}</div>
         <ul v-if="data?.proxyUrls?.length" class="space-y-1 font-mono text-sm text-white">
           <li v-for="url in data.proxyUrls" :key="url">{{ url }}</li>
         </ul>
-        <p v-else class="text-sm text-[var(--bros-muted)]">No api or openai sidecar is proxied yet.</p>
+        <p v-else class="text-sm text-[var(--bros-muted)]">No api or openai docker app is proxied yet.</p>
         <p v-if="proxyMsg" class="text-sm text-[var(--bros-muted)]">{{ proxyMsg }}</p>
         <UButton type="button" :loading="proxyPending" @click="rotateProxyKey">Rotate proxy key</UButton>
       </div>

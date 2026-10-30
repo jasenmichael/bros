@@ -4,7 +4,7 @@ import {
   isWhisperUnreachable,
   parseWhisperText,
   pickTranscribeFile,
-  sidecarWhisperUrl,
+  dockerAppWhisperUrl,
   transcribeFileError,
   waitForWhisperHealth,
   WHISPER_MAX_BYTES,
@@ -18,11 +18,11 @@ describe('whisper host', () => {
 
   it('uses Docker DNS in-container and publish port on host Node', () => {
     setAppRunsInDockerForTests(true)
-    expect(sidecarWhisperUrl()).toBe('http://whisper:8000')
+    expect(dockerAppWhisperUrl()).toBe('http://whisper:8000')
     setAppRunsInDockerForTests(false)
-    expect(sidecarWhisperUrl()).toBe('http://127.0.0.1:8090')
+    expect(dockerAppWhisperUrl()).toBe('http://127.0.0.1:8090')
     process.env.BROS_WHISPER_PORT = '18090'
-    expect(sidecarWhisperUrl()).toBe('http://127.0.0.1:18090')
+    expect(dockerAppWhisperUrl()).toBe('http://127.0.0.1:18090')
   })
 
   it('parses text, transcription, and raw string', () => {

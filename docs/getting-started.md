@@ -5,7 +5,7 @@ description: Install Bros with Docker, run bros, open the default address.
 
 # Getting started
 
-Bros is a Docker-isolated local AI control plane. Chat, Providers, and Sidecars on one host. The host needs Docker and Docker Compose. Optional: host `cloudflared` for a Cloudflare tunnel (install + `cloudflared login`). See [Tunnel](/docs/tunnel).
+Bros is a Docker-isolated local AI control plane. Chat, Providers, and Docker apps on one host. The host needs Docker and Docker Compose. Optional: host `cloudflared` for a Cloudflare tunnel (install + `cloudflared login`). See [Tunnel](/docs/tunnel).
 
 The `bros` CLI defaults to **start** when no command is passed.
 
@@ -33,13 +33,13 @@ Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). L
 
 Commands and flags: [bros](/docs/cli).
 
-Ctrl+C on an interactive start stops the **full stack**. First start brings up the Ollama sidecar and installs the internal `bros` model when the packaged GGUF is present.
+Ctrl+C on an interactive start stops the **full stack**. First start brings up the Ollama docker app and installs the internal `bros` model when the packaged GGUF is present.
 
 ## Next
 
-- [App](/docs/app) — Dashboard, Chat, Providers, Sidecars, Status, Settings, Docs
+- [App](/docs/app) — Dashboard, Chat, Providers, Docker apps, Status, Settings, Docs
 - [Providers](/docs/providers) — Ollama, Popular services, Custom providers
-- [Sidecars](/docs/sidecars) — Core Ollama and Whisper, then addon, custom, and repo packs
+- [Docker apps](/docs/apps) — Core Ollama and Whisper, then addon, custom, and repo packs
 - [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_HOME`
 - [Environment](/docs/environment) — `BROS_*` catalog
 - [Tunnel](/docs/tunnel) — host `cloudflared`, install, login

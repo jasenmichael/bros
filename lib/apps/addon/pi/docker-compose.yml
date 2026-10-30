@@ -1,6 +1,6 @@
 # Pi — https://pi.dev/docs/latest/quickstart
 # Addon. Node 22. No published port.
-# Disable autostart with BROS_SIDECAR_PI=0.
+# Disable autostart with BROS_APP_PI=0.
 services:
   pi:
     build: .

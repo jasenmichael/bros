@@ -100,7 +100,7 @@ async function toggleVoice() {
       const row = err as { data?: { statusMessage?: string }; statusMessage?: string }
       toast.add({
         title: 'Transcription failed',
-        description: row.data?.statusMessage || row.statusMessage || 'Whisper sidecar did not return text.',
+        description: row.data?.statusMessage || row.statusMessage || 'Whisper docker app did not return text.',
         color: 'error',
         icon: 'i-lucide-mic-off',
       })

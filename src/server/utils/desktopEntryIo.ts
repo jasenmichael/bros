@@ -1,4 +1,7 @@
-import { execInSidecar } from './docker'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { catalogRoot } from './cli/packages'
+import { execInBros } from './docker'
 import { iconNameOk, parseDesktopDump, type DesktopEntry } from './desktopEntries'
 
 const LIST_SCRIPT = `
@@ -11,7 +14,7 @@ for d in /usr/share/applications /usr/local/share/applications /home/bros/.local
   done
 done
 printf '\\n---OPEN\\n'
-/app/lib/sidecars/core/desktop/desktop-gui.sh status || true
+/app/lib/desktop/desktop-gui.sh status || true
 `
 
 const ICON_SCRIPT = `
@@ -43,7 +46,7 @@ base64 -w0 "$path"
 
 export async function readDesktopCatalog(): Promise<{ entries: DesktopEntry[], openIds: string[], openCounts: Record<string, number> }> {
   try {
-    const res = await execInSidecar('desktop', ['bash', '-c', LIST_SCRIPT], 20_000)
+    const res = await execInBros(['bash', '-c', LIST_SCRIPT], 20_000)
     if (res.code !== 0) return { entries: [], openIds: [], openCounts: {} }
     return parseDesktopDump(res.stdout)
   } catch {
@@ -57,18 +60,32 @@ function mimeFor(path: string) {
   return 'image/png'
 }
 
+/** `icon.png` beside an app config, when the desktop entry has no icon file. */
+function packIcon(name: string): { mime: string, body: Buffer } | null {
+  if (!iconNameOk(name) || name.startsWith('/')) return null
+  for (const tier of ['core', 'addon'] as const) {
+    const file = join(catalogRoot(), tier, name, 'icon.png')
+    if (!existsSync(file)) continue
+    const body = readFileSync(file)
+    if (body.length) return { mime: 'image/png', body }
+  }
+  return null
+}
+
 export async function readDesktopIcon(name: string): Promise<{ mime: string, body: Buffer } | null> {
   if (!iconNameOk(name)) return null
   try {
-    const res = await execInSidecar('desktop', ['bash', '-c', ICON_SCRIPT, 'bash', name], 20_000)
-    if (res.code !== 0) return null
-    const nl = res.stdout.indexOf('\n')
-    if (nl <= 0) return null
-    const path = res.stdout.slice(0, nl).trim()
-    const body = Buffer.from(res.stdout.slice(nl + 1).trim(), 'base64')
-    if (!body.length) return null
-    return { mime: mimeFor(path), body }
+    const res = await execInBros(['bash', '-c', ICON_SCRIPT, 'bash', name], 20_000)
+    if (res.code === 0) {
+      const nl = res.stdout.indexOf('\n')
+      if (nl > 0) {
+        const path = res.stdout.slice(0, nl).trim()
+        const body = Buffer.from(res.stdout.slice(nl + 1).trim(), 'base64')
+        if (body.length) return { mime: mimeFor(path), body }
+      }
+    }
   } catch {
-    return null
+    // Desktop has no icon file. The app config may.
   }
+  return packIcon(name)
 }

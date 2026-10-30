@@ -278,6 +278,8 @@ start_named() {
   edge="$(tunnel_edge_ip_version)"
   export TUNNEL_TRANSPORT_PROTOCOL="$proto"
   export TUNNEL_EDGE_IP_VERSION="$edge"
+  # Named tunnel uses credentials-file. A host TUNNEL_TOKEN (often from .env) wins and breaks run.
+  unset TUNNEL_TOKEN
   # Docs: cloudflared tunnel --config /path/config.yml run <NAME>
   nohup "$bin" tunnel --config "${DIR}/config.yml" --no-autoupdate run "$NAMED_TUNNEL_NAME" >>"${DIR}/logs.txt" 2>&1 &
   echo $! >"${DIR}/cloudflared.pid"

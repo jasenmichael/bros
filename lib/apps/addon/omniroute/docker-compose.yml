@@ -6,7 +6,7 @@ services:
     user: "${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}"
     command: redis-server --save 60 1 --loglevel warning
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/sidecars/omniroute/redis:/data
+      - ${BROS_HOST_DATA_DIR:?unset}/apps/omniroute/redis:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -29,7 +29,7 @@ services:
     ports:
       - "${BROS_OMNIROUTE_PORT:-20128}:20128"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/sidecars/omniroute/data:/app/data
+      - ${BROS_HOST_DATA_DIR:?unset}/apps/omniroute/data:/app/data
     depends_on:
       omniroute-redis:
         condition: service_healthy

@@ -1,4 +1,4 @@
-import { sidecarReachUrl } from './hostProbe'
+import { dockerAppReachUrl } from './hostProbe'
 
 export const FIRECRAWL_PUBLISH = 3002
 export const SEARCH_LIMIT = 5
@@ -7,7 +7,7 @@ export const RETRIEVE_SCRAPE_COUNT = 3
 
 export class FirecrawlDownError extends Error {
   constructor() {
-    super('Firecrawl sidecar is stopped')
+    super('Firecrawl docker app is stopped')
     this.name = 'FirecrawlDownError'
   }
 }
@@ -19,7 +19,7 @@ export type SearchHit = {
 }
 
 export function firecrawlBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return sidecarReachUrl({
+  return dockerAppReachUrl({
     service: 'firecrawl',
     containerPort: 3002,
     publish: FIRECRAWL_PUBLISH,

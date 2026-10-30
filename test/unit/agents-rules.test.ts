@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -29,6 +29,13 @@ describe('agents board rules', () => {
     expect(inboxStartLabel('implementing')).toBe('start implement')
     expect(inboxStartLabel('awaiting_pr')).toBe('start pr')
     expect(inboxStartLabel('failed')).toBe('start preflight')
+  })
+
+  it('requeues planning only when no runner is in flight', async () => {
+    const { resumeOrphanedPlanning } = await import('../../src/server/utils/agents/rules')
+    expect(resumeOrphanedPlanning('planning', false)).toBe(true)
+    expect(resumeOrphanedPlanning('planning', true)).toBe(false)
+    expect(resumeOrphanedPlanning('queued', false)).toBe(false)
   })
 
   it('does not run the agent before implement is approved', async () => {
@@ -150,5 +157,16 @@ describe('agents board rules', () => {
     expect(readSettings().githubToken).toBe('')
     syncGitCredentials('', home)
     expect(readFileSync(credPath, 'utf8')).not.toContain('github.com')
+  })
+
+  it('skips sync when .git-credentials is unreadable', async () => {
+    const { syncGitCredentials } = await import('../../src/server/utils/agents/desktop')
+    const home = join(dataDir, 'home-unreadable')
+    mkdirSync(home, { recursive: true })
+    const credPath = join(home, '.git-credentials')
+    writeFileSync(credPath, 'https://old@github.com\n', { mode: 0o600 })
+    chmodSync(credPath, 0o000)
+    expect(() => syncGitCredentials('newtoken', home)).not.toThrow()
+    chmodSync(credPath, 0o600)
   })
 })

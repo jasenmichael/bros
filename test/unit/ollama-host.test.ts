@@ -14,7 +14,7 @@ import {
   setDockerPublishedPortsForTests,
   setHostListenPortsForTests,
   setOllamaManualPortForTests,
-  sidecarOllamaUrl,
+  dockerAppOllamaUrl,
 } from '../../src/server/utils/providers/ollamaHost'
 import { setAppRunsInDockerForTests } from '../../src/server/utils/hostProbe'
 
@@ -82,10 +82,10 @@ describe('ollama host probe', () => {
     expect(chat.host).toEqual({ port: 11434, version: '0.9.0' })
   })
 
-  it('uses sidecar DNS when mode is sidecar', async () => {
-    const chat = await resolveOllamaChat('sidecar')
-    expect(chat.source).toBe('sidecar')
-    expect(chat.baseUrl).toBe(sidecarOllamaUrl())
+  it('uses dockerApp DNS when mode is dockerApp', async () => {
+    const chat = await resolveOllamaChat('docker')
+    expect(chat.source).toBe('docker')
+    expect(chat.baseUrl).toBe(dockerAppOllamaUrl())
   })
 
   it('honors persisted host mode when scan hits', async () => {
@@ -114,32 +114,32 @@ describe('ollama host probe', () => {
     expect(chat.baseUrl).toBe(hostOllamaUrl(11434))
   })
 
-  it('treats legacy external mode as sidecar when scan misses', async () => {
+  it('treats legacy external mode as dockerApp when scan misses', async () => {
     const chat = await resolveOllamaChat('external')
-    expect(chat.source).toBe('sidecar')
-    expect(chat.baseUrl).toBe(sidecarOllamaUrl())
+    expect(chat.source).toBe('docker')
+    expect(chat.baseUrl).toBe(dockerAppOllamaUrl())
   })
 
-  it('defaults to sidecar DNS when scan misses', async () => {
+  it('defaults to dockerApp DNS when scan misses', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('offline')
     }))
     const chat = await resolveOllamaChat(undefined)
-    expect(chat.source).toBe('sidecar')
-    expect(chat.baseUrl).toBe(sidecarOllamaUrl())
+    expect(chat.source).toBe('docker')
+    expect(chat.baseUrl).toBe(dockerAppOllamaUrl())
     expect(chat.host).toBeNull()
   })
 
-  it('skips bros-sc-ollama and continues the scan', async () => {
+  it('skips bros-ollama and continues the scan', async () => {
     setHostListenPortsForTests([11434, 11436])
     vi.mocked(docker.publishedPortOwner).mockImplementation(async (port: number) => {
-      if (port === 11434) return { project: 'bros-sc-ollama' }
+      if (port === 11434) return { project: 'bros-ollama' }
       return null
     })
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       const u = String(url)
       if (u.includes(':11434/api/version')) {
-        return { ok: true, json: async () => ({ version: 'sidecar-not-host' }) }
+        return { ok: true, json: async () => ({ version: 'dockerApp-not-host' }) }
       }
       if (u.includes(':11436/api/version')) {
         return { ok: true, json: async () => ({ version: '0.9.1' }) }
@@ -152,9 +152,9 @@ describe('ollama host probe', () => {
     expect(called.some((u) => u.includes(':11434/'))).toBe(false)
   })
 
-  it('skips other bros-sc-* published ports', async () => {
+  it('skips other bros-* published ports', async () => {
     setDockerPublishedPortsForTests([
-      { port: 3080, image: 'ghcr.io/open-webui/open-webui', containerName: '/openwebui', project: 'bros-sc-openwebui' },
+      { port: 3080, image: 'ghcr.io/open-webui/open-webui', containerName: '/openwebui', project: 'bros-openwebui' },
       { port: 11436, image: 'nginx', containerName: '/web' },
     ])
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
@@ -227,11 +227,11 @@ describe('ollama host probe', () => {
     expect(hit).toEqual({ port: 11436, version: 'from-proc', host: '127.0.0.1', error: null, manual: false })
   })
 
-  it('skips sidecar publish 11435', async () => {
+  it('skips dockerApp publish 11435', async () => {
     setHostListenPortsForTests([11435, 11436])
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (String(url).includes(':11435/api/version')) {
-        return { ok: true, json: async () => ({ version: 'sidecar-publish' }) }
+        return { ok: true, json: async () => ({ version: 'dockerApp-publish' }) }
       }
       if (String(url).includes(':11436/api/version')) {
         return { ok: true, json: async () => ({ version: 'host-ok' }) }
@@ -274,21 +274,21 @@ describe('ollama host probe', () => {
     expect(hit).toEqual({ port: 11434, version: '0.32.14', host: '127.0.0.1', error: null, manual: false })
     const chat = await resolveOllamaChat(undefined)
     expect(chat.baseUrl).toBe('http://127.0.0.1:11434')
-    expect(sidecarOllamaUrl()).toBe('http://127.0.0.1:11435')
+    expect(dockerAppOllamaUrl()).toBe('http://127.0.0.1:11435')
     const called = vi.mocked(fetch).mock.calls.map((c) => String(c[0]))
     expect(called.some((u) => u.includes('host.docker.internal'))).toBe(false)
     expect(called.some((u) => u.includes('127.0.0.1:11434'))).toBe(true)
   })
 
-  it('on host Node honors BROS_OLLAMA_PORT for sidecar Chat URL', () => {
+  it('on host Node honors BROS_OLLAMA_PORT for dockerApp Chat URL', () => {
     setAppRunsInDockerForTests(false)
     process.env.BROS_OLLAMA_PORT = '11490'
-    expect(sidecarOllamaUrl()).toBe('http://127.0.0.1:11490')
+    expect(dockerAppOllamaUrl()).toBe('http://127.0.0.1:11490')
     delete process.env.BROS_OLLAMA_PORT
-    expect(sidecarOllamaUrl()).toBe('http://127.0.0.1:11435')
+    expect(dockerAppOllamaUrl()).toBe('http://127.0.0.1:11435')
   })
 
-  it('in Docker uses sidecar DNS and host.docker.internal', async () => {
+  it('in Docker uses dockerApp DNS and host.docker.internal', async () => {
     setAppRunsInDockerForTests(true)
     resetOllamaHostCache()
     setOllamaManualPortForTests(null)
@@ -300,7 +300,7 @@ describe('ollama host probe', () => {
       }
       throw new Error('offline')
     }))
-    expect(sidecarOllamaUrl()).toBe('http://ollama:11434')
+    expect(dockerAppOllamaUrl()).toBe('http://ollama:11434')
     const chat = await resolveOllamaChat(undefined)
     expect(chat.source).toBe('host')
     expect(chat.baseUrl).toBe('http://host.docker.internal:11434')
@@ -329,15 +329,15 @@ describe('ollama host probe', () => {
     expect(called.some((u) => u.includes('host.docker.internal:11434/api/version'))).toBe(true)
   })
 
-  it('in Docker skips sidecar publish 11435 and still hits host :11434', async () => {
+  it('in Docker skips dockerApp publish 11435 and still hits host :11434', async () => {
     setAppRunsInDockerForTests(true)
     setDockerPublishedPortsForTests([
-      { port: 11435, image: 'ollama/ollama', containerName: '/bros-sc-ollama', project: 'bros-sc-ollama' },
+      { port: 11435, image: 'ollama/ollama', containerName: '/bros-ollama', project: 'bros-ollama' },
     ])
     setHostListenPortsForTests([])
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (String(url).includes(':11435/api/version')) {
-        return { ok: true, json: async () => ({ version: 'sidecar-publish' }) }
+        return { ok: true, json: async () => ({ version: 'dockerApp-publish' }) }
       }
       if (String(url).includes('host.docker.internal:11434/api/version')) {
         return { ok: true, json: async () => ({ version: 'host-ok' }) }

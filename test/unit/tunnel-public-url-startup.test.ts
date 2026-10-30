@@ -22,6 +22,13 @@ describe('public_url tunnel startup', () => {
     if (root) rmSync(root, { recursive: true, force: true })
   })
 
+  it('named tunnel clears host TUNNEL_TOKEN before cloudflared run', () => {
+    const helper = readFileSync(HELPER_SH, 'utf8')
+    const named = helper.slice(helper.indexOf('start_named()'), helper.indexOf('\nparse_hostname'))
+    expect(named).toContain('unset TUNNEL_TOKEN')
+    expect(named.indexOf('unset TUNNEL_TOKEN')).toBeLessThan(named.indexOf('tunnel --config'))
+  })
+
   it('set public_url → start attempted (enabled + advertised host)', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-puburl-set-'))
     writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\npublic_url: "https://bros.example.com"\n')

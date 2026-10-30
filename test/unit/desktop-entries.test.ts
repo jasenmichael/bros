@@ -52,17 +52,27 @@ describe('desktop entries', () => {
     const cursorEntry = parseDesktopEntry(cursor, 'cursor')
     const foot = parseDesktopEntry('[Desktop Entry]\nName=Foot\nExec=foot\nIcon=utilities-terminal\nType=Application\n', 'foot')
     const firefox = parseDesktopEntry('[Desktop Entry]\nName=Firefox\nExec=firefox %u\nIcon=firefox\nType=Application\n', 'firefox')
+    const storm = parseDesktopEntry('[Desktop Entry]\nName=Storm\nExec=storm\nType=Application\n', 'storm')
+    const stock = [
+      ['UXTerm', 'uxterm'],
+      ['XTerm', 'xterm'],
+      ['Foot Client', 'footclient'],
+      ['st', 'st'],
+    ].map(([name, command]) => parseDesktopEntry(`[Desktop Entry]\nName=${name}\nExec=${command}\nType=Application\n`, command)!)
     const apps = libraryApps(
-      [cursorEntry!, foot!, firefox!],
+      [cursorEntry!, foot!, firefox!, storm!, ...stock],
       [
         { id: 'cursor', name: 'Cursor', enabled: true, interfaces: [{ type: 'gui', command: 'cursor' }] },
         { id: 'off', name: 'Off', enabled: false, interfaces: [{ type: 'gui', command: 'off' }] },
       ],
       [{ id: 'side', name: 'Side', disabled: true, interfaces: [{ type: 'gui', command: 'side' }] }],
     )
-    expect(apps.map((app) => `${app.kind}:${app.id}`)).toEqual(['terminal:terminal', 'package:cursor', 'entry:firefox'])
+    expect(apps.map((app) => `${app.kind}:${app.id}`)).toEqual(['terminal:terminal', 'package:cursor', 'entry:firefox', 'entry:storm'])
+    expect(apps.map((app) => app.command)).not.toEqual(expect.arrayContaining(['uxterm', 'xterm', 'footclient', 'st']))
     const pkg = apps.find((app) => app.kind === 'package')
     expect(pkg?.icon).toBe('co.anysphere.cursor')
+    const ghostty = libraryApps([], [{ id: 'ghostty', name: 'Ghostty', enabled: true, interfaces: [{ type: 'gui', command: 'ghostty' }] }], [])
+    expect(ghostty.find((app) => app.id === 'ghostty')?.icon).toBe('ghostty')
     expect(pinKey(pkg!)).toBe('pkg-cursor-cursor')
     expect(libraryProcessId(pkg!)).toBe('app-cursor-cursor')
     expect(apps.find((app) => app.kind === 'terminal')?.icon).toBe('utilities-terminal')

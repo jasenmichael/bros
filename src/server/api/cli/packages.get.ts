@@ -1,9 +1,7 @@
 import { guiAppProxyId } from '../../../ui/utils/gui'
-import { loadBootstrapConfig } from '../../utils/config'
 import { managerForms } from '../../utils/cli/managers'
 import { hasCliApps, prepareDesktopAppBuild, readCliPackages, readRunningAppIds, runBuildPending, type CliPackage } from '../../utils/cli/packages'
-import { guiProcessOpen } from '../../utils/sidecars/guiProxy'
-import { openCodeServeLogPassword } from '../../utils/sidecars/opencodePassword'
+import { guiProcessOpen } from '../../utils/docker-app/guiProxy'
 
 function withGuiOpen(packages: CliPackage[]) {
   return packages.map((pkg) => ({
@@ -32,7 +30,6 @@ export default defineEventHandler((event) => {
     packages: withGuiOpen(packages).map((pkg) => ({
       ...pkg,
       ...(pkg.services?.length ? { serviceRunning: pkg.enabled !== false && running.has(pkg.id) } : {}),
-      ...(pkg.id === 'opencode' ? { password: openCodeServeLogPassword(loadBootstrapConfig().dataDir) || undefined } : {}),
     })),
     managers: managerForms(),
   }

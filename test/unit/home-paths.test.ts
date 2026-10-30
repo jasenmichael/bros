@@ -54,8 +54,8 @@ describe('app tiers', () => {
     expect(body).not.toContain('.npm')
   })
 
-  it('uses one update action for a package app and a sidecar app', () => {
+  it('uses one update action for a package app and a dockerApp app', () => {
     expect(appUpdateKind('npm', [{ id: 'npm' }], ['pi'])).toBe('package')
-    expect(appUpdateKind('pi', [{ id: 'npm' }], ['pi'])).toBe('sidecar')
+    expect(appUpdateKind('pi', [{ id: 'npm' }], ['pi'])).toBe('docker')
   })
 })

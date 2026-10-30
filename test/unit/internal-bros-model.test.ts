@@ -12,10 +12,10 @@ import {
   vendorGgufPath,
 } from '../../src/server/utils/internalBrosModel'
 
-const execInSidecar = vi.fn(async () => ({ code: 0, stdout: 'created Ollama model bros', stderr: '' }))
+const execInDockerApp = vi.fn(async () => ({ code: 0, stdout: 'created Ollama model bros', stderr: '' }))
 
 vi.mock('../../src/server/utils/docker', () => ({
-  execInSidecar: (...args: unknown[]) => execInSidecar(...args),
+  execInDockerApp: (...args: unknown[]) => execInDockerApp(...args),
 }))
 
 describe('isInternalBrosModel', () => {
@@ -55,7 +55,7 @@ describe('listOllamaModels drops bros', () => {
     vi.unstubAllGlobals()
   })
 
-  it('omits bros and bros:latest from sidecar and host payloads', async () => {
+  it('omits bros and bros:latest from dockerApp and host payloads', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
       models: [
         { name: 'llama3.2' },
@@ -64,11 +64,11 @@ describe('listOllamaModels drops bros', () => {
       ],
     }), { status: 200 })))
     const { listOllamaModels } = await import('../../src/server/utils/providers')
-    const sidecar = await listOllamaModels('http://ollama:11434', 'ollama')
+    const dockerApp = await listOllamaModels('http://ollama:11434', 'ollama')
     const host = await listOllamaModels('http://host.docker.internal:11434', 'ollama-host')
-    expect(sidecar.map((m) => m.name)).toEqual(['llama3.2'])
+    expect(dockerApp.map((m) => m.name)).toEqual(['llama3.2'])
     expect(host.map((m) => m.name)).toEqual(['llama3.2'])
-    expect(sidecar.some((m) => m.name.includes('bros'))).toBe(false)
+    expect(dockerApp.some((m) => m.name.includes('bros'))).toBe(false)
     expect(host.some((m) => m.id.includes('bros'))).toBe(false)
   })
 })
@@ -82,8 +82,8 @@ describe('ensureInternalBrosModel', () => {
     process.env.BROS_DATA_DIR = join(root, 'data')
     mkdirSync(join(root, 'data'), { recursive: true })
     resetInternalBrosModelForTests()
-    execInSidecar.mockClear()
-    execInSidecar.mockResolvedValue({ code: 0, stdout: 'created Ollama model bros', stderr: '' })
+    execInDockerApp.mockClear()
+    execInDockerApp.mockResolvedValue({ code: 0, stdout: 'created Ollama model bros', stderr: '' })
   })
 
   afterEach(() => {
@@ -105,7 +105,7 @@ describe('ensureInternalBrosModel', () => {
 
   it('skips create when vendor GGUF is missing and does not throw', async () => {
     await expect(ensureInternalBrosModel()).resolves.toBeUndefined()
-    expect(execInSidecar).not.toHaveBeenCalled()
+    expect(execInDockerApp).not.toHaveBeenCalled()
   })
 
   it('skips exec when tags has bros and stamp matches vendor', async () => {
@@ -118,7 +118,7 @@ describe('ensureInternalBrosModel', () => {
       models: [{ name: 'bros:latest' }],
     }), { status: 200 })))
     await ensureInternalBrosModel()
-    expect(execInSidecar).not.toHaveBeenCalled()
+    expect(execInDockerApp).not.toHaveBeenCalled()
   })
 
   it('copies and runs install-ollama.sh when tags miss', async () => {
@@ -127,8 +127,8 @@ describe('ensureInternalBrosModel', () => {
       models: [{ name: 'llama3.2' }],
     }), { status: 200 })))
     await ensureInternalBrosModel()
-    expect(execInSidecar).toHaveBeenCalledTimes(1)
-    expect(execInSidecar.mock.calls[0]?.[0]).toBe('ollama')
-    expect(execInSidecar.mock.calls[0]?.[1]).toEqual(['bash', '/bros-model/scripts/install-ollama.sh'])
+    expect(execInDockerApp).toHaveBeenCalledTimes(1)
+    expect(execInDockerApp.mock.calls[0]?.[0]).toBe('ollama')
+    expect(execInDockerApp.mock.calls[0]?.[1]).toEqual(['bash', '/bros-model/scripts/install-ollama.sh'])
   })
 })

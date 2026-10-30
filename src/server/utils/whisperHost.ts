@@ -1,7 +1,7 @@
-import { sidecarReachUrl } from './hostProbe'
+import { dockerAppReachUrl } from './hostProbe'
 
-export const WHISPER_SIDECAR_DNS = 'http://whisper:8000'
-export const WHISPER_SIDECAR_PUBLISH = 8090
+export const WHISPER_DOCKER_APP_DNS = 'http://whisper:8000'
+export const WHISPER_DOCKER_APP_PUBLISH = 8090
 export const WHISPER_MODEL = 'Systran/faster-whisper-base'
 export const WHISPER_MAX_BYTES = 15 * 1024 * 1024
 export const WHISPER_HEALTH_TIMEOUT_MS = 90_000
@@ -17,12 +17,12 @@ export type MultipartPart = {
   data?: Buffer | Uint8Array
 }
 
-/** Reachable Whisper sidecar: Docker DNS in-container, publish port on host Node. */
-export function sidecarWhisperUrl(): string {
-  return sidecarReachUrl({
+/** Reachable Whisper dockerApp: Docker DNS in-container, publish port on host Node. */
+export function dockerAppWhisperUrl(): string {
+  return dockerAppReachUrl({
     service: 'whisper',
     containerPort: 8000,
-    publish: WHISPER_SIDECAR_PUBLISH,
+    publish: WHISPER_DOCKER_APP_PUBLISH,
     envPortKey: 'BROS_WHISPER_PORT',
   })
 }

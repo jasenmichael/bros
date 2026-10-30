@@ -1,14 +1,14 @@
 <script setup lang="ts">
 useSeoMeta({
   title: 'Bros',
-  description: 'Docker-isolated local AI control plane: chat, providers, and managed sidecars.',
+  description: 'Docker-isolated local AI control plane: chat, providers, and managed docker apps.',
 })
 
 const features = [
   {
     title: 'Chat',
     to: '/docs/chat',
-    body: 'Provider then model. Sidecar, host, Popular services, then custom. Stop aborts the stream.',
+    body: 'Provider then model. DockerApp, host, Popular services, then custom. Stop aborts the stream.',
   },
   {
     title: 'Providers',
@@ -16,9 +16,9 @@ const features = [
     body: 'Ollama locally. Popular services take a user API key. Custom is any OpenAI-compat base URL.',
   },
   {
-    title: 'Sidecars',
-    to: '/docs/sidecars',
-    body: 'Core Ollama and Whisper, then addon sidecars from shipped packs, a git clone, or sidecars/custom.',
+    title: 'Apps',
+    to: '/docs/apps',
+    body: 'Package installs and docker apps (Ollama, Whisper, addons, custom) on one store page.',
   },
   {
     title: 'Development',
@@ -31,7 +31,7 @@ const features = [
 <template>
   <BrosPageShell
     title="Bros"
-    description="Boxed Runtime Orchestration System — a Docker-isolated local AI control plane. Chat, providers, and sidecars on one host."
+    description="Boxed Runtime Orchestration System — a Docker-isolated local AI control plane. Chat, providers, and apps on one host."
   >
     <div class="space-y-10">
       <div class="flex flex-wrap gap-3">
@@ -41,8 +41,8 @@ const features = [
         <UButton to="/docs/providers" color="neutral" variant="outline">
           Providers
         </UButton>
-        <UButton to="/docs/sidecars" color="neutral" variant="outline">
-          Sidecars
+        <UButton to="/docs/apps" color="neutral" variant="outline">
+          Apps
         </UButton>
       </div>
 
@@ -77,7 +77,7 @@ bros</code></pre>
       <section class="space-y-2 max-w-2xl">
         <h2 class="text-lg font-semibold text-white">Providers</h2>
         <p class="text-[var(--bros-muted)]">
-          Providers has three sections: <strong class="text-white">Ollama</strong> (sidecar + host),
+          Providers has three sections: <strong class="text-white">Ollama</strong> (dockerApp + host),
           <strong class="text-white">Popular services</strong> (twelve OpenAI-compat clouds — paste a key),
           and <strong class="text-white">Custom providers</strong>.
           Ollama recommended pulls are official (and verified community) tags

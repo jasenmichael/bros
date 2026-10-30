@@ -1,5 +1,5 @@
-/** Sidecar row on Desktop and Terminal. Env-disabled packs stay off both. */
-export function listedSidecarApp(app: { disabled?: boolean }) {
+/** DockerApp row on Desktop and Terminal. Env-disabled packs stay off both. */
+export function listedDockerApp(app: { disabled?: boolean }) {
   return app.disabled !== true
 }
 

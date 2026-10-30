@@ -1,4 +1,6 @@
-import { applyCliPackages, readCliPackages, readStoredPackages, writeCliPackages } from '../../../utils/cli/packages'
+import { existsSync, rmSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { applyCliPackages, cliAppsDir, readCliPackages, readStoredPackages, writeCliPackages } from '../../../utils/cli/packages'
 import { stagePackageRemoval } from '../../../utils/cli/ensure'
 
 export default defineEventHandler(async (event) => {
@@ -12,6 +14,9 @@ export default defineEventHandler(async (event) => {
   if (pkg) stagePackageRemoval(pkg)
   const packages = current.filter((row) => row.id !== id)
   writeCliPackages(packages)
+  rmSync(join(cliAppsDir(), id), { recursive: true, force: true })
+  const flat = join(cliAppsDir(), `${id}.yml`)
+  if (existsSync(flat)) unlinkSync(flat)
   try {
     const install = await applyCliPackages()
     return { packages: readCliPackages(), install }

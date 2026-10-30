@@ -1,7 +1,7 @@
 export const DEFAULT_CHAT_TITLE = 'New chat'
 export const DEFAULT_AGENT_TITLE = 'New agent'
 
-/** Sidecar `bros` Label: skill. Tag must match the specialist training data. */
+/** DockerApp `bros` Label: skill. Tag must match the specialist training data. */
 export function labelRequestContent(userPrompt: string): string {
   return `Label: ${userPrompt}`
 }

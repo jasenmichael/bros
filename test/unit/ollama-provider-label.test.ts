@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ollamaProviderDisplayName } from '../../src/ui/utils/providers/ollamaProviderLabel'
 
 describe('ollamaProviderDisplayName', () => {
-  it('labels sidecar as Ollama (core)', () => {
-    expect(ollamaProviderDisplayName({ id: 'ollama', name: 'Ollama sidecar' })).toBe('Ollama (core)')
+  it('labels dockerApp as Ollama (core)', () => {
+    expect(ollamaProviderDisplayName({ id: 'ollama', name: 'Ollama dockerApp' })).toBe('Ollama (core)')
   })
 
   it('labels host with live port and omits port when unknown', () => {

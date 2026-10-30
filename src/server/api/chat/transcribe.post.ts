@@ -1,6 +1,6 @@
 import { ofetch } from 'ofetch'
-import { startSidecar } from '../../utils/docker'
-import { WHISPER_SIDECAR_ID } from '../../utils/sidecars/sidecars'
+import { startDockerApp } from '../../utils/docker'
+import { WHISPER_DOCKER_APP_ID } from '../../utils/docker-app/dockerApps'
 import { isWhisperEnabled } from '../../utils/settings'
 import {
   WHISPER_MODEL,
@@ -8,7 +8,7 @@ import {
   isWhisperUnreachable,
   parseWhisperText,
   pickTranscribeFile,
-  sidecarWhisperUrl,
+  dockerAppWhisperUrl,
   transcribeFileError,
   waitForWhisperHealth,
 } from '../../utils/whisperHost'
@@ -19,7 +19,7 @@ async function proxyTranscribe(file: { data: Buffer | Uint8Array; filename?: str
   const blob = new Blob([bytes], { type: file.type || 'audio/webm' })
   form.append('file', blob, file.filename || 'audio.webm')
   form.append('model', WHISPER_MODEL)
-  const body = await ofetch(`${sidecarWhisperUrl()}/v1/audio/transcriptions`, {
+  const body = await ofetch(`${dockerAppWhisperUrl()}/v1/audio/transcriptions`, {
     method: 'POST',
     body: form,
     timeout: WHISPER_TRANSCRIBE_TIMEOUT_MS,
@@ -48,22 +48,22 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    await startSidecar(WHISPER_SIDECAR_ID)
+    await startDockerApp(WHISPER_DOCKER_APP_ID)
   } catch (err) {
     const status = (err as { statusCode?: number }).statusCode
     if (status && status !== 409) throw err
   }
 
-  const ready = await waitForWhisperHealth(sidecarWhisperUrl())
+  const ready = await waitForWhisperHealth(dockerAppWhisperUrl())
   if (!ready) {
-    throw createError({ statusCode: 503, statusMessage: 'Whisper sidecar unreachable' })
+    throw createError({ statusCode: 503, statusMessage: 'Whisper docker app unreachable' })
   }
 
   try {
     return await proxyTranscribe({ data: audio, filename: file?.filename, type: file?.type })
   } catch (err) {
     if (isWhisperUnreachable(err)) {
-      throw createError({ statusCode: 503, statusMessage: 'Whisper sidecar unreachable' })
+      throw createError({ statusCode: 503, statusMessage: 'Whisper docker app unreachable' })
     }
     throw err
   }

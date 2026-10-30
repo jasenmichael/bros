@@ -4,17 +4,20 @@
 #
 # Usage:
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
+#   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 #
 # Env overrides:
-#   BROS_REPO    Git clone URL (default: https://github.com/jasenmichael/bros.git)
+#   BROS_RELEASE_URL  Release tarball (default: GitHub latest bros.tar.gz)
+#   BROS_REPO    Git clone URL for --from-src
 #   BROS_HOME    Install directory (default: ~/.bros). BROS_DIR is an alias.
 #   BROS_CONFIG  Bootstrap YAML (default: ~/.config/bros.yml)
 #   BROS_BIN     PATH symlink (default: ~/.local/bin/bros)
-#   BROS_REF     Git ref to checkout (default: main)
+#   BROS_REF     Git ref for --from-src (default: main)
 set -euo pipefail
 
 BROS_REPO="${BROS_REPO:-https://github.com/jasenmichael/bros.git}"
+BROS_RELEASE_URL="${BROS_RELEASE_URL:-https://github.com/jasenmichael/bros/releases/latest/download/bros.tar.gz}"
 if [[ -z "${BROS_HOME:-}" ]]; then
   BROS_HOME="${BROS_DIR:-${HOME}/.bros}"
 fi
@@ -23,6 +26,7 @@ BROS_REF="${BROS_REF:-main}"
 BROS_CONFIG="${BROS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml}"
 BROS_BIN="${BROS_BIN:-${HOME}/.local/bin/bros}"
 INSTALL_SERVICE=0
+FROM_SRC=0
 
 die() {
   printf 'bros install: error: %s\n' "$*" >&2
@@ -53,21 +57,42 @@ check_docker() {
   die "Docker Compose not found. Install the Compose V2 plugin ('docker compose'), then re-run."
 }
 
-clone_repo() {
+unpack_release() {
+  need_cmd curl
+  need_cmd tar
+  if [[ -d "$BROS_HOME/.git" ]]; then
+    die "$BROS_HOME is a source checkout. Re-run with --from-src."
+  fi
+  local tmp
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  info "Downloading $BROS_RELEASE_URL"
+  if ! curl -fL --retry 2 -o "$tmp/bros.tar.gz" "$BROS_RELEASE_URL"; then
+    die "release not found: $BROS_RELEASE_URL
+Install from source: install.sh --from-src"
+  fi
+  mkdir -p "$BROS_HOME"
+  tar -xzf "$tmp/bros.tar.gz" -C "$BROS_HOME"
+}
+
+from_src() {
   need_cmd git
+  need_cmd cargo
   if [[ -d "$BROS_HOME/.git" ]]; then
     info "Existing clone at $BROS_HOME — fetching $BROS_REF"
     git -C "$BROS_HOME" fetch --tags --prune origin
     git -C "$BROS_HOME" checkout "$BROS_REF"
     git -C "$BROS_HOME" pull --ff-only origin "$BROS_REF" || true
     git -C "$BROS_HOME" submodule update --init --depth 1
-    return 0
-  fi
-  if [[ -e "$BROS_HOME" ]]; then
+  elif [[ -e "$BROS_HOME" ]]; then
     die "$BROS_HOME exists but is not a git repo. Move it aside or set BROS_HOME."
+  else
+    info "Cloning $BROS_REPO ($BROS_REF) into $BROS_HOME"
+    git clone --branch "$BROS_REF" --depth 1 --recurse-submodules --shallow-submodules "$BROS_REPO" "$BROS_HOME"
   fi
-  info "Cloning $BROS_REPO ($BROS_REF) into $BROS_HOME"
-  git clone --branch "$BROS_REF" --depth 1 --recurse-submodules --shallow-submodules "$BROS_REPO" "$BROS_HOME"
+  info "Building CLI"
+  cargo build --release --manifest-path "$BROS_HOME/cli/Cargo.toml"
+  ln -sfn cli/target/release/bros "$BROS_HOME/bros"
 }
 
 write_default_config() {
@@ -160,18 +185,24 @@ parse_args() {
         INSTALL_SERVICE=1
         shift
         ;;
+      --from-src)
+        FROM_SRC=1
+        shift
+        ;;
       -h|--help)
         cat <<EOF
 Bros install
 
 Usage:
   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
+  curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 
 Options:
+  --from-src  Clone and cargo-build the CLI. Default unpacks a release.
   --service   Install a systemd --user unit (Linux)
 
-Env: BROS_HOME BROS_DIR BROS_CONFIG BROS_BIN BROS_REPO BROS_REF
+Env: BROS_HOME BROS_DIR BROS_CONFIG BROS_BIN BROS_REPO BROS_REF BROS_RELEASE_URL
 EOF
         exit 0
         ;;
@@ -186,7 +217,11 @@ main() {
   parse_args "$@"
   info "Checking Docker + Compose…"
   check_docker
-  clone_repo
+  if [[ "$FROM_SRC" -eq 1 ]]; then
+    from_src
+  else
+    unpack_release
+  fi
   write_default_config
   link_bin
   maybe_install_service

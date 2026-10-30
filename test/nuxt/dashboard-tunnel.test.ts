@@ -23,7 +23,7 @@ const { fetchMock, summary } = vi.hoisted(() => ({
         { providerId: 'ollama', model: 'qwen3:14b', phase: 'running' as const, percent: 40 },
       ],
     },
-    sidecars: {
+    dockerApps: {
       running: 2,
       total: 2,
       items: [
@@ -85,17 +85,17 @@ describe('Dashboard hub', () => {
     expect(providers!.find('a[href="/providers"]').exists()).toBe(true)
   })
 
-  it('shows sidecar phase and opens a running web UI', async () => {
+  it('shows dockerApp phase and opens a running web UI', async () => {
     const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
-    const sidecars = card(wrapper, 'Sidecars')
-    expect(sidecars!.text()).toContain('2/2 running')
-    expect(sidecars!.text()).toContain('OpenCode')
-    const link = sidecars!.get('a[href="http://127.0.0.1:4097/"]')
+    const apps = card(wrapper, 'Apps')
+    expect(apps!.text()).toContain('2/2 running')
+    expect(apps!.text()).toContain('OpenCode')
+    const link = apps!.get('a[href="http://127.0.0.1:4097/"]')
     expect(link.attributes('target')).toBe('_blank')
     expect(link.text()).toBe('Open')
-    expect(wrapper.text()).not.toContain('cloudflared sidecar missing')
-    expect(wrapper.find('a[href="/sidecars"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('cloudflared dockerApp missing')
+    expect(wrapper.find('a[href="/apps"]').exists()).toBe(true)
   })
 
   it('links attention items to the page that can fix them', async () => {
@@ -121,7 +121,7 @@ describe('Dashboard tunnel card', () => {
     expect(wrapper.text()).toContain('Tunnel')
     expect(wrapper.text()).toContain('stopped')
     expect(wrapper.text()).toContain('Logs')
-    expect(wrapper.text()).not.toContain('cloudflared sidecar missing')
+    expect(wrapper.text()).not.toContain('cloudflared dockerApp missing')
 
     const toggle = wrapper.get('[aria-label="Turn Cloudflare tunnel on"]')
     await toggle.trigger('click')

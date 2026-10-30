@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { isShellBin } from '../shared/shellBins'
-import { listedPackageApp, listedSidecarApp } from '../utils/gui'
+import { listedPackageApp, listedDockerApp } from '../utils/gui'
 
 useSeoMeta({ title: 'Terminal' })
 
-type SidecarCli = {
+type DockerAppCli = {
   id: string
   name: string
   disabled?: boolean
@@ -37,7 +37,7 @@ const termSrc = `/terminal/session/?fontSize=16&fontFamily=${encodeURIComponent(
 // Client route: set src after the iframe is in the document. Do not swap src later.
 const frameSrc = ref(import.meta.server || (import.meta.client && useNuxtApp().isHydrating) ? termSrc : '')
 
-const { data: sidecars } = await useFetch<{ sidecars: SidecarCli[] }>('/api/sidecars')
+const { data: dockerApps } = await useFetch<{ docker: DockerAppCli[] }>('/api/apps')
 
 type AppPack = {
   id: string
@@ -63,7 +63,7 @@ function appCommands(pkg: AppPack): string[] {
   return out
 }
 
-const exposeClis = computed(() => (sidecars.value?.sidecars || []).filter(listedSidecarApp).flatMap((s) => {
+const exposeClis = computed(() => (dockerApps.value?.docker || []).filter(listedDockerApp).flatMap((s) => {
   const commands = s.interfaces
     .filter((iface) => iface.type === 'cli')
     .map((iface) => iface.bin || iface.command)
@@ -156,7 +156,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <BrosPageShell title="Terminal" description="Shell on the Bros network. Sidecar commands are on PATH.">
+  <BrosPageShell title="Terminal" description="Shell on the Bros network. DockerApp commands are on PATH.">
     <div ref="termBox" class="bros-term mb-6">
       <iframe
         ref="term"
@@ -168,7 +168,7 @@ onMounted(async () => {
       <button type="button" class="bros-term__resize" aria-label="Resize terminal" @pointerdown="onResizeStart" />
     </div>
     <h2 class="mb-2 text-sm font-medium text-white">Expose CLIs</h2>
-    <p v-if="!exposeClis.length" class="mb-6 text-sm text-[var(--bros-muted)]">No sidecar CLIs.</p>
+    <p v-if="!exposeClis.length" class="mb-6 text-sm text-[var(--bros-muted)]">No docker app CLIs.</p>
     <ul v-else class="mb-6 space-y-2">
       <li
         v-for="row in exposeClis"
@@ -192,7 +192,7 @@ onMounted(async () => {
       </li>
     </ul>
     <p class="text-sm text-[var(--bros-muted)]">
-      Apps and packages are configured in <NuxtLink to="/settings/desktop" class="text-white underline">Desktop settings</NuxtLink>.
+      Apps and packages are configured on <NuxtLink to="/apps" class="text-white underline">Apps</NuxtLink>.
     </p>
   </BrosPageShell>
 </template>

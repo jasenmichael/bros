@@ -20,9 +20,20 @@ def app_match(app_id: str, name: str) -> bool:
     return want in got.replace(".", "-").split("-")
 
 
+def mapped(win) -> bool:
+    # Minimized keeps its place. A 0×0 entry is an unmapped leftover, not a window.
+    if win.get("minimized"):
+        return True
+    if "width" not in win and "height" not in win:
+        return True
+    return int(win.get("width") or 0) > 0 or int(win.get("height") or 0) > 0
+
+
 def matched(wins: list, app: str, pids: set[int]) -> list:
     rows = []
     for win in wins:
+        if not mapped(win):
+            continue
         pid = int(win.get("pid") or 0)
         aid = str(win.get("app_id") or "")
         if (pid and pid in pids) or app_match(aid, app):
@@ -245,6 +256,11 @@ def self_check() -> None:
     assert match_count(wins, "cursor", {9}) == 1
     assert match_count([{"pid": 1, "app_id": "weird"}], "cursor", {1}) == 1
     assert match_count([{"pid": 2, "app_id": "foot"}], "cursor", {1}) == 0
+    hidden = {"pid": 5, "app_id": "cursor", "title": "cursor", "width": 0, "height": 0}
+    visible = {"pid": 5, "app_id": "cursor", "title": "Cursor Agents", "width": 800, "height": 600}
+    assert match_count([hidden], "cursor", {5}) == 0
+    assert match_count([visible, hidden], "cursor", set()) == 1
+    assert match_count([{"pid": 5, "app_id": "", "width": 0, "height": 0}], "cursor", {5}) == 0
     raw = enc_str("cursor")
     got, off = take_str(raw, 0)
     assert got == "cursor" and off == len(raw)
