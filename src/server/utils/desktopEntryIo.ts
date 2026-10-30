@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { catalogRoot } from './cli/packages'
+import { catalogRoot, cliAppsDir } from './cli/packages'
 import { execInBros } from './docker'
 import { iconNameOk, parseDesktopDump, type DesktopEntry } from './desktopEntries'
 
@@ -60,11 +60,14 @@ function mimeFor(path: string) {
   return 'image/png'
 }
 
-/** `icon.png` beside an app config, when the desktop entry has no icon file. */
+/** `icon.png` beside an app config (core, addon, or custom). */
 function packIcon(name: string): { mime: string, body: Buffer } | null {
   if (!iconNameOk(name) || name.startsWith('/')) return null
-  for (const tier of ['core', 'addon'] as const) {
-    const file = join(catalogRoot(), tier, name, 'icon.png')
+  const roots = [
+    ...(['core', 'addon'] as const).map((tier) => join(catalogRoot(), tier, name, 'icon.png')),
+    join(cliAppsDir(), name, 'icon.png'),
+  ]
+  for (const file of roots) {
     if (!existsSync(file)) continue
     const body = readFileSync(file)
     if (body.length) return { mime: 'image/png', body }
@@ -74,6 +77,8 @@ function packIcon(name: string): { mime: string, body: Buffer } | null {
 
 export async function readDesktopIcon(name: string): Promise<{ mime: string, body: Buffer } | null> {
   if (!iconNameOk(name)) return null
+  const fromPack = packIcon(name)
+  if (fromPack) return fromPack
   try {
     const res = await execInBros(['bash', '-c', ICON_SCRIPT, 'bash', name], 20_000)
     if (res.code === 0) {
@@ -85,7 +90,7 @@ export async function readDesktopIcon(name: string): Promise<{ mime: string, bod
       }
     }
   } catch {
-    // Desktop has no icon file. The app config may.
+    // No desktop icon either.
   }
-  return packIcon(name)
+  return null
 }

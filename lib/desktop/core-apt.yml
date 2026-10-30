@@ -18,3 +18,13 @@ packages:
     clis: xz, xzcat, unxz, lzma
   - name: unzip
     clis: unzip, funzip, unzipsfx, zipgrep, zipinfo
+  # Electron/GTK Open Folder and friends. Session start: bros-portals.sh.
+  - name: xdg-desktop-portal
+  - name: xdg-desktop-portal-gtk
+  - name: xdg-desktop-portal-wlr
+  - name: dbus-x11
+    clis: dbus-launch, dbus-daemon
+  - name: zenity
+    clis: zenity
+  # Adwaita-dark for portal FileChooser (matches Cursor dark).
+  - name: gnome-themes-extra-data

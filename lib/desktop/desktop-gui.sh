@@ -7,6 +7,13 @@ DISPLAY_VALUE=:0
 WAYLAND_VALUE=wayland-0
 # Selkies puts the compositor socket in $HOME/.XDG, not /tmp/bros-run.
 RUNTIME_VALUE=/home/bros/.XDG
+# Electron Open Folder crashes in Chromium's gtk-open path on this session.
+# Keep Ozone/GDK on XWayland and route choosers through xdg-desktop-portal
+# (bros-portals.sh + GTK_USE_PORTAL). Session bus lives under XDG_RUNTIME_DIR.
+GDK_BACKEND_VALUE=x11
+ELECTRON_OZONE_HINT_VALUE=x11
+DBUS_VALUE=unix:path=${RUNTIME_VALUE}/bus
+GTK_USE_PORTAL_VALUE=1
 
 usage() {
   echo "usage: desktop-gui.sh start ID [--container NAME] -- CMD [ARG...]" >&2
@@ -298,6 +305,10 @@ if [ -n "$container" ]; then
     -e "DISPLAY=${DISPLAY_VALUE}" \
     -e "WAYLAND_DISPLAY=${WAYLAND_VALUE}" \
     -e "XDG_RUNTIME_DIR=${RUNTIME_VALUE}" \
+    -e "DBUS_SESSION_BUS_ADDRESS=${DBUS_VALUE}" \
+    -e "GDK_BACKEND=${GDK_BACKEND_VALUE}" \
+    -e "ELECTRON_OZONE_PLATFORM_HINT=${ELECTRON_OZONE_HINT_VALUE}" \
+    -e "GTK_USE_PORTAL=${GTK_USE_PORTAL_VALUE}" \
     "$container" \
     sh -c 'setsid sh -c "echo \$\$ > \"\$1\"; shift; exec \"\$@\"" sh "$@" </dev/null >/dev/null 2>&1 &' \
     sh "/tmp/bros-gui-${id}-${n}.pid" "$@"
@@ -319,14 +330,18 @@ else
   log="$slot/err"
   : > "$log"
   # Devbox bins for this child only. app-bins stays first so launch.sh wins.
-  launch='eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true; export PATH="/home/bros/.local/app-bins:$PATH"; export LIBGL_ALWAYS_SOFTWARE=1; exec "$@"'
+  launch='eval "$(devbox global shellenv --init-hook 2>/dev/null)" || true; export PATH="/home/bros/.local/app-bins:$PATH"; export LIBGL_ALWAYS_SOFTWARE=1; export GDK_BACKEND=x11; export ELECTRON_OZONE_PLATFORM_HINT=x11; export GTK_USE_PORTAL=1; export DBUS_SESSION_BUS_ADDRESS="unix:path=/home/bros/.XDG/bus"; /usr/local/bin/bros-portals.sh >/dev/null 2>&1 || true; exec "$@"'
   if id abc >/dev/null 2>&1; then
     setsid runuser -u abc -- env \
       HOME=/home/bros \
       DISPLAY="$DISPLAY_VALUE" \
       WAYLAND_DISPLAY="$WAYLAND_VALUE" \
       XDG_RUNTIME_DIR="$RUNTIME_VALUE" \
+      DBUS_SESSION_BUS_ADDRESS="$DBUS_VALUE" \
       LIBGL_ALWAYS_SOFTWARE=1 \
+      GDK_BACKEND="$GDK_BACKEND_VALUE" \
+      ELECTRON_OZONE_PLATFORM_HINT="$ELECTRON_OZONE_HINT_VALUE" \
+      GTK_USE_PORTAL="$GTK_USE_PORTAL_VALUE" \
       bash -lc "$launch" _ "$@" >"$log" 2>&1 &
   else
     setsid env \
@@ -334,7 +349,11 @@ else
       DISPLAY="$DISPLAY_VALUE" \
       WAYLAND_DISPLAY="$WAYLAND_VALUE" \
       XDG_RUNTIME_DIR="$RUNTIME_VALUE" \
+      DBUS_SESSION_BUS_ADDRESS="$DBUS_VALUE" \
       LIBGL_ALWAYS_SOFTWARE=1 \
+      GDK_BACKEND="$GDK_BACKEND_VALUE" \
+      ELECTRON_OZONE_PLATFORM_HINT="$ELECTRON_OZONE_HINT_VALUE" \
+      GTK_USE_PORTAL="$GTK_USE_PORTAL_VALUE" \
       bash -lc "$launch" _ "$@" >"$log" 2>&1 &
   fi
   pid=$!

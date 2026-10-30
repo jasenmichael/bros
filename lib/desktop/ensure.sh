@@ -57,6 +57,8 @@ done
 failures=()
 steps=()
 version=""
+# If ensure dies mid-install, do not leave running:true stuck for the UI.
+trap 'write_status false ""' EXIT
 
 json_list() {
   local out="[" first=1 item
