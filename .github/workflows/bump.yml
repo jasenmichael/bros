@@ -26,10 +26,12 @@ jobs:
           git fetch origin main
           cur="$(tr -d '[:space:]' < VERSION)"
           if ! git ls-remote --tags origin "refs/tags/v${cur}" | grep -q .; then
+            echo "bump: tag v${cur} missing; leave VERSION for first release"
             exit 0
           fi
           want="$(scripts/bump-type.sh origin/main)"
           if [[ -z "$want" ]]; then
+            echo "bump: no feat/fix/perf/breaking on branch; skip"
             exit 0
           fi
           rank() {
@@ -44,8 +46,10 @@ jobs:
           if [[ -n "$have" ]]; then
             have_type="$(printf '%s\n' "$have" | awk '{print $3}')"
             if [[ "$(rank "$want")" -le "$(rank "$have_type")" ]]; then
+              echo "bump: already have ${have}; skip"
               exit 0
             fi
           fi
+          echo "bump: ${want} from ${cur}"
           scripts/bump.sh "$want"
           git push origin "HEAD:${HEAD_REF}"
