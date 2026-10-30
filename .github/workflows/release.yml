@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.decide.outputs.version }}
+      sha: ${{ steps.decide.outputs.sha }}
+      release: ${{ steps.decide.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+      - id: decide
+        run: |
+          set -euo pipefail
+          sha="${{ github.event.pull_request.merge_commit_sha }}"
+          ver="$(tr -d '[:space:]' < VERSION)"
+          if git ls-remote --tags origin "refs/tags/v${ver}" | grep -q .; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${ver}" >> "$GITHUB_OUTPUT"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+  ui:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: src/package.json
+      - uses: actions/setup-node@v4
+        with:
+          # Same Node as the ui image so better-sqlite3 loads.
+          node-version: 26.7.0
+          cache: pnpm
+          cache-dependency-path: src/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: src
+      - run: pnpm --filter @bros/ui build
+        working-directory: src
+      - run: tar -C src/ui -czf ui-output.tar.gz .output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-output
+          path: ui-output.tar.gz
+          if-no-files-found: error
+
+  cli:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: bros-linux-amd64
+            apt: ''
+            linker: ''
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            asset: bros-linux-arm64
+            apt: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            asset: bros-darwin-amd64
+            apt: ''
+            linker: ''
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            asset: bros-darwin-arm64
+            apt: ''
+            linker: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Linux arm64 linker
+        if: matrix.apt == 'gcc-aarch64-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
+      - name: Build CLI
+        env:
+          TARGET: ${{ matrix.target }}
+          LINKER: ${{ matrix.linker }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$LINKER" ]]; then
+            key="CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER"
+            export "$key=$LINKER"
+          fi
+          cargo build --release --manifest-path cli/Cargo.toml --target "$TARGET"
+          mkdir -p artifact
+          cp "cli/target/${TARGET}/release/bros" artifact/bros
+          chmod 755 artifact/bros
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: artifact/bros
+          if-no-files-found: error
+
+  release:
+    needs: [version, ui, cli]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Pack tarballs
+        run: |
+          set -euo pipefail
+          tarfile="$(find dist/ui-output -name 'ui-output.tar.gz' -print -quit)"
+          test -n "$tarfile"
+          mkdir -p "${RUNNER_TEMP}/ui"
+          tar -xzf "$tarfile" -C "${RUNNER_TEMP}/ui"
+          test -f "${RUNNER_TEMP}/ui/.output/server/index.mjs"
+          for asset in bros-linux-amd64 bros-linux-arm64 bros-darwin-amd64 bros-darwin-arm64; do
+            bin="$(find "dist/${asset}" -type f -name bros -print -quit)"
+            test -n "$bin"
+            scripts/pack-release.sh --binary "$bin" --ui "${RUNNER_TEMP}/ui/.output" --name "$asset"
+          done
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ver="${{ needs.version.outputs.version }}"
+          sha="${{ needs.version.outputs.sha }}"
+          gh release create "v${ver}" \
+            --target "$sha" \
+            --title "bros v${ver}" \
+            --notes "Prebuilt UI and CLI tarballs for linux and darwin." \
+            bros-linux-amd64.tar.gz \
+            bros-linux-amd64.tar.gz.sha256 \
+            bros-linux-arm64.tar.gz \
+            bros-linux-arm64.tar.gz.sha256 \
+            bros-darwin-amd64.tar.gz \
+            bros-darwin-amd64.tar.gz.sha256 \
+            bros-darwin-arm64.tar.gz \
+            bros-darwin-arm64.tar.gz.sha256
