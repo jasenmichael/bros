@@ -3,7 +3,8 @@
 services:
   bros:
     build:
-      context: ../..
+      # Relative to --project-directory (repo root). Not the compose file dir.
+      context: .
       dockerfile: ${BROS_DESKTOP_DOCKERFILE:-lib/desktop/Dockerfile}
       target: production
       additional_contexts:
@@ -99,7 +100,7 @@ services:
   bros-ui:
     profiles: ["ui"]
     build:
-      context: ../..
+      context: .
       dockerfile: ${BROS_DESKTOP_DOCKERFILE:-lib/desktop/Dockerfile}
       target: ui
     image: bros-ui:latest

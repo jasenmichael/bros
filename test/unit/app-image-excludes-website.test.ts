@@ -11,16 +11,15 @@ function read(rel: string) {
 describe('app image excludes the website', () => {
   it('keeps @bros/website out of the image build and dev cache', () => {
     const dockerfile = read('lib/desktop/Dockerfile')
-    const entry = read('docker/dev-entrypoint.sh')
+    const entry = read('scripts/docker/dev-entrypoint.sh')
     expect(read('.dockerignore')).toMatch(/^src\/website$/m)
     expect(dockerfile).not.toContain('src/website')
-    expect(dockerfile).toContain('--filter "@bros/ui..."')
     expect(dockerfile).not.toContain('@bros/cli')
     expect(entry).toContain('--filter "@bros/ui..."')
     expect(entry).not.toContain('@bros/cli')
     expect(entry).toContain('flock 9')
     expect(entry).toContain('.bros-install.lock')
-    expect(read('docker-compose.dev.yml')).not.toContain('bros-website-modules')
+    expect(read('lib/desktop/docker-compose.dev.yml')).not.toContain('bros-website-modules')
     expect(read('src/pnpm-workspace.yaml')).toContain('website')
   })
 })

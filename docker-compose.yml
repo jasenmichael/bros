@@ -1,4 +1,0 @@
-# Desktop container `bros` is Selkies. The UI host is separate and listens on BROS_PORT.
-# Stream and ttyd publish on localhost high ports.
-include:
-  - path: lib/desktop/docker-compose.yml

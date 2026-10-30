@@ -468,8 +468,9 @@ export async function rebuildBrosContainer(opts?: { build?: boolean; forceRecrea
   writeAppsCompose(readCliPackages())
   const generated = join(boot.dataDir, 'build', 'desktop', 'Dockerfile')
   if (existsSync(generated)) process.env.BROS_DESKTOP_DOCKERFILE = generated
-  const files = ['-f', join(repo, 'docker-compose.yml')]
-  files.push('-f', join(repo, process.env.BROS_DEV === '1' ? 'docker-compose.dev.yml' : 'docker-compose.prod.yml'))
+  const desktop = join(repo, 'lib/desktop')
+  const files = ['--project-directory', repo, '-f', join(desktop, 'docker-compose.yml')]
+  files.push('-f', join(desktop, process.env.BROS_DEV === '1' ? 'docker-compose.dev.yml' : 'docker-compose.prod.yml'))
   const override = join(boot.dataDir, 'config', 'apps-compose.yml')
   if (existsSync(override)) files.push('-f', override)
   return run('docker', [
