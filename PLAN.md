@@ -41,8 +41,9 @@ Done:
 
 Not a milestone. Pick when needed:
 
-- CI: add test + typecheck jobs (Pages workflow only today)
-- Tests: chat stream coverage; e2e beyond `/api/health`
+- Tests: `/api/apps/*` handlers; auth HTTP + `01-auth` middleware; agents board / ACP / jobs API; MCP (`mcpClient` + `/api/mcp`)
+- Tests: desktop ensure API/shell; desktop pins; bump/pack scripts; tunnel API; chat stream; e2e beyond `/api/health`
+- Tests (low): specialist/skills/login/status/terminal page mounts; per-manager CLI; suggest API
 - Custom packs live in `lib/apps/custom`. Only `README.md` there is tracked. A custom pack can later move to addon or core. An addon can later move to core.
 - Desktop package managers include uv and cargo. Nix stays Devbox global, with the store in the Desktop image.
 - OpenCode package app serves on host **4096** (same as container). No `proxy.public`. Server password is in the service log. Do not fake a Bros-side prefix.

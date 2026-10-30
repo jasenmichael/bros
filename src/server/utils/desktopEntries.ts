@@ -138,14 +138,14 @@ function guiCommand(command: string) {
 export function pinKey(app: { kind: LibraryKind, id: string, command?: string }) {
   if (app.kind === 'terminal') return 'terminal'
   if (app.kind === 'package') return `pkg-${app.id}-${guiCommand(app.command || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '') || 'gui'}`
-  if (app.kind === 'core') return `side-${app.id}`
+  if (app.kind === 'docker') return `side-${app.id}`
   return app.id
 }
 
 export function libraryProcessId(app: { kind: LibraryKind, id: string, command?: string }) {
   if (app.kind === 'terminal') return 'terminal'
   if (app.kind === 'package') return guiAppProxyId(app.id, app.command || '')
-  if (app.kind === 'core') return app.id
+  if (app.kind === 'docker') return app.id
   return pinProcessId(app.id)
 }
 

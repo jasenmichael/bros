@@ -25,7 +25,7 @@ export async function launchDesktop(app: LaunchRef, action: 'open' | 'close' | '
     })
     return
   }
-  if (app.kind === 'core') {
+  if (app.kind === 'docker') {
     const path = action === 'close' ? 'stop' : 'start'
     await api(`/api/apps/${app.id}/${path}`, {
       method: 'POST',

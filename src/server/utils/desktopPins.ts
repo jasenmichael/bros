@@ -90,7 +90,7 @@ export async function addPin(input: { kind?: string, id?: string, command?: stri
     icon: app.icon,
     kind: app.kind,
     exec: app.kind === 'entry' ? app.exec : '',
-    appId: app.kind === 'package' || app.kind === 'core' ? app.id : '',
+    appId: app.kind === 'package' || app.kind === 'docker' ? app.id : '',
     command: app.command,
   }
   pins.push(pin)
@@ -120,14 +120,14 @@ async function gui(action: 'start' | 'close' | 'stop', proc: string, argv: strin
 export async function openLibraryApp(app: LibraryApp) {
   if (app.kind === 'terminal') return gui('start', 'terminal', FOOT)
   if (app.kind === 'package') return startAppGui(app.id, app.command)
-  if (app.kind === 'core') return ensureDockerAppGui(app.id)
+  if (app.kind === 'docker') return ensureDockerAppGui(app.id)
   return gui('start', pinProcessId(app.id), execArgv(app.exec))
 }
 
 export async function closeLibraryApp(app: LibraryApp) {
   if (app.kind === 'terminal') return gui('close', 'terminal')
   if (app.kind === 'package') return closeAppGui(app.id, app.command)
-  if (app.kind === 'core') return closeGuiWindow(app.id)
+  if (app.kind === 'docker') return closeGuiWindow(app.id)
   return gui('close', pinProcessId(app.id))
 }
 
@@ -152,7 +152,7 @@ export async function focusLibraryApp(input: { kind?: string, id?: string, comma
 function appFromPin(pin: DesktopPin): LibraryApp {
   return {
     kind: pin.kind,
-    id: pin.kind === 'package' || pin.kind === 'core' ? pin.appId : pin.kind === 'terminal' ? 'terminal' : pin.id,
+    id: pin.kind === 'package' || pin.kind === 'docker' ? pin.appId : pin.kind === 'terminal' ? 'terminal' : pin.id,
     name: pin.name,
     command: pin.command,
     icon: pin.icon,

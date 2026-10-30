@@ -72,11 +72,12 @@ Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf
 ## Testing
 
 ```bash
-pnpm --dir src test
+pnpm --dir src test:ci
 pnpm --dir src typecheck
+cargo test --manifest-path cli/Cargo.toml
 ```
 
-Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
+`test:ci` is Vitest unit + nuxt (what `.github/workflows/ci.yml` runs on a pull request to `main`). `pnpm --dir src test` also includes e2e; e2e needs a live Bros on `http://127.0.0.1:3055`. Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
 
 ```bash
 pnpm --dir src --filter @bros/ui exec vitest run ../../test/unit/<file>.test.ts

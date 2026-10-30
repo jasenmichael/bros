@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BrosNavItem } from '../layers/theme/app/types/nav'
+import type { BrosNavItem } from '../../layers/theme/app/types/nav'
 
 const { iconMode, isDesktop } = useNavDock()
 

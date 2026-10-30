@@ -78,9 +78,11 @@ Product version is `0.0.1` in `VERSION`, `cli/Cargo.toml`, `cli/Cargo.lock`, and
 
 Direct push to `main` is blocked. Workflows do not push a commit to `main`.
 
+`.github/workflows/ci.yml` runs on a pull request targeting `main` only (not on push to `main`, not on release). Jobs `js` (pnpm typecheck + `pnpm test:ci` = Vitest unit + nuxt) and `rust` (`cargo test` in `cli/`) must pass. The repo ruleset on `main` should require status checks `CI / js` and `CI / rust` before merge (GitHub → Settings → Rules → main). Release does not re-run tests. E2e (`test/e2e`) needs a live app on `:3055` and is not part of CI.
+
 `.github/workflows/bump.yml` runs on a pull request opened or updated against `main`. While tag `v0.0.1` is missing it leaves `VERSION` alone, so the next merge publishes `0.0.1`. After that tag exists, the workflow reads conventional commits on the branch. `feat` is minor, `fix` and `perf` are patch, `feat!` or a `BREAKING CHANGE` footer is major. `chore`, `docs`, `refactor`, `test`, and `ci` do not bump. When a type is found and the branch has no `chore: bump` commit yet, it runs `scripts/bump.sh` and pushes that one commit onto the pull request branch. A later commit does not add another bump unless it raises the type. The message is `chore: bump <type> to X.Y.Z`.
 
-`.github/workflows/release.yml` runs when a pull request into `main` is merged. It reads `VERSION` from the merge commit. If tag `v<VERSION>` is missing it tags that commit and uploads the Linux and macOS tarballs. It does not change the number. A merge that leaves `VERSION` unchanged does not publish.
+`.github/workflows/release.yml` runs when a pull request into `main` is merged. It reads `VERSION` from the merge commit. If tag `v<VERSION>` is missing it tags that commit and uploads the Linux and macOS tarballs. It does not change the number. A merge that leaves `VERSION` unchanged does not publish. The CLI matrix uses `Swatinem/rust-cache` keyed by target.
 
 `scripts/bump.sh patch|minor|major` writes the same version files and commits on the current branch. It does not push.
 

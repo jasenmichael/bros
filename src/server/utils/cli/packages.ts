@@ -1044,7 +1044,7 @@ export async function checkAppUpdate(id: string): Promise<AppCheck> {
     err.statusCode = 404
     throw err
   }
-  if (kind === 'core') {
+  if (kind === 'docker') {
     const res = await (await docker()).pullDockerApp(id, { dryRun: true })
     const text = `${res.stdout}\n${res.stderr}`
     return { kind, available: /download|pulling|newer/i.test(text) && !/up to date/i.test(text) }

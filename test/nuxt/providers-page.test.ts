@@ -102,8 +102,8 @@ function visibleText(wrapper: { text: () => string }) {
 
 describe('Providers page', () => {
   it('lists Ollama then Custom providers, with both Ollama cards collapsed on load', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     const titles = headings(wrapper)
     expect(titles).toContain('Ollama')
     expect(titles).toContain('Popular services')
@@ -185,8 +185,8 @@ describe('Providers page', () => {
   })
 
   it('expands then collapses the dockerApp pull panel from the chevron without losing selection', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     const expanders = wrapper.findAll('[aria-label="Expand models"]')
     expect(expanders.length).toBe(2)
     await expanders[0]!.trigger('click')
@@ -205,8 +205,8 @@ describe('Providers page', () => {
   })
 
   it('shows a Chat switch and ban delete on dockerApp installed rows, with confirm', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     expect(wrapper.text()).not.toContain('llama3.2')
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
@@ -233,8 +233,8 @@ describe('Providers page', () => {
   })
 
   it('applies the same installed-row controls on the host card', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     const hostCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (host') && li.text().includes('Unreachable'))
     expect(hostCard).toBeTruthy()
     await hostCard!.trigger('click')
@@ -256,8 +256,8 @@ describe('Providers page', () => {
   })
 
   it('moves pull into the host card when the host row is selected', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     const hostCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (host') && li.text().includes('Unreachable'))
     expect(hostCard).toBeTruthy()
     await hostCard!.trigger('click')
@@ -273,14 +273,14 @@ describe('Providers page', () => {
   })
 
   it('shows dockerApp GPU settings after models, not in a modal', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
     const dockerAppCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
     expect(dockerAppCard?.text()).toContain('Use GPU')
     expect(dockerAppCard?.text()).toContain('GPU detected')
-    expect(dockerAppCard?.text()).toContain('DockerApp publishes')
+    expect(dockerAppCard?.text()).toContain('Docker app publishes')
     expect(document.querySelector('[role="dialog"]')).toBeNull()
 
     const hostCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (host') && li.text().includes('Unreachable'))
@@ -294,8 +294,8 @@ describe('Providers page', () => {
   })
 
   it('opens popular settings in the card dropdown after models, with no Delete', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     expect(wrapper.text()).not.toContain('gpt-4o-mini')
     await wrapper.find('[aria-label="Expand OpenAI"]').trigger('click')
     await wrapper.vm.$nextTick()
@@ -313,8 +313,8 @@ describe('Providers page', () => {
   })
 
   it('shows a Chat switch and no delete on Groq catalog rows', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.find('[aria-label="Expand Groq"]').trigger('click')
     await wrapper.vm.$nextTick()
     const groqCard = wrapper.findAll('li').find((li) => li.text().includes('Groq') && li.text().includes('Need an API key'))
@@ -329,8 +329,8 @@ describe('Providers page', () => {
   })
 
   it('enables Pull for a typed owner/name:tag and keeps the catalog closed helper gone', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).not.toContain('Pull custom')
@@ -352,8 +352,8 @@ describe('Providers page', () => {
   })
 
   it('enables Pull after a catalog menu selection even when the display label has a size', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
     const input = wrapper.find('input[placeholder="Search Recommended / Ollama / Hugging Face"]')
@@ -367,8 +367,8 @@ describe('Providers page', () => {
   })
 
   it('shows in-list pull progress without a Chat switch', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
     const dockerAppCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (core)'))
@@ -383,8 +383,8 @@ describe('Providers page', () => {
   })
 
   it('opens a custom OpenAI-compat form from Add custom under Custom providers', async () => {
-    const ModelsPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(ModelsPage)
+    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
     const add = wrapper.findAll('button').find((b) => b.text().includes('Add custom'))
     expect(add).toBeTruthy()
     await add!.trigger('click')
