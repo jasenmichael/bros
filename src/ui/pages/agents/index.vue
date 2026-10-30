@@ -427,7 +427,7 @@ function clearToken(which: 'github' | 'cursor') {
                   </label>
                   <div class="flex flex-wrap gap-2 md:col-span-2">
                     <UButton type="submit" size="sm" :disabled="busy">Save</UButton>
-                    <UButton type="button" size="sm" color="neutral" variant="outline" @click="editName = ''">Cancel</UButton>
+                    <UButton type="button" size="sm" color="neutral" variant="outline" @click="() => { editName = '' }">Cancel</UButton>
                     <UButton type="button" size="sm" color="neutral" variant="outline" :disabled="busy" @click="removeProject">Remove</UButton>
                   </div>
                 </form>

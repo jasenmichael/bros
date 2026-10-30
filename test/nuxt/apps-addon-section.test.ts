@@ -95,8 +95,8 @@ mockNuxtImport('usePinnedNav', () => () => ({ refreshPinnedNav: async () => {} }
 
 describe('DockerApps addon section', () => {
   it('lists every kind in one filtered grid with kind in the heading', async () => {
-    const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(DockerAppsPage)
+    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(AppsPage)
 
     expect(wrapper.text()).toContain('Core')
     expect(wrapper.text()).toContain('Addon')
@@ -124,8 +124,8 @@ describe('DockerApps addon section', () => {
 
   it('uses the same segmented control for run state, interface type, and kind', async () => {
     payload.docker[1]!.interfaces = [{ type: 'webui', service: 'opencode' }]
-    const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(DockerAppsPage)
+    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(AppsPage)
 
     const groupClass = ['flex', 'rounded-lg', 'border', 'p-0.5']
     const state = wrapper.get('[aria-label="Run state"]')
@@ -219,8 +219,8 @@ describe('DockerApps addon section', () => {
       },
     ]
     try {
-      const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-      const wrapper = await mountSuspended(DockerAppsPage)
+      const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+      const wrapper = await mountSuspended(AppsPage)
       const manager = wrapper.get('[aria-label="Package manager"]')
       expect(manager.text()).toContain('docker')
       expect(manager.text()).toContain('npm')
@@ -285,8 +285,8 @@ describe('DockerApps addon section', () => {
       },
     ]
     try {
-      const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-      const wrapper = await mountSuspended(DockerAppsPage)
+      const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+      const wrapper = await mountSuspended(AppsPage)
       for (const id of ['ollama', 'opencode', 'my-pack', 'cursor', 'pi']) {
         const actions = wrapper.get(`[data-app-card="${id}"] [data-app-actions]`)
         expect(actions.text()).toContain('Logs')

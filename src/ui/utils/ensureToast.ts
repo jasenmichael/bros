@@ -8,9 +8,9 @@ function nameOf(id: string) {
   return id === 'devbox' ? 'Devbox and Nix' : label(id)
 }
 
-function parse(step: string) {
+function parse(step: string): { phase: string; id: string; version: string } | null {
   const match = /^(ok|install|fail):([^:]+)(?::([\s\S]*))?$/.exec(step)
-  if (!match) return null
+  if (!match?.[1] || !match[2]) return null
   return { phase: match[1], id: match[2], version: match[3] || '' }
 }
 
@@ -32,7 +32,9 @@ export function splitEnsureCards(steps: string[]) {
   const ready: EnsureCard[] = []
   let live: EnsureCard | null = null
   for (let i = 0; i < steps.length; i++) {
-    const step = parse(steps[i])
+    const raw = steps[i]
+    if (raw === undefined) continue
+    const step = parse(raw)
     if (!step) continue
     if (step.phase === 'install') {
       const next = parse(steps[i + 1] || '')

@@ -1,6 +1,6 @@
 {
   "name": "bros",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "packageManager": "pnpm@12.15.0",
   "scripts": {
@@ -10,7 +10,8 @@
     "docs:dev": "pnpm --filter @bros/website dev",
     "docs:generate": "pnpm --filter @bros/website generate",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @bros/ui test"
+    "test": "pnpm --filter @bros/ui test",
+    "test:ci": "pnpm --filter @bros/ui exec vitest run --project unit --project nuxt"
   },
   "engines": {
     "node": ">=22"

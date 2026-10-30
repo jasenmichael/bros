@@ -12,7 +12,7 @@ export function parseOmnirouteJwtSecret(text: string): string {
   for (const line of text.split('\n')) {
     const match = line.match(/^\s*OMNIROUTE_JWT_SECRET\s*=\s*(.*)$/)
     if (!match) continue
-    let value = match[1].trim()
+    let value = (match[1] || '').trim()
     if (
       (value.startsWith('"') && value.endsWith('"'))
       || (value.startsWith("'") && value.endsWith("'"))

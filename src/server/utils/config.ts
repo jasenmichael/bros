@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
-import { homedir } from 'node:os'
 import { join, resolve } from 'pathe'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
-import { brosYamlInData, configDir, migrateDataLayout } from './dataLayout.ts'
+import { brosYamlAtHome, configDir, migrateDataLayout } from './dataLayout.ts'
+import { claimForHost } from './hostClaim.ts'
 import { resolveWorkspaceHost } from './homePaths.ts'
 
 export type BootstrapConfig = {
@@ -62,11 +62,17 @@ export function dataDirFor(appDir: string): string {
 }
 
 export function brosYamlPath(appDir = resolveAppDir()): string {
-  return brosYamlInData(dataDirFor(appDir))
+  return brosYamlAtHome(appDir)
 }
 
 function parseYamlFile(path: string): FileConfig {
   if (!existsSync(path)) return {}
+  try {
+    if (!statSync(path).isFile()) return {}
+  }
+  catch {
+    return {}
+  }
   const raw = readFileSync(path, 'utf8')
   const data = parseYaml(raw) as Record<string, unknown> | null
   if (!data || typeof data !== 'object') return {}
@@ -79,7 +85,7 @@ function parseYamlFile(path: string): FileConfig {
 }
 
 /**
- * `$BROS_DIR/data/config/bros.yml` only. Data is `BROS_DATA_DIR` or `$BROS_DIR/data`.
+ * `$BROS_DIR/bros.yml` (install: `$BROS_HOME/bros.yml`). Data is `BROS_DATA_DIR` or `$BROS_DIR/data`.
  * `BROS_PUBLIC_URL` overrides YAML `public_url`.
  */
 export function loadBootstrapConfig(cwd = process.cwd()): BootstrapConfig {
@@ -115,6 +121,7 @@ export function patchBrosYaml(patch: Partial<FileConfig>, cwd = process.cwd()): 
   if (patch.enable_whisper !== undefined) next.enable_whisper = patch.enable_whisper
   if (patch.workspace !== undefined) next.workspace = patch.workspace
   writeFileSync(path, stringifyYaml(next))
+  claimForHost(path)
   return parseYamlFile(path)
 }
 
@@ -166,10 +173,14 @@ export function ensureSessionSecret(dataDir = loadBootstrapConfig().dataDir): st
   const path = sessionSecretPath(dataDir)
   if (existsSync(path)) {
     const existing = readFileSync(path, 'utf8').trim()
-    if (existing) return existing
+    if (existing) {
+      claimForHost(path)
+      return existing
+    }
   }
   const secret = randomBytes(32).toString('hex')
   writeFileSync(path, `${secret}\n`, { mode: 0o600 })
+  claimForHost(path)
   return secret
 }
 

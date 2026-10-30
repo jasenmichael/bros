@@ -40,12 +40,15 @@ type_of() {
 }
 
 best_of_log() {
+  # Use US (\x1f) not NUL between subject/body: bash vars cannot hold NUL, so
+  # %x00 made every subject empty and the bump workflow always skipped.
   local base="$1" best=0 record subject body kind r
   while IFS= read -r -d $'\x1e' record || [[ -n "$record" ]]; do
+    record="${record#$'\n'}"
     [[ -z "$record" ]] && continue
-    subject="${record%%$'\0'*}"
-    if [[ "$record" == *$'\0'* ]]; then
-      body="${record#*$'\0'}"
+    subject="${record%%$'\x1f'*}"
+    if [[ "$record" == *$'\x1f'* ]]; then
+      body="${record#*$'\x1f'}"
     else
       body=""
     fi
@@ -54,7 +57,7 @@ best_of_log() {
     if [[ "$r" -gt "$best" ]]; then
       best="$r"
     fi
-  done < <(git log --format='%s%x00%b%x1e' "${base}..HEAD")
+  done < <(git log --pretty=format:'%s%x1f%b%x1e' "${base}..HEAD")
   name_of "$best"
 }
 

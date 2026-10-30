@@ -7,7 +7,7 @@ bros_tunnel_dir() {
   echo "${BROS_TUNNEL_DIR:-${BROS_HOST_DATA_DIR:-${BROS_DIR:-.}/data}/var/tunnel}"
 }
 
-# First matching bootstrap YAML (same exclusive-or-search idea as loadBootstrapConfig).
+# First matching bootstrap YAML. Canonical is $BROS_HOME/bros.yml.
 bros_find_bootstrap_yaml() {
   if [[ -n "${BROS_CONFIG_HOST:-}" && -f "$BROS_CONFIG_HOST" ]]; then
     printf '%s\n' "$BROS_CONFIG_HOST"
@@ -15,11 +15,6 @@ bros_find_bootstrap_yaml() {
   fi
   if [[ -n "${BROS_CONFIG:-}" && "$BROS_CONFIG" != "/app/bros.yml" && -f "$BROS_CONFIG" ]]; then
     printf '%s\n' "$BROS_CONFIG"
-    return 0
-  fi
-  local xdg="${XDG_CONFIG_HOME:-$HOME/.config}/bros.yml"
-  if [[ -f "$xdg" ]]; then
-    printf '%s\n' "$xdg"
     return 0
   fi
   local roots=() root
@@ -32,17 +27,13 @@ bros_find_bootstrap_yaml() {
     roots+=(".")
   fi
   for root in "${roots[@]}"; do
-    local data="${BROS_HOST_DATA_DIR:-$root/data}"
-    if [[ -f "$data/config/bros.yml" ]]; then
-      printf '%s\n' "$data/config/bros.yml"
-      return 0
-    fi
     if [[ -f "$root/bros.yml" ]]; then
       printf '%s\n' "$root/bros.yml"
       return 0
     fi
-    if [[ -f "$root/.config/bros.yml" ]]; then
-      printf '%s\n' "$root/.config/bros.yml"
+    local data="${BROS_HOST_DATA_DIR:-$root/data}"
+    if [[ -f "$data/config/bros.yml" ]]; then
+      printf '%s\n' "$data/config/bros.yml"
       return 0
     fi
   done

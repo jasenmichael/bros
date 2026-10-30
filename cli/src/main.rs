@@ -254,18 +254,19 @@ fn require_dev_tools(dev: bool, pnpm: bool, cargo: bool) -> Result<(), &'static 
     Ok(())
 }
 
-fn choose_ui(source: bool, dev: bool, pnpm: bool, use_runner: bool) -> Result<UiHost, &'static str> {
+/// `host_js`: host can serve the UI (`pnpm` and/or `node` on PATH).
+fn choose_ui(source: bool, dev: bool, host_js: bool, use_runner: bool) -> Result<UiHost, &'static str> {
     if dev && use_runner {
         return Err("dev does not use the UI runner");
     }
-    if !source {
-        if dev {
-            return Err("dev requires a source checkout");
-        }
-        return Ok(UiHost::Runner);
+    if !source && dev {
+        return Err("dev requires a source checkout");
     }
-    require_dev_tools(dev, pnpm, true)?;
-    if dev || (pnpm && !use_runner) {
+    if source {
+        require_dev_tools(dev, host_js, true)?;
+    }
+    // Prod: host Node/pnpm when available unless --use-runner. Release and source share this rule.
+    if dev || (host_js && !use_runner) {
         Ok(UiHost::Host)
     } else {
         Ok(UiHost::Runner)
@@ -379,13 +380,14 @@ fn resolve_config(data: &str, home: &str, flag: Option<&str>) -> Option<PathBuf>
         }
         return Some(path);
     }
-    let data_file = Path::new(data).join("config/bros.yml");
-    if data_file.is_file() {
-        return Some(data_file);
-    }
     let home_file = Path::new(home).join("bros.yml");
     if home_file.is_file() {
         return Some(home_file);
+    }
+    // Legacy path until ensure_dirs migrates it to $BROS_HOME/bros.yml.
+    let data_file = Path::new(data).join("config/bros.yml");
+    if data_file.is_file() {
+        return Some(data_file);
     }
     None
 }
@@ -528,11 +530,23 @@ fn ensure_dirs(repo: &Path, data: &Path) {
         let _ = fs::remove_file(&generated);
         env::set_var("BROS_DESKTOP_DOCKERFILE", repo.join("lib/desktop/Dockerfile"));
     }
-    let dest = data.join("config/bros.yml");
-    let src = repo.join("bros.yml");
-    if src.is_file() && !dest.exists() {
-        let _ = fs::copy(src, dest);
+    // Canonical bootstrap YAML is $BROS_HOME/bros.yml (repo root for an install).
+    let home = env::var("BROS_HOME").map(PathBuf::from).unwrap_or_else(|_| repo.to_path_buf());
+    let dest = home.join("bros.yml");
+    let legacy = data.join("config/bros.yml");
+    if legacy.is_dir() {
+        let _ = fs::remove_dir_all(&legacy);
     }
+    if legacy.is_file() && !dest.is_file() {
+        let _ = fs::rename(&legacy, &dest);
+    }
+    if !dest.is_file() {
+        let _ = fs::write(
+            &dest,
+            "# Bros bootstrap. Host layout is BROS_HOME + $BROS_HOME/data.\n# Compose sets in-container working_dir=/app and data at /app/data.\n# Uncomment to enable a named Cloudflare tunnel:\n# public_url: https://bros.example.com\n",
+        );
+    }
+    env::set_var("BROS_CONFIG_HOST", &dest);
 }
 
 fn compose_args(repo: &Path, dev: bool, data: &Path) -> Vec<String> {
@@ -571,10 +585,15 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bo
     ensure_volume();
     remove_old_prefix();
     let source = plan::is_source(repo);
-    let pnpm = source && on_path("pnpm");
-    let ui = choose_ui(source, dev, pnpm, use_runner).unwrap_or_else(|msg| die(msg));
+    // Source host UI needs pnpm workspace. Release host UI runs prebuilt .output with node.
+    let host_js = if source {
+        on_path("pnpm")
+    } else {
+        on_path("node") || on_path("pnpm")
+    };
+    let ui = choose_ui(source, dev, host_js, use_runner).unwrap_or_else(|msg| die(msg));
     let log = paths.data.join("var/logs/bros.log");
-    if ui == UiHost::Host {
+    if ui == UiHost::Host && source {
         ensure_node_modules(repo, &log);
     }
     if HITS.load(Ordering::SeqCst) > 0 {
@@ -685,12 +704,24 @@ fn stop_other_ui(ui: UiHost) {
 fn start_host_ui(repo: &Path, dev: bool, daemon: bool, log: &Path) -> Option<std::process::Child> {
     env::set_var("PORT", env::var("BROS_PORT").unwrap_or_else(|_| "3055".into()));
     env::set_var("HOST", env::var("BROS_HOST").unwrap_or_else(|_| "0.0.0.0".into()));
+    let built = repo.join("src/ui/.output/server/index.mjs");
+    // Release tarball has .output but no workspace package.json — run node directly.
+    if !dev && !plan::is_source(repo) {
+        if !built.is_file() {
+            die("prebuilt UI missing at src/ui/.output; reinstall or use --use-runner");
+        }
+        if !on_path("node") {
+            die("host node not found; install Node or use --use-runner");
+        }
+        let mut cmd = Command::new("node");
+        cmd.arg(&built).current_dir(repo);
+        return spawn_ui(cmd, log, daemon);
+    }
     let mut cmd = Command::new("pnpm");
     cmd.current_dir(repo).arg("--dir").arg("src");
     if dev {
         cmd.args(["--filter", "@bros/ui", "dev"]);
     } else {
-        let built = repo.join("src/ui/.output/server/index.mjs");
         if !built.is_file() {
             say("Building UI…");
             let mut build = Command::new("pnpm");
@@ -1542,10 +1573,13 @@ mod tests {
         assert_eq!(choose_ui(true, true, true, false), Ok(UiHost::Host));
         assert_eq!(choose_ui(true, false, true, false), Ok(UiHost::Host));
         assert_eq!(choose_ui(true, false, false, false), Ok(UiHost::Runner));
-        assert_eq!(choose_ui(false, false, true, false), Ok(UiHost::Runner));
+        assert_eq!(choose_ui(false, false, true, false), Ok(UiHost::Host));
+        assert_eq!(choose_ui(false, false, false, false), Ok(UiHost::Runner));
+        assert_eq!(choose_ui(false, false, true, true), Ok(UiHost::Runner));
         assert_eq!(choose_ui(true, true, false, false), Err("dev requires host pnpm"));
         assert_eq!(choose_ui(true, false, true, true), Ok(UiHost::Runner));
         assert_eq!(choose_ui(true, true, true, true), Err("dev does not use the UI runner"));
+        assert_eq!(choose_ui(false, true, true, false), Err("dev requires a source checkout"));
     }
 
     #[test]

@@ -53,8 +53,12 @@ Node **22+**, pnpm **12.15.0**. Dev uses that pnpm for the UI. Docs and tests us
 ```bash
 pnpm --dir src install
 pnpm --dir src ui:dev
-pnpm --dir src test
+pnpm --dir src test:ci
+pnpm --dir src typecheck
+cargo test --manifest-path cli/Cargo.toml
 ```
+
+`test:ci` is unit + nuxt (GitHub Actions on a pull request to `main`). Full `pnpm --dir src test` also runs e2e, which needs Bros already listening on `http://127.0.0.1:3055`.
 
 Login passkey is printed in `$BROS_HOST_DATA_DIR/var/logs/bros.log` (`[bros] passkey:`) and stored in `$BROS_HOST_DATA_DIR/passkey`.
 

@@ -10,7 +10,7 @@ A release needs Docker. It does not need git, cargo, or Node.
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 ```
 
-That unpacks `bros-<os>-<arch>.tar.gz` into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias) and symlinks `~/.local/bin/bros` (`BROS_BIN`) to `$BROS_DIR/bros`. It does not build; the binary is in the tarball. The tarball has the prebuilt UI and that `bros` binary for this machine. It does not include `src/` sources. Config the app reads is `$BROS_DIR/data/config/bros.yml`. `bros update` downloads the next tarball (`BROS_RELEASE_URL` overrides the exact URL) and keeps `data/`.
+That unpacks `bros-<os>-<arch>.tar.gz` into `~/.bros` (`BROS_DIR`; `BROS_HOME` is an alias) and symlinks `~/.local/bin/bros` (`BROS_BIN`) to `$BROS_DIR/bros`. It does not build; the binary is in the tarball. The tarball has the prebuilt UI and that `bros` binary for this machine. It does not include `src/` sources. Config the app reads is `$BROS_DIR/bros.yml`. `bros update` downloads the next tarball (`BROS_RELEASE_URL` overrides the exact URL) and keeps `data/`.
 
 Install from source when you have git and cargo (`--from-src` is optional; the default release path never builds):
 
@@ -38,7 +38,7 @@ Default action is **start**. Commands and flags: [docs/cli.md](docs/cli.md). Ope
 
 Checkout build: [Build and run](#build-and-run-checkout). Hot-reload: [Development](#development-hot-reload).
 
-Optional host `cloudflared` (install + `cloudflared login`). Set `public_url` in `$BROS_DIR/data/config/bros.yml` to start a named tunnel for that hostname.
+Optional host `cloudflared` (install + `cloudflared login`). Set `public_url` in `$BROS_DIR/bros.yml` to start a named tunnel for that hostname.
 
 ## Build and run (checkout)
 

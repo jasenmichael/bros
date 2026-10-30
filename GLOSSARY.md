@@ -82,7 +82,7 @@ The `/status` page. Bros app, Docker, disk, GPU, the host tunnel, and each docke
 
 ## Bootstrap
 
-`$BROS_DIR/data/config/bros.yml` plus data-dir files (passkey, proxy key, session secret).
+`$BROS_DIR/bros.yml` plus data-dir files (passkey, proxy key, session secret).
 
 ## Desktop home
 

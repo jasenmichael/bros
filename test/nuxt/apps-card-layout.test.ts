@@ -60,8 +60,8 @@ describe('DockerApp card layout', () => {
       dockerApp({ id: 'extra', name: 'Extra', kind: 'custom', source: 'custom' }),
     ]
 
-    const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(DockerAppsPage)
+    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(AppsPage)
 
     const grid = wrapper.find('[data-app-section="list"]')
 
@@ -80,15 +80,15 @@ describe('DockerApp card layout', () => {
       dockerApp({ id: 'opencode', name: 'OpenCode', kind: 'addon' }),
     ]
 
-    const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(DockerAppsPage)
+    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(AppsPage)
 
     expect(wrapper.find('[data-app-section="list"]').attributes('data-app-grid')).toBe('multi')
     expect(wrapper.find('[data-app-card="opencode"]').attributes('data-card-layout')).toBe('compact')
   })
 
   it('shows the CLI source and no host expose switch', async () => {
-    const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
     payload.docker = [
       dockerApp({
         id: 'cursor',
@@ -99,7 +99,7 @@ describe('DockerApp card layout', () => {
         settings: { autostart: true, navPinned: false, exposeHost: true },
       }),
     ]
-    const missing = await mountSuspended(DockerAppsPage)
+    const missing = await mountSuspended(AppsPage)
     expect(missing.text()).not.toContain('Use in Bros')
     expect(missing.text()).not.toContain('Expose to host')
     expect(missing.text()).toContain('agent: Bros uses docker')
@@ -114,7 +114,7 @@ describe('DockerApp card layout', () => {
         settings: { autostart: true, navPinned: false, exposeHost: true },
       }),
     ]
-    const installed = await mountSuspended(DockerAppsPage)
+    const installed = await mountSuspended(AppsPage)
     expect(installed.text()).not.toContain('Use in Bros')
     expect(installed.text()).not.toContain('Expose to host')
     expect(installed.text()).toContain('agent: Bros uses host')
@@ -143,8 +143,8 @@ describe('DockerApp card layout', () => {
       }),
     ]
 
-    const DockerAppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
-    const wrapper = await mountSuspended(DockerAppsPage)
+    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(AppsPage)
     const card = wrapper.find('[data-app-card="cursor"][data-card-layout="compact"]')
     const cli = card.find('[data-card-block="cli"]')
     const gui = card.find('[data-card-block="gui"]')

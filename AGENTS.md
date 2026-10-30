@@ -1,6 +1,6 @@
 # AGENTS
 
-Bros (**B**oxed **R**untime **O**rchestration **S**ystem) manages Docker containers for local AI applications and development, and runs a desktop in the browser. Repo `jasenmichael/bros`. GitHub Pages base is `/bros/`. The `bros` command defaults to start. One config file: `$BROS_DIR/data/config/bros.yml`. Words: [GLOSSARY.md](GLOSSARY.md).
+Bros (**B**oxed **R**untime **O**rchestration **S**ystem) manages Docker containers for local AI applications and development, and runs a desktop in the browser. Repo `jasenmichael/bros`. GitHub Pages base is `/bros/`. The `bros` command defaults to start. One config file: `$BROS_DIR/bros.yml` (install: `$BROS_HOME/bros.yml`). Words: [GLOSSARY.md](GLOSSARY.md).
 
 ## Contract
 
@@ -72,11 +72,12 @@ Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf
 ## Testing
 
 ```bash
-pnpm --dir src test
+pnpm --dir src test:ci
 pnpm --dir src typecheck
+cargo test --manifest-path cli/Cargo.toml
 ```
 
-Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
+`test:ci` is Vitest unit + nuxt (what `.github/workflows/ci.yml` runs on a pull request to `main`). `pnpm --dir src test` also includes e2e; e2e needs a live Bros on `http://127.0.0.1:3055`. Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
 
 ```bash
 pnpm --dir src --filter @bros/ui exec vitest run ../../test/unit/<file>.test.ts
@@ -88,4 +89,4 @@ Add or update a test when behavior changes.
 
 Do not commit `data/`, `.env`, `*.sqlite`, passkey, or proxy key. The tracked template is `example.env` (commented defaults and empty placeholders). There is no `.env.example`.
 
-Never put secrets or a personal dev tunnel URL in `example.env` or `.env.example`. That includes API keys, passkey, proxy key, passwords, `BROS_PUBLIC_URL`, and `BROS_TUNNEL_HOST`. Those values stay in gitignored `.env` or `$BROS_DIR/data/config/bros.yml`.
+Never put secrets or a personal dev tunnel URL in `example.env` or `.env.example`. That includes API keys, passkey, proxy key, passwords, `BROS_PUBLIC_URL`, and `BROS_TUNNEL_HOST`. Those values stay in gitignored `.env` or `$BROS_DIR/bros.yml`.

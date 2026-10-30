@@ -7,7 +7,7 @@ description: bros.yml in the data config dir, and host data binds.
 
 ## Bootstrap YAML
 
-The app loads `$BROS_HOST_DATA_DIR/config/bros.yml` only. It does not read `~/.config/bros.yml`. A leftover `$BROS_DIR/bros.yml` is renamed there on startup when the new file is missing.
+The app loads `$BROS_HOME/bros.yml` (same as `$BROS_DIR/bros.yml`). It does not read `~/.config/bros.yml`. A leftover `$BROS_HOST_DATA_DIR/config/bros.yml` is moved to `$BROS_HOME/bros.yml` on startup when the home file is missing.
 
 ```yaml
 public_url: https://bros.example.com
@@ -21,7 +21,7 @@ Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tun
 
 ## `BROS_HOME` and host binds
 
-When running `bros` with `BROS_DIR` unset, `BROS_DIR` is the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). An installed clone is typically `~/.bros`. `BROS_HOME` is an alias. Later `install.sh` will clone to `~/.bros` and symlink `BROS_BIN` (`~/.local/bin/bros`) to `$BROS_DIR/bros`. The current installer still writes `~/.config/bros.yml`; the app does not read that file.
+When running `bros` with `BROS_DIR` unset, `BROS_DIR` is the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). An installed clone is typically `~/.bros`. `BROS_HOME` is an alias. `install.sh` writes `$BROS_HOME/bros.yml` when missing and symlinks `BROS_BIN` (`~/.local/bin/bros`) to `$BROS_DIR/bros`.
 
 Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`). The image sets `BROS_DIR=/app`, so that directory is `/app/data` inside the container. Start does not copy leftover named volumes into those dirs.
 
@@ -38,13 +38,18 @@ $BROS_DIR/lib/desktop/        # the Bros image
 ```
 
 ```text
+$BROS_HOME/
+  bros.yml                       # bootstrap YAML (public_url, whisper, host ollama, workspace)
+  data/                          # $BROS_HOST_DATA_DIR
+  passkey                        # under data/
+  …
+
 $BROS_HOST_DATA_DIR/             # default $BROS_HOME/data
   passkey
   proxy-key
   session-secret
   bros.sqlite
   config/
-    bros.yml
     assistant.md
     skills/                      # personality, rules (Settings)
     enabled-apps                 # addon package ids, one per line

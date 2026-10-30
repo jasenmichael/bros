@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ignoreUnbuiltCpuFeatures } from '../../src/ui/nitroTrace'
@@ -8,12 +8,16 @@ const root = join(import.meta.dirname, '../..')
 describe('pnpm 12 hoist', () => {
   it('puts public hoist in the workspace file, not .npmrc', () => {
     const workspace = readFileSync(join(root, 'src/pnpm-workspace.yaml'), 'utf8')
-    const npmrc = readFileSync(join(root, 'src/.npmrc'), 'utf8')
     expect(workspace).toMatch(/^shamefullyHoist:\s*true$/m)
     expect(workspace).toMatch(/^strictPeerDependencies:\s*false$/m)
     expect(workspace).toMatch(/^minimumReleaseAge:\s*0$/m)
     expect(workspace).toMatch(/^verifyDepsBeforeRun:\s*false$/m)
-    expect(npmrc).not.toMatch(/shamefully-hoist|shamefullyHoist|strict-peer-dependencies|strictPeerDependencies/)
+    // `.npmrc` is gitignored (auth/registry only). Absent is fine.
+    const npmrcPath = join(root, 'src/.npmrc')
+    if (existsSync(npmrcPath)) {
+      const npmrc = readFileSync(npmrcPath, 'utf8')
+      expect(npmrc).not.toMatch(/shamefully-hoist|shamefullyHoist|strict-peer-dependencies|strictPeerDependencies/)
+    }
   })
 
   it('does not build ssh2 cpu-features and keeps Nitro off that path', () => {

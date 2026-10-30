@@ -786,6 +786,20 @@ paths:
       responses:
         '200': { description: Ensure status }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/apps/check:
+    post:
+      tags: [DockerApps]
+      summary: Git behind-upstream check for bros check
+      responses:
+        '200': { description: '{ ok, git, behind }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/apps/compose:
+    post:
+      tags: [DockerApps]
+      summary: Write apps-compose.yml from current packages
+      responses:
+        '200': { description: '{ ok }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/apps/{id}/disable:
     post:
       tags: [DockerApps]
@@ -1052,6 +1066,29 @@ paths:
                 interfaces: { type: array, items: { type: object, additionalProperties: true } }
       responses:
         '200': { description: '{ packages, install }' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/cli/packages/globals:
+    get:
+      tags: [DockerApps]
+      summary: List global package kinds available to adopt
+      responses:
+        '200': { description: '{ kinds }' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [DockerApps]
+      summary: Adopt a global package into Desktop installs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind: { type: string }
+                spec: { type: string }
+      responses:
+        '200': { description: '{ id, kind, spec }' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
   /api/cli/packages/{id}:

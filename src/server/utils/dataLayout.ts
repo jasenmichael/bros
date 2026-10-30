@@ -1,4 +1,4 @@
-import { accessSync, constants, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmdirSync, statSync } from 'node:fs'
+import { accessSync, constants, copyFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'pathe'
 
 const skipped = new Set<string>()
@@ -67,23 +67,53 @@ const RENAMES = [
   ['tunnel', 'var/tunnel'],
 ] as const
 
-export function migrateDataLayout(dataDir: string, appDir?: string) {
-  mkdirSync(dataDir, { recursive: true })
-  if (appDir) {
-    const dest = join(dataDir, 'config', 'bros.yml')
-    const src = join(appDir, 'bros.yml')
-    if (existsSync(src) && !existsSync(dest)) {
-      mkdirSync(join(dataDir, 'config'), { recursive: true })
-      moveOnto(src, dest, 'bros.yml')
+/** Canonical bootstrap YAML: `$BROS_DIR/bros.yml`. */
+export function brosYamlAtHome(appDir: string) {
+  return join(appDir, 'bros.yml')
+}
+
+/** Legacy path under the data dir (pre home-root move). */
+export function brosYamlInData(dataDir: string) {
+  return join(dataDir, 'config', 'bros.yml')
+}
+
+/**
+ * Move legacy `data/config/bros.yml` onto `$BROS_DIR/bros.yml`.
+ * Drop a Docker-poison directory at the legacy path.
+ */
+export function migrateBrosYaml(dataDir: string, appDir: string) {
+  const dest = brosYamlAtHome(appDir)
+  const legacy = brosYamlInData(dataDir)
+  if (existsSync(legacy)) {
+    try {
+      if (statSync(legacy).isDirectory()) {
+        rmSync(legacy, { recursive: true, force: true })
+      }
+      else if (!existsSync(dest) || (statSync(dest).isDirectory() && readdirSync(dest).length === 0)) {
+        if (existsSync(dest) && statSync(dest).isDirectory()) rmdirSync(dest)
+        moveOnto(legacy, dest, 'config/bros.yml to bros.yml')
+      }
+    }
+    catch (err) {
+      noteSkip('bros.yml migrate', err)
     }
   }
+  if (existsSync(dest) && statSync(dest).isDirectory()) {
+    try {
+      rmSync(dest, { recursive: true, force: true })
+    }
+    catch (err) {
+      noteSkip('bros.yml dir poison', err)
+    }
+  }
+}
+
+export function migrateDataLayout(dataDir: string, appDir?: string) {
+  mkdirSync(dataDir, { recursive: true })
+  if (appDir) migrateBrosYaml(dataDir, appDir)
   for (const [from, to] of RENAMES) moveRel(dataDir, from, to)
 }
 
 export function configDir(dataDir: string) {
   return join(dataDir, 'config')
-}
-
-export function brosYamlInData(dataDir: string) {
-  return join(dataDir, 'config', 'bros.yml')
 }

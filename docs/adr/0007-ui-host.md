@@ -8,7 +8,7 @@ Accepted. Supersedes the host-Node rejection in [0005](0005-one-bros-container.m
 
 The UI host is the Node process that serves the browser app. It is not a process in the desktop container.
 
-Dev requires host `pnpm` and `cargo` and always runs the UI on the host. Prod requires Docker. Prod uses host `pnpm` for the UI when it is on `PATH`, otherwise container `bros-ui`. `--use-runner` and `BROS_USE_RUNNER=1` force container `bros-ui` on a prod start. Dev with either switch exits `dev does not use the UI runner`.
+Dev requires host `pnpm` and `cargo` and always runs the UI on the host. Prod requires Docker. Prod uses host Node/pnpm for the UI when available (release: `node` on prebuilt `.output`; source: host `pnpm`), otherwise container `bros-ui`. `--use-runner` and `BROS_USE_RUNNER=1` force container `bros-ui` on a prod start. Dev with either switch exits `dev does not use the UI runner`. The Docker daemon is always on the host.
 
 The CLI is a Rust binary. It starts and stops the desktop, the UI, and docker apps. After `/api/health` it calls the API. A desktop recreate does not restart docker apps unless a shared volume host path changed.
 
