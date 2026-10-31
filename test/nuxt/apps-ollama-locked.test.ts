@@ -84,7 +84,7 @@ mockNuxtImport('usePinnedNav', () => () => ({ refreshPinnedNav: async () => {} }
 
 describe('Ollama dockerApp lock', () => {
   it('hides Start, Stop, Restart, and Autostart on the ollama card only', async () => {
-    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/components/SettingsDesktopApps.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     expect(wrapper.text()).toContain('Core')
     expect(wrapper.text()).toContain('Addon')
@@ -118,7 +118,7 @@ describe('Ollama dockerApp lock', () => {
   })
 
   it('copies published Firecrawl api without an Open button', async () => {
-    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/components/SettingsDesktopApps.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     const firecrawl = wrapper.find('[data-app-card="firecrawl"]')
     expect(firecrawl.exists()).toBe(true)
@@ -133,7 +133,7 @@ describe('Ollama dockerApp lock', () => {
   })
 
   it('opens published Firecrawl UI webui', async () => {
-    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/components/SettingsDesktopApps.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     const ui = wrapper.find('[data-app-card="firecrawl-ui"]')
     expect(ui.exists()).toBe(true)
@@ -166,7 +166,7 @@ describe('Ollama dockerApp lock', () => {
   })
 
   it('spins only the Start button while start is in flight', async () => {
-    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/components/SettingsDesktopApps.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     const vm = wrapper.vm as unknown as { busy: Set<string> }
     vm.busy = new Set(['firecrawl:start'])
@@ -187,7 +187,7 @@ describe('Ollama dockerApp lock', () => {
 
   it('refreshes statuses from a card icon', async () => {
     refreshMock.mockClear()
-    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/components/SettingsDesktopApps.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     const firecrawl = wrapper.find('[data-app-card="firecrawl"]')
     const btn = firecrawl.get('[aria-label="Refresh app status"]')

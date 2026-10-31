@@ -1186,6 +1186,42 @@ paths:
       responses:
         '200': { description: Saved host Ollama and Whisper gates }
         '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/settings/desktop:
+    get:
+      tags: [Settings]
+      summary: Desktop wallpaper settings
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  color: { type: string }
+                  imageUrl: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Settings]
+      summary: Save Desktop wallpaper settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                color: { type: string }
+                imageUrl: { type: string }
+      responses:
+        '200':
+          description: Saved wallpaper settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  color: { type: string }
+                  imageUrl: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /api/settings/repair-data:
     post:
       tags: [Settings]
