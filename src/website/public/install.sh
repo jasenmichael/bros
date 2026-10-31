@@ -28,12 +28,16 @@ INSTALL_SERVICE=0
 FROM_SRC=0
 
 die() {
-  printf 'bros install: error: %s\n' "$*" >&2
+  printf '[bros] error: %s\n' "$*" >&2
   exit 1
 }
 
 info() {
-  printf 'bros install: %s\n' "$*"
+  if [[ -t 1 ]]; then
+    printf '\033[34m[bros]\033[0m %s\n' "$*"
+  else
+    printf '[bros] %s\n' "$*"
+  fi
 }
 
 need_cmd() {
