@@ -94,6 +94,14 @@ The `/status` page. Bros app, Docker, disk, GPU, the host tunnel, and each docke
 
 `$BROS_DIR/bros.yml` plus data-dir files (passkey, proxy key, session secret).
 
+## Host tunnel
+
+The optional Cloudflare tunnel on the host machine. Off until explicitly enabled. Not a docker app.
+
+## Public URL
+
+The advertised hostname for a named host tunnel. Distinct from enabling the tunnel.
+
 ## Install root
 
 `BROS_DIR`. Install default `~/.bros` (binary location). Runtime: shell, else `.env` beside the real binary, else the real binary’s directory.

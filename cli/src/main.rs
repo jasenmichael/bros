@@ -621,7 +621,7 @@ fn ensure_dirs(repo: &Path, data: &Path) {
     if !dest.is_file() {
         let _ = fs::write(
             &dest,
-            "# Bros bootstrap. Host layout is BROS_DIR + $BROS_DIR/data.\n# Compose sets in-container working_dir=/app and data at /app/data.\n# Uncomment to enable a named Cloudflare tunnel:\n# public_url: https://bros.example.com\n",
+            "# Bros bootstrap. Host layout is BROS_DIR + $BROS_DIR/data.\n# Compose sets in-container working_dir=/app and data at /app/data.\n# Opt-in host Cloudflare tunnel (named when public_url is set):\n# tunnel: true\n# public_url: https://bros.example.com\n",
         );
     }
     env::set_var("BROS_CONFIG_HOST", &dest);

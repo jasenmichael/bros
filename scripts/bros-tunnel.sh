@@ -131,18 +131,39 @@ bros_tunnel_persist_public_url() {
   fi
 }
 
-# public_url set → enable + persist advertised URL. Unset → no config autostart.
-# Returns 0 when startup should start the tunnel.
+# Persist advertised hostname from config. Does not enable the tunnel.
 bros_tunnel_apply_public_url() {
   local url
   url="$(bros_tunnel_read_public_url)"
   bros_tunnel_persist_public_url "$url"
   if [[ -n "$url" ]]; then
     export BROS_PUBLIC_URL="$url"
-    bros_tunnel_set_enabled 1
-    return 0
   fi
-  return 1
+}
+
+# true / 1 / yes (any case) → 0; everything else → 1.
+bros_tunnel_truthy() {
+  local v
+  v="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  case "$v" in
+    true|1|yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# BROS_TUNNEL when set (even empty), else YAML tunnel. Env wins over YAML.
+bros_tunnel_want_enabled() {
+  local raw file
+  if [[ -n "${BROS_TUNNEL+x}" ]]; then
+    raw="$(bros_tunnel_trim "${BROS_TUNNEL}")"
+  else
+    file="$(bros_find_bootstrap_yaml)" || true
+    raw=""
+    if [[ -n "${file:-}" ]]; then
+      raw="$(bros_tunnel_trim "$(bros_yaml_scalar "$file" "tunnel")")"
+    fi
+  fi
+  bros_tunnel_truthy "$raw"
 }
 
 bros_tunnel_report_start_result() {
@@ -408,24 +429,16 @@ bros_tunnel_wizard() {
   return 0
 }
 
-# public_url is the enable signal. First-run prompt only when that key is unset.
+# Opt-in via BROS_TUNNEL / YAML tunnel. Hostname only selects named vs quick.
 bros_tunnel_startup() {
   export PATH="${HOME}/.local/bin:${PATH}"
   bros_tunnel_ensure_dir
 
-  if bros_tunnel_apply_public_url; then
-    :
-  elif ! bros_tunnel_enabled_known; then
-    if [[ -t 0 ]]; then
-      echo ""
-      read -r -p "Enable Cloudflare tunnel (host cloudflared quick tunnel to ${BROS_HOST:-0.0.0.0}:${BROS_PORT:-3055})? [y/N] " ans || true
-      case "${ans:-}" in
-        y|Y|yes|YES) bros_tunnel_set_enabled 1 ;;
-        *) bros_tunnel_set_enabled 0 ;;
-      esac
-    else
-      bros_tunnel_set_enabled 0
-    fi
+  bros_tunnel_apply_public_url
+  if bros_tunnel_want_enabled; then
+    bros_tunnel_set_enabled 1
+  else
+    bros_tunnel_set_enabled 0
   fi
 
   if ! bros_tunnel_enabled; then

@@ -114,7 +114,7 @@ Persistent docker app + app state is `$BROS_DIR/data` on the host (`./data` in a
 
 ## Host tunnel
 
-`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_DIR/data/var/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. One hostname to Bros `:3055`. Docker app Open/Pin stay LAN except `proxy.public` webuis on the same host. No shipped pack opts in today. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `BROS_DEV=1 ./bros` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
+`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_DIR/data/var/tunnel`. Enable is opt-in (`BROS_TUNNEL` or YAML `tunnel`); `public_url` / `BROS_TUNNEL_HOST` is hostname only (named tunnel + `route dns` when set). The container never spawns `cloudflared`. One hostname to Bros `:3055`. Docker app Open/Pin stay LAN except `proxy.public` webuis on the same host. No shipped pack opts in today. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `BROS_DEV=1 ./bros` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
 
 ## Recent (internal Docker APIs)
 

@@ -26,9 +26,11 @@ Server settings live in `$BROS_DIR/bros.yml`. Chat prepend and assistant descrip
 | `BROS_PORT` | `3055` | UI host port |
 | `BROS_HOST` | `0.0.0.0` | UI listen address. `127.0.0.1` stays on this machine |
 | `BROS_APPS_ENABLED` | empty | Comma list of addon docker app ids to start on boot (union with SQLite Autostart). Ollama always starts. Whisper follows Settings. |
-| `BROS_PUBLIC_URL` | empty | Wins over YAML `public_url` / tunnel host |
+| `BROS_PUBLIC_URL` | empty | Named tunnel hostname; wins over `BROS_TUNNEL_HOST` / YAML `public_url`. Does not enable the tunnel. |
+| `BROS_TUNNEL` | unset | Opt-in host tunnel (`true` / `1` / `yes`). When set, wins over YAML `tunnel`. Unset/empty/`false`/`0`/`no` = off. |
+| `BROS_TUNNEL_HOST` | empty | Named hostname when `BROS_PUBLIC_URL` unset (bare host gets `https://`). Does not enable the tunnel. |
 
-Host Ollama and Whisper toggles are Settings / `bros.yml` (`enable_host_ollama`, `enable_whisper`), not `.env`.
+Host Ollama and Whisper toggles are Settings / `bros.yml` (`enable_host_ollama`, `enable_whisper`), not `.env`. Tunnel enable is `BROS_TUNNEL` / YAML `tunnel`.
 
 ## Local smoke
 

@@ -92,9 +92,13 @@ Opens a browser so Cloudflare can authorize this host. Success writes `~/.cloudf
 
 `bros` Stage 2 offers this command. Skip it and the tunnel stays off until you run it yourself. The logged-in account must own the DNS zone for a **named** tunnel hostname.
 
+## Enable (opt-in)
+
+Tunnel is **off** by default. Autostart only when `BROS_TUNNEL` is `true` / `1` / `yes` (any case), or — when that env is unset — YAML `tunnel` with the same truthy values (`$BROS_DIR/bros.yml`). Hostname (`public_url` / `BROS_TUNNEL_HOST`) never enables. The Dashboard card can start or stop for the current helper life; the next `bros` start rewrites enable from config.
+
 ## Named vs quick
 
-When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel helper loads (`$BROS_DIR/bros.yml`, else legacy `$BROS_DIR/data/config/bros.yml`):
+When the tunnel is enabled **and** a hostname is set via `BROS_PUBLIC_URL`, else `BROS_TUNNEL_HOST`, else YAML `public_url` (not `*.trycloudflare.com`):
 
 1. `cloudflared` on `PATH` (or `~/.local/bin/cloudflared`)
 2. Login via `~/.cloudflared/cert.pem` or `cloudflared tunnel list`
@@ -102,13 +106,7 @@ When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel h
 
 `config.yml` uses `protocol: http2` and `edge-ip-version: 4`, hostname ingress to `http://<BROS_HOST>:<BROS_PORT>`, and a catch-all `http_status:404`. Override with `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`.
 
-When `public_url` is unset, first interactive `bros` may ask:
-
-```text
-Enable Cloudflare tunnel (host cloudflared quick tunnel to 127.0.0.1:3055)? [y/N]
-```
-
-The Dashboard card then starts a **quick** tunnel: `cloudflared tunnel --url http://<BROS_HOST>:<BROS_PORT>`. Hostname is `*.trycloudflare.com`. A `public_url` whose host is already `*.trycloudflare.com` stays quick (no `route dns`).
+When enabled and hostname is unset, a **quick** tunnel runs: `cloudflared tunnel --url http://<BROS_HOST>:<BROS_PORT>`. Hostname is `*.trycloudflare.com`. A configured host that is already `*.trycloudflare.com` stays quick (no `route dns`). The Dashboard card can also start a quick tunnel at runtime while the helper is up.
 
 Already-exists on `route dns` is success. If `route dns` times out on the Cloudflare API, the tunnel still starts and Status/Dashboard show the CLI warning plus the expected CNAME. If the logged-in account does not own the zone, start fails and the error is written to `status.json`.
 
@@ -142,16 +140,17 @@ $BROS_DIR/data/var/tunnel/
 
 ## Config and env
 
-`BROS_PUBLIC_URL`, else `BROS_TUNNEL_HOST` from `.env`, else YAML `public_url` is the enable + hostname signal. A bare `BROS_TUNNEL_HOST` gets `https://`. All three unset does not autostart; the first-run prompt or the Dashboard card writes `$BROS_DIR/data/var/tunnel/enabled`.
+Enable: `BROS_TUNNEL` when set, else YAML `tunnel`. Hostname: `BROS_PUBLIC_URL`, else `BROS_TUNNEL_HOST` from `.env`, else YAML `public_url`. A bare `BROS_TUNNEL_HOST` gets `https://`. Hostname alone does not autostart.
 
 | Variable | Default | Role |
 | --- | --- | --- |
-| `BROS_PUBLIC_URL` | unset | Named tunnel hostname (overrides YAML) |
+| `BROS_TUNNEL` | unset | Opt-in enable (`true` / `1` / `yes`). Wins over YAML `tunnel` when set. |
+| `BROS_PUBLIC_URL` | unset | Named tunnel hostname (overrides `BROS_TUNNEL_HOST` / YAML) |
 | `BROS_PORT` | `3055` | App port the helper targets |
 | `BROS_HOST` | `0.0.0.0` | App listen address. The helper connects to `127.0.0.1` when this is `0.0.0.0`. |
 | `BROS_TUNNEL_PROTOCOL` | `http2` | `http2` / `quic` / `auto` |
 | `BROS_TUNNEL_EDGE_IP_VERSION` | `4` | `4` / `6` / `auto` |
-| `BROS_TUNNEL_HOST` | unset | Named hostname from `.env` when `public_url` is unset. Also a via-tunnel Host match |
+| `BROS_TUNNEL_HOST` | unset | Named hostname when `BROS_PUBLIC_URL` unset. Also a via-tunnel Host match |
 | `BROS_TUNNEL_NAME` | `bros` | Named tunnel name |
 | `BROS_TUNNEL_DIR` | `$BROS_DIR/data/var/tunnel` | Helper files |
 | `BROS_TUNNEL_ROUTE_TIMEOUT` | `20` | Seconds for `cloudflared tunnel route dns` |

@@ -12,7 +12,7 @@ Docs: `$BROS_DIR/docs/tunnel.md` first, else GitHub `docs/tunnel.md`. Status: `/
 
 ## Host tunnel
 
-Optional host `cloudflared` (`cloudflared login`). Set `public_url` in `$BROS_DIR/data/config/bros.yml` for a named tunnel to that hostname.
+Optional host `cloudflared` (`cloudflared login`). Off by default. Enable with `BROS_TUNNEL=true` or YAML `tunnel: true`. Set `public_url` (or `BROS_TUNNEL_HOST`) for a named tunnel hostname; hostname alone does not enable.
 
 Do **not** add extra Cloudflare hostnames per docker UI.
 

@@ -9,9 +9,13 @@ const TUNNEL_SH = join(REPO, 'scripts/bros-tunnel.sh')
 const HELPER_SH = join(REPO, 'scripts/bros-tunnel-helper.sh')
 
 function bash(script: string, env: NodeJS.ProcessEnv = {}) {
+  const merged: NodeJS.ProcessEnv = { ...process.env, ...env }
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined) delete merged[key]
+  }
   return execFileSync('bash', ['-c', script], {
     encoding: 'utf8',
-    env: { ...process.env, ...env },
+    env: merged,
   })
 }
 
@@ -29,34 +33,47 @@ describe('public_url tunnel startup', () => {
     expect(named.indexOf('unset TUNNEL_TOKEN')).toBeLessThan(named.indexOf('tunnel --config'))
   })
 
-  it('set public_url → start attempted (enabled + advertised host)', () => {
+  it('public_url alone persists hostname but does not enable', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-puburl-set-'))
     writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\npublic_url: "https://bros.example.com"\n')
     const out = bash(
       `set -euo pipefail
        source "${TUNNEL_SH}"
-       if bros_tunnel_apply_public_url; then echo WANT_START; else echo NO_START; fi
-       cat "$(bros_tunnel_dir)/enabled"
+       bros_tunnel_apply_public_url
+       if bros_tunnel_want_enabled; then echo WANT_START; else echo NO_START; fi
        cat "$(bros_tunnel_dir)/public_url"
        cat "$(bros_tunnel_dir)/hostname"`,
-      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
+      {
+        BROS_DIR: root,
+        BROS_DATA_DIR: join(root, 'data'),
+        BROS_PUBLIC_URL: '',
+        BROS_TUNNEL_HOST: '',
+        BROS_TUNNEL: undefined,
+      },
     )
-    expect(out).toContain('WANT_START')
+    expect(out).toContain('NO_START')
     expect(out).toContain('https://bros.example.com')
     expect(out).toContain('bros.example.com')
-    expect(readFileSync(join(root, 'data/var/tunnel/enabled'), 'utf8').trim()).toBe('1')
+    expect(existsSync(join(root, 'data/var/tunnel/enabled'))).toBe(false)
   })
 
-  it('unset public_url → no auto-start from config', () => {
+  it('unset tunnel → no auto-start from config', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-puburl-unset-'))
     writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\n')
     const out = bash(
       `set -euo pipefail
        source "${TUNNEL_SH}"
-       if bros_tunnel_apply_public_url; then echo WANT_START; else echo NO_START; fi
+       bros_tunnel_apply_public_url
+       if bros_tunnel_want_enabled; then echo WANT_START; else echo NO_START; fi
        if [[ -f "$(bros_tunnel_dir)/enabled" ]]; then cat "$(bros_tunnel_dir)/enabled"; else echo NO_ENABLED; fi
        if [[ -f "$(bros_tunnel_dir)/command" ]]; then echo HAS_COMMAND; else echo NO_COMMAND; fi`,
-      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
+      {
+        BROS_DIR: root,
+        BROS_DATA_DIR: join(root, 'data'),
+        BROS_PUBLIC_URL: '',
+        BROS_TUNNEL_HOST: '',
+        BROS_TUNNEL: undefined,
+      },
     )
     expect(out).toContain('NO_START')
     expect(out).toContain('NO_ENABLED')
@@ -64,18 +81,65 @@ describe('public_url tunnel startup', () => {
     expect(existsSync(join(root, 'data/var/tunnel/command'))).toBe(false)
   })
 
-  it('BROS_TUNNEL_HOST → named start when public_url is unset', () => {
+  it('BROS_TUNNEL=1 + BROS_TUNNEL_HOST → want start with named host', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-puburl-host-'))
     writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\n')
     const out = bash(
       `set -euo pipefail
        source "${TUNNEL_SH}"
-       if bros_tunnel_apply_public_url; then echo WANT_START; else echo NO_START; fi
+       bros_tunnel_apply_public_url
+       if bros_tunnel_want_enabled; then echo WANT_START; else echo NO_START; fi
        cat "$(bros_tunnel_dir)/hostname"`,
-      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: 'bros.example.com' },
+      {
+        BROS_DIR: root,
+        BROS_DATA_DIR: join(root, 'data'),
+        BROS_PUBLIC_URL: '',
+        BROS_TUNNEL: '1',
+        BROS_TUNNEL_HOST: 'bros.example.com',
+      },
     )
     expect(out).toContain('WANT_START')
     expect(out).toContain('bros.example.com')
+  })
+
+  it('BROS_TUNNEL=0 + public_url → no start', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-tunnel-off-'))
+    writeFileSync(
+      join(root, 'bros.yml'),
+      'working_dir: .\ndata_dir: ./data\ntunnel: true\npublic_url: "https://bros.example.com"\n',
+    )
+    const out = bash(
+      `set -euo pipefail
+       source "${TUNNEL_SH}"
+       bros_tunnel_apply_public_url
+       if bros_tunnel_want_enabled; then echo WANT_START; else echo NO_START; fi`,
+      {
+        BROS_DIR: root,
+        BROS_DATA_DIR: join(root, 'data'),
+        BROS_PUBLIC_URL: '',
+        BROS_TUNNEL_HOST: '',
+        BROS_TUNNEL: '0',
+      },
+    )
+    expect(out).toContain('NO_START')
+  })
+
+  it('YAML tunnel: true → want start', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-tunnel-yaml-'))
+    writeFileSync(join(root, 'bros.yml'), 'working_dir: .\ndata_dir: ./data\ntunnel: true\n')
+    const out = bash(
+      `set -euo pipefail
+       source "${TUNNEL_SH}"
+       if bros_tunnel_want_enabled; then echo WANT_START; else echo NO_START; fi`,
+      {
+        BROS_DIR: root,
+        BROS_DATA_DIR: join(root, 'data'),
+        BROS_PUBLIC_URL: '',
+        BROS_TUNNEL_HOST: '',
+        BROS_TUNNEL: undefined,
+      },
+    )
+    expect(out).toContain('WANT_START')
   })
 
   it('advertised url is the configured host, else the enabled helper url', () => {

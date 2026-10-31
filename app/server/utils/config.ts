@@ -80,9 +80,18 @@ function parseYamlFile(path: string): FileConfig {
   return out
 }
 
+/** Bare host → `https://…` (same as bash `bros_tunnel_read_public_url`). */
+function publicUrlFromTunnelHost(raw: string): string {
+  const host = raw.trim()
+  if (!host) return ''
+  if (host.includes('://')) return host
+  return `https://${host}`
+}
+
 /**
  * `$BROS_DIR/bros.yml`. Data is `BROS_DATA_DIR` or `$BROS_DIR/data`.
- * `BROS_PUBLIC_URL` overrides YAML `public_url`.
+ * Hostname: `BROS_PUBLIC_URL`, else `BROS_TUNNEL_HOST`, else YAML `public_url`.
+ * Tunnel enable is bash `BROS_TUNNEL` / YAML `tunnel` — not this field.
  */
 export function loadBootstrapConfig(cwd = process.cwd()): BootstrapConfig {
   const appDir = resolveAppDir(cwd)
@@ -90,7 +99,9 @@ export function loadBootstrapConfig(cwd = process.cwd()): BootstrapConfig {
   migrateDataLayout(dataDir, appDir)
   const file = parseYamlFile(brosYamlPath(appDir))
   const envPublic = process.env.BROS_PUBLIC_URL?.trim()
-  const publicUrl = envPublic || file.public_url || null
+  const envHost = process.env.BROS_TUNNEL_HOST?.trim()
+  const fromHost = envHost ? publicUrlFromTunnelHost(envHost) : ''
+  const publicUrl = envPublic || fromHost || file.public_url || null
   return {
     workingDir: appDir,
     dataDir,
@@ -161,10 +172,6 @@ export function hostWorkspaceForCompose(): string {
   const configured = loadBootstrapConfig().workspaceHost.trim()
   if (!configured || isContainerDataPath(configured)) return hostDefault
   return configured
-}
-
-export function shouldAutostartFromPublicUrl(publicUrl: string | null | undefined): boolean {
-  return Boolean(publicUrl && publicUrl.trim())
 }
 
 export function sessionSecretPath(dataDir = loadBootstrapConfig().dataDir): string {
