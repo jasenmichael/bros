@@ -102,12 +102,10 @@ _Avoid_: BROS_HOME
 ## Data dir
 
 `BROS_DATA_DIR`. Default `$BROS_DIR/data`. Host absolute path for Compose binds.
-_Avoid_: BROS_HOST_DATA_DIR
 
 ## Workspace
 
 `BROS_WORKSPACE`. Default `$BROS_DATA_DIR/home/workspace`. Desktop workspace bind.
-_Avoid_: BROS_HOST_WORKSPACE
 
 ## Desktop home
 
