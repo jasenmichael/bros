@@ -82,7 +82,7 @@ describe('Dashboard hub', () => {
     expect(providers!.text()).toContain('running')
     expect(providers!.text()).toContain('Groq')
     expect(providers!.text()).toContain('Pulling qwen3:14b · 40%')
-    expect(providers!.find('a[href="/providers"]').exists()).toBe(true)
+    expect(providers!.find('a[href="/settings/providers"]').exists()).toBe(true)
   })
 
   it('shows dockerApp phase and opens a running web UI', async () => {
@@ -95,7 +95,7 @@ describe('Dashboard hub', () => {
     expect(link.attributes('target')).toBe('_blank')
     expect(link.text()).toBe('Open')
     expect(wrapper.text()).not.toContain('cloudflared dockerApp missing')
-    expect(wrapper.find('a[href="/apps"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="/settings/desktop/apps"]').exists()).toBe(true)
   })
 
   it('links attention items to the page that can fix them', async () => {

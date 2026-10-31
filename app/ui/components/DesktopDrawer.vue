@@ -21,6 +21,7 @@ const menu = ref<{ x: number, y: number, key: string } | null>(null)
 let holdTimer = 0
 let poll = 0
 let suppressClick = false
+let pressApp: App | null = null
 
 const { data: drawer, refresh } = useFetch<{ library: App[] }>('/api/desktop/drawer', { key: 'desktop-drawer' })
 
@@ -44,6 +45,10 @@ function errText(err: unknown) {
   return err instanceof Error ? err.message : 'Request failed'
 }
 
+function focusRoot() {
+  rootEl.value?.focus({ preventScroll: true })
+}
+
 async function run(app: App, action: 'open' | 'close' | 'focus') {
   if (busy.value) return
   busy.value = rowKey(app)
@@ -52,10 +57,23 @@ async function run(app: App, action: 'open' | 'close' | 'focus') {
   try {
     await launchDesktop(app, action)
     await refresh()
+    if (action === 'open') void raiseWhenMapped(app)
   } catch (err: unknown) {
     note.value = errText(err)
   } finally {
     busy.value = ''
+  }
+}
+
+async function raiseWhenMapped(app: App) {
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 250))
+    await refresh()
+    const row = (drawer.value?.library || []).find((a) => rowKey(a) === rowKey(app))
+    if (row && row.windows > 0) {
+      try { await launchDesktop(app, 'focus') } catch { /* ignore */ }
+      return
+    }
   }
 }
 
@@ -83,30 +101,40 @@ function openMenu(app: App, event: { clientX: number, clientY: number, preventDe
   }
 }
 
-function holdStart(app: App, event: PointerEvent) {
+function pressStart(app: App, event: PointerEvent) {
   if (event.button !== 0) return
+  focusRoot()
+  pressApp = app
+  suppressClick = false
   window.clearTimeout(holdTimer)
   holdTimer = window.setTimeout(() => {
     suppressClick = true
+    pressApp = null
     openMenu(app, event)
   }, 500)
 }
 
-function holdEnd() {
+function pressEnd(event: PointerEvent) {
   window.clearTimeout(holdTimer)
-}
-
-function onClick(app: App) {
-  if (suppressClick) {
+  if (event.button !== 0) return
+  const app = pressApp
+  pressApp = null
+  if (!app || suppressClick) {
     suppressClick = false
     return
   }
   void run(app, app.windows > 0 ? 'focus' : 'open')
 }
 
+function pressCancel() {
+  window.clearTimeout(holdTimer)
+  pressApp = null
+}
+
 function show(event: PointerEvent | FocusEvent) {
   const was = open.value
   open.value = true
+  nextTick(() => focusRoot())
   if (!was && !busy.value) void refresh()
   if (event instanceof PointerEvent && event.pointerType === 'touch') touchHold.value = true
 }
@@ -147,7 +175,12 @@ defineEmits<{ library: [] }>()
 
 <template>
   <p v-if="note" class="absolute left-3 top-3 z-30 max-w-sm truncate text-xs text-amber-300">{{ note }}</p>
-  <div ref="rootEl" class="absolute inset-x-0 bottom-0 z-20" @pointerleave="hide">
+  <div
+    ref="rootEl"
+    class="absolute inset-x-0 bottom-0 z-20 outline-none"
+    tabindex="-1"
+    @pointerleave="hide"
+  >
     <div
       class="absolute inset-x-0 bottom-0 flex justify-center px-3 pb-8 transition-transform duration-200"
       :class="open ? 'translate-y-0' : 'pointer-events-none translate-y-full'"
@@ -161,11 +194,10 @@ defineEmits<{ library: [] }>()
             :title="row.name"
             :aria-label="row.windows > 0 ? row.name : `Launch ${row.name}`"
             :disabled="!!busy"
-            @click="onClick(row)"
             @contextmenu="openMenu(row, $event)"
-            @pointerdown="holdStart(row, $event)"
-            @pointerup="holdEnd"
-            @pointercancel="holdEnd"
+            @pointerdown="pressStart(row, $event)"
+            @pointerup="pressEnd"
+            @pointercancel="pressCancel"
           >
             <DesktopMark :icon="row.icon" :name="row.name" />
             <span v-if="row.windows > 1" class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bros-accent)] px-1 text-[10px] text-white">{{ row.windows }}</span>
@@ -176,7 +208,7 @@ defineEmits<{ library: [] }>()
           type="button"
           class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl hover:bg-white/10"
           aria-label="All apps"
-          @click="$emit('library')"
+          @pointerdown.prevent="$emit('library')"
         >
           <DesktopGridIcon />
         </button>

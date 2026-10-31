@@ -138,14 +138,17 @@ grep -q '^GTK_USE_PORTAL=' /home/bros/.config/labwc/environment || printf '%s\n'
 grep -q '^GTK_THEME=' /home/bros/.config/labwc/environment || printf '%s\n' 'GTK_THEME=Adwaita-dark' >> /home/bros/.config/labwc/environment
 grep -q '^GTK_APPLICATION_PREFER_DARK_THEME=' /home/bros/.config/labwc/environment || printf '%s\n' 'GTK_APPLICATION_PREFER_DARK_THEME=1' >> /home/bros/.config/labwc/environment
 portal_line='/usr/local/bin/bros-portals.sh &'
+wallpaper_line='/usr/local/bin/bros-wallpaper.sh &'
 if [ -f /home/bros/.config/labwc/autostart ]; then
   grep -q 'bros-portals\.sh' /home/bros/.config/labwc/autostart || printf '%s\n' "$portal_line" >> /home/bros/.config/labwc/autostart
+  grep -q 'bros-wallpaper\.sh' /home/bros/.config/labwc/autostart || printf '%s\n' "$wallpaper_line" >> /home/bros/.config/labwc/autostart
 elif id "$desktop_user" >/dev/null 2>&1; then
   runuser -u "$desktop_user" -- mkdir -p /home/bros/.config/labwc
-  runuser -u "$desktop_user" -- sh -c "printf '%s\n' \"$portal_line\" >> /home/bros/.config/labwc/autostart"
+  runuser -u "$desktop_user" -- sh -c "printf '%s\n' \"$portal_line\" >> /home/bros/.config/labwc/autostart; printf '%s\n' \"$wallpaper_line\" >> /home/bros/.config/labwc/autostart"
 else
   mkdir -p /home/bros/.config/labwc
   printf '%s\n' "$portal_line" >> /home/bros/.config/labwc/autostart
+  printf '%s\n' "$wallpaper_line" >> /home/bros/.config/labwc/autostart
 fi
 
 # Dark GTK for portal choosers (home + gsettings).
@@ -158,6 +161,7 @@ fi
 rc=/home/bros/.config/labwc/rc.xml
 # CSD apps: no labwc title bar. Portal chooser: also undo Selkies maximize-all.
 rule_cursor='  <windowRule identifier="*cursor*" serverDecoration="no" />'
+rule_ghostty='  <windowRule identifier="*ghostty*" serverDecoration="no" />'
 rule_portal='  <windowRule identifier="xdg-desktop-portal-gtk" serverDecoration="no"><action name="UnMaximize" /></windowRule>'
 rule_zenity='  <windowRule identifier="zenity" serverDecoration="no"><action name="UnMaximize" /></windowRule>'
 ensure_rule() {
@@ -182,6 +186,7 @@ if [ ! -f "$rc" ]; then
 <labwc_config>
   <windowRules>
 $rule_cursor
+$rule_ghostty
 $rule_portal
 $rule_zenity
   </windowRules>
@@ -193,6 +198,7 @@ EOF
 <labwc_config>
   <windowRules>
 $rule_cursor
+$rule_ghostty
 $rule_portal
 $rule_zenity
   </windowRules>
@@ -201,6 +207,7 @@ EOF
   fi
 else
   ensure_rule 'identifier="*cursor*"' "$rule_cursor"
+  ensure_rule 'identifier="*ghostty*"' "$rule_ghostty"
   ensure_rule 'identifier="xdg-desktop-portal-gtk"' "$rule_portal"
   ensure_rule 'identifier="zenity"' "$rule_zenity"
 fi

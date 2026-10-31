@@ -162,20 +162,19 @@ describe('upsertProvider config merge', () => {
     expect(getProvider('ollama-host')?.config).toMatchObject({ customModels: ['llama3.2'] })
   })
 
-  it('seeds 12 popular OpenAI-compat rows and refuses to delete them', async () => {
+  it('seeds 14 popular rows and refuses to delete them', async () => {
     const {
       ensureDefaultProviders,
       getProvider,
       deleteProvider,
-      upsertProvider,
     } = await import('../../app/server/utils/providers')
     const { PROVIDER_PRESETS, isPopularProvider } = await import('../../app/server/utils/providers/presets')
 
     ensureDefaultProviders()
-    expect(PROVIDER_PRESETS).toHaveLength(12)
+    expect(PROVIDER_PRESETS).toHaveLength(14)
     for (const preset of PROVIDER_PRESETS) {
       const row = getProvider(preset.id)
-      expect(row?.kind).toBe('openai')
+      expect(row?.kind).toBe(preset.kind)
       expect(row?.name).toBe(preset.name)
       expect(row?.baseUrl).toBe(preset.baseUrl)
       expect(row?.config.models).toEqual(preset.models)
@@ -198,6 +197,28 @@ describe('upsertProvider config merge', () => {
     ensureDefaultProviders()
     expect(getProvider('openai')?.config.models).toEqual(['gpt-4o-mini'])
     expect(getProviderSecret('openai')?.apiKey).toBe('sk-test')
+  })
+
+  it('hard-cuts leftover Anthropic openai kind to anthropic on ensure', async () => {
+    const { ensureDefaultProviders, getProvider, upsertProvider, getProviderSecret } = await import('../../app/server/utils/providers')
+    ensureDefaultProviders()
+    upsertProvider({
+      id: 'anthropic',
+      name: 'Anthropic',
+      kind: 'openai',
+      baseUrl: 'https://api.anthropic.com/v1',
+      apiKey: 'sk-ant-test',
+      enabled: true,
+      config: { models: ['claude-sonnet-4-6'], disabledModels: ['claude-opus-4-7'] },
+    })
+    ensureDefaultProviders()
+    const row = getProvider('anthropic')
+    expect(row?.kind).toBe('anthropic')
+    expect(row?.baseUrl).toBe('https://api.anthropic.com/v1')
+    expect(row?.enabled).toBe(true)
+    expect(row?.config.models).toEqual(['claude-sonnet-4-6'])
+    expect(row?.config.disabledModels).toEqual(['claude-opus-4-7'])
+    expect(getProviderSecret('anthropic')?.apiKey).toBe('sk-ant-test')
   })
 
   it('treats popular slugs as reserved so custom cannot reuse openai', async () => {
@@ -317,6 +338,35 @@ describe('upsertProvider config merge', () => {
       await setProviderEnabled('openai', true)
       expect(getProvider('openai')?.enabled).toBe(true)
       expect(getProvider('groq')?.enabled).toBe(false)
+    }
+    finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('probes Anthropic with x-api-key headers', async () => {
+    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider } = await import('../../app/server/utils/providers')
+    ensureDefaultProviders()
+    upsertProvider({
+      id: 'anthropic',
+      name: 'Anthropic',
+      kind: 'anthropic',
+      baseUrl: 'https://api.anthropic.com/v1',
+      apiKey: 'sk-ant-good',
+    })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('https://api.anthropic.com/v1/models')
+      const headers = init?.headers as Record<string, string>
+      expect(headers['x-api-key']).toBe('sk-ant-good')
+      expect(headers['anthropic-version']).toBe('2023-06-01')
+      expect(headers.authorization).toBeUndefined()
+      return new Response(JSON.stringify({ data: [{ id: 'claude-sonnet-4-6' }] }), { status: 200 })
+    }) as typeof fetch
+    try {
+      await setProviderEnabled('anthropic', true)
+      expect(getProvider('anthropic')?.enabled).toBe(true)
+      expect(getProvider('anthropic')?.kind).toBe('anthropic')
     }
     finally {
       globalThis.fetch = originalFetch

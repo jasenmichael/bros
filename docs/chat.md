@@ -30,7 +30,7 @@ Assistant and user bodies render as markdown with the same theme prose as Docs (
 
 User turns show **Copy** and **Edit** under the bubble. Edit + **Resend** stops any in-flight stream (same abort as **Stop**), deletes that user turn and every later row (`POST /api/chat/:id/truncate` with `fromMessageId` / `fromIndex`), then sends the edited text. Personality and rules skills load the same way as a normal send. Title still auto-titles only the first successful reply of a New chat.
 
-Popular services and custom providers both use OpenAI-compatible `POST /chat/completions`. Bros sends `stream_options.include_usage` when the body allows it, and reads `delta.content` or `delta.reasoning_content` (DeepSeek reasoner otherwise streams empty). OpenRouter requests add `HTTP-Referer` and `X-Title: Bros`.
+Most Popular services and all custom providers use OpenAI-compatible `POST /chat/completions`. Bros sends `stream_options.include_usage` when the body allows it, and reads `delta.content` or `delta.reasoning_content` (DeepSeek reasoner otherwise streams empty). OpenRouter requests add `HTTP-Referer` and `X-Title: Bros`. Popular Anthropic uses `POST /messages` with `x-api-key` and `anthropic-version: 2023-06-01`.
 
 Personality and rules skills load on each user send as one system message. The rules skill says the model has no tools and must not pretend to browse, read files, or run commands. The request has no tool schemas. Stored turns stay as typed. Empty skill bodies are omitted. Internal `bros` title generate is unchanged (`Label:` only).
 

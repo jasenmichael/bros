@@ -148,7 +148,7 @@ const showPackageCheck = computed(() => !!props.pkg && packageOn.value && props.
 const showPackageUpdate = computed(() => !!props.pkg && packageOn.value && (props.pkg.kind === 'run' || !!props.updateReady))
 const showEdit = computed(() => !!props.docker?.editable || (!!props.pkg && (props.pkg.tier === 'custom' || !props.pkg.tier)))
 const showLogs = computed(() => !!props.docker || (props.pkg?.services?.length || 0) > 0)
-const logsTo = computed(() => `/apps/${id.value}/logs`)
+const logsTo = computed(() => `/settings/desktop/apps/${id.value}/logs`)
 const showToggles = computed(() => {
   if (props.docker) return !isCore.value || pinLinks.value.length > 0
   return hasWebui.value

@@ -124,14 +124,14 @@ export function buildAttention(input: {
     items.push({
       id: `dockerApp:${dockerApp.id}`,
       text: dockerApp.error ? `${dockerApp.name}: ${dockerApp.error}` : `${dockerApp.name} is in error`,
-      href: '/apps',
+      href: '/settings/desktop/apps',
     })
   }
   if (input.ollamaPhase === 'stopped') {
     items.push({
       id: 'ollama',
       text: 'Ollama is stopped',
-      href: '/apps',
+      href: '/settings/desktop/apps',
     })
   }
   if (diskNeedsAttention(input.diskFreeBytes, input.diskTotalBytes)) {
@@ -145,7 +145,7 @@ export function buildAttention(input: {
     items.push({
       id: 'chat',
       text: 'No provider is on for chat',
-      href: '/providers',
+      href: '/settings/providers',
     })
   }
   return items

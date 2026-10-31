@@ -1,11 +1,11 @@
 ---
 title: Anthropic
-description: Claude via Anthropic OpenAI-compat. Paid.
+description: Claude via Anthropic Messages API. Paid.
 ---
 
 # Anthropic
 
-Anthropic Claude via their OpenAI-compatible layer. Paid. Popular Anthropic is seeded as `kind: openai`. Leftover `kind: anthropic` rows still use the native stream.
+Anthropic Claude via the Messages API. Paid. Popular Anthropic is seeded as `kind: anthropic`.
 
 ## Key
 
@@ -22,8 +22,9 @@ Status is **Ready** after a live `GET /models` with that key succeeds. A saved k
 ## API
 
 - Base URL: `https://api.anthropic.com/v1`
-- Auth: `Authorization: Bearer <key>`
-- Chat: `POST /chat/completions` (OpenAI-compat, not `/v1/messages`)
+- Auth: `x-api-key: <key>` plus `anthropic-version: 2023-06-01`
+- Chat: `POST /messages`
+- Probe: `GET /models` with the same Anthropic headers
 
 Default model ids (editable on the card; live `GET /models` merges when a key exists):
 

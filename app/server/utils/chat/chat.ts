@@ -299,7 +299,9 @@ export async function streamChat(opts: {
   if (row?.kind === 'openai' || row?.kind === 'anthropic') {
     const secret = getProviderSecret(provider)
     if (!secret?.row?.enabled) throw createError({ statusCode: 400, statusMessage: `Provider ${provider} not configured` })
-    const base = (secret.row.baseUrl || (row.kind === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com')).replace(/\/$/, '')
+    const base = (secret.row.baseUrl || (row.kind === 'openai'
+      ? 'https://api.openai.com/v1'
+      : 'https://api.anthropic.com/v1')).replace(/\/$/, '')
 
     if (row.kind === 'openai') {
       const extraHeaders = getProviderPreset(provider)?.headers || {}
@@ -349,7 +351,7 @@ export async function streamChat(opts: {
       return usage
     }
 
-    const res = await fetch(`${base}/v1/messages`, {
+    const res = await fetch(`${base}/messages`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

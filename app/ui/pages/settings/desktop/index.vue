@@ -1,3 +1,7 @@
 <script setup lang="ts">
-await navigateTo('/apps', { redirectCode: 302 })
+useSeoMeta({ title: 'Desktop' })
 </script>
+
+<template>
+  <SettingsDesktopBackground />
+</template>

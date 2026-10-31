@@ -15,9 +15,11 @@ const emit = defineEmits<{ opened: [] }>()
 const note = ref('')
 const busy = ref(false)
 const q = ref('')
+const rootEl = ref<HTMLElement | null>(null)
 const menu = ref<{ x: number, y: number, key: string } | null>(null)
 let holdTimer = 0
 let suppressClick = false
+let pressApp: App | null = null
 
 const { data: drawer, refresh } = useFetch<{ library: App[] }>('/api/desktop/drawer', { key: 'desktop-drawer' })
 
@@ -41,11 +43,23 @@ function errText(err: unknown) {
   return err instanceof Error ? err.message : 'Request failed'
 }
 
-async function open(app: App) {
-  if (suppressClick) {
-    suppressClick = false
-    return
+function focusRoot() {
+  rootEl.value?.focus({ preventScroll: true })
+}
+
+async function raiseWhenMapped(app: App) {
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 250))
+    await refresh()
+    const row = (drawer.value?.library || []).find((a) => appKey(a) === appKey(app))
+    if (row && row.windows > 0) {
+      try { await launchDesktop(app, 'focus') } catch { /* ignore */ }
+      return
+    }
   }
+}
+
+async function open(app: App) {
   if (busy.value) return
   busy.value = true
   note.value = ''
@@ -53,6 +67,7 @@ async function open(app: App) {
   try {
     await launchDesktop(app, 'open')
     await refresh()
+    void raiseWhenMapped(app)
     emit('opened')
   } catch (err: unknown) {
     note.value = errText(err)
@@ -86,34 +101,56 @@ function openMenu(app: App, event: { clientX: number, clientY: number, preventDe
   }
 }
 
-function holdStart(app: App, event: PointerEvent) {
+function pressStart(app: App, event: PointerEvent) {
   if (event.button !== 0) return
+  focusRoot()
+  pressApp = app
+  suppressClick = false
   window.clearTimeout(holdTimer)
   holdTimer = window.setTimeout(() => {
     suppressClick = true
+    pressApp = null
     openMenu(app, event)
   }, 500)
 }
 
-function holdEnd() {
+function pressEnd(event: PointerEvent) {
   window.clearTimeout(holdTimer)
+  if (event.button !== 0) return
+  const app = pressApp
+  pressApp = null
+  if (!app || suppressClick) {
+    suppressClick = false
+    return
+  }
+  void open(app)
+}
+
+function pressCancel() {
+  window.clearTimeout(holdTimer)
+  pressApp = null
 }
 
 function clearMenu() {
   menu.value = null
 }
 
-onMounted(() => document.addEventListener('pointerdown', clearMenu))
+onMounted(() => {
+  document.addEventListener('pointerdown', clearMenu)
+  nextTick(() => focusRoot())
+})
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', clearMenu)
   window.clearTimeout(holdTimer)
 })
+
+defineExpose({ focusRoot })
 </script>
 
 <template>
-  <div class="p-4 pb-14">
+  <div ref="rootEl" class="p-4 pb-14 outline-none" tabindex="-1">
     <p v-if="note" class="mb-3 text-sm text-amber-300">{{ note }}</p>
-    <div class="relative mb-4 w-full max-w-xs">
+    <div class="relative mx-auto mb-4 w-full max-w-xs">
       <UIcon name="i-lucide-search" class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[var(--bros-muted)]" aria-hidden="true" />
       <input
         v-model="q"
@@ -129,11 +166,10 @@ onBeforeUnmount(() => {
         type="button"
         class="flex w-[6.5rem] shrink-0 flex-col items-center gap-2 rounded-xl px-2 py-3 hover:bg-white/10 disabled:opacity-50"
         :disabled="busy"
-        @click="open(app)"
         @contextmenu="openMenu(app, $event)"
-        @pointerdown="holdStart(app, $event)"
-        @pointerup="holdEnd"
-        @pointercancel="holdEnd"
+        @pointerdown="pressStart(app, $event)"
+        @pointerup="pressEnd"
+        @pointercancel="pressCancel"
       >
         <DesktopMark :icon="app.icon" :name="app.name" />
         <span class="line-clamp-2 w-full text-center text-xs text-white">{{ app.name }}</span>

@@ -165,10 +165,20 @@ async function logout() {
 <template>
   <BrosPageShell title="Settings" description="Personality and rules skills, Whisper, bootstrap paths (read-only), proxy key, and passkey.">
     <div class="max-w-xl space-y-6">
-      <p class="text-sm text-[var(--bros-muted)]">
-        Install and configure apps on
-        <NuxtLink to="/apps" class="text-white underline">Apps</NuxtLink>.
-      </p>
+      <div class="space-y-2 text-sm text-[var(--bros-muted)]">
+        <p>
+          Desktop background:
+          <NuxtLink to="/settings/desktop" class="text-white underline">Desktop</NuxtLink>.
+        </p>
+        <p>
+          Install and configure apps on
+          <NuxtLink to="/settings/desktop/apps" class="text-white underline">Desktop apps</NuxtLink>.
+        </p>
+        <p>
+          Chat model providers:
+          <NuxtLink to="/settings/providers" class="text-white underline">Providers</NuxtLink>.
+        </p>
+      </div>
       <form class="space-y-3" @submit.prevent="saveChat">
         <h2 class="text-lg font-medium text-white">Chat</h2>
         <label class="block space-y-1">

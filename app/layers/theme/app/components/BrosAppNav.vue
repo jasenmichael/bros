@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BrosNavItem } from '../types/nav'
+import { applySectionDrag, MIN_SECTION_FLEX } from '../composables/useNavDock'
 
 const props = withDefaults(defineProps<{
   brand?: string
@@ -22,10 +23,15 @@ const props = withDefaults(defineProps<{
 const {
   iconMode,
   isDesktop,
+  overlayNav,
   panelVisible,
   dockWidth,
+  sectionPrimary,
+  sectionChat,
+  sectionPinned,
   hydrate,
   persist,
+  persistSections,
   closeDesktop,
   toggleIconMode,
   applyResizeDelta,
@@ -33,19 +39,21 @@ const {
 } = useNavDock()
 
 const route = useRoute()
+const navBody = ref<HTMLElement | null>(null)
+
 onMounted(() => {
   hydrate()
   const mq = window.matchMedia('(min-width: 1024px)')
   const onMq = () => {
     isDesktop.value = mq.matches
-    if (mq.matches) closeMobile()
+    if (mq.matches && !overlayNav.value) closeMobile()
   }
   mq.addEventListener('change', onMq)
   onMq()
 })
 
 watch(() => route.fullPath, () => {
-  if (!isDesktop.value) closeMobile()
+  closeMobile()
 })
 
 const resizing = ref(false)
@@ -53,7 +61,7 @@ let resizeStartX = 0
 let resizeStartW = 0
 
 function onResizeStart(ev: PointerEvent) {
-  if (!isDesktop.value) return
+  if (overlayNav.value) return
   ev.stopPropagation()
   resizing.value = true
   resizeStartX = ev.clientX
@@ -62,28 +70,90 @@ function onResizeStart(ev: PointerEvent) {
 }
 
 function onPointerMove(ev: PointerEvent) {
+  if (sectionDrag) {
+    const dy = ev.clientY - sectionDrag.startY
+    const [a, b] = sectionDrag.kind === 'primary-chat'
+      ? applySectionDrag(sectionDrag.a, sectionDrag.b, dy, sectionDrag.span, 0, 0)
+      : applySectionDrag(sectionDrag.a, sectionDrag.b, dy, sectionDrag.span, 0, MIN_SECTION_FLEX)
+    if (sectionDrag.kind === 'primary-chat') {
+      sectionPrimary.value = a
+      sectionChat.value = b
+    } else if (sectionDrag.kind === 'chat-pinned') {
+      sectionChat.value = a
+      sectionPinned.value = b
+    } else if (sectionDrag.kind === 'primary-pinned') {
+      sectionPrimary.value = a
+      sectionPinned.value = b
+    }
+    return
+  }
   if (!resizing.value) return
   applyResizeDelta(resizeStartW, ev.clientX - resizeStartX)
 }
 
 function onPointerUp() {
+  if (sectionDrag) {
+    persistSections()
+    sectionDrag = null
+  }
   if (resizing.value) persist()
   resizing.value = false
 }
 
 const dockStyle = computed(() => {
-  if (!isDesktop.value) return undefined
+  if (overlayNav.value) return undefined
   return { width: `${dockWidth.value}px` }
 })
 
-function linkTitle(item: BrosNavItem) {
-  return iconMode.value ? item.label : undefined
+const slots = useSlots()
+const showIconChrome = computed(() => iconMode.value && !overlayNav.value)
+const hasChat = computed(() => !!slots['after-primary'])
+const hasPinned = computed(() => props.showPinned)
+const hasFooter = computed(() => props.bottomItems.length > 0)
+
+type SectionDrag = {
+  kind: 'primary-chat' | 'chat-pinned' | 'primary-pinned'
+  startY: number
+  a: number
+  b: number
+  span: number
+}
+let sectionDrag: SectionDrag | null = null
+
+function sectionTotal() {
+  let n = sectionPrimary.value
+  if (hasChat.value) n += sectionChat.value
+  if (hasPinned.value) n += sectionPinned.value
+  return Math.max(n, 0.01)
+}
+
+function onSectionDragStart(kind: SectionDrag['kind'], ev: PointerEvent) {
+  ev.preventDefault()
+  ev.stopPropagation()
+  const body = navBody.value
+  if (!body) return
+  const h = body.clientHeight
+  const total = sectionTotal()
+  const pair
+    = kind === 'primary-chat' ? [sectionPrimary.value, sectionChat.value] as const
+      : kind === 'chat-pinned' ? [sectionChat.value, sectionPinned.value] as const
+        : [sectionPrimary.value, sectionPinned.value] as const
+  const pairSum = pair[0] + pair[1]
+  const span = pairSum > 0 ? h * (pairSum / total) : Math.max(120, h * 0.25)
+  sectionDrag = {
+    kind,
+    startY: ev.clientY,
+    a: pair[0],
+    b: pair[1],
+    span: Math.max(1, span),
+  }
+  ;(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId)
 }
 </script>
 
 <template>
   <div
-    v-if="!isDesktop && panelVisible"
+    v-if="overlayNav && panelVisible"
     class="bros-nav-backdrop"
     @click="closeMobile"
   />
@@ -92,9 +162,9 @@ function linkTitle(item: BrosNavItem) {
     id="bros-nav-panel"
     class="bros-nav-panel"
     :class="{
-      'bros-nav-panel--desktop': isDesktop,
-      'bros-nav-panel--mobile': !isDesktop,
-      'bros-nav-panel--icon': iconMode && isDesktop,
+      'bros-nav-panel--desktop': !overlayNav,
+      'bros-nav-panel--mobile': overlayNav,
+      'bros-nav-panel--icon': showIconChrome,
     }"
     :style="dockStyle"
     :aria-hidden="!panelVisible"
@@ -109,12 +179,12 @@ function linkTitle(item: BrosNavItem) {
           class="bros-nav-panel__brand"
           :title="brand"
         >
-          <span v-if="iconMode && isDesktop">B</span>
+          <span v-if="showIconChrome">B</span>
           <span v-else>{{ brand }}</span>
         </NuxtLink>
         <div class="bros-nav-panel__head-actions">
           <button
-            v-if="isDesktop"
+            v-if="!overlayNav"
             type="button"
             class="bros-nav-panel__icon-btn"
             :aria-label="iconMode ? 'Show labels' : 'Icon mode'"
@@ -126,78 +196,99 @@ function linkTitle(item: BrosNavItem) {
           <button
             type="button"
             class="bros-nav-panel__icon-btn"
-            :aria-label="isDesktop ? 'Close navigation dock' : 'Close navigation'"
-            @click="isDesktop ? closeDesktop() : closeMobile()"
+            :aria-label="overlayNav ? 'Close navigation' : 'Close navigation dock'"
+            @click="overlayNav ? closeMobile() : closeDesktop()"
           >
-            <UIcon :name="isDesktop ? 'i-lucide-panel-left-close' : 'i-lucide-x'" class="size-4" />
+            <UIcon :name="overlayNav ? 'i-lucide-x' : 'i-lucide-panel-left-close'" class="size-4" />
           </button>
         </div>
       </div>
 
-      <nav class="bros-nav-panel__nav" aria-label="Primary">
+      <nav ref="navBody" class="bros-nav-panel__nav" aria-label="Primary">
         <div
-          class="bros-nav-panel__items"
-          :class="{
-            'bros-nav-panel__items--fill bros-nav-panel__scroll': !$slots['after-primary'],
-          }"
+          class="bros-nav-panel__section bros-nav-panel__section--primary bros-nav-panel__scroll"
+          :style="{ flex: `${sectionPrimary} 0 auto` }"
         >
-          <BrosNavTree :items="props.items" :icon-mode="iconMode && isDesktop" />
+          <BrosNavTree :items="props.items" :icon-mode="showIconChrome" />
         </div>
 
-        <div v-if="$slots['after-primary']" class="bros-nav-panel__recents-wrap">
+        <button
+          v-if="hasChat"
+          type="button"
+          class="bros-nav-panel__divider bros-nav-panel__divider--drag"
+          aria-label="Resize chat section"
+          @pointerdown="onSectionDragStart('primary-chat', $event)"
+        />
+
+        <div
+          v-if="hasChat"
+          class="bros-nav-panel__section bros-nav-panel__section--chat"
+          :style="{ flex: `${sectionChat} 0 auto` }"
+        >
           <slot name="after-primary" />
         </div>
 
-        <div
-          v-if="props.bottomItems.length || props.showPinned"
-          class="bros-nav-panel__bottom"
-        >
-          <template v-if="props.showPinned">
-            <div
-              v-if="props.pinnedItems.length || !(iconMode && isDesktop)"
-              class="bros-nav-panel__divider"
-              role="separator"
-              aria-label="Pinned"
-            />
-            <a
-              v-for="item in props.pinnedItems"
-              :key="item.to"
-              :href="item.to"
-              :target="item.external ? '_blank' : undefined"
-              rel="noopener"
-              class="bros-nav-panel__link"
-              :title="item.label"
-            >
-              <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
-              <span v-if="!(iconMode && isDesktop)" class="bros-nav-label">{{ item.label }}</span>
-            </a>
-            <p v-if="!props.pinnedItems.length && !(iconMode && isDesktop)" class="bros-nav-panel__hint">
-              Pin an app web UI from Apps to show it here.
-            </p>
-          </template>
+        <button
+          v-if="hasPinned && (hasChat || props.items.length)"
+          type="button"
+          class="bros-nav-panel__divider bros-nav-panel__divider--drag"
+          aria-label="Resize pinned section"
+          @pointerdown="onSectionDragStart(hasChat ? 'chat-pinned' : 'primary-pinned', $event)"
+        />
 
-          <template v-if="props.bottomItems.length">
-            <div class="bros-nav-panel__divider" />
-            <div class="bros-nav-panel__bottom-tree bros-nav-panel__scroll">
-              <BrosNavTree :items="props.bottomItems" :icon-mode="iconMode && isDesktop" />
-            </div>
-          </template>
+        <div
+          v-if="hasPinned"
+          class="bros-nav-panel__section bros-nav-panel__scroll"
+          :style="{ flex: `${sectionPinned} 1 0` }"
+          aria-label="Pinned"
+        >
+          <a
+            v-for="item in props.pinnedItems"
+            :key="item.to"
+            :href="item.to"
+            :target="item.external ? '_blank' : undefined"
+            rel="noopener"
+            class="bros-nav-panel__link"
+            :title="item.label"
+          >
+            <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
+            <span v-if="!showIconChrome" class="bros-nav-label">{{ item.label }}</span>
+          </a>
+          <p v-if="!props.pinnedItems.length && !showIconChrome" class="bros-nav-panel__hint">
+            Pin an app web UI from Apps to show it here.
+          </p>
+        </div>
+
+        <div
+          v-if="hasFooter && (hasPinned || hasChat || props.items.length)"
+          class="bros-nav-panel__divider"
+          role="separator"
+          aria-label="Footer"
+        />
+
+        <div
+          v-if="hasFooter"
+          class="bros-nav-panel__section bros-nav-panel__section--footer bros-nav-panel__scroll"
+        >
+          <BrosNavTree
+            :items="props.bottomItems"
+            :icon-mode="showIconChrome"
+          />
+          <a
+            href="https://github.com/jasenmichael/bros"
+            target="_blank"
+            rel="noopener"
+            class="bros-nav-panel__link"
+            title="GitHub"
+          >
+            <UIcon name="i-lucide-github" class="size-4 shrink-0" />
+            <span v-if="!showIconChrome" class="bros-nav-label">GitHub</span>
+          </a>
         </div>
       </nav>
-
-      <a
-        href="https://github.com/jasenmichael/bros"
-        target="_blank"
-        rel="noopener"
-        class="bros-nav-panel__footer"
-        title="GitHub"
-      >
-        <UIcon name="i-lucide-github" class="size-4 shrink-0" />
-        <span v-if="!(iconMode && isDesktop)">GitHub</span>
-      </a>
     </div>
     <button
-      v-if="isDesktop"
+      v-if="!overlayNav"
       type="button"
       class="bros-nav-panel__resize"
       aria-label="Resize navigation dock"
@@ -313,49 +404,46 @@ function linkTitle(item: BrosNavItem) {
   padding: 0.75rem 0.5rem 0.5rem;
 }
 
-.bros-nav-panel__scroll {
+.bros-nav-panel__section {
+  display: flex;
+  min-width: 0;
+  min-height: 3rem;
+  flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-.bros-nav-panel__scroll::-webkit-scrollbar {
+.bros-nav-panel__section::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
 }
 
-.bros-nav-panel__items {
+.bros-nav-panel__section--primary,
+.bros-nav-panel__section--chat {
+  /* default flex grow 0 → divider flush under content (Agents / Previous chats) */
   flex-shrink: 0;
-  min-width: 0;
+  min-height: min-content;
 }
 
-.bros-nav-panel__items--fill {
-  flex: 1;
-  min-height: 0;
+.bros-nav-panel__section--primary {
+  overflow-y: visible;
 }
 
-.bros-nav-panel__bottom-tree {
-  min-width: 0;
-  min-height: 0;
-  flex: 1 1 auto;
-}
-
-.bros-nav-panel__recents-wrap {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 8rem;
+.bros-nav-panel__section--chat {
   overflow: hidden;
 }
 
-.bros-nav-panel__recents-wrap > :deep(*) {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+.bros-nav-panel__section--footer {
+  flex: 0 0 auto;
   min-height: 0;
+  max-height: 40%;
+}
+
+.bros-nav-panel__scroll {
+  /* alias kept for tests / callers */
 }
 
 .bros-nav-panel__link {
@@ -388,12 +476,6 @@ function linkTitle(item: BrosNavItem) {
   color: #ffffff;
 }
 
-.bros-nav-panel__link--active {
-  background: #1e2a38;
-  color: #ffffff;
-  box-shadow: inset 2px 0 0 #3d9cf0;
-}
-
 .bros-nav-panel__hint {
   margin: 0.25rem 0 0;
   padding: 0 0.65rem;
@@ -402,40 +484,37 @@ function linkTitle(item: BrosNavItem) {
   color: #8b9bb0;
 }
 
-.bros-nav-panel__bottom {
-  display: flex;
-  flex: 0 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  max-height: 48%;
-  padding-top: 0.5rem;
-}
-
 .bros-nav-panel__divider {
+  flex-shrink: 0;
   height: 1px;
-  margin: 0.35rem 0.5rem 0.65rem;
+  margin: 0.35rem 0.5rem;
+  border: 0;
+  padding: 0;
   background: #2a3544;
 }
 
-.bros-nav-panel__footer {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  border-top: 1px solid #2a3544;
-  padding: 0.75rem 1rem;
-  color: #8b9bb0;
-  text-decoration: none;
-  font-size: 0.85rem;
+.bros-nav-panel__divider--drag {
+  position: relative;
+  height: 7px;
+  margin: 0.15rem 0.35rem;
+  background: transparent;
+  cursor: ns-resize;
 }
 
-.bros-nav-panel--icon .bros-nav-panel__footer {
-  justify-content: center;
-  padding: 0.75rem 0.35rem;
+.bros-nav-panel__divider--drag::after {
+  content: "";
+  position: absolute;
+  left: 0.15rem;
+  right: 0.15rem;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: #2a3544;
 }
 
-.bros-nav-panel__footer:hover {
-  color: #ffffff;
+.bros-nav-panel__divider--drag:hover::after,
+.bros-nav-panel__divider--drag:focus-visible::after {
+  background: #3d9cf0;
 }
 
 .bros-nav-panel__resize {

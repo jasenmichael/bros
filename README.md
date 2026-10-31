@@ -32,7 +32,7 @@ Local models via Ollama, cloud keys on Popular services, package and docker apps
 
 | | | |
 | --- | --- | --- |
-| **Chat** — Provider then model. Stop aborts the stream. Mic uses Whisper when enabled. | **Providers** — Ollama (core + host), twelve Popular services, custom OpenAI-compat. | **Apps** — Core, addon, custom, and package installs on one `/apps` page. |
+| **Chat** — Provider then model. Stop aborts the stream. Mic uses Whisper when enabled. | **Providers** — Ollama (core + host), fourteen Popular services, custom OpenAI-compat. | **Apps** — Core, addon, custom, and package installs on one `/apps` page. |
 | **Desktop** — One Selkies stream at `/desktop`. GUI apps open in that session. | **Agents** — Job board over Workspace repos. Preflight, implement, PR gate. | **Tunnel** — Host `cloudflared` when `public_url` is set in `bros.yml`. |
 
 Internal Ollama model `bros` titles chats. Not in the Chat picker. See [docs/apps/ollama.md](docs/apps/ollama.md).

@@ -33,8 +33,6 @@ function onResizeStart(ev: PointerEvent) {
   try { handle.setPointerCapture(ev.pointerId) } catch { /* untrusted pointer */ }
 }
 const termSrc = `/terminal/session/?fontSize=16&fontFamily=${encodeURIComponent('ui-monospace, "DejaVu Sans Mono", "Liberation Mono", Menlo, Consolas, monospace')}`
-// Full load: src is in the HTML so the browser starts ttyd during parse.
-// Client route: set src after the iframe is in the document. Do not swap src later.
 const frameSrc = ref(import.meta.server || (import.meta.client && useNuxtApp().isHydrating) ? termSrc : '')
 
 const { data: dockerApps } = await useFetch<{ docker: DockerAppCli[] }>('/api/apps')
@@ -63,20 +61,25 @@ function appCommands(pkg: AppPack): string[] {
   return out
 }
 
-const exposeClis = computed(() => (dockerApps.value?.docker || []).filter(listedDockerApp).flatMap((s) => {
-  const commands = s.interfaces
-    .filter((iface) => iface.type === 'cli')
-    .map((iface) => iface.bin || iface.command)
-    .filter((command): command is string => !!command && !isShellBin(command.split('/').pop() || command))
-  if (!commands.length) return []
-  return [{ id: s.id, name: s.name, commands }]
-}))
-
-const appClis = computed(() => (appPacks.value?.packages || []).filter(listedPackageApp).flatMap((pkg) => {
-  const commands = appCommands(pkg)
-  if (!commands.length) return []
-  return [{ id: pkg.id, name: pkg.name || pkg.bin || pkg.id, commands }]
-}))
+const cliNames = computed(() => {
+  const names: string[] = []
+  for (const s of (dockerApps.value?.docker || []).filter(listedDockerApp)) {
+    for (const iface of s.interfaces.filter((row) => row.type === 'cli')) {
+      const command = iface.bin || iface.command
+      if (!command) continue
+      const base = command.split('/').pop() || command
+      if (isShellBin(base) || names.includes(base)) continue
+      names.push(base)
+    }
+  }
+  for (const pkg of (appPacks.value?.packages || []).filter(listedPackageApp)) {
+    for (const name of appCommands(pkg)) {
+      if (names.includes(name)) continue
+      names.push(name)
+    }
+  }
+  return names
+})
 
 function styleTerm() {
   const doc = term.value?.contentDocument
@@ -152,12 +155,11 @@ onMounted(async () => {
   }
   tick()
 })
-
 </script>
 
 <template>
-  <BrosPageShell title="Terminal" description="Shell on the Bros network. DockerApp commands are on PATH.">
-    <div ref="termBox" class="bros-term mb-6">
+  <BrosPageShell>
+    <div ref="termBox" class="bros-term mb-4">
       <iframe
         ref="term"
         :src="frameSrc || undefined"
@@ -167,32 +169,11 @@ onMounted(async () => {
       />
       <button type="button" class="bros-term__resize" aria-label="Resize terminal" @pointerdown="onResizeStart" />
     </div>
-    <h2 class="mb-2 text-sm font-medium text-white">Expose CLIs</h2>
-    <p v-if="!exposeClis.length" class="mb-6 text-sm text-[var(--bros-muted)]">No docker app CLIs.</p>
-    <ul v-else class="mb-6 space-y-2">
-      <li
-        v-for="row in exposeClis"
-        :key="row.id"
-        class="rounded-lg border border-[var(--bros-border)] px-3 py-2"
-      >
-        <span class="text-sm text-white">{{ row.name }}</span>
-        <p class="mt-1 font-mono text-xs text-[var(--bros-muted)]">{{ row.commands.join(', ') }}</p>
-      </li>
-    </ul>
-    <h2 class="mb-2 text-sm font-medium text-white">Apps</h2>
-    <p v-if="!appClis.length" class="mb-6 text-sm text-[var(--bros-muted)]">No app CLIs.</p>
-    <ul v-else class="mb-6 space-y-2">
-      <li
-        v-for="row in appClis"
-        :key="row.id"
-        class="rounded-lg border border-[var(--bros-border)] px-3 py-2"
-      >
-        <span class="text-sm text-white">{{ row.name }}</span>
-        <p class="mt-1 font-mono text-xs text-[var(--bros-muted)]">{{ row.commands.join(', ') }}</p>
-      </li>
-    </ul>
     <p class="text-sm text-[var(--bros-muted)]">
-      Apps and packages are configured on <NuxtLink to="/apps" class="text-white underline">Apps</NuxtLink>.
+      <span class="font-mono text-xs">{{ cliNames.length ? cliNames.join(', ') : 'No CLIs on PATH yet' }}</span>
+      <span class="mx-2">·</span>
+      Configure on
+      <NuxtLink to="/settings/desktop/apps" class="text-white underline">Desktop apps</NuxtLink>.
     </p>
   </BrosPageShell>
 </template>
@@ -219,16 +200,12 @@ onMounted(async () => {
 .bros-term__resize::before {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
   top: 50%;
-  height: 2px;
-  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 0.25rem;
+  transform: translate(-50%, -50%);
   border-radius: 999px;
-  background: var(--bros-border);
-}
-
-.bros-term__resize:hover::before {
-  background: var(--bros-accent);
+  background: rgba(139, 156, 179, 0.45);
 }
 </style>
