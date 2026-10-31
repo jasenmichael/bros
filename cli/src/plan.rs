@@ -88,20 +88,34 @@ pub fn apply_release(dest: &Path, staging: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+fn retire_for_replace(path: &Path) -> std::io::Result<()> {
+    if path.symlink_metadata().is_err() {
+        return Ok(());
+    }
+    if path.is_dir() && !path.is_symlink() {
+        if fs::remove_dir_all(path).is_ok() {
+            return Ok(());
+        }
+    } else if fs::remove_file(path).is_ok() {
+        return Ok(());
+    }
+    // Root-owned children under a writable parent: rename aside, then best-effort delete.
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let trash = path.with_file_name(format!(".{name}.stale-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&trash);
+    let _ = fs::remove_file(&trash);
+    fs::rename(path, &trash)?;
+    let _ = fs::remove_dir_all(&trash);
+    let _ = fs::remove_file(&trash);
+    Ok(())
+}
+
 fn replace_entry(from: &Path, to: &Path) -> std::io::Result<()> {
     let name = to.file_name().unwrap_or_default().to_string_lossy();
     let tmp = to.with_file_name(format!(".{name}.new"));
-    if tmp.is_dir() {
-        fs::remove_dir_all(&tmp)?;
-    } else if tmp.symlink_metadata().is_ok() {
-        fs::remove_file(&tmp)?;
-    }
+    retire_for_replace(&tmp)?;
     copy_tree(from, &tmp)?;
-    if to.is_dir() && !to.is_symlink() {
-        fs::remove_dir_all(to)?;
-    } else if to.symlink_metadata().is_ok() {
-        fs::remove_file(to)?;
-    }
+    retire_for_replace(to)?;
     fs::rename(&tmp, to)
 }
 

@@ -1113,32 +1113,51 @@ fn model_version_file(repo: &Path) -> std::path::PathBuf {
     repo.join("lib/apps/core/ollama/BROS_MODEL_VERSION")
 }
 
-/// Clear packaged-model trees before unpack. Docker may leave root-owned 755
-/// children under a user-owned dest — `remove_dir_all` fails, but rename works.
-fn clear_packaged_model_parts(dest: &Path) -> Result<(), String> {
-    for part in ["models", "ollama", "scripts"] {
-        let path = dest.join(part);
-        if !path.exists() {
+/// Move `path` out of the way (delete, else rename-aside). Docker may leave
+/// root-owned 755 trees under a user-owned parent — delete fails, rename works.
+fn retire_path(path: &Path, dest: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+    if fs::remove_dir_all(path).is_ok() || fs::remove_file(path).is_ok() {
+        return Ok(());
+    }
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("part");
+    let trash = dest.join(format!(".{name}.stale-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&trash);
+    let _ = fs::remove_file(&trash);
+    fs::rename(path, &trash).map_err(|err| {
+        format!(
+            "cannot replace {} ({err}). Fix ownership: sudo chown -R \"$USER\" {}",
+            path.display(),
+            dest.display()
+        )
+    })?;
+    if fs::remove_dir_all(&trash).is_err() && fs::remove_file(&trash).is_err() && trash.exists() {
+        say(&format!(
+            "warning: left {} (root-owned leftovers; sudo rm -rf it)",
+            trash.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Install each top-level tree from the release: replace dest if it already exists.
+fn replace_packaged_model_parts(dest: &Path, stage: &Path) -> Result<(), String> {
+    let entries = fs::read_dir(stage).map_err(|err| err.to_string())?;
+    for entry in entries {
+        let entry = entry.map_err(|err| err.to_string())?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.starts_with('.') {
             continue;
         }
-        if fs::remove_dir_all(&path).is_ok() {
-            continue;
-        }
-        let trash = dest.join(format!(".{part}.stale-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&trash);
-        fs::rename(&path, &trash).map_err(|err| {
-            format!(
-                "cannot clear {} ({err}). Fix ownership: sudo chown -R \"$USER\" {}",
-                path.display(),
-                dest.display()
-            )
+        let from = entry.path();
+        let to = dest.join(name);
+        retire_path(&to, dest)?;
+        fs::rename(&from, &to).map_err(|err| {
+            format!("cannot install {} → {} ({err})", from.display(), to.display())
         })?;
-        if fs::remove_dir_all(&trash).is_err() && trash.exists() {
-            say(&format!(
-                "warning: left {} (root-owned leftovers; sudo rm -rf it)",
-                trash.display()
-            ));
-        }
     }
     Ok(())
 }
@@ -1170,22 +1189,30 @@ fn fetch_packaged_model(repo: &Path, paths: &Paths) {
         die(&format!("model release not found: {url}"));
     }
     fs::create_dir_all(&dest).unwrap_or_else(|err| die(&err.to_string()));
-    if let Err(err) = clear_packaged_model_parts(&dest) {
+    let stage = dest.join(format!(".unpack-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&stage);
+    if let Err(err) = fs::create_dir_all(&stage) {
         let _ = fs::remove_file(&tmp);
-        die(&err);
+        die(&err.to_string());
     }
     let unpacked = Command::new("tar")
         .args(["-xzf"])
         .arg(&tmp)
         .arg("-C")
-        .arg(&dest)
+        .arg(&stage)
         .status()
         .map(|status| status.success())
         .unwrap_or(false);
     let _ = fs::remove_file(&tmp);
     if !unpacked {
+        let _ = fs::remove_dir_all(&stage);
         die("could not unpack model release");
     }
+    if let Err(err) = replace_packaged_model_parts(&dest, &stage) {
+        let _ = fs::remove_dir_all(&stage);
+        die(&err);
+    }
+    let _ = fs::remove_dir_all(&stage);
     fs::write(&stamp_path, format!("{want}\n")).unwrap_or_else(|err| die(&err.to_string()));
     say(&format!("model {want}"));
 }
@@ -1746,17 +1773,21 @@ mod tests {
     }
 
     #[test]
-    fn clear_packaged_model_parts_removes_trees() {
-        let root = std::env::temp_dir().join(format!("bros-clear-model-{}", std::process::id()));
+    fn replace_packaged_model_parts_overwrites_existing() {
+        let root = std::env::temp_dir().join(format!("bros-replace-model-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("models")).unwrap();
-        fs::write(root.join("models/x"), b"x").unwrap();
-        fs::create_dir_all(root.join("ollama")).unwrap();
-        fs::create_dir_all(root.join("scripts")).unwrap();
-        clear_packaged_model_parts(&root).unwrap();
-        assert!(!root.join("models").exists());
-        assert!(!root.join("ollama").exists());
-        assert!(!root.join("scripts").exists());
+        let dest = root.join("dest");
+        let stage = root.join("stage");
+        fs::create_dir_all(dest.join("models")).unwrap();
+        fs::write(dest.join("models/old"), b"old").unwrap();
+        fs::create_dir_all(stage.join("models")).unwrap();
+        fs::write(stage.join("models/new"), b"new").unwrap();
+        fs::create_dir_all(stage.join("ollama")).unwrap();
+        fs::write(stage.join("ollama/Modelfile"), b"FROM x").unwrap();
+        replace_packaged_model_parts(&dest, &stage).unwrap();
+        assert!(!dest.join("models/old").exists());
+        assert_eq!(fs::read_to_string(dest.join("models/new")).unwrap(), "new");
+        assert_eq!(fs::read_to_string(dest.join("ollama/Modelfile")).unwrap(), "FROM x");
         let _ = fs::remove_dir_all(&root);
     }
 
