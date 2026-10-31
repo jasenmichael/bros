@@ -4,6 +4,7 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 ASSET="$(ensure_pack)"
+[[ -f "$ASSET" ]] || { echo "smoke: pack missing: $ASSET" >&2; exit 1; }
 ensure_container
 
 INSTALL_SH="$REPO_ROOT/src/website/public/install.sh"
@@ -18,6 +19,8 @@ start_tar_server() {
   ) &
   TAR_PID=$!
   sleep 0.4
+  # Quick probe so install does not race the listener.
+  curl -fsS "http://127.0.0.1:${TAR_PORT}/$(basename "$ASSET")" -o /dev/null
 }
 stop_tar_server() {
   if [[ -n "${TAR_PID:-}" ]] && kill -0 "$TAR_PID" 2>/dev/null; then
@@ -51,6 +54,10 @@ install_into() {
     BROS_BIN="$dir/bin/bros" \
     BROS_RELEASE_URL="$RELEASE_URL" \
     bash "$INSTALL_SH"
+  # Install runs as root in guest; let host cases rewrite .env / markers.
+  docker exec "$CONTAINER_NAME" chmod -R a+rwX "$dir" "$HOST_SMOKE/home" 2>/dev/null || true
+  # `bros update` during model setup leaves core containers up; stop before case starts.
+  stop_install "$dir"
 }
 
 wait_health() {
@@ -121,7 +128,7 @@ case_split_data() {
   fi
   stop_install "$dir"
   din BROS_DIR="$dir" BROS_BIN="$dir/bin/bros" BROS_DATA_DIR="$data" "$dir/bros" uninstall --purge || true
-  rm -rf "$data"
+  wipe_case "$data"
 }
 
 case_via_dotenv() {

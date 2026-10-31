@@ -6,8 +6,9 @@ SMOKE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SMOKE_ROOT/../.." && pwd)"
 CACHE_DIR="${BROS_SMOKE_CACHE:-$SMOKE_ROOT/cache}"
 HOST_SMOKE="${BROS_SMOKE_HOST_ROOT:-/tmp/bros-smoke}"
-CONTAINER_NAME="${BROS_SMOKE_CONTAINER:-bros-smoke}"
-IMAGE_NAME="${BROS_SMOKE_IMAGE:-bros-smoke:local}"
+# Name must NOT match `bros-*` — product `bros stop` kills that prefix via docker name filter.
+CONTAINER_NAME="${BROS_SMOKE_CONTAINER:-smoke-bros}"
+IMAGE_NAME="${BROS_SMOKE_IMAGE:-smoke-bros:local}"
 
 pass=0
 fail=0
@@ -58,34 +59,43 @@ ensure_pack() {
   if [[ -f "$asset" && -f "$REPO_ROOT/cli/target/release/bros" && -f "$REPO_ROOT/src/ui/.output/server/index.mjs" ]]; then
     if [[ "$REPO_ROOT/cli/target/release/bros" -ot "$asset" && "$REPO_ROOT/src/ui/.output/server/index.mjs" -ot "$asset" ]]; then
       say "reuse cached $asset"
-      echo "$asset"
+      printf '%s\n' "$asset"
       return 0
     fi
   fi
   say "building CLI + UI for pack…"
-  cargo build --release --manifest-path "$REPO_ROOT/cli/Cargo.toml"
-  pnpm --dir "$REPO_ROOT/src" --filter @bros/ui build
+  # Keep stdout clean: callers capture only the asset path.
+  cargo build --release --manifest-path "$REPO_ROOT/cli/Cargo.toml" >&2
+  pnpm --dir "$REPO_ROOT/src" --filter @bros/ui build >&2
   (
     cd "$REPO_ROOT"
-    scripts/pack-release.sh --name "${name%.tar.gz}"
+    scripts/pack-release.sh --name "${name%.tar.gz}" >&2
     mv -f "$REPO_ROOT/$name" "$asset"
     mv -f "$REPO_ROOT/${name}.sha256" "$CACHE_DIR/" 2>/dev/null || true
   )
   say "cached $asset"
-  echo "$asset"
+  printf '%s\n' "$asset"
 }
 
 ensure_image() {
-  if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-    return 0
-  fi
   say "building $IMAGE_NAME"
-  docker build -t "$IMAGE_NAME" -f "$SMOKE_ROOT/Dockerfile" "$SMOKE_ROOT"
+  docker build -t "$IMAGE_NAME" -f "$SMOKE_ROOT/Dockerfile" "$SMOKE_ROOT" >&2
 }
 
 ensure_container() {
   ensure_image
+  # Core stack uses fixed names `bros` / `bros-ui`; clear leftovers from prior smoke/install.
+  docker rm -f bros bros-ui >/dev/null 2>&1 || true
   mkdir -p "$HOST_SMOKE" "$CACHE_DIR"
+  local want have
+  want="$(docker image inspect -f '{{.Id}}' "$IMAGE_NAME")"
+  if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+    have="$(docker inspect -f '{{.Image}}' "$CONTAINER_NAME")"
+    if [[ "$have" != "$want" ]]; then
+      say "recreate $CONTAINER_NAME (image changed)"
+      docker rm -f "$CONTAINER_NAME" >/dev/null
+    fi
+  fi
   if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
     local running
     running="$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")"
@@ -117,8 +127,9 @@ cexec() {
 
 wipe_case() {
   local case_dir="$1"
-  rm -rf "$case_dir"
-  mkdir -p "$case_dir"
+  # App containers write root-owned files into HOST_SMOKE; wipe as root in guest.
+  docker exec "$CONTAINER_NAME" rm -rf "$case_dir"
+  docker exec "$CONTAINER_NAME" mkdir -p "$case_dir"
 }
 
 summary() {
