@@ -29,14 +29,14 @@ describe('desktop home', () => {
 
 describe('workspace', () => {
   it('uses the host data workspace unless bros.yml or the env var replaces it', () => {
-    const prev = process.env.BROS_HOST_WORKSPACE
-    delete process.env.BROS_HOST_WORKSPACE
+    const prev = process.env.BROS_WORKSPACE
+    delete process.env.BROS_WORKSPACE
     expect(resolveWorkspaceHost({ dataDir: '/host/data', appDir: '/host' })).toBe('/host/data/home/workspace')
     expect(resolveWorkspaceHost({ dataDir: '/host/data', appDir: '/host', yaml: '/srv/work' })).toBe('/srv/work')
-    process.env.BROS_HOST_WORKSPACE = '/override'
+    process.env.BROS_WORKSPACE = '/override'
     expect(resolveWorkspaceHost({ dataDir: '/host/data', appDir: '/host', yaml: '/srv/work' })).toBe('/override')
-    if (prev === undefined) delete process.env.BROS_HOST_WORKSPACE
-    else process.env.BROS_HOST_WORKSPACE = prev
+    if (prev === undefined) delete process.env.BROS_WORKSPACE
+    else process.env.BROS_WORKSPACE = prev
   })
 })
 

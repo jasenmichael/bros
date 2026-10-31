@@ -13,8 +13,10 @@ describe('layer ownership', () => {
     expect(existsSync(join(root, 'src/website/app/pages/index.vue'))).toBe(true)
     expect(existsSync(join(root, 'src/layers/docs/app/pages/index.vue'))).toBe(false)
     expect(existsSync(join(root, 'src/ui/pages/index.vue'))).toBe(true)
-    expect(read('src/website/app/pages/index.vue')).toContain('Docs site (this site)')
+    expect(read('src/website/app/pages/index.vue')).toContain('jasenmichael.github.io/bros/install.sh')
+    expect(read('src/website/app/pages/index.vue')).not.toContain('Dashboard')
     expect(read('src/ui/pages/index.vue')).toContain('Dashboard')
+    expect(read('src/ui/pages/index.vue')).not.toContain('jasenmichael.github.io/bros/install.sh')
   })
 
   it('keeps `/docs` only in the docs layer', () => {

@@ -4,10 +4,10 @@ Selkies desktop, package installs, and the terminal. The container process is ro
 
 ## Mounts
 
-Host paths are under the Bros data directory (`BROS_HOST_DATA_DIR`).
+Host paths are under the Bros data directory (`BROS_DATA_DIR`).
 
 - `home` → `/home/bros` (Desktop `$HOME`)
-- `BROS_HOST_WORKSPACE` → `/home/bros/workspace` (default `home/workspace`)
+- `BROS_WORKSPACE` → `/home/bros/workspace` (default `home/workspace`)
 - `config/apps` → `/opt/bros/apps`
 
 `$HOME/.local/app-bins` is first on `PATH`. App `launch.sh` wrappers are written there. Desktop does not bind a second bin directory.

@@ -10,7 +10,7 @@ description: >-
 
 A **package app** installs into the Desktop home (container `bros`). A **docker app** keeps its own compose project — use `bros-create-app` for those.
 
-Docs: `$BROS_HOME/docs/apps.md` + `docs/apps/<id>.md` first, else GitHub. **Follow that page** for kind, spec, Enable, ports, and Start order.
+Docs: `$BROS_DIR/docs/apps.md` + `docs/apps/<id>.md` first, else GitHub. **Follow that page** for kind, spec, Enable, ports, and Start order.
 
 ## Tiers
 
@@ -29,7 +29,7 @@ Docs: `$BROS_HOME/docs/apps.md` + `docs/apps/<id>.md` first, else GitHub. **Foll
 ## API
 
 ```bash
-KEY=$(cat "${BROS_HOST_DATA_DIR:-$BROS_HOME/data}/proxy-key")
+KEY=$(cat "${BROS_DATA_DIR:-$BROS_DIR/data}/proxy-key")
 # ensure / install
 curl -sS -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   http://127.0.0.1:3055/api/cli/packages \

@@ -8,7 +8,7 @@ services:
       dockerfile: ${BROS_DESKTOP_DOCKERFILE:-lib/desktop/Dockerfile}
       target: production
       additional_contexts:
-        apps: ${BROS_HOST_DATA_DIR:?unset}/build/desktop
+        apps: ${BROS_DATA_DIR:?unset}/build/desktop
     image: bros:latest
     container_name: bros
     hostname: bros
@@ -31,6 +31,9 @@ services:
       XDG_CONFIG_HOME: /home/bros/.config
       PIXELFLUX_WAYLAND: "true"
       SELKIES_MODE: websockets
+      # One /desktop client owns the display and resizes it. Sharing leaves a
+      # second tab letterboxed at the first client's size.
+      SELKIES_ENABLE_SHARING: "false"
       SUBFOLDER: /desktop/view/
       BROS_DIR: /app
       BROS_NODE_VERSION: ${BROS_NODE_VERSION:-26.7.0}
@@ -42,7 +45,7 @@ services:
       DENO_DIR: /home/bros/.deno/cache
       UV_CACHE_DIR: /home/bros/.cache/uv
       CARGO_HOME: /home/bros/.cargo
-      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:?unset}
+      BROS_DATA_DIR: ${BROS_DATA_DIR:?unset}
       BROS_HOST_REPO: ${BROS_HOST_REPO:?unset}
       BROS_HOST_UID: ${BROS_HOST_UID:-1000}
       BROS_HOST_GID: ${BROS_HOST_GID:-1000}
@@ -54,36 +57,30 @@ services:
       BROS_HOST: ${BROS_HOST:-0.0.0.0}
       BROS_DEV: ${BROS_DEV:-}
       BROS_DAEMON: ${BROS_DAEMON:-}
-      BROS_HOME: ${BROS_HOME:-}
       BROS_BIN: ${BROS_BIN:-}
       BROS_CONFIG_HOST: ${BROS_CONFIG_HOST:-}
       BROS_PUBLIC_URL: ${BROS_PUBLIC_URL:-}
       BROS_WORKING_DIR: ${BROS_WORKING_DIR:-}
+      BROS_WORKSPACE: ${BROS_WORKSPACE:?unset}
       BROS_OLLAMA_PORT: ${BROS_OLLAMA_PORT:-11435}
       BROS_WHISPER_PORT: ${BROS_WHISPER_PORT:-}
       BROS_NETWORK: ${BROS_NETWORK:-bros}
       BROS_HOST_GATEWAY: ${BROS_HOST_GATEWAY:-host.docker.internal}
       BROS_TUNNEL_HOST: ${BROS_TUNNEL_HOST:-}
-      BROS_APPS_DISABLE: ${BROS_APPS_DISABLE:-}
-      BROS_APP_OPENWEBUI: ${BROS_APP_OPENWEBUI:-}
-      BROS_APP_FIRECRAWL: ${BROS_APP_FIRECRAWL:-}
-      BROS_APP_FIRECRAWL_UI: ${BROS_APP_FIRECRAWL_UI:-}
-      BROS_APP_OPENJEV: ${BROS_APP_OPENJEV:-}
-      BROS_APP_PI: ${BROS_APP_PI:-}
-      BROS_APP_OMNIROUTE: ${BROS_APP_OMNIROUTE:-}
+      BROS_APPS_ENABLED: ${BROS_APPS_ENABLED:-}
       TZ: Etc/UTC
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}:/app/data
-      - ${BROS_HOST_DATA_DIR:?unset}/config/apps:/opt/bros/apps
-      - ${BROS_HOST_DATA_DIR:?unset}/home:/home/bros
-      - ${BROS_HOST_DATA_DIR:?unset}/home/nix:/nix
-      - ${BROS_HOST_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives
-      - ${BROS_HOST_DATA_DIR:?unset}/cache/apt/lists:/var/lib/apt/lists
-      - ${BROS_HOST_DATA_DIR:?unset}/cache/deb:/var/cache/bros/debs
-      - ${BROS_HOST_DATA_DIR:?unset}/var/logs:/var/log/bros
-      - ${BROS_HOST_WORKSPACE:?unset}:/home/bros/workspace
+      - ${BROS_DATA_DIR:?unset}:/app/data
+      - ${BROS_DATA_DIR:?unset}/config/apps:/opt/bros/apps
+      - ${BROS_DATA_DIR:?unset}/home:/home/bros
+      - ${BROS_DATA_DIR:?unset}/home/nix:/nix
+      - ${BROS_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives
+      - ${BROS_DATA_DIR:?unset}/cache/apt/lists:/var/lib/apt/lists
+      - ${BROS_DATA_DIR:?unset}/cache/deb:/var/cache/bros/debs
+      - ${BROS_DATA_DIR:?unset}/var/logs:/var/log/bros
+      - ${BROS_WORKSPACE:?unset}:/home/bros/workspace
       - ${BROS_HOST_REPO:?unset}:${BROS_HOST_REPO:?unset}:ro
       - ${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml
       - ${BROS_HOST_HOME_BIND:-${HOME}}:/host-home:rw
@@ -111,12 +108,11 @@ services:
     environment:
       HOME: /home/bros
       BROS_DIR: /app
-      BROS_HOME: ${BROS_HOME:-}
-      BROS_HOST_DATA_DIR: ${BROS_HOST_DATA_DIR:?unset}
+      BROS_DATA_DIR: ${BROS_DATA_DIR:?unset}
       BROS_HOST_REPO: ${BROS_HOST_REPO:?unset}
       BROS_HOST_UID: ${BROS_HOST_UID:-1000}
       BROS_HOST_GID: ${BROS_HOST_GID:-1000}
-      BROS_HOST_WORKSPACE: ${BROS_HOST_WORKSPACE:-}
+      BROS_WORKSPACE: ${BROS_WORKSPACE:-}
       BROS_PORT: ${BROS_PORT:-3055}
       BROS_HOST: ${BROS_HOST:-0.0.0.0}
       BROS_CONFIG_HOST: ${BROS_CONFIG_HOST:-}
@@ -124,11 +120,12 @@ services:
       BROS_TERMINAL_ORIGIN: http://bros:7681
       BROS_OLLAMA_PORT: ${BROS_OLLAMA_PORT:-11435}
       BROS_NETWORK: ${BROS_NETWORK:-bros}
+      BROS_APPS_ENABLED: ${BROS_APPS_ENABLED:-}
       NODE_ENV: production
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}:/app/data
+      - ${BROS_DATA_DIR:?unset}:/app/data
       - ${BROS_HOST_REPO:?unset}:${BROS_HOST_REPO:?unset}:ro
       - ${BROS_CONFIG_HOST:-./bros.yml}:/app/bros.yml
       - /var/run/docker.sock:/var/run/docker.sock

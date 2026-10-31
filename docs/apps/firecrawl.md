@@ -5,7 +5,7 @@ description: Self-hosted Firecrawl scrape API on host port 3002.
 
 # Firecrawl docker app
 
-Shipped **addon** package `lib/apps/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_APP_FIRECRAWL=0` or `BROS_APPS_DISABLE=firecrawl`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
+Shipped **addon** package `lib/apps/addon/firecrawl`. Self-hosted [Firecrawl](https://docs.firecrawl.dev/contributing/self-host) scrape/crawl API (contract **v2.11.162**). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. List `firecrawl` in `BROS_APPS_ENABLED` (or turn Autostart on) to start it on boot. Start still runs it when not listed.
 
 There is **no** Firecrawl product Web UI on this pack. The interface is `api` (`basePath` `/v2`), so there is no Open button and no Pin. Copy lists `http://127.0.0.1:3002/v2` and `http://firecrawl:3002/v2` (Bros network). The shipped [Firecrawl UI](/docs/apps/firecrawl-ui) addon is a separate browser UI (publish **3081**); pin that pack, and point its API URL at this docker app.
 
@@ -51,9 +51,9 @@ A success body has `"success": true` and `data.markdown`.
 
 ## Binds
 
-- `$BROS_HOST_DATA_DIR/apps/firecrawl/redis` → Redis `/data`
-- `$BROS_HOST_DATA_DIR/apps/firecrawl/rabbitmq` → RabbitMQ `/var/lib/rabbitmq`
-- `$BROS_HOST_DATA_DIR/apps/firecrawl/postgres` → Postgres `/var/lib/postgresql/data`
+- `$BROS_DATA_DIR/apps/firecrawl/redis` → Redis `/data`
+- `$BROS_DATA_DIR/apps/firecrawl/rabbitmq` → RabbitMQ `/var/lib/rabbitmq`
+- `$BROS_DATA_DIR/apps/firecrawl/postgres` → Postgres `/var/lib/postgresql/data`
 
 Postgres password: `BROS_FIRECRAWL_POSTGRES_PASSWORD` (default is a long local-only string). The database is not published to the host.
 

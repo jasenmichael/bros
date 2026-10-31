@@ -1,6 +1,6 @@
 # Pi — https://pi.dev/docs/latest/quickstart
 # Addon. Node 22. No published port.
-# Disable autostart with BROS_APP_PI=0.
+# List in BROS_APPS_ENABLED to boot.
 services:
   pi:
     build: .
@@ -17,7 +17,7 @@ services:
     tmpfs:
       - /home/bros:mode=1777
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/home/.pi:/home/bros/.pi
+      - ${BROS_DATA_DIR:?unset}/home/.pi:/home/bros/.pi
     restart: unless-stopped
     networks:
       - bros

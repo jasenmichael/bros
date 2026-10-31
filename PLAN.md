@@ -4,7 +4,7 @@
 
 The CLI is a Rust binary. Usage is [docs/cli.md](docs/cli.md). A release install is that binary plus the Docker build tree. A source checkout is `cli/`.
 
-Implementation through **M7** complete. Release install unpacks into `BROS_HOME`, writes `$BROS_HOME/bros.yml`, and symlinks `~/.local/bin/bros` (no build; binary from tarball). `--from-src` clones and cargo-builds. Optional systemd --user. First `bros` start ensures docker app Ollama and the internal `bros` model. Docker hot-reload is `BROS_DEV=1 ./bros`.
+Implementation through **M7** complete. Release install unpacks into `BROS_DIR`, writes `$BROS_DIR/bros.yml`, and symlinks `~/.local/bin/bros` (no build; binary from tarball). `--from-src` clones and cargo-builds. Optional systemd --user. First `bros` start ensures docker app Ollama and the internal `bros` model. Docker hot-reload is `BROS_DEV=1 ./bros`.
 
 Product brand is **Bros**. Docker apps are Ollama and Whisper. The Bros container is the Selkies image plus the HTTP server. Host `cloudflared`, passkey sessions, and optional `proxy.public` are in the tree. The OpenCode package app is npm.
 
@@ -31,7 +31,7 @@ Done:
 5. **M4** — Providers page
 6. **M5** — Chat streaming + history
 7. **M6** — docs content, compose prod/dev, root docs
-8. **M7** — install + runner CLI (`BROS_HOME`, `$BROS_HOME/bros.yml`, `BROS_BIN` symlink, optional systemd --user, first-start Ollama + model `bros`; `BROS_DEV=1 ./bros` for bind-mount)
+8. **M7** — install + runner CLI (`BROS_DIR`, `$BROS_DIR/bros.yml`, `BROS_BIN` symlink, optional systemd --user, first-start Ollama + model `bros`; `BROS_DEV=1 ./bros` for bind-mount)
 
 ## Layer chain
 
@@ -49,22 +49,22 @@ Not a milestone. Pick when needed:
 - OpenCode package app serves on host **4096** (same as container). No `proxy.public`. Server password is in the service log. Do not fake a Bros-side prefix.
 - Settings: Chat prepend + assistant description are the `rules` and `personality` skills, plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes
-- Named `bros-data` / `bros-ollama-data` / docker app volumes: leftover volumes stay unused; start does not copy them into `$BROS_HOME/data`
+- Named `bros-data` / `bros-ollama-data` / docker app volumes: leftover volumes stay unused; start does not copy them into `$BROS_DIR/data`
 - Docs site: `pnpm --dir src docs:dev` → http://127.0.0.1:3056/bros/ ; generate + `pnpm --dir src --filter @bros/website preview`
 
 ## Data dir binds
 
-Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in a checkout, `~/.bros/data` when installed).
+Persistent docker app + app state is `$BROS_DIR/data` on the host (`./data` in a checkout, `~/.bros/data` when installed).
 
 ## Recent (M7 install)
 
-- `install.sh` default unpacks release into `BROS_HOME` (`~/.bros`) with no cargo; `--from-src` clones and builds. Writes `$BROS_HOME/bros.yml` if missing, symlinks `~/.local/bin/bros`, optional `bros service install` (systemd --user). Checkout `scripts/build.sh` builds CLI + UI and refreshes repo-root `bros` only (not `BROS_BIN`). Release publish is CI only. Prod UI: host Node/pnpm when available, else `bros-ui` (or `--use-runner`).
+- `install.sh` default unpacks release into `BROS_DIR` (`~/.bros`) with no cargo; `--from-src` clones and builds. Writes `$BROS_DIR/bros.yml` if missing, symlinks `~/.local/bin/bros`, optional `bros service install` (systemd --user). Checkout `scripts/build.sh` builds CLI + UI and refreshes repo-root `bros` only (not `BROS_BIN`). Release publish is CI only. Prod UI: host Node/pnpm when available, else `bros-ui` (or `--use-runner`).
 - Dev compose is `BROS_DEV=1 ./bros` or `./bros --dev`. Default is production compose.
 - First start starts docker app Ollama. A source checkout copies `vendor/bros-model`. A release reads `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0` for product `0.0.1`) and downloads that packaged release on install and `bros update` when the local stamp is missing or older. A release tarball omits `vendor/`.
 
 ## Recent (internal specialist)
 
-- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)) on a source checkout. Docker app ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_HOST_DATA_DIR/apps/ollama/bros-model` and runs `ollama create bros` inside `bros-ollama`. Name is reserved (not listed; `Label:` titles only). A release does not create model `bros` unless it is already in the Ollama store under `data/`.
+- Submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)) on a source checkout. Docker app ensure copies `models/` + `ollama/` + `scripts/` onto `$BROS_DATA_DIR/apps/ollama/bros-model` and runs `ollama create bros` inside `bros-ollama`. Name is reserved (not listed; `Label:` titles only). A release does not create model `bros` unless it is already in the Ollama store under `data/`.
 - A source checkout copies `vendor/bros-model`. A release downloads the tag in `lib/apps/core/ollama/BROS_MODEL_VERSION`. `ollama create` runs inside `bros-ollama`. The next Bros merge publishes `v0.0.1`. The next bros-model merge publishes `v1.0.0`. After both tags exist, commit types bump each repo, and a bros-model version change opens a Bros minor-bump pull request.
 
 ## Recent (Chat thread)
@@ -107,14 +107,14 @@ Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in 
 
 ## Lifecycle (`bros`)
 
-- `bros start` / `BROS_DEV=1 ./bros`: remove leftover `bros-sc-*` containers before up; app autostart uses project `bros-<id>` only. First start also starts docker app Ollama and installs/updates the internal `bros` model. Docker app `ollama` always runs (no UI Start/Stop/Restart/autostart-off). A Nitro health plugin restarts it when the process is down, or after two failed version probes, and sets `ollamaRestartNotice` for one `useToast`. Addon packs autostart unless `BROS_APP_<ID>=0` or `BROS_APPS_DISABLE`.
+- `bros start` / `BROS_DEV=1 ./bros`: remove leftover `bros-sc-*` containers before up; app autostart uses project `bros-<id>` only. First start also starts docker app Ollama and installs/updates the internal `bros` model. Docker app `ollama` always runs (no UI Start/Stop/Restart/autostart-off). A Nitro health plugin restarts it when the process is down, or after two failed version probes, and sets `ollamaRestartNotice` for one `useToast`. Addon packs boot when listed in `BROS_APPS_ENABLED` or SQLite Autostart is on.
 - `BROS_DEV=1 ./bros` start: `compose up` (no `--build`; first run still builds if `bros:dev` is missing). Rebuild: `BROS_DEV=1 ./bros update`. Prod start stays `compose up --build`.
 - `bros stop` and interactive Ctrl+C: stop all `bros-*` docker apps, then the core container, print `Bros exited.`, exit 0 (no orphan docker app stacks, no new data dirs). A second Ctrl+C exits 130.
 - Optional Linux systemd --user unit: `bros service install` (`ExecStart=bros -D`)
 
 ## Host tunnel
 
-`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_HOME/data/var/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. One hostname to Bros `:3055`. Docker app Open/Pin stay LAN except `proxy.public` webuis on the same host. No shipped pack opts in today. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `BROS_DEV=1 ./bros` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
+`cloudflared` runs on the host. `bros` starts `scripts/bros-tunnel-helper.sh`, which owns the child process and files under `$BROS_DIR/data/var/tunnel`. `public_url` in bootstrap YAML is the enable + hostname signal (named tunnel + `route dns`). The container never spawns `cloudflared`. One hostname to Bros `:3055`. Docker app Open/Pin stay LAN except `proxy.public` webuis on the same host. No shipped pack opts in today. Compose-app Chat/Providers/STT use Docker DNS on network `bros`. `BROS_DEV=1 ./bros` over the tunnel serves Vite CSS-as-JS imports from `/_nuxt/bros-mod/…*.js` so Cloudflare cannot reuse a `text/css` cache entry for the Nuxt client.
 
 ## Recent (internal Docker APIs)
 
@@ -123,10 +123,10 @@ Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in 
 
 ## TODO:
 - [x] M14-01 Strip-prefix API proxy. Every `api` and `openai` docker app interface is reachable on the existing tunnel as `/<id><basePath>/…` with `/<id>` stripped. `/ollama/api` and `/ollama/v1` hit `http://ollama:11434`. Same mechanism for Whisper, Firecrawl, Open WebUI, and OpenJEV API ports. Webui `proxy.public` stays prefix-preserving. OpenCode stays LAN-only. Host Ollama stays a Chat provider and gets no tunnel path.
-- [x] M14-02 Proxy key, separate from the passkey, in `$BROS_HOME/data/proxy-key` (mode 0600, print once, rotate in Settings). `api` and `openai` proxy paths accept a Bros session or `Authorization: Bearer <proxy-key>`. Bros `/api/*`, pages, and webui proxies stay session-only. Settings shows `https://<public host>/ollama/v1` for Cursor’s Override OpenAI Base URL.
+- [x] M14-02 Proxy key, separate from the passkey, in `$BROS_DIR/data/proxy-key` (mode 0600, print once, rotate in Settings). `api` and `openai` proxy paths accept a Bros session or `Authorization: Bearer <proxy-key>`. Bros `/api/*`, pages, and webui proxies stay session-only. Settings shows `https://<public host>/ollama/v1` for Cursor’s Override OpenAI Base URL.
 - [x] M14-03 Agent page and the custom tool loop go away. `/chat` is the only conversation page and is one direct completion via `/api/chat`. Persona and rules stay. The gateway picker is removed (see Recent (Chat send)). OpenCode or OpenHands as the tool engine is later. Do not embed the OpenHands SDK.
 - [x] M14-04 Docs for M14: SPEC, tunnel, and this plan. Public gateway API stays M12-02.
-- [x] M8 data dirs: one host directory per container directory under `$BROS_HOME/data/apps/<id>/`
+- [x] M8 data dirs: one host directory per container directory under `$BROS_DIR/data/apps/<id>/`
 - [x] M9 thinking plus stop, allow pick new model and start typing for next chat.
 - [x] M10 add voice to text for chat using whisper
 - [x] M11 Agent page (`/agent`) shipped a capped tool loop, then M14-03 removed it. There is no `/agent` page and no tool loop. Chat is one completion.
@@ -134,7 +134,7 @@ Persistent docker app + app state is `$BROS_HOME/data` on the host (`./data` in 
 - [ ] M12-02 Later. API keys, key-to-bearer exchange, public `/v1/models` and `/v1/chat/completions`, transcript stored by token plus hash of the first user message.
 - [x] M12-03 Tools switches per provider, model, and Gateway were removed with the gateway picker. Chat is one completion.
 - [x] M12-04 MCP client only. No MCP server. HTTP servers are stored in Settings. Chat does not call them.
-- [x] M12-05 Skills. `personality` and `rules` live in `$BROS_HOME/data/config/skills`, seeded from `lib/skills/`, loaded on Chat turns only. A short rule in `data/config/assistant.md` only references those skills. `label` and `task` are seeded from `lib/skills/internal/` into `$BROS_HOME/data/skills-internal` and stay out of the catalog. Label and task calls do not include personality or house rules. A specialist model other than trained `bros` receives that internal skill in full. Other agents’ skill dirs are read-only in the catalog.
+- [x] M12-05 Skills. `personality` and `rules` live in `$BROS_DIR/data/config/skills`, seeded from `lib/skills/`, loaded on Chat turns only. A short rule in `data/config/assistant.md` only references those skills. `label` and `task` are seeded from `lib/skills/internal/` into `$BROS_DIR/data/skills-internal` and stay out of the catalog. Label and task calls do not include personality or house rules. A specialist model other than trained `bros` receives that internal skill in full. Other agents’ skill dirs are read-only in the catalog.
 - [x] M12-06 `/chat` redirect to `/agent` was removed by M14-03. `/chat` is the conversation page. Recents stay in the dock.
 - [x] M12-07 Chat still has no ACP tool loop. `/agents` talks ACP to Desktop `cursor-agent`.
 - [x] M15 Agents page (`/agents`). GitHub issue board, Desktop Cursor or Claude after approval, pull request into the repo's PR base. No `/agent` route. Chat stays one completion.

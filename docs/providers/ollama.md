@@ -20,11 +20,11 @@ The catalog dropdown opens only while the input is empty. Type or select a valid
 
 Pull inserts a row at the top of that provider’s list immediately. The Pull button does not spin; the input clears so another name can be queued. Ollama runs **one pull at a time per provider** (`ollama` vs `ollama-host`). Further Pulls are `queued` and wait. Progress is on that list row — no Chat switch until the model is installed. Stop aborts a running fetch or drops a queued job. Resume calls pull again. Ban + Are you sure? stops a running pull, drops the job, and tries `DELETE /api/delete`; Ollama may keep incomplete blobs if the name was never fully installed.
 
-Jobs persist in SQLite table `ollama_pull_jobs` (`$BROS_HOME/data/bros.sqlite`). After `bros` or container restart, incomplete rows still show; interrupted `running` jobs auto-resume (leftover blobs stay when `OLLAMA_NOPRUNE=1`).
+Jobs persist in SQLite table `ollama_pull_jobs` (`$BROS_DIR/data/bros.sqlite`). After `bros` or container restart, incomplete rows still show; interrupted `running` jobs auto-resume (leftover blobs stay when `OLLAMA_NOPRUNE=1`).
 
 Docker app compose sets **`OLLAMA_NOPRUNE=1`** so incomplete pulls are not pruned. Host Ollama is operator-owned: run the daemon with `OLLAMA_NOPRUNE=1` (systemd/env). Bros cannot set host daemon env.
 
-Docker app pull keeps a **5 GB** disk margin on the Bros data volume. Models land in `$BROS_HOME/data/home/.ollama`. Host pull and chat use the host Ollama disk.
+Docker app pull keeps a **5 GB** disk margin on the Bros data volume. Models land in `$BROS_DIR/data/home/.ollama`. Host pull and chat use the host Ollama disk.
 
 Pull HTTP (`:id` is `ollama` or `ollama-host`) lives in [API](/docs/api): `POST /api/providers/:id/models/pull`, `GET` the same path, `POST …/pull/stop`, `DELETE /api/providers/:id/models`.
 

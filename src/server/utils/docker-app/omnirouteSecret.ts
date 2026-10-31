@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from '
 import { join } from 'node:path'
 import { loadBootstrapConfig } from '../config'
 
-/** `$BROS_HOST_DATA_DIR/apps/omniroute/.env` — not the pack directory. */
+/** `$BROS_DATA_DIR/apps/omniroute/.env` — not the pack directory. */
 export function omnirouteEnvPath(dataDir = loadBootstrapConfig().dataDir): string {
   return join(dataDir, 'apps', 'omniroute', '.env')
 }

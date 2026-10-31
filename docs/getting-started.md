@@ -29,7 +29,7 @@ Full install details: [Install](/docs/install).
 bros
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_HOME/data/passkey`.
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). Login passkey is printed in the container logs at startup (`[bros] passkey: …`) and stored in `$BROS_DIR/data/passkey`.
 
 Commands and flags: [bros](/docs/cli).
 
@@ -37,11 +37,12 @@ Ctrl+C on an interactive start stops the **full stack**. First start brings up t
 
 ## Next
 
+- [Install](/docs/install) — release, source, systemd, overrides
+- [Development](/docs/development) — checkout build and `BROS_DEV=1` hot-reload
 - [App](/docs/app) — Dashboard, Chat, Providers, Docker apps, Status, Settings, Docs
 - [Providers](/docs/providers) — Ollama, Popular services, Custom providers
 - [Docker apps](/docs/apps) — Core Ollama and Whisper, then addon, custom, and repo packs
-- [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_HOME`
+- [Configuration](/docs/configuration) — bootstrap YAML and `$BROS_DIR`
 - [Environment](/docs/environment) — `BROS_*` catalog
 - [Tunnel](/docs/tunnel) — host `cloudflared`, install, login
-- [Development](/docs/development) — `scripts/build.sh` + `./bros`, or `BROS_DEV=1 ./bros`
 

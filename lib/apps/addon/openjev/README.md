@@ -4,8 +4,8 @@ OpenJEV, Laya, and Verdict run as the host user (`${BROS_HOST_UID:-1000}:${BROS_
 
 `/home/bros` is a tmpfs (`mode=1777`) on each service. That scratch home is not stored. All three services share these binds:
 
-- `$BROS_HOST_DATA_DIR/home/.cache/huggingface` → `/home/bros/.cache/huggingface`
-- `$BROS_HOST_DATA_DIR/home/.cache/vllm` → `/home/bros/.cache/vllm`
-- `$BROS_HOST_DATA_DIR/home/.cache/flashinfer` → `/home/bros/.cache/flashinfer`
+- `$BROS_DATA_DIR/home/.cache/huggingface` → `/home/bros/.cache/huggingface`
+- `$BROS_DATA_DIR/home/.cache/vllm` → `/home/bros/.cache/vllm`
+- `$BROS_DATA_DIR/home/.cache/flashinfer` → `/home/bros/.cache/flashinfer`
 
 Whisper mounts `home/.cache/huggingface/hub` only. OpenJEV mounts the parent cache.

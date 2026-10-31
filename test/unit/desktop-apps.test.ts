@@ -66,7 +66,7 @@ describe('desktop package apps', () => {
     expect(layers).toContain('id=bros-pkg')
     const compose = readFileSync(join(root, 'lib/desktop/docker-compose.yml'), 'utf8')
     expect(compose).toContain('context: .')
-    expect(compose).toContain('${BROS_HOST_DATA_DIR:?unset}/build/desktop')
+    expect(compose).toContain('${BROS_DATA_DIR:?unset}/build/desktop')
     expect(compose).not.toContain('dockerApps:')
     expect(compose).not.toContain('brosnode:')
     expect(dockerfile).toContain('node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b75901b6a09de1ae5a667d32')

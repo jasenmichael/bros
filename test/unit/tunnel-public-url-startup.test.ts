@@ -39,7 +39,7 @@ describe('public_url tunnel startup', () => {
        cat "$(bros_tunnel_dir)/enabled"
        cat "$(bros_tunnel_dir)/public_url"
        cat "$(bros_tunnel_dir)/hostname"`,
-      { BROS_DIR: root, BROS_HOST_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
+      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
     )
     expect(out).toContain('WANT_START')
     expect(out).toContain('https://bros.example.com')
@@ -56,7 +56,7 @@ describe('public_url tunnel startup', () => {
        if bros_tunnel_apply_public_url; then echo WANT_START; else echo NO_START; fi
        if [[ -f "$(bros_tunnel_dir)/enabled" ]]; then cat "$(bros_tunnel_dir)/enabled"; else echo NO_ENABLED; fi
        if [[ -f "$(bros_tunnel_dir)/command" ]]; then echo HAS_COMMAND; else echo NO_COMMAND; fi`,
-      { BROS_DIR: root, BROS_HOST_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
+      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
     )
     expect(out).toContain('NO_START')
     expect(out).toContain('NO_ENABLED')
@@ -72,7 +72,7 @@ describe('public_url tunnel startup', () => {
        source "${TUNNEL_SH}"
        if bros_tunnel_apply_public_url; then echo WANT_START; else echo NO_START; fi
        cat "$(bros_tunnel_dir)/hostname"`,
-      { BROS_DIR: root, BROS_HOST_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: 'bros.example.com' },
+      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: 'bros.example.com' },
     )
     expect(out).toContain('WANT_START')
     expect(out).toContain('bros.example.com')
@@ -91,7 +91,7 @@ describe('public_url tunnel startup', () => {
        printf '1\n' > "$(bros_tunnel_dir)/enabled"
        printf '%s\n' "quick=$(bros_tunnel_advertised_url)"
        printf '%s\n' "named=$(BROS_TUNNEL_HOST=bros.example.com bros_tunnel_advertised_url)"`,
-      { BROS_DIR: root, BROS_HOST_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
+      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: '', BROS_TUNNEL_HOST: '' },
     )
     expect(out).toContain('off=')
     expect(out).not.toContain('off=https://')
@@ -112,7 +112,7 @@ describe('public_url tunnel startup', () => {
        if bros_tunnel_running_matches; then echo MATCH2; else echo MISS2; fi
        unset BROS_PUBLIC_URL
        if bros_tunnel_running_matches; then echo QUICK; else echo NO_QUICK; fi`,
-      { BROS_DIR: root, BROS_HOST_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: 'https://bros.example.com', BROS_TUNNEL_HOST: '' },
+      { BROS_DIR: root, BROS_DATA_DIR: join(root, 'data'), BROS_PUBLIC_URL: 'https://bros.example.com', BROS_TUNNEL_HOST: '' },
     )
     expect(out).toContain('MATCH')
     expect(out).toContain('MISS2')

@@ -5,7 +5,7 @@ description: Alternate chat UI on host port 3080.
 
 # Open WebUI docker app
 
-Shipped **addon** package `lib/apps/addon/openwebui`. Alternate chat UI, separate from Bros Chat. Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_APP_OPENWEBUI=0` or `BROS_APPS_DISABLE=openwebui`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
+Shipped **addon** package `lib/apps/addon/openwebui`. Alternate chat UI, separate from Bros Chat. Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. List `openwebui` in `BROS_APPS_ENABLED` (or turn Autostart on) to start it on boot. Start still runs it when not listed.
 
 ## Ports
 
@@ -16,6 +16,6 @@ Never publish host ports **3000** or **8080**. No `proxy.public` — Open/Pin st
 
 ## Binds
 
-- `$BROS_HOST_DATA_DIR/apps/openwebui/data` → `/app/backend/data` (also `WEBUI_SECRET_KEY_FILE`)
+- `$BROS_DATA_DIR/apps/openwebui/data` → `/app/backend/data` (also `WEBUI_SECRET_KEY_FILE`)
 
 Hub: [Docker apps](/docs/apps).

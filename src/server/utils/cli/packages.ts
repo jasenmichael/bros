@@ -897,8 +897,8 @@ export function dockerAppsRemounting(
   const hosts = new Set(changedHosts)
   return apps.filter((app) => {
     const text = app.compose
-      .replaceAll('${BROS_HOST_DATA_DIR:?unset}', dataDir)
-      .replaceAll('${BROS_HOST_DATA_DIR}', dataDir)
+      .replaceAll('${BROS_DATA_DIR:?unset}', dataDir)
+      .replaceAll('${BROS_DATA_DIR}', dataDir)
     return volumeHostPaths(text).some(host => hosts.has(host))
   }).map(app => app.id)
 }
@@ -923,7 +923,7 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
     const started = await (await docker()).rebuildBrosContainer({ build: rebuild || list.changed, forceRecreate: changed })
     if (started.code === 0 && changed) {
       const hosts = changedVolumeHosts(before, readAppsComposeText())
-      const dataDir = process.env.BROS_HOST_DATA_DIR || loadBootstrapConfig().dataDir
+      const dataDir = process.env.BROS_DATA_DIR || loadBootstrapConfig().dataDir
       const apps = discoverDockerApps().dockerApps.map((app) => {
         const file = join(app.dir, 'docker-compose.yml')
         return { id: app.id, compose: existsSync(file) ? readFileSync(file, 'utf8') : '' }

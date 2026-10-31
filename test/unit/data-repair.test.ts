@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { dataRepairPlan } from '../../src/server/utils/repairData'
 
-const KEYS = ['BROS_HOST_UID', 'BROS_HOST_GID', 'BROS_HOST_DATA_DIR', 'BROS_DATA_DIR', 'BROS_DIR', 'BROS_HOME'] as const
+const KEYS = ['BROS_HOST_UID', 'BROS_HOST_GID', 'BROS_DATA_DIR', 'BROS_DATA_DIR', 'BROS_DIR', 'BROS_DIR'] as const
 
 describe('dataRepairPlan', () => {
   const saved: Record<string, string | undefined> = {}
@@ -21,7 +21,7 @@ describe('dataRepairPlan', () => {
     saveEnv()
     process.env.BROS_HOST_UID = '1000'
     process.env.BROS_HOST_GID = '1000'
-    process.env.BROS_HOST_DATA_DIR = '/home/me/dev/bros/data'
+    process.env.BROS_DATA_DIR = '/home/me/dev/bros/data'
     const plan = dataRepairPlan()
     expect(plan.hostUid).toBe('1000')
     expect(plan.hostGid).toBe('1000')
@@ -33,7 +33,7 @@ describe('dataRepairPlan', () => {
     saveEnv()
     delete process.env.BROS_HOST_UID
     process.env.BROS_HOST_GID = '1000'
-    process.env.BROS_HOST_DATA_DIR = '/home/me/dev/bros/data'
+    process.env.BROS_DATA_DIR = '/home/me/dev/bros/data'
     expect(dataRepairPlan().command).toBe('')
   })
 })

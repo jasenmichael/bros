@@ -16,7 +16,7 @@ services:
     tmpfs:
       - /home/bros:mode=1777
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/home/.cache/huggingface/hub:/home/bros/.cache/huggingface/hub
+      - ${BROS_DATA_DIR:?unset}/home/.cache/huggingface/hub:/home/bros/.cache/huggingface/hub
     restart: unless-stopped
     networks:
       - bros

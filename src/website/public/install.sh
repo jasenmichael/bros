@@ -7,25 +7,22 @@
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 #
-# Default (release): unpack tarball into BROS_HOME, symlink BROS_BIN. No cargo.
+# Default (release): unpack tarball into BROS_DIR, symlink BROS_BIN. No cargo.
 # --from-src: clone + cargo build (contributor path), then same BROS_BIN link.
 #
 # Env overrides:
 #   BROS_RELEASE_URL  Exact release tarball URL. Unset picks bros-<os>-<arch>.tar.gz
 #   BROS_REPO    Git clone URL for --from-src
-#   BROS_HOME    Install directory (default: ~/.bros). BROS_DIR is an alias.
-#   BROS_CONFIG  Bootstrap YAML (default: $BROS_HOME/bros.yml)
+#   BROS_DIR     Install directory (default: ~/.bros). Binary lands here.
+#   BROS_CONFIG  Bootstrap YAML (default: $BROS_DIR/bros.yml)
 #   BROS_BIN     PATH symlink (default: ~/.local/bin/bros)
 #   BROS_REF     Git ref for --from-src (default: main)
 set -euo pipefail
 
 BROS_REPO="${BROS_REPO:-https://github.com/jasenmichael/bros.git}"
-if [[ -z "${BROS_HOME:-}" ]]; then
-  BROS_HOME="${BROS_DIR:-${HOME}/.bros}"
-fi
-BROS_DIR="$BROS_HOME"
+BROS_DIR="${BROS_DIR:-${HOME}/.bros}"
 BROS_REF="${BROS_REF:-main}"
-BROS_CONFIG="${BROS_CONFIG:-$BROS_HOME/bros.yml}"
+BROS_CONFIG="${BROS_CONFIG:-$BROS_DIR/bros.yml}"
 BROS_BIN="${BROS_BIN:-${HOME}/.local/bin/bros}"
 INSTALL_SERVICE=0
 FROM_SRC=0
@@ -85,8 +82,8 @@ release_url() {
 unpack_release() {
   need_cmd curl
   need_cmd tar
-  if [[ -d "$BROS_HOME/.git" ]]; then
-    die "$BROS_HOME is a source checkout. Re-run with --from-src."
+  if [[ -d "$BROS_DIR/.git" ]]; then
+    die "$BROS_DIR is a source checkout. Re-run with --from-src."
   fi
   local tmp url
   url="$(release_url)"
@@ -97,35 +94,35 @@ unpack_release() {
     die "release not found: $url
 Install from source: install.sh --from-src"
   fi
-  mkdir -p "$BROS_HOME"
-  tar -xzf "$tmp/bros.tar.gz" -C "$BROS_HOME"
+  mkdir -p "$BROS_DIR"
+  tar -xzf "$tmp/bros.tar.gz" -C "$BROS_DIR"
   rm -rf "$tmp"
 }
 
 from_src() {
   need_cmd git
   need_cmd cargo
-  if [[ -d "$BROS_HOME/.git" ]]; then
-    info "Existing clone at $BROS_HOME — fetching $BROS_REF"
-    git -C "$BROS_HOME" fetch --tags --prune origin
-    git -C "$BROS_HOME" checkout "$BROS_REF"
-    git -C "$BROS_HOME" pull --ff-only origin "$BROS_REF" || true
-    git -C "$BROS_HOME" submodule update --init --depth 1
-  elif [[ -e "$BROS_HOME" ]]; then
-    die "$BROS_HOME exists but is not a git repo. Move it aside or set BROS_HOME."
+  if [[ -d "$BROS_DIR/.git" ]]; then
+    info "Existing clone at $BROS_DIR — fetching $BROS_REF"
+    git -C "$BROS_DIR" fetch --tags --prune origin
+    git -C "$BROS_DIR" checkout "$BROS_REF"
+    git -C "$BROS_DIR" pull --ff-only origin "$BROS_REF" || true
+    git -C "$BROS_DIR" submodule update --init --depth 1
+  elif [[ -e "$BROS_DIR" ]]; then
+    die "$BROS_DIR exists but is not a git repo. Move it aside or set BROS_DIR."
   else
-    info "Cloning $BROS_REPO ($BROS_REF) into $BROS_HOME"
-    git clone --branch "$BROS_REF" --depth 1 --recurse-submodules --shallow-submodules "$BROS_REPO" "$BROS_HOME"
+    info "Cloning $BROS_REPO ($BROS_REF) into $BROS_DIR"
+    git clone --branch "$BROS_REF" --depth 1 --recurse-submodules --shallow-submodules "$BROS_REPO" "$BROS_DIR"
   fi
   info "Building CLI"
-  cargo build --release --manifest-path "$BROS_HOME/cli/Cargo.toml"
-  ln -sfn cli/target/release/bros "$BROS_HOME/bros"
+  cargo build --release --manifest-path "$BROS_DIR/cli/Cargo.toml"
+  ln -sfn cli/target/release/bros "$BROS_DIR/bros"
 }
 
 ensure_dotenv() {
-  if [[ -f "$BROS_HOME/example.env" && ! -f "$BROS_HOME/.env" ]]; then
-    cp "$BROS_HOME/example.env" "$BROS_HOME/.env"
-    info "Wrote $BROS_HOME/.env from example.env"
+  if [[ -f "$BROS_DIR/example.env" && ! -f "$BROS_DIR/.env" ]]; then
+    cp "$BROS_DIR/example.env" "$BROS_DIR/.env"
+    info "Wrote $BROS_DIR/.env from example.env"
   fi
 }
 
@@ -136,7 +133,7 @@ write_default_config() {
   fi
   mkdir -p "$(dirname "$BROS_CONFIG")"
   cat >"$BROS_CONFIG" <<'EOF'
-# Bros bootstrap. Host layout is BROS_HOME + $BROS_HOME/data.
+# Bros bootstrap. Host layout is BROS_DIR + $BROS_DIR/data.
 # Compose sets in-container working_dir=/app and data at /app/data.
 # Uncomment to enable a named Cloudflare tunnel:
 # public_url: https://bros.example.com
@@ -146,9 +143,9 @@ EOF
 
 link_bin() {
   mkdir -p "$(dirname "$BROS_BIN")"
-  [[ -x "$BROS_HOME/bros" ]] || die "CLI missing at $BROS_HOME/bros"
-  ln -sfn "$BROS_HOME/bros" "$BROS_BIN"
-  info "Symlink $BROS_BIN -> $BROS_HOME/bros"
+  [[ -x "$BROS_DIR/bros" ]] || die "CLI missing at $BROS_DIR/bros"
+  ln -sfn "$BROS_DIR/bros" "$BROS_BIN"
+  info "Symlink $BROS_BIN -> $BROS_DIR/bros"
   case ":$PATH:" in
     *":$(dirname "$BROS_BIN"):"*) ;;
     *)
@@ -170,8 +167,8 @@ install_service() {
     return 0
   fi
   info "Installing systemd --user unit…"
-  BROS_HOME="$BROS_HOME" BROS_DIR="$BROS_HOME" BROS_CONFIG="$BROS_CONFIG" BROS_BIN="$BROS_BIN" \
-    "$BROS_HOME/bros" service install
+  BROS_DIR="$BROS_DIR" BROS_CONFIG="$BROS_CONFIG" BROS_BIN="$BROS_BIN" \
+    "$BROS_DIR/bros" service install
 }
 
 maybe_install_service() {
@@ -190,7 +187,7 @@ maybe_install_service() {
 print_next_steps() {
   cat <<EOF
 
-Bros installed at: $BROS_HOME
+Bros installed at: $BROS_DIR
 Config: $BROS_CONFIG
 Command: $BROS_BIN
 
@@ -236,7 +233,7 @@ Options:
   --from-src  Clone and cargo-build the CLI (optional). Default unpacks a release (no build).
   --service   Install a systemd --user unit (Linux)
 
-Env: BROS_HOME BROS_DIR BROS_CONFIG BROS_BIN BROS_REPO BROS_REF BROS_RELEASE_URL
+Env: BROS_DIR BROS_CONFIG BROS_BIN BROS_REPO BROS_REF BROS_RELEASE_URL
 EOF
         exit 0
         ;;
@@ -265,14 +262,14 @@ main() {
 }
 
 setup_packaged_model() {
-  if [[ ! -f "$BROS_HOME/lib/apps/core/ollama/BROS_MODEL_VERSION" ]]; then
+  if [[ ! -f "$BROS_DIR/lib/apps/core/ollama/BROS_MODEL_VERSION" ]]; then
     return 0
   fi
-  if [[ ! -x "$BROS_HOME/bros" ]]; then
+  if [[ ! -x "$BROS_DIR/bros" ]]; then
     return 0
   fi
   info "Installing the packaged model…"
-  BROS_MODEL_SETUP=1 "$BROS_HOME/bros" update
+  BROS_MODEL_SETUP=1 "$BROS_DIR/bros" update
 }
 
 main "$@"

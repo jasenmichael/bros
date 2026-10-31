@@ -12,7 +12,7 @@ services:
     ports:
       - "${BROS_OPENWEBUI_PORT:-3080}:8080"
     volumes:
-      - ${BROS_HOST_DATA_DIR:?unset}/apps/openwebui/data:/app/backend/data
+      - ${BROS_DATA_DIR:?unset}/apps/openwebui/data:/app/backend/data
     restart: unless-stopped
     networks:
       - bros

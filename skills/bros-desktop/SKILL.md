@@ -8,7 +8,7 @@ description: >-
 
 # Desktop / Terminal / Drawer
 
-Docs: `$BROS_HOME/docs/desktop.md` + `desktop-gui.md` first, else GitHub.
+Docs: `$BROS_DIR/docs/desktop.md` + `desktop-gui.md` first, else GitHub.
 
 ## Concepts
 

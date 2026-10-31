@@ -3,18 +3,18 @@ name: bros
 description: >-
   Orients agents to Bros (Boxed Runtime Orchestration System): glossary,
   contract docs, doc lookup, and which sibling skill to load. Use when the user
-  mentions Bros, $BROS_HOME, /apps, Desktop, or Bros Chat/Agents.
+  mentions Bros, $BROS_DIR, /apps, Desktop, or Bros Chat/Agents.
 ---
 
 # Bros
 
 **Bros** = Boxed Runtime Orchestration System. Docker control plane for local AI apps (Chat, Providers, Apps) plus a browser Desktop (Selkies). CLI is `bros` (default action: start). UI: `http://127.0.0.1:3055`.
 
-Install: `curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash` → `$BROS_DIR` / `$BROS_HOME` (usually `~/.bros`), symlink `~/.local/bin/bros`.
+Install: `curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash` → `$BROS_DIR` / `$BROS_DIR` (usually `~/.bros`), symlink `~/.local/bin/bros`.
 
 ## Doc resolution
 
-1. If `$BROS_HOME/docs` or `$BROS_DIR/docs` exists, read that tree first.
+1. If `$BROS_DIR/docs` or `$BROS_DIR/docs` exists, read that tree first.
 2. Else use https://github.com/jasenmichael/bros/tree/main/docs (raw: `https://raw.githubusercontent.com/jasenmichael/bros/main/docs/...`).
 3. When Bros is up: OpenAPI at `http://127.0.0.1:3055/openapi.yaml`.
 

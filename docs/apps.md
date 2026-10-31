@@ -64,7 +64,7 @@ Each docker app is a directory with:
 - `config.yml` — `kind: docker`, identity, and interfaces
 - `docker-compose.yml` — one or more services
 - optional `Dockerfile`
-- optional `data/` — files that mirror container paths. Before `compose up`, Bros copies each file into `$BROS_HOME/data/<id>/` when that destination is missing. Existing volume files stay.
+- optional `data/` — files that mirror container paths. Before `compose up`, Bros copies each file into `$BROS_DIR/data/<id>/` when that destination is missing. Existing volume files stay.
 
 Compose project name is `bros-<id>` on shared external Docker network `bros`. The Bros compose file uses the same network (`external: true`). The CLI creates it if missing.
 
@@ -80,7 +80,7 @@ Do **not** add extra Cloudflare hostnames. Web UI path proxy exists only for nat
 
 **Core docker** — `lib/apps/core/ollama` and `lib/apps/core/whisper` (`config.yml` `kind: docker`). Ollama is always on. No Start, Stop, Restart, or Autostart on Apps / Status / Home. No disable env. `POST /api/apps/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast). Whisper stays stopped until Settings **Enable Whisper**. That switch pulls images, then starts the app. Off stops it and skips boot. The same pages hide Start, Stop, Restart, and Autostart. `POST /api/apps/whisper/start`, `…/stop`, and `…/restart` return 400. Desktop is not a docker app. It is the Bros container. See [Desktop](/docs/desktop).
 
-**Addon docker** — kind `docker` under `lib/apps/addon/<id>/` (Open WebUI, Firecrawl, Firecrawl UI, OpenJEV, Pi, OmniRoute). The directory holds `config.yml` and `docker-compose.yml`. Optional. A fresh install does not start them. Autostart is SQLite and defaults off; boot honors that flag. Press Start to run one without Autostart. Env-disabled apps stay listed, do not autostart, and Start still runs them. The id stays reserved. `/desktop` opens and closes the window and does not start or stop the container. Mark disabled with `BROS_APP_OPENWEBUI=0`, `BROS_APP_FIRECRAWL=0`, `BROS_APP_FIRECRAWL_UI=0`, `BROS_APP_OPENJEV=0`, `BROS_APP_PI=0`, `BROS_APP_OMNIROUTE=0`, or `BROS_APPS_DISABLE=openwebui,firecrawl,firecrawl-ui,openjev,pi,omniroute`. Env disable does not apply to Ollama or Whisper. The OpenCode package app is npm, not this list.
+**Addon docker** — kind `docker` under `lib/apps/addon/<id>/` (Open WebUI, Firecrawl, Firecrawl UI, OpenJEV, Pi, OmniRoute). The directory holds `config.yml` and `docker-compose.yml`. Optional. A fresh install does not start them. Autostart is SQLite and defaults off; boot honors that flag. Press Start to run one without Autostart. Env-disabled apps stay listed, do not autostart, and Start still runs them. The id stays reserved. `/desktop` opens and closes the window and does not start or stop the container. Mark disabled with `BROS_APP_OPENWEBUI=0`, `BROS_APP_FIRECRAWL=0`, `BROS_APP_FIRECRAWL_UI=0`, `BROS_APP_OPENJEV=0`, `BROS_APP_PI=0`, `BROS_APP_OMNIROUTE=0`, or `BROS_APPS_ENABLED=openwebui,firecrawl,firecrawl-ui,openjev,pi,omniroute`. Env disable does not apply to Ollama or Whisper. The OpenCode package app is npm, not this list.
 
 **Custom** — a docker app under `data/config/apps/<id>/`. Not in the repo. Same files as a shipped docker app. Same controls as an addon. Moving that directory to `lib/apps/addon/<id>/` or `lib/apps/core/<id>/` ships it.
 

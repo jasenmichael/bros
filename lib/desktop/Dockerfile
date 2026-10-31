@@ -29,6 +29,7 @@ FROM ghcr.io/linuxserver/baseimage-selkies:ubunturesolute-4eb74d68-ls53@sha256:b
 
 ENV PIXELFLUX_WAYLAND=true
 ENV SELKIES_MODE=websockets
+ENV SELKIES_ENABLE_SHARING=false
 ENV SUBFOLDER=/desktop/view/
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/home/bros

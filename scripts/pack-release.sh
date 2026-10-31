@@ -125,6 +125,7 @@ copy() {
 }
 
 install -m 755 "$binary" "$stage/bros"
+install -m 755 "$ROOT/uninstall.sh" "$stage/uninstall.sh"
 copy VERSION
 copy example.env
 copy .dockerignore
@@ -149,6 +150,7 @@ test ! -e "$stage/src/ui/package.json"
 test ! -e "$stage/docs/adr"
 test ! -e "$stage/scripts/pack-release.sh"
 test -x "$stage/bros"
+test -x "$stage/uninstall.sh"
 test -f "$stage/example.env"
 test -f "$stage/VERSION"
 test -f "$stage/lib/apps/core/ollama/BROS_MODEL_VERSION"

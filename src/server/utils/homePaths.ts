@@ -40,9 +40,9 @@ export function ensureHomeDirs(dataDir: string, paths: string[]) {
   }
 }
 
-/** `BROS_HOST_WORKSPACE` wins, then `bros.yml` `workspace`, then `data/home/workspace`. */
+/** `BROS_WORKSPACE` wins, then `bros.yml` `workspace`, then `data/home/workspace`. */
 export function resolveWorkspaceHost(input: { dataDir: string; appDir: string; yaml?: string }): string {
-  const env = process.env.BROS_HOST_WORKSPACE?.trim()
+  const env = process.env.BROS_WORKSPACE?.trim()
   if (env) return resolve(env)
   const yaml = input.yaml?.trim()
   if (yaml) return resolve(yaml.startsWith('/') ? yaml : join(input.appDir, yaml))

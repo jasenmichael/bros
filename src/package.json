@@ -1,6 +1,6 @@
 {
   "name": "bros",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@12.15.0",
   "scripts": {
@@ -11,7 +11,8 @@
     "docs:generate": "pnpm --filter @bros/website generate",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm --filter @bros/ui test",
-    "test:ci": "pnpm --filter @bros/ui exec vitest run --project unit --project nuxt"
+    "test:ci": "pnpm --filter @bros/ui exec vitest run --project unit --project nuxt",
+    "test:smoke": "bash ../scripts/smoke-install.sh"
   },
   "engines": {
     "node": ">=22"

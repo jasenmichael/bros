@@ -18,7 +18,11 @@ if len(parts) != 3 or any(not p.isdigit() for p in parts):
     raise SystemExit(f"VERSION is not X.Y.Z: {cur}")
 major, minor, patch = (int(p) for p in parts)
 if kind == "major":
-    major, minor, patch = major + 1, 0, 0
+    # Stay on 0.x until an intentional 1.0.0; feat! while major==0 bumps minor.
+    if major == 0:
+        minor, patch = minor + 1, 0
+    else:
+        major, minor, patch = major + 1, 0, 0
 elif kind == "minor":
     minor, patch = minor + 1, 0
 elif kind == "patch":
@@ -136,7 +140,9 @@ case "${1:-}" in
   --self-check)
     [[ "$(next_version 0.0.1 patch)" == "0.0.2" ]]
     [[ "$(next_version 0.0.1 minor)" == "0.1.0" ]]
-    [[ "$(next_version 0.0.1 major)" == "1.0.0" ]]
+    [[ "$(next_version 0.0.6 major)" == "0.1.0" ]]
+    [[ "$(next_version 0.1.3 major)" == "0.2.0" ]]
+    [[ "$(next_version 1.2.3 major)" == "2.0.0" ]]
     printf 'self-check ok\n' >&2
     ;;
   patch|minor|major)
