@@ -4,7 +4,7 @@ import {
   isBrosManagedContainer,
   toBrosManagedContainer,
   type BrosContainerListItem,
-} from '../../src/server/utils/docker'
+} from '../../app/server/utils/docker'
 
 function item(partial: BrosContainerListItem): BrosContainerListItem {
   return partial

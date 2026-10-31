@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { seedDockerAppData } from '../../src/server/utils/docker-app/dockerAppData'
+import { seedDockerAppData } from '../../app/server/utils/docker-app/dockerAppData'
 
 describe('dockerApp data layout', () => {
   let root = ''

@@ -13,7 +13,7 @@ export function composeAppSignals(env: NodeJS.ProcessEnv = process.env): boolean
   return env.BROS_DIR === '/app'
 }
 
-/** True when the Nuxt process is the Compose app container, not `pnpm --dir src ui:dev`. */
+/** True when the Nuxt process is the Compose app container, not `pnpm --dir app ui:dev`. */
 export function appRunsInDocker(): boolean {
   if (testInDocker !== undefined) return testInDocker
   return existsSync('/.dockerenv') || composeAppSignals()
@@ -27,7 +27,7 @@ export type DockerAppReachOpts = {
 }
 
 /**
- * Bros → dockerApp HTTP: Docker DNS in-container, host publish on `pnpm --dir src ui:dev`.
+ * Bros → dockerApp HTTP: Docker DNS in-container, host publish on `pnpm --dir app ui:dev`.
  * Open/Pin stay `hostUiUrl` (`127.0.0.1:<publish>`).
  */
 export function dockerAppReachUrl(opts: DockerAppReachOpts, env: NodeJS.ProcessEnv = process.env): string {

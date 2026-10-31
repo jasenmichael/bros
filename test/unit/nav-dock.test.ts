@@ -8,7 +8,7 @@ import {
   clampLiveWidth,
   iconModeForWidth,
   labeledWidthFromLive,
-} from '../../src/layers/theme/app/composables/useNavDock'
+} from '../../app/layers/theme/app/composables/useNavDock'
 
 describe('nav dock snap', () => {
   it('snaps to icons below 80px and back to labels past 112px', () => {

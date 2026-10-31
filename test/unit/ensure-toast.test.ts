@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitEnsureCards, takeEnsureCard } from '../../src/ui/utils/ensureToast'
+import { splitEnsureCards, takeEnsureCard } from '../../app/ui/utils/ensureToast'
 
 describe('ensure toasts', () => {
   it('shows each package version only on that package card', () => {

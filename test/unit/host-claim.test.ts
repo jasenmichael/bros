@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, writeFileSync, rmSync, statSync } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { claimForHost } from '../../src/server/utils/hostClaim'
+import { claimForHost } from '../../app/server/utils/hostClaim'
 
 describe('claimForHost', () => {
   let root = ''

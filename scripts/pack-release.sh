@@ -2,11 +2,11 @@
 # Pack one release tarball. Does not bump VERSION and does not upload.
 # The Nitro output and the bros binary must already be built.
 #
-#   pnpm --dir src --filter @bros/ui build
+#   pnpm --dir app --filter @bros/ui build
 #   cargo build --release --manifest-path cli/Cargo.toml --target x86_64-unknown-linux-gnu
 #   scripts/pack-release.sh --target x86_64-unknown-linux-gnu
 #
-#   scripts/pack-release.sh --binary path/to/bros --ui src/ui/.output --name bros-linux-amd64
+#   scripts/pack-release.sh --binary path/to/bros --ui app/ui/.output --name bros-linux-amd64
 #
 # Writes <name>.tar.gz and <name>.tar.gz.sha256 in the repo root.
 # The binary inside the tar is always named bros.
@@ -17,7 +17,7 @@ orig="$(pwd)"
 
 binary=""
 target=""
-ui="$ROOT/src/ui/.output"
+ui="$ROOT/app/ui/.output"
 name=""
 
 die() {
@@ -29,7 +29,7 @@ usage() {
   cat <<'EOF'
 usage: scripts/pack-release.sh [--binary PATH] [--target TRIPLE] [--ui DIR] [--name NAME]
 
---ui defaults to src/ui/.output. --name defaults from --target, else from uname.
+--ui defaults to app/ui/.output. --name defaults from --target, else from uname.
 Does not bump VERSION, cargo-build, or pnpm-build.
 EOF
 }
@@ -111,7 +111,7 @@ binary="$(abs_path "$binary")"
 ui="$(abs_path "$ui")"
 
 [[ -f "$binary" ]] || die "built CLI missing: $binary"
-[[ -f "$ui/server/index.mjs" ]] || die "built UI missing: $ui/server/index.mjs (run: pnpm --dir src --filter @bros/ui build)"
+[[ -f "$ui/server/index.mjs" ]] || die "built UI missing: $ui/server/index.mjs (run: pnpm --dir app --filter @bros/ui build)"
 
 cd "$ROOT"
 
@@ -125,7 +125,7 @@ copy() {
 }
 
 install -m 755 "$binary" "$stage/bros"
-install -m 755 "$ROOT/uninstall.sh" "$stage/uninstall.sh"
+install -m 755 "$ROOT/scripts/uninstall.sh" "$stage/uninstall.sh"
 copy VERSION
 copy example.env
 copy .dockerignore
@@ -135,18 +135,18 @@ mkdir -p "$stage/scripts"
 cp -a scripts/bros-tunnel.sh scripts/bros-tunnel-helper.sh "$stage/scripts/"
 mkdir -p "$stage/docs"
 tar -C docs -cf - --exclude adr . | tar -C "$stage/docs" -xf -
-mkdir -p "$stage/src/ui"
-cp -a "$ui" "$stage/src/ui/.output"
+mkdir -p "$stage/app/ui"
+cp -a "$ui" "$stage/app/ui/.output"
 
-# cli/ sources, data/, vendor/, src sources, and docs/adr stay out.
+# cli/ sources, data/, vendor/, app sources, and docs/adr stay out.
 test ! -e "$stage/cli"
 test ! -e "$stage/data"
 test ! -e "$stage/vendor"
-test ! -e "$stage/src/website"
-test ! -e "$stage/src/server"
-test ! -e "$stage/src/layers"
-test ! -e "$stage/src/ui/nuxt.config.ts"
-test ! -e "$stage/src/ui/package.json"
+test ! -e "$stage/app/website"
+test ! -e "$stage/app/server"
+test ! -e "$stage/app/layers"
+test ! -e "$stage/app/ui/nuxt.config.ts"
+test ! -e "$stage/app/ui/package.json"
 test ! -e "$stage/docs/adr"
 test ! -e "$stage/scripts/pack-release.sh"
 test -x "$stage/bros"
@@ -156,7 +156,7 @@ test -f "$stage/VERSION"
 test -f "$stage/lib/apps/core/ollama/BROS_MODEL_VERSION"
 test ! -e "$stage/BROS_MODEL_VERSION"
 test -f "$stage/.dockerignore"
-test -f "$stage/src/ui/.output/server/index.mjs"
+test -f "$stage/app/ui/.output/server/index.mjs"
 test -f "$stage/docs/cli.md"
 test -f "$stage/scripts/bros-tunnel.sh"
 test -f "$stage/lib/desktop/Dockerfile"

@@ -61,7 +61,7 @@ function card(wrapper: { findAll: (sel: string) => Array<{ find: (sel: string) =
 
 describe('Dashboard hub', () => {
   it('shows recent chats and a new chat link', async () => {
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     const chats = card(wrapper, 'Chats')
     expect(chats).toBeTruthy()
@@ -74,7 +74,7 @@ describe('Dashboard hub', () => {
   })
 
   it('shows providers on for chat and an active pull', async () => {
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     const providers = card(wrapper, 'Providers')
     expect(providers!.text()).toContain('2 on for chat')
@@ -86,7 +86,7 @@ describe('Dashboard hub', () => {
   })
 
   it('shows dockerApp phase and opens a running web UI', async () => {
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     const apps = card(wrapper, 'Apps')
     expect(apps!.text()).toContain('2/2 running')
@@ -99,7 +99,7 @@ describe('Dashboard hub', () => {
   })
 
   it('links attention items to the page that can fix them', async () => {
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     const link = wrapper.get('a[href="/status"]')
     expect(link.text()).toContain('1 GB free on the data disk')
@@ -116,7 +116,7 @@ describe('Dashboard tunnel card', () => {
     summary.tunnel.helperAlive = true
     fetchMock.mockClear()
 
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     expect(wrapper.text()).toContain('Tunnel')
     expect(wrapper.text()).toContain('stopped')
@@ -137,7 +137,7 @@ describe('Dashboard tunnel card', () => {
     summary.tunnel.helperAlive = true
     fetchMock.mockClear()
 
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     expect(wrapper.text()).toContain('running ·')
     expect(wrapper.text()).toContain('https://bros.example.com')
@@ -162,7 +162,7 @@ describe('Dashboard tunnel card', () => {
     summary.tunnel.installed = true
     summary.tunnel.loggedIn = true
 
-    const Dashboard = await import('../../src/ui/pages/index.vue').then((m) => m.default)
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
     expect(wrapper.text()).toContain('failed to accept QUIC stream: timeout: no recent network activity')
     expect(wrapper.text()).toContain('https://bros.example.com')

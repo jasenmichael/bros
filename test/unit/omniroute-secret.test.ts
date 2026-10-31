@@ -6,7 +6,7 @@ import {
   ensureOmnirouteJwtSecret,
   omnirouteEnvPath,
   parseOmnirouteJwtSecret,
-} from '../../src/server/utils/docker-app/omnirouteSecret'
+} from '../../app/server/utils/docker-app/omnirouteSecret'
 
 describe('omnirouteSecret', () => {
   const roots: string[] = []

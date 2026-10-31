@@ -2,7 +2,7 @@ import { mkdtempSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { containerLogFile, logTailCount, rotateContainerLog, shouldRotateLog } from '../../src/server/utils/containerLogs'
+import { containerLogFile, logTailCount, rotateContainerLog, shouldRotateLog } from '../../app/server/utils/containerLogs'
 
 describe('container logs', () => {
   it('names one file per service', () => {

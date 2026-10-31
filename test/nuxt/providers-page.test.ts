@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { PROVIDER_PRESETS } from '../../src/server/utils/providers/presets'
+import { PROVIDER_PRESETS } from '../../app/server/utils/providers/presets'
 
 const siteUrlById = Object.fromEntries(PROVIDER_PRESETS.map((p) => [p.id, p.siteUrl]))
 
@@ -102,7 +102,7 @@ function visibleText(wrapper: { text: () => string }) {
 
 describe('Providers page', () => {
   it('lists Ollama then Custom providers, with both Ollama cards collapsed on load', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     const titles = headings(wrapper)
     expect(titles).toContain('Ollama')
@@ -185,7 +185,7 @@ describe('Providers page', () => {
   })
 
   it('expands then collapses the dockerApp pull panel from the chevron without losing selection', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     const expanders = wrapper.findAll('[aria-label="Expand models"]')
     expect(expanders.length).toBe(2)
@@ -205,7 +205,7 @@ describe('Providers page', () => {
   })
 
   it('shows a Chat switch and ban delete on dockerApp installed rows, with confirm', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     expect(wrapper.text()).not.toContain('llama3.2')
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
@@ -233,7 +233,7 @@ describe('Providers page', () => {
   })
 
   it('applies the same installed-row controls on the host card', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     const hostCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (host') && li.text().includes('Unreachable'))
     expect(hostCard).toBeTruthy()
@@ -256,7 +256,7 @@ describe('Providers page', () => {
   })
 
   it('moves pull into the host card when the host row is selected', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     const hostCard = wrapper.findAll('li').find((li) => li.text().includes('Ollama (host') && li.text().includes('Unreachable'))
     expect(hostCard).toBeTruthy()
@@ -273,7 +273,7 @@ describe('Providers page', () => {
   })
 
   it('shows dockerApp GPU settings after models, not in a modal', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
@@ -294,7 +294,7 @@ describe('Providers page', () => {
   })
 
   it('opens popular settings in the card dropdown after models, with no Delete', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     expect(wrapper.text()).not.toContain('gpt-4o-mini')
     await wrapper.find('[aria-label="Expand OpenAI"]').trigger('click')
@@ -313,7 +313,7 @@ describe('Providers page', () => {
   })
 
   it('shows a Chat switch and no delete on Groq catalog rows', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.find('[aria-label="Expand Groq"]').trigger('click')
     await wrapper.vm.$nextTick()
@@ -329,7 +329,7 @@ describe('Providers page', () => {
   })
 
   it('enables Pull for a typed owner/name:tag and keeps the catalog closed helper gone', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
@@ -352,7 +352,7 @@ describe('Providers page', () => {
   })
 
   it('enables Pull after a catalog menu selection even when the display label has a size', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
@@ -367,7 +367,7 @@ describe('Providers page', () => {
   })
 
   it('shows in-list pull progress without a Chat switch', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     await wrapper.findAll('[aria-label="Expand models"]')[0]!.trigger('click')
     await wrapper.vm.$nextTick()
@@ -383,7 +383,7 @@ describe('Providers page', () => {
   })
 
   it('opens a custom OpenAI-compat form from Add custom under Custom providers', async () => {
-    const ProvidersPage = await import('../../src/ui/pages/providers/index.vue').then((m) => m.default)
+    const ProvidersPage = await import('../../app/ui/pages/providers/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProvidersPage)
     const add = wrapper.findAll('button').find((b) => b.text().includes('Add custom'))
     expect(add).toBeTruthy()

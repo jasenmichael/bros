@@ -6,7 +6,7 @@ import {
   rememberChatModel,
   rememberChatProvider,
   writeChatModelMemory,
-} from '../../src/ui/composables/useChatModelMemory'
+} from '../../app/ui/composables/useChatModelMemory'
 
 const store = new Map<string, string>()
 

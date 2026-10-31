@@ -32,4 +32,4 @@ Host Ollama and Whisper toggles are Settings / `bros.yml` (`enable_host_ollama`,
 
 ## Local smoke
 
-`pnpm --dir src test:smoke` (or `scripts/smoke-install.sh`) packs a local release tarball, installs it in a reused Docker guest, starts, and uninstalls. Needs Docker, cargo, and pnpm. **Not** part of `test:ci` or GitHub Actions.
+`pnpm --dir app test:smoke` (or `scripts/smoke-install.sh`) packs a local release tarball, installs it in a reused Docker guest, starts, and uninstalls. Needs Docker, cargo, and pnpm. **Not** part of `test:ci` or GitHub Actions.

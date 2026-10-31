@@ -1,27 +1,27 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { enabledAppsDir } from '../../src/server/utils/cli/packages'
-import { loadBootstrapConfig } from '../../src/server/utils/config'
-import { defaultDockerAppAutostart, shouldAutostartDockerApp } from '../../src/server/utils/docker-app/dockerApps'
+import { enabledAppsDir } from '../../app/server/utils/cli/packages'
+import { loadBootstrapConfig } from '../../app/server/utils/config'
+import { defaultDockerAppAutostart, shouldAutostartDockerApp } from '../../app/server/utils/docker-app/dockerApps'
 
 const root = join(import.meta.dirname, '../..')
 
 describe('desktop window and enabled dockerApp autostart', () => {
   it('does not start a dockerApp from desktop open, and autostarts enabled dockerApps', () => {
-    const source = readFileSync(join(root, 'src/server/api/apps/[id]/start.post.ts'), 'utf8')
+    const source = readFileSync(join(root, 'app/server/api/apps/[id]/start.post.ts'), 'utf8')
     const guiAt = source.indexOf('if (body?.gui)')
     const branch = source.slice(guiAt, source.indexOf('return startDockerApp', guiAt))
     expect(branch).toContain('ensureDockerAppGui')
     expect(branch).toContain('DockerApp is not running')
     expect(branch).not.toContain('startDockerApp')
 
-    const stop = readFileSync(join(root, 'src/server/api/apps/[id]/stop.post.ts'), 'utf8')
+    const stop = readFileSync(join(root, 'app/server/api/apps/[id]/stop.post.ts'), 'utf8')
     const stopBranch = stop.slice(stop.indexOf('if (body?.gui)'), stop.indexOf('return stopDockerApp'))
     expect(stopBranch).toContain('stopGuiSession')
     expect(stopBranch).not.toContain('stopDockerApp(')
 
-    const boot = readFileSync(join(root, 'src/server/utils/docker.ts'), 'utf8')
+    const boot = readFileSync(join(root, 'app/server/utils/docker.ts'), 'utf8')
     const autostart = boot.slice(boot.indexOf('export async function autostartDockerApps'))
     expect(autostart).toContain('shouldAutostartDockerApp')
     expect(autostart).toContain('isCoreAppEnabled')

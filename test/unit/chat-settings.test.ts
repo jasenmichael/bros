@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { applyChatSettings } from '../../src/server/utils/chat/chatSettings'
+import { applyChatSettings } from '../../app/server/utils/chat/chatSettings'
 
 describe('applyChatSettings', () => {
   const history = [
@@ -48,22 +48,22 @@ describe('chat settings persist and stream payload', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-chat-settings-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     originalFetch = globalThis.fetch
   })
 
   afterEach(async () => {
     globalThis.fetch = originalFetch
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     vi.unstubAllGlobals()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('applies request chat prefs on OpenAI-compat send', async () => {
-    const { ensureDefaultProviders, upsertProvider } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat/chat')
+    const { ensureDefaultProviders, upsertProvider } = await import('../../app/server/utils/providers')
+    const { streamChat } = await import('../../app/server/utils/chat/chat')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -95,8 +95,8 @@ describe('chat settings persist and stream payload', () => {
   })
 
   it('omits settings from the provider payload when empty', async () => {
-    const { ensureDefaultProviders, upsertProvider } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat/chat')
+    const { ensureDefaultProviders, upsertProvider } = await import('../../app/server/utils/providers')
+    const { streamChat } = await import('../../app/server/utils/chat/chat')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -124,8 +124,8 @@ describe('chat settings persist and stream payload', () => {
   })
 
   it('does not inject chat settings into bros Label: title generate', async () => {
-    const { generateChatTitle } = await import('../../src/server/utils/chat/chat')
-    const { dockerAppOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
+    const { generateChatTitle } = await import('../../app/server/utils/chat/chat')
+    const { dockerAppOllamaUrl } = await import('../../app/server/utils/providers/ollamaHost')
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       expect(String(url)).toBe(`${dockerAppOllamaUrl()}/api/chat`)
       const body = JSON.parse(String(init?.body || '{}')) as { messages?: Array<{ role?: string; content?: string }> }

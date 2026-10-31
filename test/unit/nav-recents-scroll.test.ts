@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   navRecentsScrollHints,
   navRecentsScrollStep,
-} from '../../src/layers/theme/app/utils/navRecentsScroll'
+} from '../../app/layers/theme/app/utils/navRecentsScroll'
 
 describe('nav recents scroll hints', () => {
   it('hides both arrows when the list fits', () => {

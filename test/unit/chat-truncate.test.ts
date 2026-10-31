@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_CHAT_TITLE } from '../../src/server/utils/chat/chatTitle'
+import { DEFAULT_CHAT_TITLE } from '../../app/server/utils/chat/chatTitle'
 
 describe('conversation truncate', () => {
   let dataDir = ''
@@ -11,18 +11,18 @@ describe('conversation truncate', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-chat-truncate-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
   })
 
   afterEach(async () => {
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('deletes that user turn and every later row', async () => {
-    const { addMessage, createConversation, getConversation, truncateConversationMessages } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, truncateConversationMessages } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     const u1 = addMessage(convo!.id, 'user', 'first')
     addMessage(convo!.id, 'assistant', 'ok')
@@ -35,7 +35,7 @@ describe('conversation truncate', () => {
   })
 
   it('truncates from fromIndex when the client id does not match', async () => {
-    const { addMessage, createConversation, truncateConversationMessages } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, truncateConversationMessages } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'first')
     addMessage(convo!.id, 'assistant', 'ok')
@@ -46,7 +46,7 @@ describe('conversation truncate', () => {
   })
 
   it('refuses to cut on an assistant row', async () => {
-    const { addMessage, createConversation, getConversation, truncateConversationMessages } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, truncateConversationMessages } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'first')
     const a1 = addMessage(convo!.id, 'assistant', 'ok')
@@ -56,7 +56,7 @@ describe('conversation truncate', () => {
   })
 
   it('does not retitle after truncating later turns', async () => {
-    const { addMessage, createConversation, getConversation, maybeAutoTitle, truncateConversationMessages, updateConversationTitle } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, maybeAutoTitle, truncateConversationMessages, updateConversationTitle } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'first')
     addMessage(convo!.id, 'assistant', 'ok')
@@ -70,7 +70,7 @@ describe('conversation truncate', () => {
   })
 
   it('aborts an in-flight stream generation so a late persist is stale', async () => {
-    const { abortConversationStream, beginConversationStream, isCurrentConversationStream } = await import('../../src/server/utils/chat/chat')
+    const { abortConversationStream, beginConversationStream, isCurrentConversationStream } = await import('../../app/server/utils/chat/chat')
     const job = beginConversationStream('convo-1')
     expect(isCurrentConversationStream('convo-1', job.generation)).toBe(true)
     abortConversationStream('convo-1')

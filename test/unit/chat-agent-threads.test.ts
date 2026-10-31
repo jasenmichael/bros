@@ -10,12 +10,12 @@ describe('agent conversations', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-agent-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
   })
 
   afterEach(async () => {
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
@@ -28,7 +28,7 @@ describe('agent conversations', () => {
       getChatConversation,
       listAgentConversations,
       listConversations,
-    } = await import('../../src/server/utils/chat/chat')
+    } = await import('../../app/server/utils/chat/chat')
     const chat = createConversation('ollama/llama3.2')
     const agent = createConversation('ollama/llama3.2', 'New chat', 'agent')
     const trace = JSON.stringify({ queries: ['example'], sources: [{ title: 'One', url: 'https://example.com/one' }] })

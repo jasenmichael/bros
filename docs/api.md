@@ -9,7 +9,7 @@ Machine-readable contract: [OpenAPI 3.1](/openapi.yaml) (`docs/api/openapi.yaml`
 
 Base URL for a local app: `http://127.0.0.1:3055`. All JSON. Errors use Nitro `statusCode` + `statusMessage` (`{ statusCode, statusMessage, message }`).
 
-Route files under `src/server/api/<surface>/` are the HTTP seam. Each handler stays thin and calls the matching module in `src/server/utils/`. Models are provider subpaths (`/api/providers/{id}/models`). There is no `/api/models`.
+Route files under `app/server/api/<surface>/` are the HTTP seam. Each handler stays thin and calls the matching module in `app/server/utils/`. Models are provider subpaths (`/api/providers/{id}/models`). There is no `/api/models`.
 
 ## Auth
 

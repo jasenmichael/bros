@@ -182,7 +182,7 @@ fn version_of(repo: &Path) -> String {
             return text.to_string();
         }
     }
-    if let Ok(text) = fs::read_to_string(repo.join("src/package.json")) {
+    if let Ok(text) = fs::read_to_string(repo.join("app/package.json")) {
         if let Some(ver) = json_string(&text, "version") {
             return ver;
         }
@@ -730,14 +730,14 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bo
 }
 
 fn ensure_node_modules(repo: &Path, log: &Path) {
-    if repo.join("src/node_modules/citty").exists() {
+    if repo.join("app/node_modules/citty").exists() {
         return;
     }
     say("pnpm install…");
     let mut cmd = Command::new("pnpm");
     cmd.current_dir(repo).args([
         "--dir",
-        "src",
+        "app",
         "install",
         "--filter",
         "@bros/ui...",
@@ -786,11 +786,11 @@ fn stop_other_ui(ui: UiHost) {
 fn start_host_ui(repo: &Path, dev: bool, daemon: bool, log: &Path) -> Option<std::process::Child> {
     env::set_var("PORT", env::var("BROS_PORT").unwrap_or_else(|_| "3055".into()));
     env::set_var("HOST", env::var("BROS_HOST").unwrap_or_else(|_| "0.0.0.0".into()));
-    let built = repo.join("src/ui/.output/server/index.mjs");
+    let built = repo.join("app/ui/.output/server/index.mjs");
     // Release tarball has .output but no workspace package.json — run node directly.
     if !dev && !plan::is_source(repo) {
         if !built.is_file() {
-            die("prebuilt UI missing at src/ui/.output; reinstall or use --use-runner");
+            die("prebuilt UI missing at app/ui/.output; reinstall or use --use-runner");
         }
         if !on_path("node") {
             die("host node not found; install Node or use --use-runner");
@@ -800,14 +800,14 @@ fn start_host_ui(repo: &Path, dev: bool, daemon: bool, log: &Path) -> Option<std
         return spawn_ui(cmd, log, daemon);
     }
     let mut cmd = Command::new("pnpm");
-    cmd.current_dir(repo).arg("--dir").arg("src");
+    cmd.current_dir(repo).arg("--dir").arg("app");
     if dev {
         cmd.args(["--filter", "@bros/ui", "dev"]);
     } else {
         if !built.is_file() {
             say("Building UI…");
             let mut build = Command::new("pnpm");
-            build.current_dir(repo).args(["--dir", "src", "--filter", "@bros/ui", "build"]);
+            build.current_dir(repo).args(["--dir", "app", "--filter", "@bros/ui", "build"]);
             let code = run_logged(build, log);
             if code != 0 {
                 die("UI build failed");
@@ -1392,7 +1392,7 @@ fn remove_shipped_tree(repo: &Path) {
         "lib",
         "scripts",
         "docs",
-        "src",
+        "app",
     ] {
         let path = repo.join(name);
         if !path.exists() {

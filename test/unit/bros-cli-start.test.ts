@@ -2,10 +2,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createError } from 'h3'
 import { describe, expect, it, vi } from 'vitest'
-import { cliTerminalOrigin } from '../../src/server/utils/cli/terminalProxy'
-import { changedVolumeHosts, dockerAppsRemounting, volumeHostPaths } from '../../src/server/utils/cli/packages'
-import { dockerCommandError, shouldRunAutostart } from '../../src/server/utils/docker'
-import { desktopStreamOrigin } from '../../src/server/utils/docker-app/guiProxy'
+import { cliTerminalOrigin } from '../../app/server/utils/cli/terminalProxy'
+import { changedVolumeHosts, dockerAppsRemounting, volumeHostPaths } from '../../app/server/utils/cli/packages'
+import { dockerCommandError, shouldRunAutostart } from '../../app/server/utils/docker'
+import { desktopStreamOrigin } from '../../app/server/utils/docker-app/guiProxy'
 
 const REPO = join(import.meta.dirname, '../..')
 
@@ -30,7 +30,7 @@ describe('UI host split', () => {
     const dockerfile = readFileSync(join(REPO, 'lib/desktop/Dockerfile'), 'utf8')
     expect(dockerfile).toContain('FROM node:26.7.0-bookworm-slim')
     expect(dockerfile).toContain('FROM nodetools AS ui')
-    expect(dockerfile).toContain('COPY src/ui/.output /app/src/ui/.output')
+    expect(dockerfile).toContain('COPY app/ui/.output /app/app/ui/.output')
     const uiStage = dockerfile.slice(dockerfile.indexOf('FROM nodetools AS ui'), dockerfile.indexOf('FROM ghcr.io/linuxserver'))
     expect(uiStage).toContain('COPY --from=dockercli /usr/local/bin/docker')
     expect(uiStage).toContain('docker-compose')
@@ -63,7 +63,7 @@ describe('UI host split', () => {
   })
 
   it('does not init the model submodule from the server', () => {
-    const src = readFileSync(join(REPO, 'src/server/utils/internalBrosModel.ts'), 'utf8')
+    const src = readFileSync(join(REPO, 'app/server/utils/internalBrosModel.ts'), 'utf8')
     expect(src).not.toContain('submodule')
   })
 
@@ -87,7 +87,7 @@ describe('Bros image context', () => {
   it('builds from the repo checkout and recreates the one container', () => {
     const compose = readFileSync(join(REPO, 'lib/desktop/docker-compose.yml'), 'utf8')
     const dockerfile = readFileSync(join(REPO, 'lib/desktop/Dockerfile'), 'utf8')
-    const packages = readFileSync(join(REPO, 'src/server/utils/cli/packages.ts'), 'utf8')
+    const packages = readFileSync(join(REPO, 'app/server/utils/cli/packages.ts'), 'utf8')
     const body = packages.slice(packages.indexOf('export async function applyCliPackages'), packages.indexOf('export type AppUpdateKind'))
     expect(body.indexOf('prepareDesktopAppBuild()')).toBeLessThan(body.indexOf('rebuildBrosContainer'))
     expect(body).toContain('writeAppsCompose(packages)')
@@ -117,9 +117,9 @@ describe('Bros image context', () => {
     })
     expect(sources).toContain('lib/desktop/install.ts')
     expect(sources).toContain('lib/desktop/desktop-gui.sh')
-    expect(sources).toContain('src/ui/.output')
+    expect(sources).toContain('app/ui/.output')
     for (const src of sources) {
-      if (src === 'src/ui/.output') continue
+      if (src === 'app/ui/.output') continue
       expect(existsSync(join(REPO, src)), src).toBe(true)
     }
     expect(dockerfile).toContain('ENV HOME=/home/bros')
@@ -186,7 +186,7 @@ describe('Bros image context', () => {
     const host = readFileSync(join(REPO, 'cli/src/main.rs'), 'utf8')
     expect(host).toContain('fn choose_ui(source: bool, dev: bool, host_js: bool, use_runner: bool)')
     expect(host).toContain('cli/Cargo.toml')
-    const install = readFileSync(join(REPO, 'src/website/public/install.sh'), 'utf8')
+    const install = readFileSync(join(REPO, 'scripts/install.sh'), 'utf8')
     expect(install).toContain('--from-src')
     expect(install).toContain('BROS_RELEASE_URL')
     const unpack = install.slice(0, install.indexOf('from_src()'))
@@ -194,12 +194,12 @@ describe('Bros image context', () => {
     const pack = readFileSync(join(REPO, 'scripts/pack-release.sh'), 'utf8')
     expect(pack).toContain('test ! -e "$stage/cli"')
     expect(pack).toContain('test ! -e "$stage/data"')
-    expect(pack).toContain('test ! -e "$stage/src/server"')
+    expect(pack).toContain('test ! -e "$stage/app/server"')
     expect(pack).toContain('test ! -e "$stage/vendor"')
     expect(pack).toContain('example.env')
     expect(pack).toContain('bros-tunnel.sh')
     expect(pack).toContain('.tar.gz.sha256')
-    expect(pack).toContain('src/ui/.output')
+    expect(pack).toContain('app/ui/.output')
     expect(pack).toContain('bros-linux-amd64')
     expect(pack).toContain('x86_64-unknown-linux-gnu')
     expect(pack).toContain('aarch64-apple-darwin')
@@ -212,7 +212,7 @@ describe('Bros image context', () => {
     expect(install).toContain('release_asset_name')
     expect(install).toContain('unsupported OS')
     expect(install).toContain('unsupported arch')
-    expect(readFileSync(join(REPO, 'src/website/public/install.sh'), 'utf8')).toContain('ensure_dotenv')
+    expect(readFileSync(join(REPO, 'scripts/install.sh'), 'utf8')).toContain('ensure_dotenv')
     expect(host).toContain('"-v"')
     expect(host).toContain('26.7.0')
     expect(host).toContain('cache/apt/archives')
@@ -237,7 +237,7 @@ describe('dockerApp autostart and start errors', () => {
       if (prev === undefined) delete process.env.BROS_DATA_DIR
       else process.env.BROS_DATA_DIR = prev
     }
-    const middleware = readFileSync(join(REPO, 'src/server/middleware/01-auth.ts'), 'utf8')
+    const middleware = readFileSync(join(REPO, 'app/server/middleware/01-auth.ts'), 'utf8')
     expect(middleware).toContain('shouldRunAutostart() && !autostartDone')
   })
 
@@ -260,8 +260,8 @@ describe('dockerApp autostart and start errors', () => {
 })
 
 describe('workspace package scripts', () => {
-  it('ui:dev runs the app filter from src/', () => {
-    const pkg = JSON.parse(readFileSync(join(REPO, 'src/package.json'), 'utf8')) as {
+  it('ui:dev runs the app filter from app/', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO, 'app/package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
     expect(pkg.scripts.dev).toBeUndefined()
@@ -272,7 +272,7 @@ describe('workspace package scripts', () => {
 
 describe('install.sh next steps', () => {
   it('does not mention --dev', () => {
-    const sh = readFileSync(join(REPO, 'src/website/public/install.sh'), 'utf8')
+    const sh = readFileSync(join(REPO, 'scripts/install.sh'), 'utf8')
     expect(sh).not.toContain('--dev')
     expect(sh).toContain('BROS_DIR')
     expect(sh).toContain('BROS_BIN')
@@ -287,7 +287,7 @@ describe('choose_ui release host', () => {
   it('prefers host UI when release has host JS and not use-runner', () => {
     const host = readFileSync(join(REPO, 'cli/src/main.rs'), 'utf8')
     expect(host).toContain('on_path("node") || on_path("pnpm")')
-    expect(host).toContain('prebuilt UI missing at src/ui/.output')
+    expect(host).toContain('prebuilt UI missing at app/ui/.output')
     expect(host).not.toMatch(/if !source \{\s*if dev \{\s*return Err\("dev requires a source checkout"\);\s*\}\s*return Ok\(UiHost::Runner\);/)
   })
 })

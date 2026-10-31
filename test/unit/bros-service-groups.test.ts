@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupBrosServices, type BrosManagedContainerView } from '../../src/ui/utils/brosServiceGroups'
+import { groupBrosServices, type BrosManagedContainerView } from '../../app/ui/utils/brosServiceGroups'
 
 function row(partial: Partial<BrosManagedContainerView> & Pick<BrosManagedContainerView, 'id' | 'service' | 'kind'>): BrosManagedContainerView {
   return {

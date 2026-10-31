@@ -10,11 +10,11 @@ import {
   resetInternalBrosModelForTests,
   STAMP_NAME,
   vendorGgufPath,
-} from '../../src/server/utils/internalBrosModel'
+} from '../../app/server/utils/internalBrosModel'
 
 const execInDockerApp = vi.fn(async () => ({ code: 0, stdout: 'created Ollama model bros', stderr: '' }))
 
-vi.mock('../../src/server/utils/docker', () => ({
+vi.mock('../../app/server/utils/docker', () => ({
   execInDockerApp: (...args: unknown[]) => execInDockerApp(...args),
 }))
 
@@ -63,7 +63,7 @@ describe('listOllamaModels drops bros', () => {
         { name: 'bros:latest' },
       ],
     }), { status: 200 })))
-    const { listOllamaModels } = await import('../../src/server/utils/providers')
+    const { listOllamaModels } = await import('../../app/server/utils/providers')
     const dockerApp = await listOllamaModels('http://ollama:11434', 'ollama')
     const host = await listOllamaModels('http://host.docker.internal:11434', 'ollama-host')
     expect(dockerApp.map((m) => m.name)).toEqual(['llama3.2'])

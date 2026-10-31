@@ -5,11 +5,11 @@ description: bros commands, flags, and which process each command uses.
 
 # bros
 
-The CLI is a Rust binary in `cli/`. `scripts/build.sh` runs `cargo build --release` for the host OS and architecture, builds the UI, and refreshes the checkout symlink `bros` → `cli/target/release/bros`. It does not create `~/.local/bin/bros`; that path is install-only. Publishing a release is CI only. A release is one tarball per OS and architecture: `bros-linux-amd64`, `bros-linux-arm64`, `bros-darwin-amd64`, `bros-darwin-arm64`. The file inside is always `bros`. A release tree has no `cli/Cargo.toml`, no `src/` sources, and does not need cargo or Node. The UI in that tree is the prebuilt Nitro server at `src/ui/.output`. `-h` and `-v` print this file and the version without Docker, pnpm, or cargo.
+The CLI is a Rust binary in `cli/`. `scripts/build.sh` runs `cargo build --release` for the host OS and architecture, builds the UI, and refreshes the checkout symlink `bros` → `cli/target/release/bros`. It does not create `~/.local/bin/bros`; that path is install-only. Publishing a release is CI only. A release is one tarball per OS and architecture: `bros-linux-amd64`, `bros-linux-arm64`, `bros-darwin-amd64`, `bros-darwin-arm64`. The file inside is always `bros`. A release tree has no `cli/Cargo.toml`, no `app/` sources, and does not need cargo or Node. The UI in that tree is the prebuilt Nitro server at `app/ui/.output`. `-h` and `-v` print this file and the version without Docker, pnpm, or cargo.
 
-Dev (`BROS_DEV=1` or `--dev`) is a source checkout only. It requires host `pnpm` and `cargo`. The UI is always `pnpm --dir src --filter @bros/ui dev` on the host. Dev never starts container `bros-ui`. `--use-runner` or `BROS_USE_RUNNER=1` with dev exits `dev does not use the UI runner`.
+Dev (`BROS_DEV=1` or `--dev`) is a source checkout only. It requires host `pnpm` and `cargo`. The UI is always `pnpm --dir app --filter @bros/ui dev` on the host. Dev never starts container `bros-ui`. `--use-runner` or `BROS_USE_RUNNER=1` with dev exits `dev does not use the UI runner`.
 
-Prod uses host Node/pnpm for the UI when available (a release runs `node src/ui/.output/server/index.mjs`; a source checkout uses host `pnpm`). Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` (compose profile `ui`, Node 26.7.0 plus docker CLI for the host sock) serves that same prebuilt output. One UI at a time. Missing `src/ui/.output` fails the image build or host start.
+Prod uses host Node/pnpm for the UI when available (a release runs `node app/ui/.output/server/index.mjs`; a source checkout uses host `pnpm`). Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` (compose profile `ui`, Node 26.7.0 plus docker CLI for the host sock) serves that same prebuilt output. One UI at a time. Missing `app/ui/.output` fails the image build or host start.
 
 Container `bros` is the desktop. The UI host listens on `BROS_PORT` (3055). Selkies publishes on `127.0.0.1:${BROS_STREAM_PORT:-3300}`. ttyd publishes on `127.0.0.1:${BROS_TTYD_PORT:-7681}`.
 
@@ -55,7 +55,7 @@ A desktop recreate does not restart docker apps. A docker app restarts when its 
 | `-c`, `--config PATH` | Host `bros.yml`. |
 | `--verbose` | Print engine lines on the terminal as well as the log file. |
 | `-h`, `--help` | This file, with the YAML frontmatter removed. |
-| `-v`, `--version` | Version from `VERSION`, else `src/package.json`, else `0.0.1`. The published tag is `v` plus that number. The current product version is `0.0.1`. |
+| `-v`, `--version` | Version from `VERSION`, else `app/package.json`, else `0.0.1`. The published tag is `v` plus that number. The current product version is `0.0.1`. |
 
 ## Env
 

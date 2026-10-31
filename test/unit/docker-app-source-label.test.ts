@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dockerAppKindLabel } from '../../src/ui/utils/docker-app/dockerAppSourceLabel'
+import { dockerAppKindLabel } from '../../app/ui/utils/docker-app/dockerAppSourceLabel'
 
 describe('dockerAppKindLabel', () => {
   it('maps shipped core and addon, custom, and git', () => {

@@ -9,16 +9,16 @@ beforeEach(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'bros-pull-'))
   process.env.BROS_DATA_DIR = dataDir
   process.env.BROS_WORKING_DIR = dataDir
-  const { resetDbForTests } = await import('../../src/server/utils/db')
+  const { resetDbForTests } = await import('../../app/server/utils/db')
   resetDbForTests()
-  const { resetPullJobsForTests } = await import('../../src/server/utils/providers/ollamaPullJobs')
+  const { resetPullJobsForTests } = await import('../../app/server/utils/providers/ollamaPullJobs')
   resetPullJobsForTests()
 })
 
 afterEach(async () => {
-  const { resetPullJobsForTests } = await import('../../src/server/utils/providers/ollamaPullJobs')
+  const { resetPullJobsForTests } = await import('../../app/server/utils/providers/ollamaPullJobs')
   resetPullJobsForTests()
-  const { resetDbForTests } = await import('../../src/server/utils/db')
+  const { resetDbForTests } = await import('../../app/server/utils/db')
   resetDbForTests()
   if (dataDir) rmSync(dataDir, { recursive: true, force: true })
 })
@@ -30,7 +30,7 @@ describe('ollama pull jobs', () => {
       createOrReusePullJob,
       listActivePullsByProvider,
       pullJobsPayload,
-    } = await import('../../src/server/utils/providers/ollamaPullJobs')
+    } = await import('../../app/server/utils/providers/ollamaPullJobs')
     createOrReusePullJob('ollama', 'tinyllama')
     applyPullProgress('ollama', 'tinyllama', { status: 'downloading', completed: 40, total: 100 })
     createOrReusePullJob('ollama-host', 'mistral')
@@ -56,7 +56,7 @@ describe('ollama pull jobs', () => {
       createOrReusePullJob,
       getPullJob,
       stopPullJob,
-    } = await import('../../src/server/utils/providers/ollamaPullJobs')
+    } = await import('../../app/server/utils/providers/ollamaPullJobs')
     const first = createOrReusePullJob('ollama', 'tinyllama')
     expect(first.created).toBe(true)
     const again = createOrReusePullJob('ollama', 'tinyllama')
@@ -84,7 +84,7 @@ describe('ollama pull jobs', () => {
       removePullJob,
       runPullJob,
       stopPullJob,
-    } = await import('../../src/server/utils/providers/ollamaPullJobs')
+    } = await import('../../app/server/utils/providers/ollamaPullJobs')
     createOrReusePullJob('ollama', 'tinyllama')
     const run = runPullJob('ollama', 'tinyllama', async function* (signal) {
       yield { status: 'downloading', completed: 10, total: 100 }
@@ -110,7 +110,7 @@ describe('ollama pull jobs', () => {
       clearDonePullsForInstalled,
       createOrReusePullJob,
       getPullJob,
-    } = await import('../../src/server/utils/providers/ollamaPullJobs')
+    } = await import('../../app/server/utils/providers/ollamaPullJobs')
     createOrReusePullJob('ollama', 'tinyllama')
     applyPullProgress('ollama', 'tinyllama', { status: 'success' })
     expect(getPullJob('ollama', 'tinyllama')?.phase).toBe('done')
@@ -119,7 +119,7 @@ describe('ollama pull jobs', () => {
   })
 
   it('rehydrates incomplete jobs from SQLite after a memory reset', async () => {
-    const jobs = await import('../../src/server/utils/providers/ollamaPullJobs')
+    const jobs = await import('../../app/server/utils/providers/ollamaPullJobs')
     jobs.createOrReusePullJob('ollama', 'tinyllama')
     jobs.applyPullProgress('ollama', 'tinyllama', { status: 'downloading', completed: 25, total: 100 })
     jobs.createOrReusePullJob('ollama', 'gemma3:12b')

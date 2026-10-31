@@ -6,7 +6,7 @@ import {
   CLI_BRIDGE_MARK,
   brosCliSource,
   syncCliBridges,
-} from '../../src/server/utils/docker-app/cliBridge'
+} from '../../app/server/utils/docker-app/cliBridge'
 
 const pack = {
   id: 'cursor',

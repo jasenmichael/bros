@@ -18,7 +18,7 @@ need_cmd cargo
 need_cmd pnpm
 
 cargo build --release --manifest-path "$ROOT/cli/Cargo.toml"
-pnpm --dir "$ROOT/src" --filter @bros/ui build
+pnpm --dir "$ROOT/app" --filter @bros/ui build
 
 bin="$ROOT/cli/target/release/bros"
 [[ -x "$bin" ]] || die "missing CLI binary at cli/target/release/bros"

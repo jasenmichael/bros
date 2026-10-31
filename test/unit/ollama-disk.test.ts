@@ -11,7 +11,7 @@ import {
   modelFitsDisk,
   pickRecommended,
   type CatalogModel,
-} from '../../src/server/utils/providers/ollamaLibrary'
+} from '../../app/server/utils/providers/ollamaLibrary'
 
 describe('modelFitsDisk', () => {
   it('allows unknown free space', () => {

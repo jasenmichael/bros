@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { assignPins, execBasename, guiLaunch, iconNameOk, libraryApps, libraryProcessId, parseDesktopDump, parseDesktopEntry, pinKey, stripFieldCodes } from '../../src/server/utils/desktopEntries'
-import { pinProcessId } from '../../src/ui/utils/gui'
+import { assignPins, execBasename, guiLaunch, iconNameOk, libraryApps, libraryProcessId, parseDesktopDump, parseDesktopEntry, pinKey, stripFieldCodes } from '../../app/server/utils/desktopEntries'
+import { pinProcessId } from '../../app/ui/utils/gui'
 
 const cursor = `
 [Desktop Entry]

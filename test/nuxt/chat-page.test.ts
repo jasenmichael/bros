@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
-import { CHAT_MODEL_MEMORY_KEY } from '../../src/ui/composables/useChatModelMemory'
-import BrosChatAssistantMeta from '../../src/ui/components/BrosChatAssistantMeta.vue'
-import BrosChatUserTurn from '../../src/ui/components/BrosChatUserTurn.vue'
+import { CHAT_MODEL_MEMORY_KEY } from '../../app/ui/composables/useChatModelMemory'
+import BrosChatAssistantMeta from '../../app/ui/components/BrosChatAssistantMeta.vue'
+import BrosChatUserTurn from '../../app/ui/components/BrosChatUserTurn.vue'
 
 const chatMount = {
   global: {
@@ -86,7 +86,7 @@ describe('Chat page', () => {
   })
 
   it('centers greeting and composer on empty /chat', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     expect(wrapper.text()).toContain('What should we run?')
     expect(wrapper.find('.bros-chat--empty').exists()).toBe(true)
@@ -121,7 +121,7 @@ describe('Chat page', () => {
   })
 
   it('omits disabled Ollama models from the picker', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { modelsForProvider: (id: string) => string[] }
     expect(vm.modelsForProvider('ollama')).toEqual(['llama3.2'])
@@ -129,7 +129,7 @@ describe('Chat page', () => {
   })
 
   it('omits disabled popular and custom models from the picker', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { modelsForProvider: (id: string) => string[] }
     expect(vm.modelsForProvider('openai')).toEqual(['gpt-4o-mini'])
@@ -141,7 +141,7 @@ describe('Chat page', () => {
       lastProviderId: 'openai',
       models: { openai: 'gpt-4o-mini', ollama: 'llama3.2' },
     }))
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { providerId: string; modelName: string }
     expect(vm.providerId).toBe('openai')
@@ -153,7 +153,7 @@ describe('Chat page', () => {
       lastProviderId: 'ollama',
       models: { ollama: 'llama3.2', 'my-proxy': 'qwen2.5' },
     }))
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { providerId: string; modelName: string }
     vm.providerId = 'my-proxy'
@@ -166,7 +166,7 @@ describe('Chat page', () => {
       lastProviderId: 'openai',
       models: { openai: 'not-a-model' },
     }))
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { providerId: string; modelName: string }
     expect(vm.providerId).toBe('openai')
@@ -174,14 +174,14 @@ describe('Chat page', () => {
   })
 
   it('orders providers dockerApp, host, popular, then custom', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { orderedProviders: Array<{ id: string }> }
     expect(vm.orderedProviders.map((p) => p.id)).toEqual(['ollama', 'ollama-host', 'openai', 'my-proxy'])
   })
 
   it('shows thinking and Stop while busy, no send spinner', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { busy: boolean; thinking: boolean }
     vm.busy = true
@@ -198,7 +198,7 @@ describe('Chat page', () => {
   })
 
   it('shows the mic when the composer is docked in a thread', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as {
       messages: Array<{ id: string; role: string; content: string }>
@@ -210,7 +210,7 @@ describe('Chat page', () => {
   })
 
   it('renders assistant markdown with docs prose in the thread', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as {
       messages: Array<{
@@ -255,7 +255,7 @@ describe('Chat page', () => {
       configurable: true,
       value: { writeText },
     })
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as {
       messages: Array<{ id: string; role: string; content: string; modelId?: string }>
@@ -270,7 +270,7 @@ describe('Chat page', () => {
   })
 
   it('edit+resend drops following turns then sends the edited text', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as {
       messages: Array<{ id: string; role: string; content: string }>
@@ -290,7 +290,7 @@ describe('Chat page', () => {
   })
 
   it('pins the thread scroller to the bottom', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as {
       messages: Array<{ id: string; role: string; content: string }>

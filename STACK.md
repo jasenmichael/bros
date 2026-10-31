@@ -4,17 +4,17 @@
 |-------|--------|
 | Language | TypeScript |
 | Package manager | **pnpm workspaces** |
-| App | Nuxt 4 `@bros/ui` in `src/ui` |
-| Server | Nitro in `src/server` (`serverDir`) |
+| App | Nuxt 4 `@bros/ui` in `app/ui` |
+| Server | Nitro in `app/server` (`serverDir`) |
 | Docs content | Repo-root `docs/` (Nuxt Content, on the docs layer) |
-| Docs layer | `@bros/docs` in `src/layers/docs` (`/docs` pages; extends theme) |
-| Theme layer | `@bros/theme` in `src/layers/theme` (UI, CSS, layouts, nav chrome, markdown/prose) |
-| Docs/marketing site | `@bros/website` in `src/website` (Pages `/bros/`; owns `/`) |
+| Docs layer | `@bros/docs` in `app/layers/docs` (`/docs` pages; extends theme) |
+| Theme layer | `@bros/theme` in `app/layers/theme` (UI, CSS, layouts, nav chrome, markdown/prose) |
+| Docs/marketing site | `@bros/website` in `app/website` (Pages `/bros/`; owns `/`) |
 | UI override | App extends theme + docs; **`/` = dashboard**; `/docs` unchanged |
 | Tests | Vitest + `@nuxt/test-utils` |
 | DB | SQLite + Drizzle (`bros.sqlite`). Saved host-Ollama probe port is `app_settings.host_probe_port`. |
 | Docker | dockerode + Compose CLI in image |
-| Host port | `BROS_PORT` default **3055** on the UI host, `BROS_HOST` default **0.0.0.0**. Docs site `pnpm --dir src docs:dev` is **3056**. |
+| Host port | `BROS_PORT` default **3055** on the UI host, `BROS_HOST` default **0.0.0.0**. Docs site `pnpm --dir app docs:dev` is **3056**. |
 | Docker app host ports | Ollama **11435** (container 11434), OpenCode **4096**, Open WebUI **3080** (container 8080), Firecrawl **3002**, Firecrawl UI **3081** (container 8080), OpenJEV **8092** (container 8080), Pi (CLI, no host port), Desktop stream **3300**→3000 and ttyd **7681** (both `127.0.0.1` only), Whisper **8090** (container 8000). Never publish 3000 or 8080 on `0.0.0.0`. |
 | Path proxy | Nitro allowlist middleware + h3 `proxyRequest` (HTTP/SSE) and httpxy `proxyUpgrade` (WebSocket). `proxy.public` webuis that natively listen under `/${id}/` (none shipped today). `/terminal/session` to `BROS_TERMINAL_ORIGIN`. `/desktop/view/` to `BROS_DESKTOP_STREAM_ORIGIN` (websocket upgrade, session cookie). |
 | Env prefix | `BROS_*` |
@@ -30,10 +30,10 @@ bros/
   scripts/build.sh      # local CLI + UI build + ./bros symlink (no release)
   cli/                  # Rust CLI
   docs/
-  src/ui/              # Vue pages, components, composables, utils
-  src/website/
-  src/layers/{theme,docs}/
-  src/server/
+  app/ui/              # Vue pages, components, composables, utils
+  app/website/
+  app/layers/{theme,docs}/
+  app/server/
     api/                # HTTP routes, one folder per surface
     utils/
       cli/managers/     # one file per package manager (parse, label, suggest)
@@ -42,11 +42,11 @@ bros/
       chat/
       docker-app/
   lib/desktop/managers/  # same kinds: install, remove, present
-  src/                  # pnpm workspace root (package.json, lock, layers)
+  app/                  # pnpm workspace root (package.json, lock, layers)
   vendor/bros-model/    # submodule: internal specialist
 ```
 
-A utils concept gets a folder when it already has three or more files. One file stays flat. Route handlers stay thin and call those modules. `#bros` points at `src/server/utils`.
+A utils concept gets a folder when it already has three or more files. One file stays flat. Route handlers stay thin and call those modules. `#bros` points at `app/server/utils`.
 
 The Bros image runs Node 26.7.0. Desktop does not copy that binary onto `PATH`. The Desktop build mounts it to run `install.ts` for `kind: run`.
 
@@ -62,19 +62,19 @@ Docs extends theme. App and website also extend theme + docs so both layers stay
 ## Compose
 
 - `lib/desktop/docker-compose.yml` plus one overlay: `lib/desktop/docker-compose.prod.yml` or `lib/desktop/docker-compose.dev.yml` (`BROS_DEV=1`). Host start and `bros update` pass `--project-directory` as the repo and regenerate `$BROS_DATA_DIR/config/apps-compose.yml` from enabled packs, then merge it (Desktop recreate uses the same `--project-directory` and third file) for package webui ports/volumes under service `bros`. Core + docker apps join external network `bros` (`external: true`). `bros` / dockerode create it if missing so compose never tries to own/relabel it. Listen env on the base file is `BROS_PORT` and `BROS_HOST`. The process binds `BROS_HOST` (default `0.0.0.0`).
-- Dev start (`BROS_DEV=1 ./bros` or `./bros --dev`): requires host `pnpm` and `cargo`. Desktop is `compose up -d --no-deps bros` without `--build` (builds only if `bros:dev` is missing). The UI is `pnpm --dir src --filter @bros/ui dev` on the host. `bros-ui` does not start. `--use-runner` or `BROS_USE_RUNNER=1` with dev exits `dev does not use the UI runner`. Rebuild: `BROS_DEV=1 ./bros update`.
-- Prod start (`bros`): requires Docker. Desktop is `compose up --build -d --no-deps bros`. If `pnpm` is on `PATH` and `--use-runner` / `BROS_USE_RUNNER=1` is off, the UI is host `node` on the built Nitro server `src/ui/.output/server/index.mjs` (build first when that file is missing). Otherwise `docker compose --profile ui up -d --build bros-ui`. A release already uses `bros-ui`.
-- Dev image (`Dockerfile` target `development`): desktop toolchain only. Prod image (`production`) is the desktop and copies `lib/` and `scripts/docker/` from the build context into `/app/lib` and `/app/scripts/docker`. Target `ui` is the Node 26.7.0 runner for `bros-ui`, from the `nodetools` stage (pnpm 12.15.0). It runs the prebuilt Nitro server `src/ui/.output` and does not `pnpm install` or rebuild `@bros/ui`. `@bros/website` is GitHub Pages only (`.dockerignore` skips `src/website`). The desktop bind-mounts `$BROS_HOST_REPO` at the same path. The image installs `git`. pnpm 12 reads hoist from `src/pnpm-workspace.yaml` (`shamefullyHoist: true`, `minimumReleaseAge: 0`, `verifyDepsBeforeRun: false`); `.npmrc` is auth and registry only. `src/server` sits outside `@bros/ui`, so that hoist is what lets the TypeScript entry resolve `pathe` and the other server imports.
+- Dev start (`BROS_DEV=1 ./bros` or `./bros --dev`): requires host `pnpm` and `cargo`. Desktop is `compose up -d --no-deps bros` without `--build` (builds only if `bros:dev` is missing). The UI is `pnpm --dir app --filter @bros/ui dev` on the host. `bros-ui` does not start. `--use-runner` or `BROS_USE_RUNNER=1` with dev exits `dev does not use the UI runner`. Rebuild: `BROS_DEV=1 ./bros update`.
+- Prod start (`bros`): requires Docker. Desktop is `compose up --build -d --no-deps bros`. If `pnpm` is on `PATH` and `--use-runner` / `BROS_USE_RUNNER=1` is off, the UI is host `node` on the built Nitro server `app/ui/.output/server/index.mjs` (build first when that file is missing). Otherwise `docker compose --profile ui up -d --build bros-ui`. A release already uses `bros-ui`.
+- Dev image (`Dockerfile` target `development`): desktop toolchain only. Prod image (`production`) is the desktop and copies `lib/` and `scripts/docker/` from the build context into `/app/lib` and `/app/scripts/docker`. Target `ui` is the Node 26.7.0 runner for `bros-ui`, from the `nodetools` stage (pnpm 12.15.0). It runs the prebuilt Nitro server `app/ui/.output` and does not `pnpm install` or rebuild `@bros/ui`. `@bros/website` is GitHub Pages only (`.dockerignore` skips `app/website`). The desktop bind-mounts `$BROS_HOST_REPO` at the same path. The image installs `git`. pnpm 12 reads hoist from `app/pnpm-workspace.yaml` (`shamefullyHoist: true`, `minimumReleaseAge: 0`, `verifyDepsBeforeRun: false`); `.npmrc` is auth and registry only. `app/server` sits outside `@bros/ui`, so that hoist is what lets the TypeScript entry resolve `pathe` and the other server imports.
 - Docker apps **not** in main Compose; managed via Docker socket
 - Persistent data is host binds under `$BROS_DIR/data` (repo `./data`, installed `~/.bros/data`), not named `bros-data` / `bros-ollama-data` volumes. Start does not copy leftover named volumes. Dev `node_modules` volumes stay named caches.
-- Docs site: `pnpm --dir src docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm --dir src docs:generate` then `pnpm --dir src --filter @bros/website preview`. Pages artifact is `src/website/.output/public`.
-- Host UI (`pnpm` on the host): Chat/Providers/STT reach docker app Ollama at `127.0.0.1:11435` (`BROS_OLLAMA_PORT`) and Whisper at `127.0.0.1:8090` (`BROS_WHISPER_PORT`); host Ollama at `127.0.0.1:<probe>` via `dockerHostCandidates()` (`src/server/utils/hostProbe.ts`). Container `bros-ui` uses Docker DNS (`http://ollama:11434`, `http://whisper:8000`) and `host.docker.internal` for host Ollama only. Stream and terminal origins are `BROS_DESKTOP_STREAM_ORIGIN` and `BROS_TERMINAL_ORIGIN`. Docker app `docker compose` injects `BROS_DATA_DIR` so binds are `$BROS_DIR/data/...`, not host `/ollama`.
+- Docs site: `pnpm --dir app docs:dev` → http://127.0.0.1:3056/bros/ ; `pnpm --dir app docs:generate` then `pnpm --dir app --filter @bros/website preview`. Pages artifact is `app/website/.output/public`.
+- Host UI (`pnpm` on the host): Chat/Providers/STT reach docker app Ollama at `127.0.0.1:11435` (`BROS_OLLAMA_PORT`) and Whisper at `127.0.0.1:8090` (`BROS_WHISPER_PORT`); host Ollama at `127.0.0.1:<probe>` via `dockerHostCandidates()` (`app/server/utils/hostProbe.ts`). Container `bros-ui` uses Docker DNS (`http://ollama:11434`, `http://whisper:8000`) and `host.docker.internal` for host Ollama only. Stream and terminal origins are `BROS_DESKTOP_STREAM_ORIGIN` and `BROS_TERMINAL_ORIGIN`. Docker app `docker compose` injects `BROS_DATA_DIR` so binds are `$BROS_DIR/data/...`, not host `/ollama`.
 - Dev CSS through the tunnel: Vite serves one `.css` path as `text/css` (`<link>`) or `text/javascript` (JS import). Cloudflare caches that path (query string ignored), so a stylesheet body is reused for the module import and Nuxt never hydrates (Unlock does nothing). Dev rewrites CSS module imports to `/_nuxt/bros-mod/…*.js` and sends `CDN-Cache-Control: no-store` on Vite `/_nuxt` assets. Production hashed CSS is not affected.
 - Ollama recovery toast is Nuxt UI `useToast`.
 
 ## Release
 
-Product version is `0.0.1` in `VERSION`, `cli/Cargo.toml`, `cli/Cargo.lock`, and the five `src` package manifests. `bros -v` reads `VERSION` first. The packaged model release is `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0`).
+Product version is `0.0.1` in `VERSION`, `cli/Cargo.toml`, `cli/Cargo.lock`, and the five `app` package manifests. `bros -v` reads `VERSION` first. The packaged model release is `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0`).
 
 Direct push to `main` is blocked. Workflows do not push a commit to `main`.
 

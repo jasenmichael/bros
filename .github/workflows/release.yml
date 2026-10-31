@@ -47,18 +47,18 @@ jobs:
           ref: ${{ needs.version.outputs.sha }}
       - uses: pnpm/action-setup@v5
         with:
-          package_json_file: src/package.json
+          package_json_file: app/package.json
       - uses: actions/setup-node@v5
         with:
           # Same Node as the ui image so better-sqlite3 loads.
           node-version: 26.7.0
           cache: pnpm
-          cache-dependency-path: src/pnpm-lock.yaml
+          cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-        working-directory: src
+        working-directory: app
       - run: pnpm --filter @bros/ui build
-        working-directory: src
-      - run: tar -C src/ui -czf ui-output.tar.gz .output
+        working-directory: app
+      - run: tar -C app/ui -czf ui-output.tar.gz .output
       - uses: actions/upload-artifact@v6
         with:
           name: ui-output

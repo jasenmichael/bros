@@ -9,7 +9,7 @@ import {
   dockerAppOpenLinks,
   dockerAppTypePills,
   dockerAppWebUiLinks,
-} from '../../src/ui/utils/docker-app/dockerAppHostLinks'
+} from '../../app/ui/utils/docker-app/dockerAppHostLinks'
 
 describe('dockerApp host links', () => {
   it('opens published webui only and pins the same links', () => {

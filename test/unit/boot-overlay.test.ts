@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bootOverlayVisible } from '../../src/layers/theme/app/utils/bootOverlay'
+import { bootOverlayVisible } from '../../app/layers/theme/app/utils/bootOverlay'
 
 describe('boot overlay', () => {
   it('opens only while this process is still autostarting', () => {

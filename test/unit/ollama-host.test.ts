@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import * as docker from '../../src/server/utils/docker'
+import * as docker from '../../app/server/utils/docker'
 import {
   findHostOllama,
   hostOllamaUrl,
@@ -15,8 +15,8 @@ import {
   setHostListenPortsForTests,
   setOllamaManualPortForTests,
   dockerAppOllamaUrl,
-} from '../../src/server/utils/providers/ollamaHost'
-import { setAppRunsInDockerForTests } from '../../src/server/utils/hostProbe'
+} from '../../app/server/utils/providers/ollamaHost'
+import { setAppRunsInDockerForTests } from '../../app/server/utils/hostProbe'
 
 const PROC_LISTEN_11436 = `
   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
@@ -30,7 +30,7 @@ describe('ollama host probe', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-test-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     resetOllamaHostCache()
     setOllamaManualPortForTests(null)
@@ -373,9 +373,9 @@ describe('ollama host probe', () => {
     }))
     const hit = await findHostOllama()
     expect(hit.port).toBeNull()
-    const { setHostOllamaEnabled } = await import('../../src/server/utils/settings')
-    const { ensureDefaultProviders } = await import('../../src/server/utils/providers')
-    const { buildProvidersView } = await import('../../src/server/utils/providers/view')
+    const { setHostOllamaEnabled } = await import('../../app/server/utils/settings')
+    const { ensureDefaultProviders } = await import('../../app/server/utils/providers')
+    const { buildProvidersView } = await import('../../app/server/utils/providers/view')
     ensureDefaultProviders()
     setHostOllamaEnabled(true)
     const view = await buildProvidersView()
@@ -400,9 +400,9 @@ describe('ollama host probe', () => {
   })
 
   it('omits ollama-host from the providers view when the Settings gate is off', async () => {
-    const { ensureDefaultProviders } = await import('../../src/server/utils/providers')
-    const { isHostOllamaEnabled, setHostOllamaEnabled } = await import('../../src/server/utils/settings')
-    const { buildProvidersView } = await import('../../src/server/utils/providers/view')
+    const { ensureDefaultProviders } = await import('../../app/server/utils/providers')
+    const { isHostOllamaEnabled, setHostOllamaEnabled } = await import('../../app/server/utils/settings')
+    const { buildProvidersView } = await import('../../app/server/utils/providers/view')
     ensureDefaultProviders()
     expect(isHostOllamaEnabled()).toBe(false)
     const off = await buildProvidersView()
@@ -413,12 +413,12 @@ describe('ollama host probe', () => {
   })
 
   it('Scan API 404s when host Ollama is disabled', async () => {
-    const { scanHostOllamaApi } = await import('../../src/server/utils/providers/ollamaHost')
+    const { scanHostOllamaApi } = await import('../../app/server/utils/providers/ollamaHost')
     await expect(scanHostOllamaApi()).rejects.toMatchObject({ statusCode: 404 })
   })
 
   it('Scan API returns a hit when enabled', async () => {
-    const { setHostOllamaEnabled } = await import('../../src/server/utils/settings')
+    const { setHostOllamaEnabled } = await import('../../app/server/utils/settings')
     setHostOllamaEnabled(true)
     setHostListenPortsForTests([11434])
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
@@ -427,7 +427,7 @@ describe('ollama host probe', () => {
       }
       throw new Error('offline')
     }))
-    const { scanHostOllamaApi } = await import('../../src/server/utils/providers/ollamaHost')
+    const { scanHostOllamaApi } = await import('../../app/server/utils/providers/ollamaHost')
     const result = await scanHostOllamaApi()
     expect(result).toMatchObject({ port: 11434, version: 'scanned' })
   })

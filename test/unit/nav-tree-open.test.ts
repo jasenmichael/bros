@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { navTreeOpenState } from '../../src/layers/theme/app/utils/navTreeOpen'
+import { navTreeOpenState } from '../../app/layers/theme/app/utils/navTreeOpen'
 
 describe('nav tree open state', () => {
   it('defaults open when the route is under the branch', () => {

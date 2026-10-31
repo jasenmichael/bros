@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { migrateDataLayout } from '../../src/server/utils/dataLayout'
+import { migrateDataLayout } from '../../app/server/utils/dataLayout'
 
 describe('migrateDataLayout', () => {
   let root = ''

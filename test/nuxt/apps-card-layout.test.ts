@@ -60,7 +60,7 @@ describe('DockerApp card layout', () => {
       dockerApp({ id: 'extra', name: 'Extra', kind: 'custom', source: 'custom' }),
     ]
 
-    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
 
     const grid = wrapper.find('[data-app-section="list"]')
@@ -80,7 +80,7 @@ describe('DockerApp card layout', () => {
       dockerApp({ id: 'opencode', name: 'OpenCode', kind: 'addon' }),
     ]
 
-    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
 
     expect(wrapper.find('[data-app-section="list"]').attributes('data-app-grid')).toBe('multi')
@@ -88,7 +88,7 @@ describe('DockerApp card layout', () => {
   })
 
   it('shows the CLI source and no host expose switch', async () => {
-    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
     payload.docker = [
       dockerApp({
         id: 'cursor',
@@ -143,7 +143,7 @@ describe('DockerApp card layout', () => {
       }),
     ]
 
-    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     const card = wrapper.find('[data-app-card="cursor"][data-card-layout="compact"]')
     const cli = card.find('[data-card-block="cli"]')

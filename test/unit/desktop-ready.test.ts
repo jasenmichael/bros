@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { shouldWriteDesktopStamp } from '../../src/server/utils/cli/packages'
+import { shouldWriteDesktopStamp } from '../../app/server/utils/cli/packages'
 
 const root = join(import.meta.dirname, '../..')
 
@@ -14,8 +14,8 @@ describe('desktop rebuild', () => {
   })
 
   it('force-recreates only when the apps compose file changes', () => {
-    const packages = readFileSync(join(root, 'src/server/utils/cli/packages.ts'), 'utf8')
-    const docker = readFileSync(join(root, 'src/server/utils/docker.ts'), 'utf8')
+    const packages = readFileSync(join(root, 'app/server/utils/cli/packages.ts'), 'utf8')
+    const docker = readFileSync(join(root, 'app/server/utils/docker.ts'), 'utf8')
     expect(packages).toContain('forceRecreate: changed')
     expect(packages).not.toContain("forceRecreate: action === 'recreate'")
     expect(docker).not.toContain('if (build) forceRecreate = true')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ollamaProviderDisplayName } from '../../src/ui/utils/providers/ollamaProviderLabel'
+import { ollamaProviderDisplayName } from '../../app/ui/utils/providers/ollamaProviderLabel'
 
 describe('ollamaProviderDisplayName', () => {
   it('labels dockerApp as Ollama (core)', () => {

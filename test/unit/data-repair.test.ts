@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { dataRepairPlan } from '../../src/server/utils/repairData'
+import { dataRepairPlan } from '../../app/server/utils/repairData'
 
 const KEYS = ['BROS_HOST_UID', 'BROS_HOST_GID', 'BROS_DATA_DIR', 'BROS_DATA_DIR', 'BROS_DIR', 'BROS_DIR'] as const
 

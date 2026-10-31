@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { markAutostartFailed, dockerAppPhase, dockerAppPortWarning } from '../../src/server/utils/docker'
+import { markAutostartFailed, dockerAppPhase, dockerAppPortWarning } from '../../app/server/utils/docker'
 import {
   buildAttention,
   diskNeedsAttention,
   selectDashboardProviders,
   webuiOpenUrl,
-} from '../../src/server/utils/dashboardSummary'
+} from '../../app/server/utils/dashboardSummary'
 
 const GiB = 1024 * 1024 * 1024
 

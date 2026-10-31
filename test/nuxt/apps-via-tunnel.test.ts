@@ -46,7 +46,7 @@ mockNuxtImport('usePinnedNav', () => () => ({ refreshPinnedNav: async () => {} }
 describe('DockerApps via-tunnel lock', () => {
   it('does not list cloudflared as a dockerApp and leaves other dockerApps stoppable', async () => {
     payload.viaTunnel = true
-    const AppsPage = await import('../../src/ui/pages/apps/index.vue').then((m) => m.default)
+    const AppsPage = await import('../../app/ui/pages/apps/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
     expect(wrapper.text()).not.toContain('cloudflared')
     expect(wrapper.text()).not.toContain('Stop locked: this session is through the tunnel.')

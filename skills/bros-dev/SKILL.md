@@ -1,14 +1,14 @@
 ---
 name: bros-dev
 description: >-
-  Develop Bros from a git checkout: pnpm workspace src/, scripts/build.sh,
+  Develop Bros from a git checkout: pnpm workspace app/, scripts/build.sh,
   BROS_DEV=1, tests, and docs site. Use when editing jasenmichael/bros source —
   not when only operating a release install under ~/.bros.
 ---
 
 # Bros checkout development
 
-Repo: [jasenmichael/bros](https://github.com/jasenmichael/bros). pnpm workspace root is `src/`. Needs Docker, host `pnpm`, and `cargo`.
+Repo: [jasenmichael/bros](https://github.com/jasenmichael/bros). pnpm workspace root is `app/`. Needs Docker, host `pnpm`, and `cargo`.
 
 ## Contract stack
 
@@ -25,21 +25,21 @@ Words: [GLOSSARY.md](https://github.com/jasenmichael/bros/blob/main/GLOSSARY.md)
 ## Build / run
 
 ```bash
-pnpm --dir src install
+pnpm --dir app install
 scripts/build.sh
 ./bros                    # production UI on :3055
 BROS_DEV=1 ./bros         # hot-reload UI (or ./bros --dev)
 ```
 
-After Dockerfile/compose changes: `BROS_DEV=1 ./bros update`. Docs site: `pnpm --dir src docs:dev` → `http://127.0.0.1:3056/bros/`.
+After Dockerfile/compose changes: `BROS_DEV=1 ./bros update`. Docs site: `pnpm --dir app docs:dev` → `http://127.0.0.1:3056/bros/`.
 
 `--use-runner` / `BROS_USE_RUNNER=1` with `--dev` errors.
 
 ## Tests
 
 ```bash
-pnpm --dir src test
-pnpm --dir src typecheck
+pnpm --dir app test
+pnpm --dir app typecheck
 ```
 
 ## Constraints

@@ -10,18 +10,18 @@ describe('agents board rules', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-agents-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
   })
 
   afterEach(async () => {
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('labels the inbox step', async () => {
-    const { inboxStartLabel } = await import('../../src/server/utils/agents/rules')
+    const { inboxStartLabel } = await import('../../app/server/utils/agents/rules')
     expect(inboxStartLabel(null)).toBe('start preflight')
     expect(inboxStartLabel('queued')).toBe('start preflight')
     expect(inboxStartLabel('planning')).toBe('start preflight')
@@ -32,15 +32,15 @@ describe('agents board rules', () => {
   })
 
   it('requeues planning only when no runner is in flight', async () => {
-    const { resumeOrphanedPlanning } = await import('../../src/server/utils/agents/rules')
+    const { resumeOrphanedPlanning } = await import('../../app/server/utils/agents/rules')
     expect(resumeOrphanedPlanning('planning', false)).toBe(true)
     expect(resumeOrphanedPlanning('planning', true)).toBe(false)
     expect(resumeOrphanedPlanning('queued', false)).toBe(false)
   })
 
   it('does not run the agent before implement is approved', async () => {
-    const { createJob, getJob, patchJob } = await import('../../src/server/utils/agents/store')
-    const { approveImplement } = await import('../../src/server/utils/agents/loop')
+    const { createJob, getJob, patchJob } = await import('../../app/server/utils/agents/store')
+    const { approveImplement } = await import('../../app/server/utils/agents/loop')
     const job = createJob({ project: 'demo', issueNumber: 4, title: 'Fix the door', kind: 'fix' })
     await expect(approveImplement(job.id, { title: 'Fix the door', summary: 'Replace the hinge' })).rejects.toThrow(/not waiting/)
     expect(getJob(job.id)?.state).toBe('queued')
@@ -51,7 +51,7 @@ describe('agents board rules', () => {
   })
 
   it('keeps the job cwd inside the workspace repo', async () => {
-    const { repoCwd, workspaceCloneScript } = await import('../../src/server/utils/agents/rules')
+    const { repoCwd, workspaceCloneScript } = await import('../../app/server/utils/agents/rules')
     expect(repoCwd('demo')).toBe('/home/bros/workspace/demo')
     expect(() => repoCwd('../etc')).toThrow(/invalid/)
     expect(() => repoCwd('a/b')).toThrow(/invalid/)
@@ -62,9 +62,9 @@ describe('agents board rules', () => {
   })
 
   it('registers a project under workspace and remove leaves the directory', async () => {
-    const { addAgentProject, listProjectRecords, removeAgentProject } = await import('../../src/server/utils/agents/store')
-    const { listProjects } = await import('../../src/server/utils/agents/loop')
-    const { resolveProjectCwd } = await import('../../src/server/utils/agents/rules')
+    const { addAgentProject, listProjectRecords, removeAgentProject } = await import('../../app/server/utils/agents/store')
+    const { listProjects } = await import('../../app/server/utils/agents/loop')
+    const { resolveProjectCwd } = await import('../../app/server/utils/agents/rules')
     expect(resolveProjectCwd('app', '')).toBe('/home/bros/workspace/app')
     expect(resolveProjectCwd('app', '/home/me/dev/bros/data/home/workspace/app')).toBe('/home/bros/workspace/app')
     expect(() => resolveProjectCwd('app', '/etc/app')).toThrow(/Workspace/)
@@ -83,8 +83,8 @@ describe('agents board rules', () => {
   })
 
   it('clears a failed job without deleting the repo directory', async () => {
-    const { createJob, getJob, patchJob } = await import('../../src/server/utils/agents/store')
-    const { clearJob } = await import('../../src/server/utils/agents/loop')
+    const { createJob, getJob, patchJob } = await import('../../app/server/utils/agents/store')
+    const { clearJob } = await import('../../app/server/utils/agents/loop')
     const repo = join(dataDir, 'home', 'workspace', 'demo')
     mkdirSync(repo, { recursive: true })
     writeFileSync(join(repo, 'keep.txt'), 'stay')
@@ -96,8 +96,8 @@ describe('agents board rules', () => {
   })
 
   it('defaults the runtime to Cursor and the PR base to staging', async () => {
-    const { projectPrBase, readSettings, setProjectPrBase } = await import('../../src/server/utils/agents/store')
-    const { pullPlan } = await import('../../src/server/utils/agents/rules')
+    const { projectPrBase, readSettings, setProjectPrBase } = await import('../../app/server/utils/agents/store')
+    const { pullPlan } = await import('../../app/server/utils/agents/rules')
     const settings = readSettings()
     expect(settings.runtime).toBe('cursor')
     expect(settings.autoPreflight).toBe(true)
@@ -118,7 +118,7 @@ describe('agents board rules', () => {
   })
 
   it('opens a standing staging pull only when the PR base is staging', async () => {
-    const { ensureStandingPull } = await import('../../src/server/utils/agents/github')
+    const { ensureStandingPull } = await import('../../app/server/utils/agents/github')
     const calls: string[] = []
     const fetchImpl: typeof fetch = async (url, init) => {
       calls.push(`${init?.method || 'GET'} ${String(url)} ${init?.body || ''}`)
@@ -135,8 +135,8 @@ describe('agents board rules', () => {
   })
 
   it('replaces the stored token from the environment, and clear removes it', async () => {
-    const { readSettings, saveSettings, seedGithubTokenFromEnv } = await import('../../src/server/utils/agents/store')
-    const { syncGitCredentials } = await import('../../src/server/utils/agents/desktop')
+    const { readSettings, saveSettings, seedGithubTokenFromEnv } = await import('../../app/server/utils/agents/store')
+    const { syncGitCredentials } = await import('../../app/server/utils/agents/desktop')
     const home = join(dataDir, 'home')
     saveSettings({ githubToken: 'pastedtoken9999' })
     expect(seedGithubTokenFromEnv({})).toBe('pastedtoken9999')
@@ -160,7 +160,7 @@ describe('agents board rules', () => {
   })
 
   it('skips sync when .git-credentials is unreadable', async () => {
-    const { syncGitCredentials } = await import('../../src/server/utils/agents/desktop')
+    const { syncGitCredentials } = await import('../../app/server/utils/agents/desktop')
     const home = join(dataDir, 'home-unreadable')
     mkdirSync(home, { recursive: true })
     const credPath = join(home, '.git-credentials')

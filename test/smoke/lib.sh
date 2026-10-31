@@ -56,8 +56,8 @@ ensure_pack() {
   local name asset
   name="$(asset_name)"
   asset="$CACHE_DIR/$name"
-  if [[ -f "$asset" && -f "$REPO_ROOT/cli/target/release/bros" && -f "$REPO_ROOT/src/ui/.output/server/index.mjs" ]]; then
-    if [[ "$REPO_ROOT/cli/target/release/bros" -ot "$asset" && "$REPO_ROOT/src/ui/.output/server/index.mjs" -ot "$asset" ]]; then
+  if [[ -f "$asset" && -f "$REPO_ROOT/cli/target/release/bros" && -f "$REPO_ROOT/app/ui/.output/server/index.mjs" ]]; then
+    if [[ "$REPO_ROOT/cli/target/release/bros" -ot "$asset" && "$REPO_ROOT/app/ui/.output/server/index.mjs" -ot "$asset" ]]; then
       say "reuse cached $asset"
       printf '%s\n' "$asset"
       return 0
@@ -66,7 +66,7 @@ ensure_pack() {
   say "building CLI + UI for pack…"
   # Keep stdout clean: callers capture only the asset path.
   cargo build --release --manifest-path "$REPO_ROOT/cli/Cargo.toml" >&2
-  pnpm --dir "$REPO_ROOT/src" --filter @bros/ui build >&2
+  pnpm --dir "$REPO_ROOT/app" --filter @bros/ui build >&2
   (
     cd "$REPO_ROOT"
     scripts/pack-release.sh --name "${name%.tar.gz}" >&2

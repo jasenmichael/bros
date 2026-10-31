@@ -11,22 +11,22 @@ describe('OpenAI-compat chat stream', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-chat-openai-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     originalFetch = globalThis.fetch
   })
 
   afterEach(async () => {
     globalThis.fetch = originalFetch
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('sends stream_options, reads reasoning_content, and adds OpenRouter headers', async () => {
-    const { ensureDefaultProviders, upsertProvider } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat/chat')
-    const { getProviderPreset } = await import('../../src/server/utils/providers/presets')
+    const { ensureDefaultProviders, upsertProvider } = await import('../../app/server/utils/providers')
+    const { streamChat } = await import('../../app/server/utils/chat/chat')
+    const { getProviderPreset } = await import('../../app/server/utils/providers/presets')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -68,8 +68,8 @@ describe('OpenAI-compat chat stream', () => {
   })
 
   it('refuses a disabled provider and does not call that provider or others', async () => {
-    const { ensureDefaultProviders, setProviderEnabled } = await import('../../src/server/utils/providers')
-    const { streamChat } = await import('../../src/server/utils/chat/chat')
+    const { ensureDefaultProviders, setProviderEnabled } = await import('../../app/server/utils/providers')
+    const { streamChat } = await import('../../app/server/utils/chat/chat')
     ensureDefaultProviders()
     await setProviderEnabled('openrouter', false)
 

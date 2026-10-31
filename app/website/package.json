@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "cp ../../scripts/install.sh public/install.sh",
+    "pregenerate": "cp ../../scripts/install.sh public/install.sh",
     "dev": "nuxt dev --port 3056",
     "generate": "nuxt generate",
     "preview": "nuxt preview --port 3056"

@@ -12,7 +12,7 @@ Core docker app `lib/apps/core/whisper`. Speaches (faster-whisper) HTTP STT for 
 - Container: **8000**
 - Host publish: **8090** (`BROS_WHISPER_PORT` override)
 
-The card lists `http://127.0.0.1:8090/v1` and `http://whisper:8000/v1`. No Open button (the interface is `api`). No Pin (no `webui`). Compose-app Bros (Chat STT) and other containers use `http://whisper:8000` on network `bros`. Host Node (`pnpm --dir src ui:dev`) uses `http://127.0.0.1:8090` (`BROS_WHISPER_PORT` override).
+The card lists `http://127.0.0.1:8090/v1` and `http://whisper:8000/v1`. No Open button (the interface is `api`). No Pin (no `webui`). Compose-app Bros (Chat STT) and other containers use `http://whisper:8000` on network `bros`. Host Node (`pnpm --dir app ui:dev`) uses `http://127.0.0.1:8090` (`BROS_WHISPER_PORT` override).
 
 Chat `POST /api/chat/transcribe` (session cookie) forwards a short audio clip to `POST /v1/audio/transcriptions`. Empty speech returns `{ text: "" }`. While Settings leaves Whisper off, the handler returns an error and does not start or pull images. While the switch is on and the container is down, the handler starts it, then waits on `/health`. The image pull happens when the switch is turned on. Default model is `Systran/faster-whisper-base` on CPU.
 

@@ -5,13 +5,13 @@ import {
   rewriteJsCssImports,
   shouldRewriteJsBody,
   toModuleCssUrl,
-} from '../../src/ui/vite/devCssSplit'
+} from '../../app/ui/vite/devCssSplit'
 
 describe('dev CSS module URL split', () => {
   it('maps Vite CSS imports onto a .js path and back', () => {
-    const src = '/_nuxt/@fs/app/src/layers/theme/app/assets/css/main.css?t=1789614507528'
+    const src = '/_nuxt/@fs/app/app/layers/theme/app/assets/css/main.css?t=1789614507528'
     const mod = toModuleCssUrl(src)
-    expect(mod).toBe(`${DEV_CSS_MOD_PREFIX}@fs/app/src/layers/theme/app/assets/css/main.css.js?t=1789614507528`)
+    expect(mod).toBe(`${DEV_CSS_MOD_PREFIX}@fs/app/app/layers/theme/app/assets/css/main.css.js?t=1789614507528`)
     expect(mod.endsWith('.js?t=1789614507528') || mod.includes('.css.js?')).toBe(true)
     expect(fromModuleCssUrl(mod)).toBe(src)
     expect(toModuleCssUrl(mod)).toBe(mod)
@@ -23,16 +23,16 @@ describe('dev CSS module URL split', () => {
 
   it('rewrites JS import specifiers only', () => {
     const code = [
-      'import "/_nuxt/@fs/app/src/layers/theme/app/assets/css/main.css?t=1";',
+      'import "/_nuxt/@fs/app/app/layers/theme/app/assets/css/main.css?t=1";',
       'import "/_nuxt/@id/virtual:nuxt:.nuxt%2Fnuxt-fonts-global.css";',
       'const keep = "color: red; /* main.css */";',
     ].join('\n')
     const out = rewriteJsCssImports(code)
-    expect(out).toContain(`${DEV_CSS_MOD_PREFIX}@fs/app/src/layers/theme/app/assets/css/main.css.js?t=1`)
+    expect(out).toContain(`${DEV_CSS_MOD_PREFIX}@fs/app/app/layers/theme/app/assets/css/main.css.js?t=1`)
     expect(out).toContain(`${DEV_CSS_MOD_PREFIX}@id/virtual:nuxt:.nuxt%2Fnuxt-fonts-global.css.js`)
     expect(out).toContain('const keep = "color: red; /* main.css */";')
     expect(rewriteJsCssImports(out)).toBe(out)
     expect(shouldRewriteJsBody('/_nuxt/@id/virtual:nuxt:.nuxt%2Fcss.mjs', '')).toBe(true)
-    expect(shouldRewriteJsBody('/_nuxt/@fs/app/src/layers/theme/app/assets/css/main.css', 'style')).toBe(false)
+    expect(shouldRewriteJsBody('/_nuxt/@fs/app/app/layers/theme/app/assets/css/main.css', 'style')).toBe(false)
   })
 })

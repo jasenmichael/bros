@@ -30,7 +30,7 @@ describe('chat rules prompt', () => {
   })
 
   it('loads rules that deny tools and does not load the chat task file', async () => {
-    const { personaSystemText, withPersona } = await import('../../src/server/utils/skills')
+    const { personaSystemText, withPersona } = await import('../../app/server/utils/skills')
     const text = personaSystemText()
     expect(text).toContain('You have no tools.')
     expect(text).toContain('Do not pretend to browse, read files, or run commands.')

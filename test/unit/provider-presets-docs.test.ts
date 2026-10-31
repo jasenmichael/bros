@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { PROVIDER_PRESETS } from '../../src/server/utils/providers/presets'
+import { PROVIDER_PRESETS } from '../../app/server/utils/providers/presets'
 
 const root = join(import.meta.dirname, '../..')
 

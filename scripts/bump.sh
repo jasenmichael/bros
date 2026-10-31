@@ -39,11 +39,11 @@ import pathlib, re, sys
 version = sys.argv[1]
 files = [
     "cli/Cargo.toml",
-    "src/package.json",
-    "src/ui/package.json",
-    "src/website/package.json",
-    "src/layers/theme/package.json",
-    "src/layers/docs/package.json",
+    "app/package.json",
+    "app/ui/package.json",
+    "app/website/package.json",
+    "app/layers/theme/package.json",
+    "app/layers/docs/package.json",
 ]
 
 def set_package_json(path: pathlib.Path) -> None:
@@ -153,11 +153,11 @@ case "${1:-}" in
       VERSION \
       cli/Cargo.toml \
       cli/Cargo.lock \
-      src/package.json \
-      src/ui/package.json \
-      src/website/package.json \
-      src/layers/theme/package.json \
-      src/layers/docs/package.json
+      app/package.json \
+      app/ui/package.json \
+      app/website/package.json \
+      app/layers/theme/package.json \
+      app/layers/docs/package.json
     printf '%s\n' "$next"
     ;;
   *)
