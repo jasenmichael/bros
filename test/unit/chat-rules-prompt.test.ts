@@ -8,14 +8,14 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url))
 
 describe('chat rules prompt', () => {
   let dataDir = ''
-  const envKeys = ['BROS_DIR', 'BROS_HOME', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_HOST_HOME'] as const
+  const envKeys = ['BROS_DIR', 'BROS_DIR', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_HOST_HOME'] as const
   const prev: Partial<Record<(typeof envKeys)[number], string | undefined>> = {}
 
   beforeEach(() => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-chat-rules-'))
     for (const key of envKeys) prev[key] = process.env[key]
     process.env.BROS_DIR = repoRoot
-    process.env.BROS_HOME = repoRoot
+    process.env.BROS_DIR = repoRoot
     process.env.BROS_WORKING_DIR = repoRoot
     process.env.BROS_DATA_DIR = dataDir
     delete process.env.BROS_HOST_HOME

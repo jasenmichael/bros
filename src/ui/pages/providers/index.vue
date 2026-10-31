@@ -843,7 +843,7 @@ async function scanHost() {
                 {{ selected?.statusMessage || 'Host Ollama is unreachable. Pull and Chat need the host daemon.' }}
               </p>
               <p class="text-xs text-amber-200">
-                Pull and chat use the host Ollama disk. DockerApp models stay in $BROS_HOME/data/home/.ollama.
+                Pull and chat use the host Ollama disk. DockerApp models stay in $BROS_DIR/data/home/.ollama.
               </p>
               <p class="text-xs text-[var(--bros-muted)]">
                 Run the host Ollama daemon with <span class="font-mono">OLLAMA_NOPRUNE=1</span> so incomplete pulls are not pruned. Bros cannot set host daemon env.

@@ -13,7 +13,7 @@ Ask first. Do not invent a pack until the route is clear. Follow the install pat
 
 ## Doc resolution
 
-1. `$BROS_HOME/docs` or `$BROS_DIR/docs` if present.
+1. `$BROS_DIR/docs` or `$BROS_DIR/docs` if present.
 2. Else `https://raw.githubusercontent.com/jasenmichael/bros/main/docs/...`
 3. Hub: `apps.md`, custom: `apps/custom.md`, shipped: `apps/<id>.md`.
 
@@ -42,7 +42,7 @@ Writes `data/config/apps/<id>/` with `config.yml` (`kind: docker`) + `docker-com
 
 ```bash
 curl -sS -X POST "http://127.0.0.1:3055/api/apps" \
-  -H "Authorization: Bearer $(cat "${BROS_HOST_DATA_DIR:-$BROS_HOME/data}/proxy-key")" \
+  -H "Authorization: Bearer $(cat "${BROS_DATA_DIR:-$BROS_DIR/data}/proxy-key")" \
   -H "Content-Type: application/json" \
   -d '{"id":"myapp","configYml":"...","composeYml":"..."}'
 ```

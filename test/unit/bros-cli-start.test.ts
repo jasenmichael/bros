@@ -75,7 +75,7 @@ describe('UI host split', () => {
     expect(changedVolumeHosts(before, added)).toEqual(['/data/b'])
     expect(volumeHostPaths(before)).toEqual(['/data/a'])
     const apps = [
-      { id: 'ollama', compose: 'services:\n  ollama:\n    volumes:\n      - ${BROS_HOST_DATA_DIR}/a:/a\n' },
+      { id: 'ollama', compose: 'services:\n  ollama:\n    volumes:\n      - ${BROS_DATA_DIR}/a:/a\n' },
       { id: 'whisper', compose: 'services:\n  whisper:\n    volumes:\n      - /other:/x\n' },
     ]
     expect(dockerAppsRemounting(['/srv/a'], apps, '/srv')).toEqual(['ollama'])
@@ -106,7 +106,8 @@ describe('Bros image context', () => {
     expect(git).toContain('Rebuild continues without syncing remote.')
     expect(git).toContain('"submodule", "update", "--init"')
     expect(compose).toContain('context: .')
-    expect(compose).toContain('apps: ${BROS_HOST_DATA_DIR:?unset}/build/desktop')
+    expect(compose).toContain('apps: ${BROS_DATA_DIR:?unset}/build/desktop')
+    expect(compose).toContain('SELKIES_ENABLE_SHARING: "false"')
     expect(compose).not.toContain('dockerApps:')
     const sources = dockerfile.split('\n').flatMap((raw) => {
       const line = raw.trim()
@@ -166,12 +167,12 @@ describe('Bros image context', () => {
     expect(ensureScript).toContain('HOME="$HOME_DIR"')
     expect(ensureScript).toContain('XDG_DATA_HOME="$HOME_DIR/.local/share"')
     expect(ensureScript).not.toContain('HOME=/home/bros/.nix')
-    expect(compose).toContain('${BROS_HOST_DATA_DIR:?unset}/home/nix:/nix')
+    expect(compose).toContain('${BROS_DATA_DIR:?unset}/home/nix:/nix')
     expect(compose).toContain('XDG_DATA_HOME: /home/bros/.local/share')
     expect(compose).toContain('XDG_STATE_HOME: /home/bros/.local/state')
-    expect(compose).toContain('${BROS_HOST_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives')
-    expect(compose).toContain('${BROS_HOST_DATA_DIR:?unset}/cache/deb:/var/cache/bros/debs')
-    expect(compose).toContain('${BROS_HOST_DATA_DIR:?unset}/var/logs:/var/log/bros')
+    expect(compose).toContain('${BROS_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives')
+    expect(compose).toContain('${BROS_DATA_DIR:?unset}/cache/deb:/var/cache/bros/debs')
+    expect(compose).toContain('${BROS_DATA_DIR:?unset}/var/logs:/var/log/bros')
     const nixManager = readFileSync(join(REPO, 'lib/desktop/managers/nix.ts'), 'utf8')
     expect(nixManager).toContain('devbox global add')
     expect(nixManager).toContain('HOME=/home/bros')
@@ -225,16 +226,16 @@ describe('Bros image context', () => {
 describe('dockerApp autostart and start errors', () => {
   it('does not autostart during prerender or without host data dir', () => {
     expect(shouldRunAutostart(true)).toBe(false)
-    const prev = process.env.BROS_HOST_DATA_DIR
+    const prev = process.env.BROS_DATA_DIR
     try {
-      delete process.env.BROS_HOST_DATA_DIR
+      delete process.env.BROS_DATA_DIR
       expect(shouldRunAutostart(false)).toBe(false)
-      process.env.BROS_HOST_DATA_DIR = '/tmp/bros-data'
+      process.env.BROS_DATA_DIR = '/tmp/bros-data'
       expect(shouldRunAutostart(false)).toBe(true)
     }
     finally {
-      if (prev === undefined) delete process.env.BROS_HOST_DATA_DIR
-      else process.env.BROS_HOST_DATA_DIR = prev
+      if (prev === undefined) delete process.env.BROS_DATA_DIR
+      else process.env.BROS_DATA_DIR = prev
     }
     const middleware = readFileSync(join(REPO, 'src/server/middleware/01-auth.ts'), 'utf8')
     expect(middleware).toContain('shouldRunAutostart() && !autostartDone')
@@ -273,10 +274,10 @@ describe('install.sh next steps', () => {
   it('does not mention --dev', () => {
     const sh = readFileSync(join(REPO, 'src/website/public/install.sh'), 'utf8')
     expect(sh).not.toContain('--dev')
-    expect(sh).toContain('BROS_HOME')
+    expect(sh).toContain('BROS_DIR')
     expect(sh).toContain('BROS_BIN')
     expect(sh).toContain('--service')
-    expect(sh).toContain('BROS_CONFIG="${BROS_CONFIG:-$BROS_HOME/bros.yml}"')
+    expect(sh).toContain('BROS_CONFIG="${BROS_CONFIG:-$BROS_DIR/bros.yml}"')
     expect(sh).not.toContain('trap \'rm -rf "$tmp"\' RETURN')
     expect(sh).not.toContain('.config}/bros.yml')
   })

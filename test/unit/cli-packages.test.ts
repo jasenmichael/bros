@@ -214,7 +214,7 @@ describe('cli packages', () => {
 
   it('records addon enable in enabled-apps and drops shipped copies', () => {
     const root = mkdtempSync(join(tmpdir(), 'bros-enable-'))
-    const keys = ['BROS_DIR', 'BROS_HOME', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_HOST_REPO', 'BROS_HOST_DATA_DIR'] as const
+    const keys = ['BROS_DIR', 'BROS_DIR', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_HOST_REPO', 'BROS_DATA_DIR'] as const
     const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
     for (const key of keys) delete process.env[key]
     process.env.BROS_DIR = root

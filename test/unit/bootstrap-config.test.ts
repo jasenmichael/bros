@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig, shouldAutostartFromPublicUrl } from '../../src/server/utils/config'
 
-const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_HOST_DATA_DIR', 'BROS_HOME', 'BROS_DIR'] as const
+const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_DIR', 'BROS_WORKSPACE'] as const
 
 describe('loadBootstrapConfig', () => {
   const saved: Record<string, string | undefined> = {}
@@ -106,14 +106,13 @@ describe('hostDataDirForBinds', () => {
     if (root) rmSync(root, { recursive: true, force: true })
   })
 
-  it('prefers BROS_HOST_DATA_DIR over yaml data_dir', () => {
-    process.env.BROS_HOST_DATA_DIR = join(root, 'host-data')
-    process.env.BROS_DATA_DIR = join(root, 'container-data')
+  it('uses BROS_DATA_DIR host path for binds', () => {
+    process.env.BROS_DATA_DIR = join(root, 'host-data')
     expect(hostDataDirForBinds()).toBe(resolve(root, 'host-data'))
   })
 
   it('ignores in-container /app/data and uses BROS_DIR/data', () => {
-    process.env.BROS_HOST_DATA_DIR = '/app/data'
+    process.env.BROS_DATA_DIR = '/app/data'
     process.env.BROS_DIR = root
     expect(hostDataDirForBinds()).toBe(resolve(root, 'data'))
   })
@@ -125,21 +124,21 @@ describe('hostDataDirForBinds', () => {
   })
 
   it('defaults Desktop workspace to the host data dir, not /app/data', () => {
-    const prev = process.env.BROS_HOST_WORKSPACE
-    delete process.env.BROS_HOST_WORKSPACE
+    const prev = process.env.BROS_WORKSPACE
+    delete process.env.BROS_WORKSPACE
     try {
-      process.env.BROS_HOST_DATA_DIR = join(root, 'host-data')
+      process.env.BROS_DATA_DIR = join(root, 'host-data')
       process.env.BROS_DIR = root
       expect(hostWorkspaceForCompose()).toBe(resolve(root, 'host-data', 'home', 'workspace'))
-      process.env.BROS_HOST_DATA_DIR = '/app/data'
+      process.env.BROS_DATA_DIR = '/app/data'
       expect(hostWorkspaceForCompose()).toBe(resolve(root, 'data', 'home', 'workspace'))
       expect(hostWorkspaceForCompose()).not.toBe('')
-      process.env.BROS_HOST_WORKSPACE = '/override'
+      process.env.BROS_WORKSPACE = '/override'
       expect(hostWorkspaceForCompose()).toBe(resolve('/override'))
     }
     finally {
-      if (prev === undefined) delete process.env.BROS_HOST_WORKSPACE
-      else process.env.BROS_HOST_WORKSPACE = prev
+      if (prev === undefined) delete process.env.BROS_WORKSPACE
+      else process.env.BROS_WORKSPACE = prev
     }
   })
 })

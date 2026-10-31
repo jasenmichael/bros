@@ -24,7 +24,7 @@ type FileConfig = {
 }
 
 function appDirFromEnv(): string | null {
-  const raw = (process.env.BROS_DIR || process.env.BROS_HOME || process.env.BROS_WORKING_DIR || '').trim()
+  const raw = (process.env.BROS_DIR || process.env.BROS_WORKING_DIR || '').trim()
   return raw || null
 }
 
@@ -48,16 +48,12 @@ export function resolveAppDir(cwd = process.cwd()): string {
   return findCheckoutRoot(cwd) || resolve(cwd)
 }
 
-function hostDataDir(dataDir: string): string {
-  const explicit = process.env.BROS_HOST_DATA_DIR?.trim()
-  if (explicit && explicit !== '/app/data' && explicit !== '/data') return resolve(explicit)
-  return dataDir
-}
-
 export function dataDirFor(appDir: string): string {
+  // In-container app root is /app; host data is bind-mounted at /app/data.
+  // BROS_DATA_DIR in the container is the host path (for nested compose binds).
+  if (appDir === '/app') return '/app/data'
   const envData = process.env.BROS_DATA_DIR?.trim()
-  // `/data` is the old in-container marker. The bind is `$BROS_DIR/data` (`/app/data`).
-  if (!envData || envData === '/data') return join(appDir, 'data')
+  if (!envData || envData === '/data' || envData === '/app/data') return join(appDir, 'data')
   return resolve(envData)
 }
 
@@ -85,7 +81,7 @@ function parseYamlFile(path: string): FileConfig {
 }
 
 /**
- * `$BROS_DIR/bros.yml` (install: `$BROS_HOME/bros.yml`). Data is `BROS_DATA_DIR` or `$BROS_DIR/data`.
+ * `$BROS_DIR/bros.yml`. Data is `BROS_DATA_DIR` or `$BROS_DIR/data`.
  * `BROS_PUBLIC_URL` overrides YAML `public_url`.
  */
 export function loadBootstrapConfig(cwd = process.cwd()): BootstrapConfig {
@@ -102,11 +98,18 @@ export function loadBootstrapConfig(cwd = process.cwd()): BootstrapConfig {
     enableHostOllama: file.enable_host_ollama === true,
     enableWhisper: file.enable_whisper === true,
     workspaceHost: resolveWorkspaceHost({
-      dataDir: hostDataDir(dataDir),
+      dataDir: hostPathOrLocal(dataDir),
       appDir: process.env.BROS_HOST_REPO?.trim() || appDir,
       yaml: file.workspace,
     }),
   }
+}
+
+/** Prefer host `BROS_DATA_DIR` when set; else local dataDir (host UI). */
+function hostPathOrLocal(dataDir: string): string {
+  const explicit = process.env.BROS_DATA_DIR?.trim()
+  if (explicit && explicit !== '/app/data' && explicit !== '/data') return resolve(explicit)
+  return dataDir
 }
 
 export function patchBrosYaml(patch: Partial<FileConfig>, cwd = process.cwd()): FileConfig {
@@ -126,18 +129,17 @@ export function patchBrosYaml(patch: Partial<FileConfig>, cwd = process.cwd()): 
 }
 
 /**
- * Host path for dockerApp Compose binds. In-container `/app/data` is not a bind source.
+ * Host path for Compose volume binds. In-container `/app/data` is not a bind source.
+ * On the host and in the desktop container, `BROS_DATA_DIR` is the host absolute path.
  */
 export function hostDataDirForBinds(): string {
-  const explicit = process.env.BROS_HOST_DATA_DIR?.trim()
+  const explicit = process.env.BROS_DATA_DIR?.trim()
   if (explicit && explicit !== '/app/data' && explicit !== '/data') return resolve(explicit)
-  const dataOverride = process.env.BROS_DATA_DIR?.trim()
-  if (dataOverride && dataOverride !== '/app/data' && dataOverride !== '/data') return resolve(dataOverride)
-  const home = (process.env.BROS_DIR || process.env.BROS_HOME || '').trim()
-  if (home && home !== '/app') return resolve(home, 'data')
+  const dir = (process.env.BROS_DIR || '').trim()
+  if (dir && dir !== '/app') return resolve(dir, 'data')
   const { dataDir, workingDir } = loadBootstrapConfig()
   if (workingDir === '/app' || dataDir === '/app/data' || dataDir === '/data') {
-    throw new Error('BROS_HOST_DATA_DIR is unset; cannot bind docker app volumes')
+    throw new Error('BROS_DATA_DIR is unset; cannot bind docker app volumes')
   }
   return dataDir
 }
@@ -148,12 +150,12 @@ function isContainerDataPath(path: string): boolean {
 }
 
 /**
- * Host path for Desktop `${BROS_HOST_WORKSPACE:?unset}`.
+ * Host path for Desktop `${BROS_WORKSPACE:?unset}`.
  * Env wins, then `bros.yml` `workspace`, then `$hostData/home/workspace`.
  * Never the in-container `/app/data` tree unless that path is the host data dir.
  */
 export function hostWorkspaceForCompose(): string {
-  const env = process.env.BROS_HOST_WORKSPACE?.trim()
+  const env = process.env.BROS_WORKSPACE?.trim()
   if (env) return resolve(env)
   const hostDefault = join(hostDataDirForBinds(), 'home', 'workspace')
   const configured = loadBootstrapConfig().workspaceHost.trim()

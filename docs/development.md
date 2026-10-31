@@ -48,7 +48,7 @@ BROS_DEV=1 ./bros stop
 
 ## Host pnpm
 
-Node **22+**, pnpm **12.15.0**. Dev uses that pnpm for the UI. Docs and tests use the same workspace. Docker is still required for the desktop and docker apps. Chat/Providers talk to docker app Ollama at `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT`) and host Ollama at `http://127.0.0.1:<probe>`. Whisper STT uses `http://127.0.0.1:8090`. Container `bros-ui` uses Docker DNS. Docker app Compose always gets `BROS_HOST_DATA_DIR` (checkout `data/`).
+Node **22+**, pnpm **12.15.0**. Dev uses that pnpm for the UI. Docs and tests use the same workspace. Docker is still required for the desktop and docker apps. Chat/Providers talk to docker app Ollama at `http://127.0.0.1:11435` (`BROS_OLLAMA_PORT`) and host Ollama at `http://127.0.0.1:<probe>`. Whisper STT uses `http://127.0.0.1:8090`. Container `bros-ui` uses Docker DNS. Docker app Compose always gets `BROS_DATA_DIR` (checkout `data/`).
 
 ```bash
 pnpm --dir src install
@@ -60,9 +60,28 @@ cargo test --manifest-path cli/Cargo.toml
 
 `test:ci` is unit + nuxt (GitHub Actions on a pull request to `main`). Full `pnpm --dir src test` also runs e2e, which needs Bros already listening on `http://127.0.0.1:3055`.
 
-Login passkey is printed in `$BROS_HOST_DATA_DIR/var/logs/bros.log` (`[bros] passkey:`) and stored in `$BROS_HOST_DATA_DIR/passkey`.
+Login passkey is printed in `$BROS_DATA_DIR/var/logs/bros.log` (`[bros] passkey:`) and stored in `$BROS_DATA_DIR/passkey`.
 
 Website/docs site: [Docs site](/docs/website). Images build `@bros/ui` only; Pages builds `@bros/website`.
+
+## Workspace (pnpm)
+
+pnpm workspace root is `src/`.
+
+| Path | Package | Role |
+| --- | --- | --- |
+| `cli/` | — | Rust CLI. Starts and stops the desktop and the UI. Calls the API after `/api/health`. |
+| `src/ui/` | `@bros/ui` | Bros UI + Nitro API; extends theme + docs; `/` **= dashboard** |
+| `src/layers/docs/` | `@bros/docs` | Docs layer — content from `docs/`, `/docs` routes; extends theme |
+| `src/layers/theme/` | `@bros/theme` | Nuxt UI, layouts, nav chrome, markdown/prose |
+| `src/website/` | `@bros/website` | Static site homepage + `extends`; `pnpm --dir src docs:generate` → GitHub Pages `/bros/` |
+| `lib/apps/` | — | Shipped docker app packages (core Ollama and Whisper, plus addons). An addon can later move to core. |
+| `data/config/apps/` | — | Custom apps. Not in the repo. A custom app can later move to addon or core. |
+
+```text
+theme  →  docs  →  @bros/ui     (`/` = dashboard)
+                →  @bros/website (`/` = marketing)
+```
 
 ## Where code lives
 

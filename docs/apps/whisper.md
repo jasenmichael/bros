@@ -18,7 +18,7 @@ Chat `POST /api/chat/transcribe` (session cookie) forwards a short audio clip to
 
 ## Binds
 
-- `$BROS_HOST_DATA_DIR/home/.cache/huggingface/hub` → `/home/bros/.cache/huggingface/hub`
+- `$BROS_DATA_DIR/home/.cache/huggingface/hub` → `/home/bros/.cache/huggingface/hub`
 
 Compose runs Speaches as `BROS_HOST_UID`:`BROS_HOST_GID`. OpenJEV mounts the parent `home/.cache/huggingface`. Whisper mounts `hub` only.
 

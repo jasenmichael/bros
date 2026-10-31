@@ -12,7 +12,7 @@ Base: `http://127.0.0.1:3055` (or tunnel hostname — see `bros-tunnel`).
 
 ## Doc resolution
 
-1. `$BROS_HOME/docs/api.md` or `$BROS_DIR/docs/api.md`
+1. `$BROS_DIR/docs/api.md` or `$BROS_DIR/docs/api.md`
 2. Else `https://raw.githubusercontent.com/jasenmichael/bros/main/docs/api.md`
 3. Live contract: `GET http://127.0.0.1:3055/openapi.yaml`
 
@@ -21,15 +21,15 @@ Base: `http://127.0.0.1:3055` (or tunnel hostname — see `bros-tunnel`).
 | Client | How |
 |--------|-----|
 | Browser | `POST /api/auth/login` `{ "passcode": "..." }` → cookie `bros_session` |
-| CLI / machine | `Authorization: Bearer <proxy-key>` — file `$BROS_HOST_DATA_DIR/proxy-key` (else under `$BROS_HOME/data/`) |
+| CLI / machine | `Authorization: Bearer <proxy-key>` — file `$BROS_DATA_DIR/proxy-key` (else under `$BROS_DIR/data/`) |
 | Open (no auth) | `GET /api/health`, `/api/auth/*`, `/openapi.yaml` |
 
 ```bash
-KEY=$(cat "${BROS_HOST_DATA_DIR:-$BROS_HOME/data}/proxy-key")
+KEY=$(cat "${BROS_DATA_DIR:-$BROS_DIR/data}/proxy-key")
 curl -sS -H "Authorization: Bearer $KEY" http://127.0.0.1:3055/api/apps
 ```
 
-Passkey lives in logs / `$BROS_HOME/data/passkey` after first start. Never commit keys.
+Passkey lives in logs / `$BROS_DIR/data/passkey` after first start. Never commit keys.
 
 ## Route groups
 

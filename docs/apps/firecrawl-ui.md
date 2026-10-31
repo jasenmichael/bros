@@ -5,7 +5,7 @@ description: Firecrawl scrape UI on host port 3081.
 
 # Firecrawl UI docker app
 
-Shipped **addon** package `lib/apps/addon/firecrawl-ui`. Vue UI for the [Firecrawl](https://firecrawl.dev/) scrape API ([obeone/firecrawl-ui](https://github.com/obeone/firecrawl-ui)). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_APP_FIRECRAWL_UI=0` or `BROS_APPS_DISABLE=firecrawl-ui`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
+Shipped **addon** package `lib/apps/addon/firecrawl-ui`. Vue UI for the [Firecrawl](https://firecrawl.dev/) scrape API ([obeone/firecrawl-ui](https://github.com/obeone/firecrawl-ui)). Stopped until Autostart is on. A fresh install does not start it. Turn Autostart on and restart Bros, or press Start. Mark disabled with `BROS_APP_FIRECRAWL_UI=0` or `BROS_APPS_ENABLED=firecrawl-ui`. When disabled, the pack stays listed, does not autostart, Start still runs it, and the id stays reserved.
 
 Image `obeoneorg/firecrawl-ui` is wrapped with Bros nginx: the SPA and `/v2` share host **3081**, and nginx proxies `/v2` (and `/v0`) to docker app `firecrawl:3002`. That avoids cross-port axios `Network Error` in Cursor preview and other locked browsers. The page sets API base URL to this origin (browser `localStorage`). Point the settings URL at Firecrawl Cloud only if you want the hosted API instead.
 

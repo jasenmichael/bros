@@ -15,11 +15,11 @@ Container `bros` is the desktop. The UI host listens on `BROS_PORT` (3055). Selk
 
 The CLI starts and stops the desktop, the UI, and docker apps. After `/api/health`, `check`, image rebuild, `app check`, `app update`, and writing `apps-compose.yml` are API calls. `run` and `shell` are `docker exec` into container `bros`. `service` is host `systemctl --user`. `status` is the CLI.
 
-Operator lines go to the terminal. Compose, BuildKit, and UI output append to `$BROS_HOST_DATA_DIR/var/logs/bros.log`. `--verbose` also prints those engine lines. Ctrl+C closes that pipe before the stop lines.
+Operator lines go to the terminal. Compose, BuildKit, and UI output append to `$BROS_DATA_DIR/var/logs/bros.log`. `--verbose` also prints those engine lines. Ctrl+C closes that pipe before the stop lines.
 
-Repo root is the directory of `bros`, symlink-resolved. `BROS_HOME` and `BROS_DIR` fill each other. Data is `BROS_HOST_DATA_DIR` or `$BROS_HOME/data`. `BROS_HOST_WORKSPACE` keeps a set value. Otherwise it is `bros.yml` `workspace` when that path is a host path, else `$BROS_HOST_DATA_DIR/home/workspace`. No workspace is exported when the data dir is empty, `/app/data`, or `/data`. Config is `--config`, else `$BROS_HOST_DATA_DIR/config/bros.yml`, else `$BROS_HOME/bros.yml`.
+Repo root is the directory of `bros`, symlink-resolved. `BROS_DIR` is shell env, else `.env` beside the real binary, else that binary’s directory. Data is `BROS_DATA_DIR` or `$BROS_DIR/data`. `BROS_WORKSPACE` keeps a set value. Otherwise it is `bros.yml` `workspace` when that path is a host path, else `$BROS_DATA_DIR/home/workspace`. No workspace is exported when the data dir is empty, `/app/data`, or `/data`. Config is `--config`, else `$BROS_DIR/bros.yml`, else legacy `$BROS_DATA_DIR/config/bros.yml`.
 
-`vendor/bros-model` is initialized by a source install and source `bros update`. A release tarball omits `vendor/`. Install and `bros update` read `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0` for product `0.0.1`) and download that packaged model when the stamp under `$BROS_HOST_DATA_DIR/apps/ollama/bros-model` is missing or older. A newer stamp stays. `bros` start does not download. The Ollama core app then runs `ollama create bros`. The UI does not run `git submodule`. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. `bros update` refreshes `example.env` and keeps an existing `.env`.
+`vendor/bros-model` is initialized by a source install and source `bros update`. A release tarball omits `vendor/`. Install and `bros update` read `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0` for product `0.0.1`) and download that packaged model when the stamp under `$BROS_DATA_DIR/apps/ollama/bros-model` is missing or older. A newer stamp stays. `bros` start does not download. The Ollama core app then runs `ollama create bros`. The UI does not run `git submodule`. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. `bros update` refreshes `example.env` and keeps an existing `.env`.
 
 ## Commands
 
@@ -34,6 +34,7 @@ Repo root is the directory of `bros`, symlink-resolved. `BROS_HOME` and `BROS_DI
 | `service install` | Linux systemd --user unit. `ExecStart` is `bros -D`. |
 | `service uninstall` | Disable and remove that unit. |
 | `service status` | `systemctl --user status bros`. |
+| `uninstall` | Release install only. Stop stack, remove `BROS_BIN` and shipped tree; keep `data/`, `.env`, `bros.yml`. `--purge` deletes all of `BROS_DIR`. Also `$BROS_DIR/uninstall.sh`. |
 | `run <command>` | `docker exec` in container `bros` (workdir `/home/bros/workspace`). Example: `bros run agent`. |
 | `shell` | `docker exec` `bash` in container `bros`. Same shell as `/terminal`. |
 | `app check <id>` | `GET /api/apps/<id>/update` after `/api/health`. |
@@ -61,9 +62,9 @@ A desktop recreate does not restart docker apps. A docker app restarts when its 
 | Name | What it changes |
 | --- | --- |
 | `BROS_DIR` | App directory. Default: directory of `bros`, symlink-resolved. |
-| `BROS_HOME` | Alias for `BROS_DIR`. Each fills the other when only one is set. |
-| `BROS_HOST_DATA_DIR` | Data directory. Default `$BROS_HOME/data`. |
-| `BROS_HOST_WORKSPACE` | Desktop workspace bind. See the resolve rules above. |
+| `BROS_DIR` | Alias for `BROS_DIR`. Each fills the other when only one is set. |
+| `BROS_DATA_DIR` | Data directory. Default `$BROS_DIR/data`. |
+| `BROS_WORKSPACE` | Desktop workspace bind. See the resolve rules above. |
 | `BROS_PORT` | UI host port. Default `3055`. |
 | `BROS_HOST` | UI listen address. Default `0.0.0.0`. |
 | `BROS_STREAM_PORT` | Host port for Selkies. Default `3300`, bound to `127.0.0.1`. |

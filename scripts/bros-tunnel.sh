@@ -4,10 +4,10 @@
 # shellcheck disable=SC2034
 
 bros_tunnel_dir() {
-  echo "${BROS_TUNNEL_DIR:-${BROS_HOST_DATA_DIR:-${BROS_DIR:-.}/data}/var/tunnel}"
+  echo "${BROS_TUNNEL_DIR:-${BROS_DATA_DIR:-${BROS_DIR:-.}/data}/var/tunnel}"
 }
 
-# First matching bootstrap YAML. Canonical is $BROS_HOME/bros.yml.
+# First matching bootstrap YAML. Canonical is $BROS_DIR/bros.yml.
 bros_find_bootstrap_yaml() {
   if [[ -n "${BROS_CONFIG_HOST:-}" && -f "$BROS_CONFIG_HOST" ]]; then
     printf '%s\n' "$BROS_CONFIG_HOST"
@@ -18,8 +18,8 @@ bros_find_bootstrap_yaml() {
     return 0
   fi
   local roots=() root
-  if [[ -n "${BROS_HOME:-}" ]]; then
-    roots+=("$BROS_HOME")
+  if [[ -n "${BROS_DIR:-}" ]]; then
+    roots+=("$BROS_DIR")
   fi
   if [[ -n "${BROS_DIR:-}" ]]; then
     roots+=("$BROS_DIR")
@@ -31,7 +31,7 @@ bros_find_bootstrap_yaml() {
       printf '%s\n' "$root/bros.yml"
       return 0
     fi
-    local data="${BROS_HOST_DATA_DIR:-$root/data}"
+    local data="${BROS_DATA_DIR:-$root/data}"
     if [[ -f "$data/config/bros.yml" ]]; then
       printf '%s\n' "$data/config/bros.yml"
       return 0

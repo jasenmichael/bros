@@ -27,14 +27,14 @@ A `kind: run` install is its own image layer in `$BROS_DIR/data/build/desktop/Do
 
 ## Binds
 
-- `$BROS_HOST_DATA_DIR/config/apps` → `/opt/bros/apps`
-- `$BROS_HOST_DATA_DIR/home` → `/home/bros`
-- `$BROS_HOST_DATA_DIR/home/nix` → `/nix`
-- `$BROS_HOST_DATA_DIR/cache/apt/archives` → `/var/cache/apt/archives`
-- `$BROS_HOST_DATA_DIR/cache/apt/lists` → `/var/lib/apt/lists`
-- `$BROS_HOST_DATA_DIR/cache/deb` → `/var/cache/bros/debs`
-- `$BROS_HOST_DATA_DIR/var/logs` → `/var/log/bros`
-- `$BROS_HOST_WORKSPACE` → `/home/bros/workspace` (default `home/workspace`)
+- `$BROS_DATA_DIR/config/apps` → `/opt/bros/apps`
+- `$BROS_DATA_DIR/home` → `/home/bros`
+- `$BROS_DATA_DIR/home/nix` → `/nix`
+- `$BROS_DATA_DIR/cache/apt/archives` → `/var/cache/apt/archives`
+- `$BROS_DATA_DIR/cache/apt/lists` → `/var/lib/apt/lists`
+- `$BROS_DATA_DIR/cache/deb` → `/var/cache/bros/debs`
+- `$BROS_DATA_DIR/var/logs` → `/var/log/bros`
+- `$BROS_WORKSPACE` → `/home/bros/workspace` (default `home/workspace`)
 - `$BROS_HOST_REPO` → the same path, read-only (dev mounts the checkout at `/app`)
 - Docker socket
 - volume `bros-x11` → `/tmp/.X11-unix`

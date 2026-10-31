@@ -15,14 +15,14 @@ Route files under `src/server/api/<surface>/` are the HTTP seam. Each handler st
 
 Most `/api/*` routes need a valid session cookie `bros_session` (HttpOnly, SameSite=Lax). Get it from `POST /api/auth/login` with `{ "passcode": "…" }` after setup. `GET /api/health` and `/api/auth/*` are open. `GET /openapi.yaml` is open.
 
-The host CLI uses `Authorization: Bearer <proxy-key>` (file `$BROS_HOST_DATA_DIR/proxy-key`) for machine calls such as `POST /api/apps/compose`. That header does not create a browser session. Browsers use the cookie:
+The host CLI uses `Authorization: Bearer <proxy-key>` (file `$BROS_DATA_DIR/proxy-key`) for machine calls such as `POST /api/apps/compose`. That header does not create a browser session. Browsers use the cookie:
 
 ```bash
 curl -sS -c cookies -b cookies -X POST http://127.0.0.1:3055/api/auth/login \
   -H 'content-type: application/json' \
   -d '{"passcode":"YOUR_PASSKEY"}'
 curl -sS -b cookies http://127.0.0.1:3055/api/providers
-curl -sS -H "Authorization: Bearer $(cat "$BROS_HOST_DATA_DIR/proxy-key")" \
+curl -sS -H "Authorization: Bearer $(cat "$BROS_DATA_DIR/proxy-key")" \
   -X POST http://127.0.0.1:3055/api/apps/compose
 ```
 
@@ -99,7 +99,7 @@ Session cookie only.
 
 ## Apps
 
-Store list is `GET /api/apps`. Compose start, stop, restart, settings, and files are `/api/apps/:id/...`. Git pull is `POST /api/apps/:id/repo`. Image and package update stay `POST /api/apps/:id/update`. Env disable keys are `BROS_APP_*` and `BROS_APPS_DISABLE`.
+Store list is `GET /api/apps`. Compose start, stop, restart, settings, and files are `/api/apps/:id/...`. Git pull is `POST /api/apps/:id/repo`. Image and package update stay `POST /api/apps/:id/update`. Addon boot list is `BROS_APPS_ENABLED`.
 
 | Method | Path | Notes |
 | --- | --- | --- |

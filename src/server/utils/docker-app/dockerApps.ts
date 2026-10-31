@@ -96,27 +96,12 @@ export const RESERVED_SLUGS = new Set([
 
 const DOCKER_APP_ID_RE = /^[a-z][a-z0-9_-]*$/
 
-function truthyOff(value: string | undefined): boolean {
-  if (value == null) return false
-  const v = value.trim().toLowerCase()
-  return v === '0' || v === 'false' || v === 'off' || v === 'no'
-}
-
-/** Shipped addon ids that stay listed and do not autostart. Core ids cannot be disabled. */
-export function disabledAddonIds(env: NodeJS.ProcessEnv = process.env): Set<string> {
+/** Addon ids from `BROS_APPS_ENABLED` (comma list) that boot with the stack. Core ids ignored. */
+export function enabledAddonIds(env: NodeJS.ProcessEnv = process.env): Set<string> {
   const out = new Set<string>()
-  for (const raw of (env.BROS_APPS_DISABLE || '').split(',')) {
+  for (const raw of (env.BROS_APPS_ENABLED || '').split(',')) {
     const id = raw.trim().toLowerCase()
     if (id && id !== CORE_DOCKER_APP_ID && id !== WHISPER_DOCKER_APP_ID) out.add(id)
-  }
-  for (const [key, val] of Object.entries(env)) {
-    if (!key.startsWith('BROS_APP_')) continue
-    if (key === 'BROS_APPS_DISABLE') continue
-    if (!truthyOff(val)) continue
-    const id = key.slice('BROS_APP_'.length).toLowerCase()
-    if (id && id !== CORE_DOCKER_APP_ID && id !== WHISPER_DOCKER_APP_ID) out.add(id)
-    const hyphen = id.replace(/_/g, '-')
-    if (hyphen !== id && hyphen !== CORE_DOCKER_APP_ID && hyphen !== WHISPER_DOCKER_APP_ID) out.add(hyphen)
   }
   return out
 }
@@ -191,23 +176,24 @@ export function isReservedDockerAppId(id: string, opts?: DiscoverOptions): boole
   return isShippedAddonId(id, opts)
 }
 
-/** Ollama always. Whisper follows Settings (default off). Other docker apps: SQLite default off. */
+/** Ollama always. Whisper follows Settings (default off). Addons: `BROS_APPS_ENABLED` or SQLite. */
 export function defaultDockerAppAutostart(id: string, env: NodeJS.ProcessEnv = process.env): boolean {
   if (id === CORE_DOCKER_APP_ID) return true
   if (id === WHISPER_DOCKER_APP_ID) return false
-  if (disabledAddonIds(env).has(id)) return false
-  return false
+  return enabledAddonIds(env).has(id)
 }
 
-/** Boot: Ollama always. Whisper gated in `autostartDockerApps` via Settings. Other docker: SQLite autostart. */
+/** Boot: Ollama always. Whisper gated in `autostartDockerApps` via Settings. Addons: SQLite or BROS_APPS_ENABLED. */
 export function shouldAutostartDockerApp(
   dockerApp: { id: string; disabled?: boolean; interfaces?: Array<{ type: string }> },
   settings: { autostart: boolean },
+  env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   if (dockerApp.id === CORE_DOCKER_APP_ID) return true
   if (dockerApp.id === WHISPER_DOCKER_APP_ID) return false
   if (dockerApp.disabled) return false
-  return settings.autostart
+  if (settings.autostart) return true
+  return enabledAddonIds(env).has(dockerApp.id)
 }
 
 function readDockerAppDir(
@@ -354,8 +340,6 @@ function rejectConflicts(
 }
 
 export function discoverDockerApps(opts?: DiscoverOptions): { dockerApps: DockerAppMeta[]; errors: string[] } {
-  const env = opts?.env || process.env
-  const disabled = disabledAddonIds(env)
   const errors: string[] = []
 
   // Core docker apps under lib/apps/core (ollama, whisper). Package apps (node, …) skip — not kind docker.
@@ -366,12 +350,13 @@ export function discoverDockerApps(opts?: DiscoverOptions): { dockerApps: Docker
     disabled: false,
     editable: false,
   }))
-  const addons = scanRoot(appsTierRoot(opts, 'addon'), 'shipped', 'addon', { disabledIds: disabled })
+  const addons = scanRoot(appsTierRoot(opts, 'addon'), 'shipped', 'addon')
     .map((s) => ({
       ...s,
       kind: 'addon' as const,
       source: 'shipped' as const,
       editable: false,
+      disabled: false,
     }))
 
   const shipped: DockerAppMeta[] = [...dockerAppsOnly, ...addons]

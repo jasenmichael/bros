@@ -8,11 +8,11 @@ description: >-
 
 # Tunnel and proxies
 
-Docs: `$BROS_HOME/docs/tunnel.md` first, else GitHub `docs/tunnel.md`. Status: `/status` and `/api/tunnel*`.
+Docs: `$BROS_DIR/docs/tunnel.md` first, else GitHub `docs/tunnel.md`. Status: `/status` and `/api/tunnel*`.
 
 ## Host tunnel
 
-Optional host `cloudflared` (`cloudflared login`). Set `public_url` in `$BROS_HOME/data/config/bros.yml` for a named tunnel to that hostname.
+Optional host `cloudflared` (`cloudflared login`). Set `public_url` in `$BROS_DIR/data/config/bros.yml` for a named tunnel to that hostname.
 
 Do **not** add extra Cloudflare hostnames per docker UI.
 
@@ -27,7 +27,7 @@ LAN Open/Pin stay `http://127.0.0.1:<publish>/`. Stopped public id → 404.
 
 ## Auth over tunnel
 
-Browser: passkey → `bros_session` (same as local). Machine / Cursor Override Base URL: `Authorization: Bearer <proxy-key>` from `$BROS_HOST_DATA_DIR/proxy-key`.
+Browser: passkey → `bros_session` (same as local). Machine / Cursor Override Base URL: `Authorization: Bearer <proxy-key>` from `$BROS_DATA_DIR/proxy-key`.
 
 ```bash
 # Example: OpenAI-compatible via tunnel + proxy-key

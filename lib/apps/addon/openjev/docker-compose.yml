@@ -3,7 +3,7 @@
 # Upstream listens on container 8080; Bros never publishes host 8080 (use 8092).
 # NVIDIA GPU + DiffusionGemma NVFP4 via vLLM. Default util 0.80 reserves KV headroom after weights.
 # Encoders default OPENJEV_DEVICE=cpu so ~16 GB cards can load the main model; set cuda on 24 GB.
-# Ampere needs OPENJEV_VLLM_ARGS --kv-cache-dtype bfloat16. Disable with BROS_APP_OPENJEV=0.
+# Ampere needs OPENJEV_VLLM_ARGS --kv-cache-dtype bfloat16. List in BROS_APPS_ENABLED to boot.
 services:
   openjev:
     image: razorback16/openjev:0.5.0
@@ -31,9 +31,9 @@ services:
     tmpfs: &openjev-home
       - /home/bros:mode=1777
     volumes: &hf
-      - ${BROS_HOST_DATA_DIR:?unset}/home/.cache/huggingface:/home/bros/.cache/huggingface
-      - ${BROS_HOST_DATA_DIR:?unset}/home/.cache/vllm:/home/bros/.cache/vllm
-      - ${BROS_HOST_DATA_DIR:?unset}/home/.cache/flashinfer:/home/bros/.cache/flashinfer
+      - ${BROS_DATA_DIR:?unset}/home/.cache/huggingface:/home/bros/.cache/huggingface
+      - ${BROS_DATA_DIR:?unset}/home/.cache/vllm:/home/bros/.cache/vllm
+      - ${BROS_DATA_DIR:?unset}/home/.cache/flashinfer:/home/bros/.cache/flashinfer
     ports:
       - "${BROS_OPENJEV_PORT:-8092}:8080"
     ipc: host

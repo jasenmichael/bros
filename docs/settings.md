@@ -9,7 +9,7 @@ description: Personality and rules skills, Whisper and host Ollama, MCP, proxy k
 
 ## Chat
 
-Two fields read and write user skills. Save stores the body in `$BROS_HOME/data/config/skills/<id>/SKILL.md`. Chat loads those bodies on each user turn. They never apply to internal `bros` titles:
+Two fields read and write user skills. Save stores the body in `$BROS_DIR/data/config/skills/<id>/SKILL.md`. Chat loads those bodies on each user turn. They never apply to internal `bros` titles:
 
 - **Prepend to every message** — `rules` skill
 - **Assistant description** — `personality` skill
@@ -20,7 +20,7 @@ Chat and passkey fields are full width in the `max-w-xl` column.
 
 ## Whisper and host Ollama
 
-**Enable Whisper** (off by default) stores `enable_whisper` in `$BROS_HOME/bros.yml`. On pulls the Whisper images, then starts the docker app. Off stops it.
+**Enable Whisper** (off by default) stores `enable_whisper` in `$BROS_DIR/bros.yml`. On pulls the Whisper images, then starts the docker app. Off stops it.
 
 **Enable host Ollama** (off by default) stores `enable_host_ollama` in the same file. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Docker apps.
 

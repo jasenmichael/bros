@@ -1,6 +1,6 @@
 # Firecrawl data
 
-Host files for this pack live under `$BROS_HOST_DATA_DIR/apps/firecrawl/`. Three directories.
+Host files for this pack live under `$BROS_DATA_DIR/apps/firecrawl/`. Three directories.
 
 ## Directories
 
@@ -14,6 +14,6 @@ Host files for this pack live under `$BROS_HOST_DATA_DIR/apps/firecrawl/`. Three
 
 ## Compose mapping
 
-- `${BROS_HOST_DATA_DIR}/apps/firecrawl/redis` → `/data`
-- `${BROS_HOST_DATA_DIR}/apps/firecrawl/rabbitmq` → `/var/lib/rabbitmq`
-- `${BROS_HOST_DATA_DIR}/apps/firecrawl/postgres` → `/var/lib/postgresql/data`
+- `${BROS_DATA_DIR}/apps/firecrawl/redis` → `/data`
+- `${BROS_DATA_DIR}/apps/firecrawl/rabbitmq` → `/var/lib/rabbitmq`
+- `${BROS_DATA_DIR}/apps/firecrawl/postgres` → `/var/lib/postgresql/data`

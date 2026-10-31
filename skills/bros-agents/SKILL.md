@@ -8,7 +8,7 @@ description: >-
 
 # Agents page
 
-UI: `/agents`. Docs: `$BROS_HOME/docs/agents.md` (else GitHub). API: `/api/agents*`.
+UI: `/agents`. Docs: `$BROS_DIR/docs/agents.md` (else GitHub). API: `/api/agents*`.
 
 **Avoid:** “Agent page”, “worktree”. Chat (`/chat`) is a different surface. The **Agent app** is the addon that installs `agent` / `cursor-agent` — enable it via `bros-package-app` if the runtime binary is missing.
 
@@ -16,7 +16,7 @@ UI: `/agents`. Docs: `$BROS_HOME/docs/agents.md` (else GitHub). API: `/api/agent
 
 | Term | Meaning |
 |------|---------|
-| **Workspace** | Desktop cwd; host `BROS_HOST_WORKSPACE` or `bros.yml` `workspace` or `data/home/workspace`; inside Desktop `/home/bros/workspace` |
+| **Workspace** | Desktop cwd; host `BROS_WORKSPACE` or `bros.yml` `workspace` or `data/home/workspace`; inside Desktop `/home/bros/workspace` |
 | **Repo** | One git directory under Workspace (also called a project) |
 | **Issue** | GitHub issue on that repo |
 | **Job** | One run: preflight → implement → PR |

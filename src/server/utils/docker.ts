@@ -106,7 +106,7 @@ export function getDocker() {
   return docker
 }
 
-/** Empty `${BROS_HOST_DATA_DIR}/ollama` interpolates to host `/ollama`. */
+/** Empty `${BROS_DATA_DIR}/ollama` interpolates to host `/ollama`. */
 export function isMissingHostDataBind(source: string, hostData: string): boolean {
   const src = source.replace(/\/+$/, '')
   const base = hostData.replace(/\/+$/, '')
@@ -125,8 +125,8 @@ function composeEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
     DOCKER_CONFIG: dockerConfigDir(),
-    BROS_HOST_DATA_DIR: hostDataDirForBinds(),
-    BROS_HOST_WORKSPACE: hostWorkspaceForCompose(),
+    BROS_DATA_DIR: hostDataDirForBinds(),
+    BROS_WORKSPACE: hostWorkspaceForCompose(),
     BROS_HOST_HOME_BIND: process.env.BROS_HOST_HOME_BIND?.trim() || process.env.HOME || '',
     BROS_HOST_UID: process.env.BROS_HOST_UID?.trim() || String(process.getuid?.() ?? 1000),
     BROS_HOST_GID: process.env.BROS_HOST_GID?.trim() || String(process.getgid?.() ?? 1000),
@@ -515,11 +515,11 @@ export function dockerCommandError(statusCode: number, fallback: string, detail:
 
 /**
  * False while Nitro is prerendering the image build, and when host data
- * binds are missing (Docker `appbuild` has no BROS_HOST_DATA_DIR).
+ * binds are missing (Docker `appbuild` has no BROS_DATA_DIR).
  */
 export function shouldRunAutostart(prerender = nitroIsPrerender()) {
   if (prerender) return false
-  if (!process.env.BROS_HOST_DATA_DIR?.trim()) return false
+  if (!process.env.BROS_DATA_DIR?.trim()) return false
   return true
 }
 

@@ -15,6 +15,6 @@ Package tiles prefer `icon.png` beside the app config. When that file is missing
 
 ## Proxy
 
-The browser talks only to the UI host. Nitro proxies `/desktop/view/` to `BROS_DESKTOP_STREAM_ORIGIN` and upgrades websockets. A host UI uses the localhost Selkies publish. Container `bros-ui` uses `http://bros:3000`. Selkies mode is websockets. Basic auth is off. The session cookie authorizes the page and the stream. The proxy key does not. The stream follows the Bros page: it plays while `/desktop` is visible and pauses when that page is hidden. Slugs `gui` and `terminal` are reserved.
+The browser talks only to the UI host. Nitro proxies `/desktop/view/` to `BROS_DESKTOP_STREAM_ORIGIN` and upgrades websockets. A host UI uses the localhost Selkies publish. Container `bros-ui` uses `http://bros:3000`. Selkies mode is websockets. Sharing is off so the active `/desktop` client owns the Wayland size (a second tab takes over; it does not sit letterboxed beside the first). Basic auth is off. The session cookie authorizes the page and the stream. The proxy key does not. The stream follows the Bros page: it plays while `/desktop` is visible and pauses when that page is hidden. Slugs `gui` and `terminal` are reserved.
 
 Hub: [Docker apps](/docs/apps).

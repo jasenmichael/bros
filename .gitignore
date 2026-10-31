@@ -45,3 +45,4 @@ bros.yml
 /bros.tar.gz.sha256
 /bros-*.tar.gz
 /bros-*.tar.gz.sha256
+/test/smoke/cache/

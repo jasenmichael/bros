@@ -28,7 +28,7 @@ export function dataRepairPlan() {
 export function repairDataDir(): Promise<void> {
   const plan = dataRepairPlan()
   if (!plan.argv) {
-    return Promise.reject(new Error('BROS_HOST_UID, BROS_HOST_GID, or BROS_HOST_DATA_DIR is unset'))
+    return Promise.reject(new Error('BROS_HOST_UID, BROS_HOST_GID, or BROS_DATA_DIR is unset'))
   }
   const argv = plan.argv
   return new Promise((resolve, reject) => {

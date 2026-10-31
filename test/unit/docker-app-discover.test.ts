@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   CORE_DOCKER_APP_ID,
   customDockerAppsRoot,
-  disabledAddonIds,
+  enabledAddonIds,
   discoverDockerApps,
   isReservedDockerAppId,
   shippedDockerAppsRoot,
@@ -81,40 +81,17 @@ describe('dockerApp discover merge', () => {
     expect(errors.some((e) => e.includes('opencode') && e.includes('id'))).toBe(true)
     expect(errors.some((e) => e.includes('alias') && e.includes('slug'))).toBe(true)
 
-    const disabled = discoverDockerApps({
-      shippedRoot: shipped,
-      customRoot: custom,
-      dataDir,
-      env: { BROS_APP_OPENCODE: '0', BROS_APPS_DISABLE: 'routeslug' },
-    })
-    const off = Object.fromEntries(disabled.dockerApps.map((s) => [s.id, s]))
-    expect(off.opencode.source).toBe('shipped')
-    expect(off.opencode.disabled).toBe(true)
-    expect(off.opencode.dir).toBe(join(addon, 'opencode'))
-    expect(off.routeslug.source).toBe('shipped')
-    expect(off.routeslug.disabled).toBe(true)
-    expect(off.alias).toBeUndefined()
-    expect(off.openwebui.source).toBe('shipped')
-    expect(off.openwebui.disabled).toBe(false)
-    expect(disabled.errors.some((e) => e.includes('opencode') && e.includes('id'))).toBe(true)
-    expect(disabled.errors.some((e) => e.includes('alias') && e.includes('slug'))).toBe(true)
-    expect(shouldAutostartDockerApp(off.opencode, { autostart: true })).toBe(false)
-    expect(isReservedDockerAppId('opencode', { shippedRoot: shipped, env: { BROS_APP_OPENCODE: '0' } })).toBe(true)
-    expect(isReservedDockerAppId('routeslug', { shippedRoot: shipped, env: { BROS_APPS_DISABLE: 'routeslug' } })).toBe(true)
     expect(isReservedDockerAppId('opencode', { shippedRoot: shipped, env: {} })).toBe(true)
-    expect(isReservedDockerAppId('ollama', { shippedRoot: shipped, env: { BROS_APP_OLLAMA: '0' } })).toBe(true)
+    expect(isReservedDockerAppId('ollama', { shippedRoot: shipped, env: {} })).toBe(true)
   })
 
-  it('lists env-disabled addons and skips autostart', () => {
-    expect(disabledAddonIds({ BROS_APPS_DISABLE: 'opencode,openwebui' })).toEqual(new Set(['opencode', 'openwebui']))
-    expect(disabledAddonIds({ BROS_APP_OPENCODE: '0' })).toEqual(new Set(['opencode']))
-    expect(readFileSync(join(import.meta.dirname, '../../lib/desktop/docker-compose.yml'), 'utf8')).toContain('BROS_APPS_DISABLE')
-    expect(disabledAddonIds({ BROS_APP_FIRECRAWL_UI: '0' })).toEqual(new Set(['firecrawl_ui', 'firecrawl-ui']))
-    expect(disabledAddonIds({ BROS_APP_OPENJEV: '0' })).toEqual(new Set(['openjev']))
-    expect(disabledAddonIds({ BROS_APP_OLLAMA: '0', BROS_APPS_DISABLE: 'ollama,opencode' })).toEqual(new Set(['opencode']))
-    expect(disabledAddonIds({ BROS_APP_WHISPER: '0', BROS_APPS_DISABLE: 'whisper,opencode' })).toEqual(new Set(['opencode']))
+  it('BROS_APPS_ENABLED boots listed addons; SQLite Autostart still works', () => {
+    expect(enabledAddonIds({ BROS_APPS_ENABLED: 'opencode,openwebui' })).toEqual(new Set(['opencode', 'openwebui']))
+    expect(enabledAddonIds({ BROS_APPS_ENABLED: 'ollama,opencode' })).toEqual(new Set(['opencode']))
+    expect(enabledAddonIds({ BROS_APPS_ENABLED: 'whisper,firecrawl' })).toEqual(new Set(['firecrawl']))
+    expect(readFileSync(join(import.meta.dirname, '../../lib/desktop/docker-compose.yml'), 'utf8')).toContain('BROS_APPS_ENABLED')
 
-    root = mkdtempSync(join(tmpdir(), 'bros-disable-'))
+    root = mkdtempSync(join(tmpdir(), 'bros-enabled-'))
     const shipped = join(root, 'lib', 'apps', 'core')
     writeDockerApp(shipped, 'ollama')
     writeDockerApp(addonDir(root), 'opencode')
@@ -122,12 +99,14 @@ describe('dockerApp discover merge', () => {
       shippedRoot: shipped,
       customRoot: join(root, 'dockerApps'),
       dataDir: join(root, 'data'),
-      env: { BROS_APP_OPENCODE: '0' },
+      env: { BROS_APPS_ENABLED: 'opencode' },
     })
     const opencode = dockerApps.find((s) => s.id === 'opencode')
     expect(opencode?.source).toBe('shipped')
-    expect(opencode?.disabled).toBe(true)
-    expect(shouldAutostartDockerApp(opencode!, { autostart: true })).toBe(false)
+    expect(opencode?.disabled).toBe(false)
+    expect(shouldAutostartDockerApp(opencode!, { autostart: false }, { BROS_APPS_ENABLED: 'opencode' })).toBe(true)
+    expect(shouldAutostartDockerApp(opencode!, { autostart: false }, {})).toBe(false)
+    expect(shouldAutostartDockerApp(opencode!, { autostart: true }, {})).toBe(true)
     expect(shouldAutostartDockerApp({ id: CORE_DOCKER_APP_ID }, { autostart: false })).toBe(true)
     expect(shouldAutostartDockerApp({ id: 'mine', disabled: false }, { autostart: true })).toBe(true)
     expect(shouldAutostartDockerApp({ id: 'whisper', disabled: false }, { autostart: true })).toBe(false)
@@ -170,8 +149,8 @@ describe('dockerApp discover merge', () => {
     expect(readFileSync(join(custom, 'mine', 'docker-compose.yml'), 'utf8')).toContain('nginx:alpine')
   })
 
-  it('keeps a disabled addon listed and rejects a custom app with that id', () => {
-    root = mkdtempSync(join(tmpdir(), 'bros-disabled-addon-'))
+  it('keeps a shipped addon listed and rejects a custom app with that id', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-shipped-addon-'))
     const shipped = join(root, 'lib', 'apps', 'core')
     const custom = join(root, 'dockerApps')
     const dataDir = join(root, 'data')
@@ -184,18 +163,17 @@ describe('dockerApp discover merge', () => {
       shippedRoot: shipped,
       customRoot: custom,
       dataDir,
-      env: { BROS_APPS_DISABLE: id },
     })
     const byId = Object.fromEntries(dockerApps.map((s) => [s.id, s]))
 
     expect(byId[id].source).toBe('shipped')
-    expect(byId[id].disabled).toBe(true)
+    expect(byId[id].disabled).toBe(false)
     expect(byId[id].dir).toBe(join(addonDir(root), id))
     expect(byId.fakealias).toBeUndefined()
     expect(errors).toContain(`Custom docker app "${id}" conflicts with a shipped or reserved id — rejected`)
     expect(errors).toContain('Custom docker app "fakealias" conflicts with a shipped or reserved slug — rejected')
-    expect(isReservedDockerAppId(id, { shippedRoot: shipped, env: { BROS_APPS_DISABLE: id } })).toBe(true)
-    expect(shouldAutostartDockerApp(byId[id], { autostart: true })).toBe(false)
+    expect(isReservedDockerAppId(id, { shippedRoot: shipped })).toBe(true)
+    expect(shouldAutostartDockerApp(byId[id], { autostart: false })).toBe(false)
   })
 
   it('rejects a custom pack that duplicates an enabled addon', () => {

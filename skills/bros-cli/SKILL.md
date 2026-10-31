@@ -8,7 +8,7 @@ description: >-
 
 # Bros CLI
 
-Binary: `bros`. Default action is **start**. Install tree: `$BROS_DIR` / `$BROS_HOME`. Docs: resolve `$BROS_HOME/docs/cli.md` else GitHub `docs/cli.md`.
+Binary: `bros`. Default action is **start**. Install tree: `$BROS_DIR` / `$BROS_DIR`. Docs: resolve `$BROS_DIR/docs/cli.md` else GitHub `docs/cli.md`.
 
 ## Commands
 

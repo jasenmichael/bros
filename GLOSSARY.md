@@ -46,12 +46,12 @@ _Avoid_: skill (alone when Chat skills are in scope)
 
 ## Skill
 
-A Chat prompt pack (`rules`, `personality`) under `lib/skills/`, seeded into `$BROS_HOME/data/config/skills`. Applies on Chat turns only. Not an Agent skill.
+A Chat prompt pack (`rules`, `personality`) under `lib/skills/`, seeded into `$BROS_DIR/data/config/skills`. Applies on Chat turns only. Not an Agent skill.
 _Avoid_: agent skill
 
 ## Workspace
 
-The Desktop working directory. Host path `BROS_HOST_WORKSPACE`, else `bros.yml` `workspace`, else `data/home/workspace`. Inside Desktop it is `/home/bros/workspace`.
+The Desktop working directory. Host path `BROS_WORKSPACE`, else `bros.yml` `workspace`, else `data/home/workspace`. Inside Desktop it is `/home/bros/workspace`.
 
 ## Repo
 
@@ -93,6 +93,21 @@ The `/status` page. Bros app, Docker, disk, GPU, the host tunnel, and each docke
 ## Bootstrap
 
 `$BROS_DIR/bros.yml` plus data-dir files (passkey, proxy key, session secret).
+
+## Install root
+
+`BROS_DIR`. Install default `~/.bros` (binary location). Runtime: shell, else `.env` beside the real binary, else the real binary’s directory.
+_Avoid_: BROS_HOME
+
+## Data dir
+
+`BROS_DATA_DIR`. Default `$BROS_DIR/data`. Host absolute path for Compose binds.
+_Avoid_: BROS_HOST_DATA_DIR
+
+## Workspace
+
+`BROS_WORKSPACE`. Default `$BROS_DATA_DIR/home/workspace`. Desktop workspace bind.
+_Avoid_: BROS_HOST_WORKSPACE
 
 ## Desktop home
 

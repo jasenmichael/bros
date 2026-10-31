@@ -72,7 +72,9 @@ fn main() {
             die(msg);
         }
     }
-    preflight_docker();
+    if opts.command != "uninstall" {
+        preflight_docker();
+    }
     let paths = export_host_env(&repo, opts.config.as_deref());
     match opts.command.as_str() {
         "start" => cmd_start(&repo, &paths, opts.dev, use_runner, daemon, true),
@@ -87,6 +89,7 @@ fn main() {
         "update" | "upgrade" => cmd_update(&repo, &paths, opts.dev, use_runner),
         "check" => cmd_http(&paths, "POST", "/api/apps/check"),
         "service" => cmd_service(&opts.rest),
+        "uninstall" => cmd_uninstall(&repo, &paths, &opts.rest),
         "app" => cmd_app(&paths, &opts.rest),
         "write-apps-compose" => cmd_http(&paths, "POST", "/api/apps/compose"),
         other => die(&format!("unknown command: {other}")),
@@ -143,7 +146,7 @@ fn is_stack_start(command: &str) -> bool {
 
 fn needs_dev_tools(command: &str) -> bool {
     matches!(command, "start" | "restart" | "update" | "upgrade" | "check" | "service" | "app" | "write-apps-compose")
-        || !matches!(command, "start" | "stop" | "restart" | "status" | "run" | "shell" | "update" | "upgrade" | "help" | "version")
+        || !matches!(command, "start" | "stop" | "restart" | "status" | "run" | "shell" | "update" | "upgrade" | "help" | "version" | "uninstall")
 }
 
 fn repo_root() -> PathBuf {
@@ -281,32 +284,27 @@ fn desktop_up_args(dev: bool) -> Vec<&'static str> {
     }
 }
 
-fn fill_roots(repo: &str, dir: Option<&str>, home: Option<&str>) -> (String, String) {
-    match (dir.filter(|s| !s.is_empty()), home.filter(|s| !s.is_empty())) {
-        (None, None) => (repo.to_string(), repo.to_string()),
-        (None, Some(home)) => (home.to_string(), home.to_string()),
-        (Some(dir), None) => (dir.to_string(), dir.to_string()),
-        (Some(dir), Some(home)) => (dir.to_string(), home.to_string()),
-    }
+fn resolve_bros_dir(repo: &str, dir: Option<&str>) -> String {
+    dir.filter(|s| !s.is_empty()).unwrap_or(repo).to_string()
 }
 
-fn data_dir_for(home: &str, set: Option<&str>) -> String {
+fn data_dir_for(bros_dir: &str, set: Option<&str>) -> String {
     match set.map(str::trim).filter(|s| !s.is_empty()) {
-        Some(dir) => expand_dotenv_value(dir, Some(home)),
-        None => format!("{home}/data"),
+        Some(dir) => expand_dotenv_value(dir, Some(bros_dir)),
+        None => format!("{bros_dir}/data"),
     }
 }
 
-/// Refuse paths that would make Docker create junk under BROS_HOME (literal `$HOME`, `#`, relative).
+/// Refuse paths that would make Docker create junk under BROS_DIR (literal `$HOME`, `#`, relative).
 fn host_path_problem(name: &str, path: &str) -> Option<String> {
     if path.contains('$') || path.contains('#') {
         return Some(format!(
-            "{name} is not expanded ({path}). Fix .env ($HOME/… or an absolute path; same-line # comments are stripped). A literal $ makes Docker create dirs under BROS_HOME."
+            "{name} is not expanded ({path}). Fix .env ($HOME/… or an absolute path; same-line # comments are stripped). A literal $ makes Docker create dirs under BROS_DIR."
         ));
     }
     if !Path::new(path).is_absolute() {
         return Some(format!(
-            "{name} must be absolute (got {path}). Relative paths resolve under BROS_HOME and can create junk dirs."
+            "{name} must be absolute (got {path}). Relative paths resolve under BROS_DIR and can create junk dirs."
         ));
     }
     None
@@ -326,8 +324,8 @@ fn strip_unquoted_inline_comment(val: &str) -> &str {
     }
 }
 
-/// Expand `~`, `$HOME` / `${HOME}`, and `$BROS_HOME` / `${BROS_HOME}` in a .env value.
-fn expand_dotenv_value(val: &str, bros_home: Option<&str>) -> String {
+/// Expand `~`, `$HOME` / `${HOME}`, and `$BROS_DIR` / `${BROS_DIR}` in a .env value.
+fn expand_dotenv_value(val: &str, bros_dir: Option<&str>) -> String {
     let home = env::var("HOME").unwrap_or_default();
     let mut out = val.to_string();
     if out == "~" {
@@ -343,11 +341,11 @@ fn expand_dotenv_value(val: &str, bros_home: Option<&str>) -> String {
             out = home;
         }
     }
-    if let Some(bh) = bros_home.filter(|s| !s.is_empty()) {
-        out = out.replace("${BROS_HOME}", bh);
-        out = out.replace("$BROS_HOME/", &format!("{bh}/"));
-        if out == "$BROS_HOME" {
-            out = bh.to_string();
+    if let Some(bd) = bros_dir.filter(|s| !s.is_empty()) {
+        out = out.replace("${BROS_DIR}", bd);
+        out = out.replace("$BROS_DIR/", &format!("{bd}/"));
+        if out == "$BROS_DIR" {
+            out = bd.to_string();
         }
     }
     out
@@ -369,7 +367,7 @@ fn parse_dotenv_value(raw: &str) -> Option<String> {
     if owned.is_empty() {
         return None;
     }
-    Some(expand_dotenv_value(&owned, env::var("BROS_HOME").ok().as_deref()))
+    Some(expand_dotenv_value(&owned, env::var("BROS_DIR").ok().as_deref()))
 }
 
 fn container_data_dir(data: &str) -> bool {
@@ -449,7 +447,7 @@ fn yaml_top(path: &Path, key: &str) -> Option<String> {
     None
 }
 
-fn resolve_config(data: &str, home: &str, flag: Option<&str>) -> Option<PathBuf> {
+fn resolve_config(data: &str, bros_dir: &str, flag: Option<&str>) -> Option<PathBuf> {
     if let Some(flag) = flag {
         let path = PathBuf::from(flag);
         if !path.is_file() {
@@ -457,11 +455,11 @@ fn resolve_config(data: &str, home: &str, flag: Option<&str>) -> Option<PathBuf>
         }
         return Some(path);
     }
-    let home_file = Path::new(home).join("bros.yml");
+    let home_file = Path::new(bros_dir).join("bros.yml");
     if home_file.is_file() {
         return Some(home_file);
     }
-    // Legacy path until ensure_dirs migrates it to $BROS_HOME/bros.yml.
+    // Legacy path until ensure_dirs migrates it to $BROS_DIR/bros.yml.
     let data_file = Path::new(data).join("config/bros.yml");
     if data_file.is_file() {
         return Some(data_file);
@@ -475,30 +473,23 @@ struct Paths {
 
 fn export_host_env(repo: &Path, config_flag: Option<&str>) -> Paths {
     let repo_s = repo.to_string_lossy().to_string();
-    let (dir, home) = fill_roots(
-        &repo_s,
-        env::var("BROS_DIR").ok().as_deref(),
-        env::var("BROS_HOME").ok().as_deref(),
-    );
-    let data = data_dir_for(&home, env::var("BROS_HOST_DATA_DIR").ok().as_deref());
-    reject_bad_host_path("BROS_HOST_DATA_DIR", &data);
+    let dir = resolve_bros_dir(&repo_s, env::var("BROS_DIR").ok().as_deref());
+    let data = data_dir_for(&dir, env::var("BROS_DATA_DIR").ok().as_deref());
+    reject_bad_host_path("BROS_DATA_DIR", &data);
     env::set_var("BROS_DIR", &dir);
-    env::set_var("BROS_HOME", &home);
-    env::set_var("BROS_HOST_DATA_DIR", &data);
-    // Host UI reads BROS_DATA_DIR (else $BROS_DIR/data). Keep it on the same tree as
-    // BROS_HOST_DATA_DIR or CLI Bearer and UI proxy-key diverge → HTTP 401.
+    // Host path for Compose binds and UI (same tree → Bearer/proxy-key stay aligned).
     if !container_data_dir(&data) {
         env::set_var("BROS_DATA_DIR", &data);
     }
     env::set_var("BROS_HOST_REPO", env::var("BROS_HOST_REPO").unwrap_or(repo_s));
-    let config = resolve_config(&data, &home, config_flag);
+    let config = resolve_config(&data, &dir, config_flag);
     let yaml_workspace = config.as_ref().and_then(|path| yaml_top(path, "workspace"));
-    let env_workspace = env::var("BROS_HOST_WORKSPACE").ok().map(|s| expand_dotenv_value(&s, Some(&home)));
+    let env_workspace = env::var("BROS_WORKSPACE").ok().map(|s| expand_dotenv_value(&s, Some(&dir)));
     if let Some(ref ws) = env_workspace {
-        reject_bad_host_path("BROS_HOST_WORKSPACE", ws);
+        reject_bad_host_path("BROS_WORKSPACE", ws);
     }
     if let Some(workspace) = resolve_workspace(&data, env_workspace.as_deref(), yaml_workspace.as_deref()) {
-        env::set_var("BROS_HOST_WORKSPACE", workspace);
+        env::set_var("BROS_WORKSPACE", workspace);
     }
     if let Some(path) = &config {
         env::set_var("BROS_CONFIG_HOST", path);
@@ -523,7 +514,7 @@ fn export_host_env(repo: &Path, config_flag: Option<&str>) -> Paths {
     if env::var("BROS_NODE_VERSION").ok().filter(|s| !s.is_empty()).is_none() {
         env::set_var("BROS_NODE_VERSION", node_version());
     }
-    let home_bind = env::var("HOME").unwrap_or_else(|_| home.clone());
+    let home_bind = env::var("HOME").unwrap_or_else(|_| dir.clone());
     if env::var("BROS_HOST_HOME_BIND").ok().filter(|s| !s.is_empty()).is_none() {
         env::set_var("BROS_HOST_HOME_BIND", home_bind);
     }
@@ -617,8 +608,8 @@ fn ensure_dirs(repo: &Path, data: &Path) {
         let _ = fs::remove_file(&generated);
         env::set_var("BROS_DESKTOP_DOCKERFILE", repo.join("lib/desktop/Dockerfile"));
     }
-    // Canonical bootstrap YAML is $BROS_HOME/bros.yml (repo root for an install).
-    let home = env::var("BROS_HOME").map(PathBuf::from).unwrap_or_else(|_| repo.to_path_buf());
+    // Canonical bootstrap YAML is $BROS_DIR/bros.yml (repo root for an install).
+    let home = env::var("BROS_DIR").map(PathBuf::from).unwrap_or_else(|_| repo.to_path_buf());
     let dest = home.join("bros.yml");
     let legacy = data.join("config/bros.yml");
     if legacy.is_dir() {
@@ -630,7 +621,7 @@ fn ensure_dirs(repo: &Path, data: &Path) {
     if !dest.is_file() {
         let _ = fs::write(
             &dest,
-            "# Bros bootstrap. Host layout is BROS_HOME + $BROS_HOME/data.\n# Compose sets in-container working_dir=/app and data at /app/data.\n# Uncomment to enable a named Cloudflare tunnel:\n# public_url: https://bros.example.com\n",
+            "# Bros bootstrap. Host layout is BROS_DIR + $BROS_DIR/data.\n# Compose sets in-container working_dir=/app and data at /app/data.\n# Uncomment to enable a named Cloudflare tunnel:\n# public_url: https://bros.example.com\n",
         );
     }
     env::set_var("BROS_CONFIG_HOST", &dest);
@@ -858,7 +849,7 @@ fn spawn_ui(mut cmd: Command, log: &Path, daemon: bool) -> Option<std::process::
     }
     let child = cmd.spawn().unwrap_or_else(|err| die(&format!("UI failed to start: {err}")));
     UI_PID.store(child.id() as i32, Ordering::SeqCst);
-    if let Ok(data) = env::var("BROS_HOST_DATA_DIR") {
+    if let Ok(data) = env::var("BROS_DATA_DIR") {
         let path = Path::new(&data).join("var/ui.pid");
         let _ = fs::write(path, format!("{}\n", child.id()));
     }
@@ -1181,7 +1172,7 @@ fn install_packaged_model(repo: &Path, paths: &Paths, dev: bool, use_runner: boo
     let (code, _) = http_code_wait(paths, "GET", "/api/providers", 200);
     if !(200..300).contains(&code) {
         say(&format!(
-            "warning: GET /api/providers failed ({}) — check BROS_HOST_DATA_DIR and proxy-key",
+            "warning: GET /api/providers failed ({}) — check BROS_DATA_DIR and proxy-key",
             api_unauthorized_hint(paths, code)
         ));
     }
@@ -1315,6 +1306,81 @@ fn release_update(repo: &Path) -> ! {
     die(&format!("re-exec failed: {err}"));
 }
 
+fn remove_bros_bin_link(repo: &Path) {
+    let Ok(bin) = env::var("BROS_BIN") else { return };
+    let path = PathBuf::from(&bin);
+    let Ok(meta) = fs::symlink_metadata(&path) else { return };
+    if !meta.file_type().is_symlink() && !meta.is_file() {
+        return;
+    }
+    let target = fs::canonicalize(&path).ok();
+    let repo_bin = repo.join("bros");
+    let repo_canon = fs::canonicalize(&repo_bin).ok();
+    if target.is_some() && target != repo_canon {
+        say(&format!("leaving {bin} (does not point at this install)"));
+        return;
+    }
+    let _ = fs::remove_file(&path);
+    say(&format!("Removed {bin}"));
+}
+
+fn remove_shipped_tree(repo: &Path) {
+    for name in [
+        "bros",
+        "VERSION",
+        "example.env",
+        ".dockerignore",
+        "uninstall.sh",
+        "lib",
+        "scripts",
+        "docs",
+        "src",
+    ] {
+        let path = repo.join(name);
+        if !path.exists() {
+            continue;
+        }
+        let result = if path.is_dir() {
+            fs::remove_dir_all(&path)
+        } else {
+            fs::remove_file(&path)
+        };
+        if let Err(err) = result {
+            say(&format!("warning: could not remove {}: {err}", path.display()));
+        }
+    }
+}
+
+fn cmd_uninstall(repo: &Path, paths: &Paths, rest: &[String]) {
+    let purge = rest.iter().any(|a| a == "--purge");
+    if plan::is_source(repo) {
+        die("uninstall is for a release install, not a source checkout");
+    }
+    say("Stopping stack…");
+    cmd_stop(paths);
+    let unit = systemd_user_dir().join("bros.service");
+    if unit.is_file() {
+        let _ = systemd(&["disable", "--now", "bros.service"]);
+        let _ = fs::remove_file(&unit);
+        let _ = systemd(&["daemon-reload"]);
+        say("Removed systemd --user unit bros.service");
+    }
+    remove_bros_bin_link(repo);
+    if purge {
+        say(&format!("Purging {}", repo.display()));
+        if let Err(err) = fs::remove_dir_all(repo) {
+            die(&format!("purge failed: {err}"));
+        }
+        say("Uninstalled (purged).");
+        return;
+    }
+    remove_shipped_tree(repo);
+    say(&format!(
+        "Uninstalled shipped files under {}. Kept data/, .env, and bros.yml when present. Reinstall: curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash",
+        repo.display()
+    ));
+}
+
 fn cmd_service(rest: &[String]) {
     let action = rest.first().map(String::as_str).unwrap_or("");
     let dir = systemd_user_dir();
@@ -1353,11 +1419,11 @@ fn systemd_user_dir() -> PathBuf {
 
 fn unit_text() -> String {
     let bin = env::current_exe().map(|path| path.display().to_string()).unwrap_or_else(|_| "bros".into());
-    let home = env::var("BROS_HOME").unwrap_or_else(|_| env::var("HOME").unwrap_or_else(|_| ".".into()));
-    let data = env::var("BROS_HOST_DATA_DIR").unwrap_or_else(|_| format!("{home}/data"));
+    let home = env::var("BROS_DIR").unwrap_or_else(|_| env::var("HOME").unwrap_or_else(|_| ".".into()));
+    let data = env::var("BROS_DATA_DIR").unwrap_or_else(|_| format!("{home}/data"));
     let config = env::var("BROS_CONFIG").unwrap_or_else(|_| format!("{home}/bros.yml"));
     format!(
-        "[Unit]\nDescription=Bros local AI control plane\nAfter=docker.socket\nWants=docker.socket\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nEnvironment=BROS_HOME={home}\nEnvironment=BROS_DIR={home}\nEnvironment=BROS_HOST_DATA_DIR={data}\nEnvironment=BROS_CONFIG={config}\nExecStart={bin} -D\nExecStop={bin} stop\n\n[Install]\nWantedBy=default.target\n"
+        "[Unit]\nDescription=Bros local AI control plane\nAfter=docker.socket\nWants=docker.socket\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nEnvironment=BROS_DIR={home}\nEnvironment=BROS_DATA_DIR={data}\nEnvironment=BROS_CONFIG={config}\nExecStart={bin} -D\nExecStop={bin} stop\n\n[Install]\nWantedBy=default.target\n"
     )
 }
 
@@ -1460,7 +1526,7 @@ fn tunnel_url(repo: &Path) -> Option<String> {
 }
 
 fn kill_ui_pidfile() {
-    let Ok(data) = env::var("BROS_HOST_DATA_DIR") else { return };
+    let Ok(data) = env::var("BROS_DATA_DIR") else { return };
     let path = Path::new(&data).join("var/ui.pid");
     let Ok(text) = fs::read_to_string(&path) else {
         kill_ui_listeners();
@@ -1635,18 +1701,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn roots_fill_each_other() {
-        assert_eq!(fill_roots("/repo", None, None), ("/repo".into(), "/repo".into()));
-        assert_eq!(fill_roots("/repo", None, Some("/home")), ("/home".into(), "/home".into()));
-        assert_eq!(fill_roots("/repo", Some("/dir"), None), ("/dir".into(), "/dir".into()));
-        assert_eq!(fill_roots("/repo", Some("/dir"), Some("/home")), ("/dir".into(), "/home".into()));
+    fn bros_dir_defaults_to_repo() {
+        assert_eq!(resolve_bros_dir("/repo", None), "/repo");
+        assert_eq!(resolve_bros_dir("/repo", Some("")), "/repo");
+        assert_eq!(resolve_bros_dir("/repo", Some("/opt/bros")), "/opt/bros");
     }
 
     #[test]
-    fn data_defaults_under_home() {
-        assert_eq!(data_dir_for("/home", None), "/home/data");
-        assert_eq!(data_dir_for("/home", Some("/var/bros")), "/var/bros");
-        assert_eq!(data_dir_for("/home", Some("$BROS_HOME/data")), "/home/data");
+    fn data_defaults_under_bros_dir() {
+        assert_eq!(data_dir_for("/opt/bros", None), "/opt/bros/data");
+        assert_eq!(data_dir_for("/opt/bros", Some("/var/bros")), "/var/bros");
+        assert_eq!(data_dir_for("/opt/bros", Some("$BROS_DIR/data")), "/opt/bros/data");
     }
 
     #[test]
@@ -1656,12 +1721,12 @@ mod tests {
     }
 
     #[test]
-    fn dotenv_expands_home_and_bros_home() {
+    fn dotenv_expands_home_and_bros_dir() {
         env::set_var("HOME", "/home/me");
         assert_eq!(expand_dotenv_value("$HOME/dev/bros/data", None), "/home/me/dev/bros/data");
         assert_eq!(expand_dotenv_value("${HOME}/dev/bros/data", None), "/home/me/dev/bros/data");
         assert_eq!(expand_dotenv_value("~/dev/bros/data", None), "/home/me/dev/bros/data");
-        assert_eq!(expand_dotenv_value("$BROS_HOME/data", Some("/opt/bros")), "/opt/bros/data");
+        assert_eq!(expand_dotenv_value("$BROS_DIR/data", Some("/opt/bros")), "/opt/bros/data");
     }
 
     #[test]
@@ -1672,16 +1737,16 @@ mod tests {
             Some("/home/me/dev/bros/data")
         );
         let resolved = parse_dotenv_value("$HOME/dev/bros/data # persistent binds").unwrap();
-        assert!(host_path_problem("BROS_HOST_DATA_DIR", &resolved).is_none());
+        assert!(host_path_problem("BROS_DATA_DIR", &resolved).is_none());
     }
 
     #[test]
     fn host_data_dir_rejects_literal_dollar_and_relative() {
-        assert!(host_path_problem("BROS_HOST_DATA_DIR", "$HOME/dev/bros/data").is_some());
-        assert!(host_path_problem("BROS_HOST_DATA_DIR", "/home/me/.bros/$HOME/x").is_some());
-        assert!(host_path_problem("BROS_HOST_DATA_DIR", "data # bad").is_some());
-        assert!(host_path_problem("BROS_HOST_DATA_DIR", "relative/data").is_some());
-        assert!(host_path_problem("BROS_HOST_DATA_DIR", "/home/me/dev/bros/data").is_none());
+        assert!(host_path_problem("BROS_DATA_DIR", "$HOME/dev/bros/data").is_some());
+        assert!(host_path_problem("BROS_DATA_DIR", "/home/me/.bros/$HOME/x").is_some());
+        assert!(host_path_problem("BROS_DATA_DIR", "data # bad").is_some());
+        assert!(host_path_problem("BROS_DATA_DIR", "relative/data").is_some());
+        assert!(host_path_problem("BROS_DATA_DIR", "/home/me/dev/bros/data").is_none());
     }
 
     #[test]

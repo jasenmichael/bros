@@ -69,7 +69,7 @@ export default defineNuxtConfig({
     port: brosPort,
   },
   runtimeConfig: {
-    brosDir: process.env.BROS_DIR || process.env.BROS_HOME || '',
+    brosDir: process.env.BROS_DIR || process.env.BROS_DIR || '',
     brosDataDir: process.env.BROS_DATA_DIR || '',
     brosNetwork: 'bros',
     public: {

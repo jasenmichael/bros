@@ -1,6 +1,6 @@
 # AGENTS
 
-Bros (**B**oxed **R**untime **O**rchestration **S**ystem) manages Docker containers for local AI applications and development, and runs a desktop in the browser. Repo `jasenmichael/bros`. GitHub Pages base is `/bros/`. The `bros` command defaults to start. One config file: `$BROS_DIR/bros.yml` (install: `$BROS_HOME/bros.yml`). Words: [GLOSSARY.md](GLOSSARY.md).
+Bros (**B**oxed **R**untime **O**rchestration **S**ystem) manages Docker containers for local AI applications and development, and runs a desktop in the browser. Repo `jasenmichael/bros`. GitHub Pages base is `/bros/`. The `bros` command defaults to start. One config file: `$BROS_DIR/bros.yml` (install: `$BROS_DIR/bros.yml`). Words: [GLOSSARY.md](GLOSSARY.md).
 
 ## Contract
 
@@ -10,7 +10,7 @@ Before editing, read the file that owns the change. Update that file when the ch
 - [STACK.md](STACK.md) wins on tools and layout
 - [DESIGN.md](DESIGN.md) wins on visual UI
 - [PLAN.md](PLAN.md) is the current engineering plan
-- [README.md](README.md) is human setup
+- [README.md](README.md) is the product home. Install: [docs/install.md](docs/install.md). Development: [docs/development.md](docs/development.md)
 
 ## Setup
 
@@ -57,7 +57,7 @@ For the matching branch, read `skills/<name>/SKILL.md`, then the docs named here
 
 ## Constraints
 
-- Product word is **app** (`/apps`, `GET /api/apps`). Compose control is `/api/apps/*`. Env disable keys are `BROS_APP_*` and `BROS_APPS_DISABLE`
+- Product word is **app** (`/apps`, `GET /api/apps`). Compose control is `/api/apps/*`. Addon boot list is `BROS_APPS_ENABLED` (comma ids). Host Ollama and Whisper stay Settings / `bros.yml`
 - Write real `/` paths. A corrupted `@bros/` path is not a package or a URL
 - pnpm workspace root is `src/` (`@bros/ui`, `@bros/theme`, `@bros/docs`, `@bros/website`)
 - Prefer Docker via `BROS_DEV=1 ./bros`. Host Node talks to core Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1`. Compose-app calls use Docker DNS (`ollama:11434`, `whisper:8000`)
@@ -79,9 +79,10 @@ Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf
 pnpm --dir src test:ci
 pnpm --dir src typecheck
 cargo test --manifest-path cli/Cargo.toml
+pnpm --dir src test:smoke   # local only; needs Docker — not in GH CI
 ```
 
-`test:ci` is Vitest unit + nuxt (what `.github/workflows/ci.yml` runs on a pull request to `main`). `pnpm --dir src test` also includes e2e; e2e needs a live Bros on `http://127.0.0.1:3055`. Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
+`test:ci` is Vitest unit + nuxt (what `.github/workflows/ci.yml` runs on a pull request to `main`). `pnpm --dir src test` also includes e2e; e2e needs a live Bros on `http://127.0.0.1:3055`. `test:smoke` packs a local release, installs in a reused Docker guest, starts, and uninstalls — **not** in `test:ci` / GitHub Actions. Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
 
 ```bash
 pnpm --dir src --filter @bros/ui exec vitest run ../../test/unit/<file>.test.ts

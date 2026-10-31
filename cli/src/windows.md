@@ -124,9 +124,9 @@ Environment, matching the bash script where it still applies:
 
 | Name | Default | Meaning |
 | --- | --- | --- |
-| `BROS_HOME` | `%USERPROFILE%\.bros` | Install directory. `BROS_DIR` is an alias when `BROS_HOME` is unset. |
+| `BROS_DIR` | `%USERPROFILE%\.bros` | Install directory. `BROS_DIR` is an alias when `BROS_DIR` is unset. |
 | `BROS_RELEASE_URL` | latest `bros-windows-amd64.tar.gz` | Exact archive URL. |
-| `BROS_BIN` | `%USERPROFILE%\.bros\bros.exe` | No separate symlink. The user `PATH` gains `BROS_HOME`. |
+| `BROS_BIN` | `%USERPROFILE%\.bros\bros.exe` | No separate symlink. The user `PATH` gains `BROS_DIR`. |
 
 Steps, in order. Each failure prints one line and exits `1`.
 
@@ -138,12 +138,12 @@ Steps, in order. Each failure prints one line and exits `1`.
 4. `docker info`. Failure: `Start Docker Desktop and retry.`
 5. `docker info --format "{{.OSType}}"`. Value `linux` continues. Value `windows`: `Switch Docker Desktop to Linux containers and retry.`
 6. `docker compose version`. Failure: Docker Desktop is too old or the Compose plugin is disabled. Point at the same install page.
-7. If `BROS_HOME` contains a `.git` directory, exit. That directory is a source checkout. Windows has no `--from-src`.
+7. If `BROS_DIR` contains a `.git` directory, exit. That directory is a source checkout. Windows has no `--from-src`.
 8. Download the archive and `bros-windows-amd64.tar.gz.sha256` to a temp directory. Verify with `Get-FileHash -Algorithm SHA256`. Mismatch deletes the temp directory and exits.
-9. `tar.exe -xzf` into `BROS_HOME`. `tar.exe` lives at `$env:SystemRoot\System32\tar.exe`. Do not depend on Git Bash tar.
+9. `tar.exe -xzf` into `BROS_DIR`. `tar.exe` lives at `$env:SystemRoot\System32\tar.exe`. Do not depend on Git Bash tar.
 10. If `example.env` exists and `.env` does not, copy it.
-11. Confirm `Join-Path $BROS_HOME 'bros.exe'` exists.
-12. User `PATH`: read `[Environment]::GetEnvironmentVariable('Path','User')`. If `BROS_HOME` is absent, append it and write back with `SetEnvironmentVariable`. Do not call `setx` (it truncates at 1024 characters). The current process does not see the new user `PATH` until a new terminal opens. Say that.
+11. Confirm `Join-Path $BROS_DIR 'bros.exe'` exists.
+12. User `PATH`: read `[Environment]::GetEnvironmentVariable('Path','User')`. If `BROS_DIR` is absent, append it and write back with `SetEnvironmentVariable`. Do not call `setx` (it truncates at 1024 characters). The current process does not see the new user `PATH` until a new terminal opens. Say that.
 13. Print the install directory and the next commands: open a new terminal, start Docker Desktop if it is not running, run `bros`. `bros` with no arguments starts. `bros stop` stops. Do not print `bros service`.
 
 Update the Pages install docs with that `irm` line and the dependency list from the top of this note. Leave the bash one-liner as the Linux and macOS install.

@@ -94,11 +94,11 @@ Opens a browser so Cloudflare can authorize this host. Success writes `~/.cloudf
 
 ## Named vs quick
 
-When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel helper loads (`$BROS_HOME/bros.yml`, else legacy `$BROS_HOME/data/config/bros.yml`):
+When `public_url` is set via `BROS_PUBLIC_URL`, or in the YAML the host tunnel helper loads (`$BROS_DIR/bros.yml`, else legacy `$BROS_DIR/data/config/bros.yml`):
 
 1. `cloudflared` on `PATH` (or `~/.local/bin/cloudflared`)
 2. Login via `~/.cloudflared/cert.pem` or `cloudflared tunnel list`
-3. Named tunnel `bros` (`BROS_TUNNEL_NAME`) with `cloudflared tunnel create bros` if missing, `cloudflared tunnel route dns bros <hostname>` (CNAME to `<id>.cfargotunnel.com`), then `cloudflared tunnel --config $BROS_HOME/data/var/tunnel/config.yml run bros`
+3. Named tunnel `bros` (`BROS_TUNNEL_NAME`) with `cloudflared tunnel create bros` if missing, `cloudflared tunnel route dns bros <hostname>` (CNAME to `<id>.cfargotunnel.com`), then `cloudflared tunnel --config $BROS_DIR/data/var/tunnel/config.yml run bros`
 
 `config.yml` uses `protocol: http2` and `edge-ip-version: 4`, hostname ingress to `http://<BROS_HOST>:<BROS_PORT>`, and a catch-all `http_status:404`. Override with `BROS_TUNNEL_PROTOCOL` / `BROS_TUNNEL_EDGE_IP_VERSION`.
 
@@ -114,7 +114,7 @@ Already-exists on `route dns` is success. If `route dns` times out on the Cloudf
 
 ## What Status shows
 
-`/status` and the Dashboard card read `$BROS_HOME/data/var/tunnel/status.json`. They show running, hostname, helper up/down, `installed` yes/no, `login` yes/no, and any `error`.
+`/status` and the Dashboard card read `$BROS_DIR/data/var/tunnel/status.json`. They show running, hostname, helper up/down, `installed` yes/no, `login` yes/no, and any `error`.
 
 - **Not installed** — Status: `installed no`. Error: `cloudflared is not installed on the host. Run ./bros in a terminal to install.` Dashboard: `cloudflared not installed (run ./bros)`
 - **Not logged in** — Status: `login no`. Error: `cloudflared is not logged in. Run: cloudflared login` Dashboard: `not logged in (run cloudflared login)`
@@ -131,7 +131,7 @@ Turning the card off stops the process until the next `bros` / helper start. `PO
 `bros` (and `BROS_DEV=1 ./bros`) start a small helper that writes:
 
 ```text
-$BROS_HOME/data/var/tunnel/
+$BROS_DIR/data/var/tunnel/
   enabled
   hostname
   status.json
@@ -142,7 +142,7 @@ $BROS_HOME/data/var/tunnel/
 
 ## Config and env
 
-`BROS_PUBLIC_URL`, else `BROS_TUNNEL_HOST` from `.env`, else YAML `public_url` is the enable + hostname signal. A bare `BROS_TUNNEL_HOST` gets `https://`. All three unset does not autostart; the first-run prompt or the Dashboard card writes `$BROS_HOME/data/var/tunnel/enabled`.
+`BROS_PUBLIC_URL`, else `BROS_TUNNEL_HOST` from `.env`, else YAML `public_url` is the enable + hostname signal. A bare `BROS_TUNNEL_HOST` gets `https://`. All three unset does not autostart; the first-run prompt or the Dashboard card writes `$BROS_DIR/data/var/tunnel/enabled`.
 
 | Variable | Default | Role |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ $BROS_HOME/data/var/tunnel/
 | `BROS_TUNNEL_EDGE_IP_VERSION` | `4` | `4` / `6` / `auto` |
 | `BROS_TUNNEL_HOST` | unset | Named hostname from `.env` when `public_url` is unset. Also a via-tunnel Host match |
 | `BROS_TUNNEL_NAME` | `bros` | Named tunnel name |
-| `BROS_TUNNEL_DIR` | `$BROS_HOME/data/var/tunnel` | Helper files |
+| `BROS_TUNNEL_DIR` | `$BROS_DIR/data/var/tunnel` | Helper files |
 | `BROS_TUNNEL_ROUTE_TIMEOUT` | `20` | Seconds for `cloudflared tunnel route dns` |
 
 Full `BROS_*` list: [Environment](/docs/environment).

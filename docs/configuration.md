@@ -7,7 +7,7 @@ description: bros.yml in the data config dir, and host data binds.
 
 ## Bootstrap YAML
 
-The app loads `$BROS_HOME/bros.yml` (same as `$BROS_DIR/bros.yml`). It does not read `~/.config/bros.yml`. A leftover `$BROS_HOST_DATA_DIR/config/bros.yml` is moved to `$BROS_HOME/bros.yml` on startup when the home file is missing.
+The app loads `$BROS_DIR/bros.yml` (same as `$BROS_DIR/bros.yml`). It does not read `~/.config/bros.yml`. A leftover `$BROS_DATA_DIR/config/bros.yml` is moved to `$BROS_DIR/bros.yml` on startup when the home file is missing.
 
 ```yaml
 public_url: https://bros.example.com
@@ -19,11 +19,11 @@ enable_whisper: false
 
 Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tunnel).
 
-## `BROS_HOME` and host binds
+## `BROS_DIR` and host binds
 
-When running `bros` with `BROS_DIR` unset, `BROS_DIR` is the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). An installed clone is typically `~/.bros`. `BROS_HOME` is an alias. `install.sh` writes `$BROS_HOME/bros.yml` when missing and symlinks `BROS_BIN` (`~/.local/bin/bros`) to `$BROS_DIR/bros`.
+When running `bros` with `BROS_DIR` unset, `BROS_DIR` is the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). An installed clone is typically `~/.bros`. `BROS_DIR` is an alias. `install.sh` writes `$BROS_DIR/bros.yml` when missing and symlinks `BROS_BIN` (`~/.local/bin/bros`) to `$BROS_DIR/bros`.
 
-Persistent binds live under `$BROS_HOME/data` (`BROS_HOST_DATA_DIR`). The image sets `BROS_DIR=/app`, so that directory is `/app/data` inside the container. Start does not copy leftover named volumes into those dirs.
+Persistent binds live under `$BROS_DIR/data` (`BROS_DATA_DIR`). The image sets `BROS_DIR=/app`, so that directory is `/app/data` inside the container. Start does not copy leftover named volumes into those dirs.
 
 Docker apps are `lib/apps/core/ollama` and `lib/apps/core/whisper`. Package apps are `lib/apps/core/<id>` and `lib/apps/addon/<id>`. A custom app is `data/config/apps/<id>` and is not in the repo. That directory is custom apps only. Addon package enable is one id per line in `data/config/enabled-apps`. A missing file means none enabled. Moving a custom directory into `lib/apps/addon` or `lib/apps/core` ships it. The Bros image is `lib/desktop`. Dev mounts the checkout at `/app`.
 
@@ -38,13 +38,13 @@ $BROS_DIR/lib/desktop/        # the Bros image
 ```
 
 ```text
-$BROS_HOME/
+$BROS_DIR/
   bros.yml                       # bootstrap YAML (public_url, whisper, host ollama, workspace)
-  data/                          # $BROS_HOST_DATA_DIR
+  data/                          # $BROS_DATA_DIR
   passkey                        # under data/
   …
 
-$BROS_HOST_DATA_DIR/             # default $BROS_HOME/data
+$BROS_DATA_DIR/             # default $BROS_DIR/data
   passkey
   proxy-key
   session-secret
@@ -58,7 +58,7 @@ $BROS_HOST_DATA_DIR/             # default $BROS_HOME/data
   skills-internal/               # label, task, tasks; not mounted
   home/                          # Desktop $HOME. Docker apps mount only listed subdirs.
     .local/app-bins/         # app launch.sh wrappers, on Desktop PATH
-    workspace/                   # $HOME/workspace unless workspace or BROS_HOST_WORKSPACE overrides
+    workspace/                   # $HOME/workspace unless workspace or BROS_WORKSPACE overrides
     .agents/skills/
     .ollama/                     # downloaded models (blobs, manifests)
     .config/ollama/
@@ -88,10 +88,10 @@ $BROS_HOST_DATA_DIR/             # default $BROS_HOME/data
     logs/                        # container stdout/stderr, `<service>.log`
 ```
 
-Docker apps stay stopped until SQLite `autostart` is on. A fresh install does not start them. Turn Autostart on and restart Bros, or press Start. A disabled shipped docker app stays in discovery and still reserves its id and slug. Env can mark one disabled: `BROS_APP_OPENWEBUI=0`, `BROS_APP_FIRECRAWL=0`, `BROS_APP_FIRECRAWL_UI=0`, `BROS_APP_OPENJEV=0`, `BROS_APP_PI=0`, `BROS_APP_OMNIROUTE=0`, or `BROS_APPS_DISABLE=openwebui,firecrawl,firecrawl-ui,openjev,pi,omniroute`. Ollama always starts and has no Restart. Whisper follows Settings **Enable Whisper** (off by default), not those env vars. The Bros container is not a docker app.
+Docker apps stay stopped until SQLite `autostart` is on or the id is listed in `BROS_APPS_ENABLED`. A fresh install does not start addons. Turn Autostart on and restart Bros, set `BROS_APPS_ENABLED=openwebui,firecrawl`, or press Start. Ollama always starts and has no Restart. Whisper follows Settings **Enable Whisper** (off by default). The Bros container is not a docker app.
 
 Passkey (login passcode) lives in `passkey` — printed at app startup. Providers (Ollama `config.customModels`, Popular services keys/models, custom OpenAI `config.models`), chat, Settings `enable_host_ollama` (host Ollama row, default off), Settings `enable_whisper` (Whisper docker app, default off), and docker app autostart/nav pins/`host_mode`/`expose_host`/`host_probe_port` (manual host-Ollama override) are stored in SQLite. Built-in providers are `ollama` (docker app), `ollama-host` (row always seeded; listed only when `enable_host_ollama` is on), and the 12 Popular services rows.
 
-On a source checkout, `$BROS_HOST_DATA_DIR/apps/ollama/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). A release does not ship that tree. An existing copy under `data/` stays across `bros update`.
+On a source checkout, `$BROS_DATA_DIR/apps/ollama/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). A release does not ship that tree. An existing copy under `data/` stays across `bros update`.
 
 Do not commit `data/`, `.env` (optional overrides only; defaults need no `.env`), `.nuxt`, or `node_modules`. See [Environment](/docs/environment) and repo-root `example.env`.

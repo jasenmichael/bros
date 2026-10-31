@@ -8,6 +8,6 @@ Addon pack `lib/apps/addon/pi`.
 
 Shared binds:
 
-- `$BROS_HOST_DATA_DIR/home/.pi` → `/home/bros/.pi`
+- `$BROS_DATA_DIR/home/.pi` → `/home/bros/.pi`
 
 The service runs as the host uid (`${BROS_HOST_UID:-1000}:${BROS_HOST_GID:-1000}`).
