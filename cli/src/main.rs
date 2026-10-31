@@ -1113,6 +1113,36 @@ fn model_version_file(repo: &Path) -> std::path::PathBuf {
     repo.join("lib/apps/core/ollama/BROS_MODEL_VERSION")
 }
 
+/// Clear packaged-model trees before unpack. Docker may leave root-owned 755
+/// children under a user-owned dest — `remove_dir_all` fails, but rename works.
+fn clear_packaged_model_parts(dest: &Path) -> Result<(), String> {
+    for part in ["models", "ollama", "scripts"] {
+        let path = dest.join(part);
+        if !path.exists() {
+            continue;
+        }
+        if fs::remove_dir_all(&path).is_ok() {
+            continue;
+        }
+        let trash = dest.join(format!(".{part}.stale-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&trash);
+        fs::rename(&path, &trash).map_err(|err| {
+            format!(
+                "cannot clear {} ({err}). Fix ownership: sudo chown -R \"$USER\" {}",
+                path.display(),
+                dest.display()
+            )
+        })?;
+        if fs::remove_dir_all(&trash).is_err() && trash.exists() {
+            say(&format!(
+                "warning: left {} (root-owned leftovers; sudo rm -rf it)",
+                trash.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn fetch_packaged_model(repo: &Path, paths: &Paths) {
     let want_raw = fs::read_to_string(model_version_file(repo)).unwrap_or_default();
     let want = want_raw.trim().trim_start_matches('v').trim();
@@ -1140,8 +1170,9 @@ fn fetch_packaged_model(repo: &Path, paths: &Paths) {
         die(&format!("model release not found: {url}"));
     }
     fs::create_dir_all(&dest).unwrap_or_else(|err| die(&err.to_string()));
-    for part in ["models", "ollama", "scripts"] {
-        let _ = fs::remove_dir_all(dest.join(part));
+    if let Err(err) = clear_packaged_model_parts(&dest) {
+        let _ = fs::remove_file(&tmp);
+        die(&err);
     }
     let unpacked = Command::new("tar")
         .args(["-xzf"])
@@ -1712,6 +1743,21 @@ mod tests {
         assert_eq!(data_dir_for("/opt/bros", None), "/opt/bros/data");
         assert_eq!(data_dir_for("/opt/bros", Some("/var/bros")), "/var/bros");
         assert_eq!(data_dir_for("/opt/bros", Some("$BROS_DIR/data")), "/opt/bros/data");
+    }
+
+    #[test]
+    fn clear_packaged_model_parts_removes_trees() {
+        let root = std::env::temp_dir().join(format!("bros-clear-model-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("models")).unwrap();
+        fs::write(root.join("models/x"), b"x").unwrap();
+        fs::create_dir_all(root.join("ollama")).unwrap();
+        fs::create_dir_all(root.join("scripts")).unwrap();
+        clear_packaged_model_parts(&root).unwrap();
+        assert!(!root.join("models").exists());
+        assert!(!root.join("ollama").exists());
+        assert!(!root.join("scripts").exists());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
