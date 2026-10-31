@@ -485,6 +485,11 @@ fn export_host_env(repo: &Path, config_flag: Option<&str>) -> Paths {
     env::set_var("BROS_DIR", &dir);
     env::set_var("BROS_HOME", &home);
     env::set_var("BROS_HOST_DATA_DIR", &data);
+    // Host UI reads BROS_DATA_DIR (else $BROS_DIR/data). Keep it on the same tree as
+    // BROS_HOST_DATA_DIR or CLI Bearer and UI proxy-key diverge → HTTP 401.
+    if !container_data_dir(&data) {
+        env::set_var("BROS_DATA_DIR", &data);
+    }
     env::set_var("BROS_HOST_REPO", env::var("BROS_HOST_REPO").unwrap_or(repo_s));
     let config = resolve_config(&data, &home, config_flag);
     let yaml_workspace = config.as_ref().and_then(|path| yaml_top(path, "workspace"));

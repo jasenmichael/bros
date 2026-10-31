@@ -20,7 +20,8 @@ Server settings live in `$BROS_HOME/bros.yml`. Chat prepend and assistant descri
 | `BROS_DIR` | script directory | App directory |
 | `BROS_HOME` | same as `BROS_DIR` | Alias |
 | `BROS_BIN` | `$HOME/.local/bin/bros` | Symlink to `$BROS_DIR/bros` |
-| `BROS_HOST_DATA_DIR` | `$BROS_HOME/data` | Persistent binds |
+| `BROS_HOST_DATA_DIR` | `$BROS_HOME/data` | Persistent binds. On the host, the CLI also sets `BROS_DATA_DIR` to this path so the UI and Bearer `proxy-key` share one tree |
+| `BROS_DATA_DIR` | `$BROS_DIR/data` (UI); aligned to `BROS_HOST_DATA_DIR` by the host CLI | App data the UI process opens (SQLite, `proxy-key`). In-container stays `/app/data` |
 | `BROS_HOST_WORKSPACE` | `bros.yml` `workspace` when that path is a host path, else `$BROS_HOST_DATA_DIR/home/workspace` | Desktop workspace bind. A set value wins. Not exported when the data dir is empty, `/app/data`, or `/data` |
 | `BROS_HOST_REPO` | directory of the `bros` script | Repo bind and image build context |
 | `BROS_HOST_HOME_BIND` | `$HOME` | Host home bind |
