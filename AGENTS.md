@@ -71,7 +71,7 @@ curl -fsSL https://get.jetify.com/devbox | bash
 
 ## Commits
 
-Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf` are a patch. `feat!` or a `BREAKING CHANGE` footer is major. `chore`, `docs`, `refactor`, `test`, and `ci` do not bump. Do not bump `VERSION` in an ordinary change. The product version is `0.0.1`. The packaged model release is `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0`). Until tag `v0.0.1` exists, the pull request workflow does not bump. After that tag exists it commits `chore: bump <type> to X.Y.Z` on the branch. It does not push to `main`. The merge publishes when `v<VERSION>` is missing.
+Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf` are a patch. `feat!` or a `BREAKING CHANGE` footer is major. `chore`, `docs`, `refactor`, `test`, and `ci` do not bump. Do not bump `VERSION` in an ordinary change. The product is still `0.x`: while major is `0`, a major bump becomes `0.(y+1).0` (not `1.0.0`). Cut real `1.0.0` only by setting `VERSION` intentionally. The packaged model release is `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0`). Until tag `v0.0.1` exists, the pull request workflow does not bump. After that tag exists it commits `chore: bump <type> to X.Y.Z` on the branch. It does not push to `main`. The merge publishes when `v<VERSION>` is missing.
 
 ## Testing
 
