@@ -5,7 +5,7 @@ description: Personality and rules skills, Whisper and host Ollama, MCP, proxy k
 
 # Settings
 
-`/settings` shows the personality and rules skills, the Whisper and host Ollama toggles, MCP servers, bootstrap paths (read-only), the proxy key, and the login passkey.
+`/settings` shows the personality and rules skills, the Whisper and host Ollama toggles, MCP servers, bootstrap paths (read-only), the proxy key, and the login passkey. It links to Desktop (`/settings/desktop`), Desktop apps (`/settings/desktop/apps`), and Providers (`/settings/providers`). Desktop background color and optional image URL are stored in `data/config/desktop.json` and applied with `bros-wallpaper.sh` (swaybg).
 
 ## Chat
 

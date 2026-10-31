@@ -7,15 +7,15 @@ withDefaults(defineProps<{
   brandTo: '/',
 })
 
-const { open, isDesktop, hydrate, toggleDesktop, toggleMobile } = useNavDock()
+const { open, overlayNav, hydrate, toggleDesktop, toggleMobile } = useNavDock()
 
 onMounted(() => {
   hydrate()
 })
 
-const showDesktopToggle = computed(() => isDesktop.value && !open.value)
-const showBrand = computed(() => !isDesktop.value || !open.value)
-const showHamburger = computed(() => !isDesktop.value)
+const showDesktopToggle = computed(() => !overlayNav.value && !open.value)
+const showBrand = computed(() => overlayNav.value || !open.value)
+const showHamburger = computed(() => overlayNav.value)
 </script>
 
 <template>

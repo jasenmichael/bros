@@ -14,12 +14,14 @@ const PROVIDER_PAGES: DocsNavNode[] = [
   { label: 'Mistral AI', to: '/docs/providers/mistral', body: 'Free mode plus credits.' },
   { label: 'Cohere', to: '/docs/providers/cohere', body: 'Trial key, compat endpoint.' },
   { label: 'OpenAI', to: '/docs/providers/openai', body: 'Chat Completions, paid.' },
-  { label: 'Anthropic', to: '/docs/providers/anthropic', body: 'Claude OpenAI-compat layer.' },
+  { label: 'Anthropic', to: '/docs/providers/anthropic', body: 'Claude Messages API.' },
   { label: 'DeepSeek', to: '/docs/providers/deepseek', body: 'Cheap; reasoner uses reasoning_content.' },
   { label: 'xAI', to: '/docs/providers/xai', body: 'Grok, paid.' },
   { label: 'Together AI', to: '/docs/providers/together', body: 'Trial credit ended.' },
   { label: 'Fireworks AI', to: '/docs/providers/fireworks', body: 'One-time trial only.' },
   { label: 'Perplexity', to: '/docs/providers/perplexity', body: 'Sonar, paid.' },
+  { label: 'Cerebras', to: '/docs/providers/cerebras', body: 'OpenAI-compat inference.' },
+  { label: 'Moonshot', to: '/docs/providers/moonshot', body: 'Kimi OpenAI-compat API.' },
 ]
 
 /** Directory tree of every docs page. Shared by dock, website nav, index, breadcrumbs. */
@@ -93,7 +95,7 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     label: 'Popular services',
     to: '/docs/providers',
     icon: 'i-lucide-cloud',
-    body: 'Twelve OpenAI-compat cloud cards.',
+    body: 'Fourteen cloud cards (Anthropic Messages; rest OpenAI-compat).',
     children: PROVIDER_PAGES,
   },
   {

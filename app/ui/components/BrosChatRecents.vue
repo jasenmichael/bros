@@ -7,7 +7,7 @@ const { iconMode, isDesktop } = useNavDock()
 const route = useRoute()
 const router = useRouter()
 
-const recentsOpen = ref(true)
+const recentsOpen = ref(false)
 const renamingId = ref<string | null>(null)
 const renameDraft = ref('')
 const renameInput = ref<HTMLInputElement | null>(null)
@@ -136,7 +136,6 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
 <template>
   <ClientOnly>
   <div v-if="showList" class="bros-recents">
-    <div class="bros-nav-panel__divider" role="separator" aria-label="Previous chats" />
     <button
       type="button"
       class="bros-recents__toggle"
@@ -220,12 +219,6 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.bros-nav-panel__divider {
-  height: 1px;
-  margin: 0.35rem 0.5rem 0.65rem;
-  background: #2a3544;
 }
 
 .bros-recents__toggle {

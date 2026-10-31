@@ -32,7 +32,7 @@ Public docker app path prefixes (`/${id}/` when that webui sets `proxy.public`) 
 
 ## Providers
 
-List and configure Chat providers (Ollama docker app `ollama`, host `ollama-host` when Settings enable host Ollama is on, 12 Popular services, custom OpenAI-compat rows). Host routes 404 when that toggle is off.
+List and configure Chat providers (Ollama docker app `ollama`, host `ollama-host` when Settings enable host Ollama is on, 14 Popular services, custom OpenAI-compat rows). Host routes 404 when that toggle is off.
 
 | Method | Path | Notes |
 | --- | --- | --- |

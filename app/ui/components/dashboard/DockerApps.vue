@@ -26,7 +26,7 @@ function phaseClass(phase: string) {
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-lg font-medium text-white">Apps</h2>
       <NuxtLink
-        to="/apps"
+        to="/settings/desktop/apps"
         class="text-sm text-[var(--bros-accent)] underline-offset-2 hover:underline"
       >Apps</NuxtLink>
     </div>

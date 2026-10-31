@@ -25,13 +25,14 @@ export default defineEventHandler(async (event) => {
     }
   }
   else if (isPopularProvider(body.id)) {
-    if (body.kind !== 'openai') {
-      throw createError({ statusCode: 400, statusMessage: 'Popular services must stay OpenAI-compatible' })
-    }
     const preset = getProviderPreset(body.id)
+    const kind = preset?.kind ?? 'openai'
+    if (body.kind !== kind) {
+      throw createError({ statusCode: 400, statusMessage: `Popular ${body.id} must stay ${kind}` })
+    }
     return persistProviderAndSyncChat({
       ...body,
-      kind: 'openai',
+      kind,
       baseUrl: preset?.baseUrl ?? body.baseUrl,
     })
   }

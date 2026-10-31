@@ -149,7 +149,7 @@ if (import.meta.client) {
             <td class="px-3 py-2">
               <UButton
                 v-if="row.hasContainer"
-                :to="`/apps/${row.id}/logs`"
+                :to="`/settings/desktop/apps/${row.id}/logs`"
                 size="xs"
                 color="neutral"
                 variant="soft"

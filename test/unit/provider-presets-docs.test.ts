@@ -7,7 +7,7 @@ const root = join(import.meta.dirname, '../..')
 
 describe('popular provider docs catalog', () => {
   it('keeps one docs page per preset with matching baseUrl and default models', () => {
-    expect(PROVIDER_PRESETS).toHaveLength(12)
+    expect(PROVIDER_PRESETS).toHaveLength(14)
     const hub = readFileSync(join(root, 'docs/providers.md'), 'utf8')
     for (const preset of PROVIDER_PRESETS) {
       const rel = `docs/providers/${preset.id}.md`

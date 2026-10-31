@@ -5,10 +5,10 @@ description: Ollama, Popular services, and Custom providers.
 
 # Providers
 
-`/providers` has three sections, in order:
+`/settings/providers` has three sections, in order (`/providers` redirects here):
 
 1. **Ollama** — docker app + host, pull/GPU. See [Ollama](/docs/providers/ollama).
-2. **Popular services** — 12 built-in OpenAI-compatible cloud cards. Always listed, even with no key.
+2. **Popular services** — 14 built-in cloud cards. Always listed, even with no key.
 3. **Custom providers** — Add custom + your rows. See [Custom](/docs/providers/custom).
 
 Keys live in SQLite. There is no `OPENAI_API_KEY` env bootstrap. HTTP for this page is documented in [API](/docs/api). Models are rows on a provider. There is no `/models` page.
@@ -23,7 +23,7 @@ Chat provider order: docker app, host, popular (catalog order), then custom — 
 
 ## Popular services
 
-Twelve majors, always listed. OpenAI-compatible Chat Completions. None of the 12 APIs are unlimited free — Ollama (already in Bros) is the unlimited local path. Free-tier notes on each cloud page are Sep 2026; they change often. Bros does not hard-code quotas in the UI.
+Fourteen majors, always listed. Most use OpenAI-compatible Chat Completions; Anthropic uses the Messages API. None of the 14 APIs are unlimited free — Ollama (already in Bros) is the unlimited local path. Free-tier notes on each cloud page are Sep 2026; they change often. Bros does not hard-code quotas in the UI.
 
 - [Google Gemini](/docs/providers/gemini)
 - [Groq](/docs/providers/groq)
@@ -37,8 +37,10 @@ Twelve majors, always listed. OpenAI-compatible Chat Completions. None of the 12
 - [Together AI](/docs/providers/together)
 - [Fireworks AI](/docs/providers/fireworks)
 - [Perplexity](/docs/providers/perplexity)
+- [Cerebras](/docs/providers/cerebras)
+- [Moonshot](/docs/providers/moonshot)
 
-Not in this section: Ollama `/v1` (duplicate of built-in Ollama), native Gemini/Cohere/Anthropic SDKs. Anthropic uses their OpenAI-compat layer. Custom paste-ins (Cloudflare, Hugging Face, NVIDIA) belong under [Custom providers](/docs/providers/custom).
+Not in this section: Ollama `/v1` (duplicate of built-in Ollama), native Gemini/Cohere SDKs. Custom paste-ins (Cloudflare, Hugging Face, NVIDIA) belong under [Custom providers](/docs/providers/custom).
 
 ## Related
 

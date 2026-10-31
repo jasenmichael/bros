@@ -275,13 +275,25 @@ export function ensureDefaultProviders() {
         && models.length === 2
         && models[0] === 'gemini-2.5-flash'
         && models[1] === 'gemini-2.5-pro'
+      const kindDrift = existing.kind !== preset.kind
+      const baseDrift = (existing.baseUrl || '') !== preset.baseUrl
+      const nameDrift = existing.name !== preset.name
       if (retired) {
         upsertProvider({
           id: preset.id,
           name: preset.name,
-          kind: 'openai',
+          kind: preset.kind,
           baseUrl: preset.baseUrl,
           config: { models: [...preset.models] },
+        })
+        continue
+      }
+      if (kindDrift || baseDrift || nameDrift) {
+        upsertProvider({
+          id: preset.id,
+          name: preset.name,
+          kind: preset.kind,
+          baseUrl: preset.baseUrl,
         })
       }
       continue
@@ -289,7 +301,7 @@ export function ensureDefaultProviders() {
     upsertProvider({
       id: preset.id,
       name: preset.name,
-      kind: 'openai',
+      kind: preset.kind,
       baseUrl: preset.baseUrl,
       enabled: false,
       config: { models: [...preset.models] },
@@ -458,11 +470,18 @@ export async function probeProviderHealth(id: string): Promise<ProviderHealth> {
   }
   try {
     const extra = getProviderPreset(id)?.headers || {}
+    const headers: Record<string, string> = kind === 'anthropic'
+      ? {
+          'x-api-key': secret.apiKey,
+          'anthropic-version': '2023-06-01',
+          ...extra,
+        }
+      : {
+          authorization: `Bearer ${secret.apiKey}`,
+          ...extra,
+        }
     const res = await fetch(`${base}/models`, {
-      headers: {
-        authorization: `Bearer ${secret.apiKey}`,
-        ...extra,
-      },
+      headers,
       signal: AbortSignal.timeout(4000),
     })
     if (!res.ok) {
@@ -477,6 +496,21 @@ export async function probeProviderHealth(id: string): Promise<ProviderHealth> {
   }
 }
 
+function keyedModelsHeaders(apiKey: string, providerId: string, kind: ProviderKind): Record<string, string> {
+  const extra = getProviderPreset(providerId)?.headers || {}
+  if (kind === 'anthropic') {
+    return {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      ...extra,
+    }
+  }
+  return {
+    authorization: `Bearer ${apiKey}`,
+    ...extra,
+  }
+}
+
 export async function listOpenAIModelIds(providerId: string): Promise<string[]> {
   const configured = listConfiguredOpenAIModels(providerId)
   const secret = getProviderSecret(providerId)
@@ -484,10 +518,8 @@ export async function listOpenAIModelIds(providerId: string): Promise<string[]> 
   const base = secret.row.baseUrl?.replace(/\/$/, '')
   if (!base) return configured
   try {
-    const headers: Record<string, string> = {}
-    if (secret.apiKey) headers.authorization = `Bearer ${secret.apiKey}`
     const res = await fetch(`${base}/models`, {
-      headers,
+      headers: keyedModelsHeaders(secret.apiKey, providerId, secret.row.kind as ProviderKind),
       signal: AbortSignal.timeout(4000),
     })
     if (!res.ok) return configured

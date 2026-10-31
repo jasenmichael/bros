@@ -88,7 +88,7 @@ describe('dashboard hub', () => {
       ollamaPhase: 'stopped',
     })
     expect(items.map((item) => item.id)).toEqual(['docker', 'dockerApp:whisper', 'ollama', 'disk'])
-    expect(items.find((item) => item.href === '/apps')?.href).toBe('/apps')
+    expect(items.find((item) => item.href === '/settings/desktop/apps')?.href).toBe('/settings/desktop/apps')
     expect(items.find((item) => item.id === 'chat')).toBeUndefined()
 
     const chatOff = buildAttention({
@@ -101,6 +101,6 @@ describe('dashboard hub', () => {
       chatReady: 0,
       ollamaPhase: 'running',
     })
-    expect(chatOff).toEqual([{ id: 'chat', text: 'No provider is on for chat', href: '/providers' }])
+    expect(chatOff).toEqual([{ id: 'chat', text: 'No provider is on for chat', href: '/settings/providers' }])
   })
 })

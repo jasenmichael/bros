@@ -37,7 +37,7 @@ function pullLabel(pull: { model: string; phase: 'queued' | 'running'; percent: 
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-lg font-medium text-white">Providers</h2>
       <NuxtLink
-        to="/providers"
+        to="/settings/providers"
         class="text-sm text-[var(--bros-accent)] underline-offset-2 hover:underline"
       >Providers</NuxtLink>
     </div>

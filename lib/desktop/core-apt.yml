@@ -28,3 +28,6 @@ packages:
     clis: zenity
   # Adwaita-dark for portal FileChooser (matches Cursor dark).
   - name: gnome-themes-extra-data
+  # Desktop background (bros-wallpaper.sh).
+  - name: swaybg
+    clis: swaybg

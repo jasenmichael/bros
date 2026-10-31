@@ -53,7 +53,7 @@ function portLabel(ports: number[]) {
         <div class="mt-3 flex flex-wrap gap-2">
           <UButton
             v-if="group.dockerAppId"
-            :to="`/apps/${group.dockerAppId}/logs`"
+            :to="`/settings/desktop/apps/${group.dockerAppId}/logs`"
             size="xs"
             color="neutral"
             variant="ghost"

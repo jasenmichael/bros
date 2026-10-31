@@ -11,7 +11,7 @@ description: Add an OpenAI-compatible endpoint with a slug, base URL, and a key 
 
 - Lowercase slug: `[a-z0-9][a-z0-9-]{0,62}`
 - Cannot reuse built-in Ollama ids (`ollama`, `ollama-host`)
-- Cannot reuse Popular services slugs (`openai`, `anthropic`, `gemini`, `groq`, `openrouter`, `mistral`, `cohere`, `deepseek`, `xai`, `together`, `fireworks`, `perplexity`)
+- Cannot reuse Popular services slugs (`openai`, `anthropic`, `gemini`, `groq`, `openrouter`, `mistral`, `cohere`, `deepseek`, `xai`, `together`, `fireworks`, `perplexity`, `cerebras`, `moonshot`)
 
 ## Contract
 
