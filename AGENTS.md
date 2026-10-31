@@ -38,18 +38,22 @@ App: http://127.0.0.1:3055. After Dockerfile or compose changes: `BROS_DEV=1 ./b
 
 Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/development.md).
 
-## Read before editing
+## Load by branch
 
-- Words: [GLOSSARY.md](GLOSSARY.md). The `bros` binary is the CLI.
-- App behavior (chat, providers, apps, status, settings, tunnel, auth): [SPEC.md](SPEC.md), then the matching page under `docs/`
-- Ports, compose, layers, packages, and the utils folder rule: [STACK.md](STACK.md)
-- Dock, pages, visual UI: [DESIGN.md](DESIGN.md)
-- Milestone and follow-ups: [PLAN.md](PLAN.md)
-- Env: [docs/environment.md](docs/environment.md). Bootstrap YAML vs SQLite: [docs/configuration.md](docs/configuration.md)
-- HTTP API: [docs/api.md](docs/api.md)
-- A docker app pack: [docs/apps.md](docs/apps.md) and `docs/apps/<id>.md`; desktop: [docs/desktop.md](docs/desktop.md) and [docs/desktop-gui.md](docs/desktop-gui.md)
-- Chat routes or agent wording: [docs/agent.md](docs/agent.md) and [docs/agents.md](docs/agents.md). There is no `/agent` page. Chat is one completion. The job board is `/agents`.
-- Docs site and Pages: [docs/website.md](docs/website.md)
+For the matching branch, read `skills/<name>/SKILL.md`, then the docs named here. Contract files above still win on their domains. Install Agent skills elsewhere with `npx skills@latest add jasenmichael/bros` ([skills/](skills/)).
+
+- **Orient** — `bros` · [GLOSSARY.md](GLOSSARY.md). Chat ≠ Agents page ≠ Agent app.
+- **Checkout** — `bros-dev` · [docs/development.md](docs/development.md)
+- **CLI** — `bros-cli` · [docs/cli.md](docs/cli.md)
+- **API** — `bros-api` · [docs/api.md](docs/api.md) · live `GET /openapi.yaml`
+- **Docker app** — `bros-create-app` · [docs/apps.md](docs/apps.md) · `docs/apps/<id>.md` · [docs/apps/custom.md](docs/apps/custom.md)
+- **Package app** — `bros-package-app` · [docs/apps.md](docs/apps.md) · `docs/apps/<id>.md`
+- **Desktop** — `bros-desktop` · [docs/desktop.md](docs/desktop.md) · [docs/desktop-gui.md](docs/desktop-gui.md)
+- **Agents** — `bros-agents` · [docs/agents.md](docs/agents.md) · [docs/agent.md](docs/agent.md)
+- **Tunnel** — `bros-tunnel` · [docs/tunnel.md](docs/tunnel.md)
+- **Chat / Providers / Settings / Status** — [SPEC.md](SPEC.md) · matching `docs/chat.md`, `docs/providers.md`, `docs/settings.md`, `docs/status.md`
+- **Env / config** — [docs/environment.md](docs/environment.md) · [docs/configuration.md](docs/configuration.md)
+- **Docs site** — [docs/website.md](docs/website.md)
 
 ## Constraints
 
