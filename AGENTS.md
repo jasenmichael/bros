@@ -14,14 +14,14 @@ Before editing, read the file that owns the change. Update that file when the ch
 
 ## Setup
 
-pnpm workspace root is `src/`.
+pnpm workspace root is `app/`.
 
 Dev requires host `pnpm` and `cargo`. The UI runs on the host. Prod needs Docker. Prod uses host `pnpm` for the UI when it exists, otherwise container `bros-ui`. `--use-runner` or `BROS_USE_RUNNER=1` forces `bros-ui`. Dev with either errors.
 
 Build + run (production UI):
 
 ```bash
-pnpm --dir src install
+pnpm --dir app install
 scripts/build.sh
 ./bros
 ```
@@ -29,12 +29,12 @@ scripts/build.sh
 Dev (hot-reload UI):
 
 ```bash
-pnpm --dir src install
+pnpm --dir app install
 BROS_DEV=1 ./bros
 # or: ./bros --dev
 ```
 
-App: http://127.0.0.1:3055. After Dockerfile or compose changes: `BROS_DEV=1 ./bros update`. Docs: `pnpm --dir src docs:dev`.
+App: http://127.0.0.1:3055. After Dockerfile or compose changes: `BROS_DEV=1 ./bros update`. Docs: `pnpm --dir app docs:dev`.
 
 Docs site: http://127.0.0.1:3056/bros/. Full notes: [docs/development.md](docs/development.md).
 
@@ -59,10 +59,10 @@ For the matching branch, read `skills/<name>/SKILL.md`, then the docs named here
 
 - Product word is **app** (`/apps`, `GET /api/apps`). Compose control is `/api/apps/*`. Addon boot list is `BROS_APPS_ENABLED` (comma ids). Host Ollama and Whisper stay Settings / `bros.yml`
 - Write real `/` paths. A corrupted `@bros/` path is not a package or a URL
-- pnpm workspace root is `src/` (`@bros/ui`, `@bros/theme`, `@bros/docs`, `@bros/website`)
+- pnpm workspace root is `app/` (`@bros/ui`, `@bros/theme`, `@bros/docs`, `@bros/website`)
 - Prefer Docker via `BROS_DEV=1 ./bros`. Host Node talks to core Ollama at `127.0.0.1:11435` and host Ollama at `127.0.0.1`. Compose-app calls use Docker DNS (`ollama:11434`, `whisper:8000`)
 - Dev discovers docker apps at `/app/lib/apps/core` and `/app/lib/apps/addon`, plus package apps under `/app/lib/apps`. Custom apps live in `data/config/apps`. A custom app can later move to `lib/apps/addon/` or `lib/apps/core/`. An addon can later move to core. Mount and pack rules live in the Apps section of [SPEC.md](SPEC.md)
-- Internal Ollama model `bros` is for app jobs (titles). It is not a Chat or Providers picker. Ensure path: `src/server/utils/internalBrosModel.ts`
+- Internal Ollama model `bros` is for app jobs (titles). It is not a Chat or Providers picker. Ensure path: `app/server/utils/internalBrosModel.ts`
 - Nix has one install. Run the [Devbox install script](https://www.jetify.com/docs/devbox/installing-devbox) as the non-root desktop user, and only when `devbox` is not already installed. Devbox installs Nix in single-user mode when Nix is not already present. Do not add another Nix installer (`nixos.org/nix/install`, a Nix tarball, the Determinate installer, or a Devbox GitHub release tarball).
 
 ```bash
@@ -76,16 +76,16 @@ Write the commit prefix from the change. `feat` is a minor bump. `fix` and `perf
 ## Testing
 
 ```bash
-pnpm --dir src test:ci
-pnpm --dir src typecheck
+pnpm --dir app test:ci
+pnpm --dir app typecheck
 cargo test --manifest-path cli/Cargo.toml
-pnpm --dir src test:smoke   # local only; needs Docker — not in GH CI
+pnpm --dir app test:smoke   # local only; needs Docker — not in GH CI
 ```
 
-`test:ci` is Vitest unit + nuxt (what `.github/workflows/ci.yml` runs on a pull request to `main`). `pnpm --dir src test` also includes e2e; e2e needs a live Bros on `http://127.0.0.1:3055`. `test:smoke` packs a local release, installs in a reused Docker guest, starts, and uninstalls — **not** in `test:ci` / GitHub Actions. Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
+`test:ci` is Vitest unit + nuxt (what `.github/workflows/ci.yml` runs on a pull request to `main`). `pnpm --dir app test` also includes e2e; e2e needs a live Bros on `http://127.0.0.1:3055`. `test:smoke` packs a local release, installs in a reused Docker guest, starts, and uninstalls — **not** in `test:ci` / GitHub Actions. Vitest runs through `@bros/ui`. Unit, nuxt, and e2e tests live in repo `test/`. One file:
 
 ```bash
-pnpm --dir src --filter @bros/ui exec vitest run ../../test/unit/<file>.test.ts
+pnpm --dir app --filter @bros/ui exec vitest run ../../test/unit/<file>.test.ts
 ```
 
 Add or update a test when behavior changes.

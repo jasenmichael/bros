@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bros install script — served at /bros/install.sh on GitHub Pages
-# (src/website/public/install.sh with app.baseURL '/bros/').
+# (scripts/install.sh with app.baseURL '/bros/').
 #
 # Usage:
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash

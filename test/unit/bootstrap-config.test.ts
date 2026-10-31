@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig, shouldAutostartFromPublicUrl } from '../../src/server/utils/config'
+import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig, shouldAutostartFromPublicUrl } from '../../app/server/utils/config'
 
 const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_DIR', 'BROS_WORKSPACE'] as const
 
@@ -76,7 +76,7 @@ describe('loadBootstrapConfig', () => {
     expect(loadBootstrapConfig(root).publicUrl).toBe('https://from-env.example')
   })
 
-  it('from src/ui cwd, uses checkout bros.yml data_dir (not src/ui/data)', () => {
+  it('from app/ui cwd, uses checkout bros.yml data_dir (not app/ui/data)', () => {
     writeFileSync(join(root, 'bros.yml'), 'public_url: ""\n')
     const appCwd = join(root, 'src', 'app')
     mkdirSync(appCwd, { recursive: true })

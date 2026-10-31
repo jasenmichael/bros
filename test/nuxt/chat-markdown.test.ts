@@ -28,7 +28,7 @@ describe('Chat markdown copy', () => {
       value: { writeText },
     })
 
-    const ProsePre = await import('../../src/layers/theme/app/components/content/ProsePre.vue').then((m) => m.default)
+    const ProsePre = await import('../../app/layers/theme/app/components/content/ProsePre.vue').then((m) => m.default)
     const wrapper = await mountSuspended(ProsePre, {
       props: { code: 'echo hello', language: 'bash' },
       slots: { default: () => 'echo hello' },
@@ -45,14 +45,14 @@ describe('Chat markdown copy', () => {
 
 describe('Chat markdown uses docs prose', () => {
   it('renders nothing for empty text', async () => {
-    const BrosChatMarkdown = await import('../../src/ui/components/BrosChatMarkdown.vue').then((m) => m.default)
+    const BrosChatMarkdown = await import('../../app/ui/components/BrosChatMarkdown.vue').then((m) => m.default)
     const wrapper = await mountSuspended(BrosChatMarkdown, { props: { text: '   ' } })
     expect(wrapper.find('.bros-prose').exists()).toBe(false)
     expect(wrapper.text()).toBe('')
   })
 
   it('applies theme .bros-prose and docs structure', async () => {
-    const BrosChatMarkdown = await import('../../src/ui/components/BrosChatMarkdown.vue').then((m) => m.default)
+    const BrosChatMarkdown = await import('../../app/ui/components/BrosChatMarkdown.vue').then((m) => m.default)
     const wrapper = await mountSuspended(BrosChatMarkdown, { props: { text: SAMPLE } })
     await nextTick()
     await nextTick()

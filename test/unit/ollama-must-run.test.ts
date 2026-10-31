@@ -13,7 +13,7 @@ import {
   peekOllamaRestartNotice,
   resetOllamaHealthForTests,
   runOllamaHealthCheck,
-} from '../../src/server/utils/docker-app/ollamaMustRun'
+} from '../../app/server/utils/docker-app/ollamaMustRun'
 
 describe('ollama must-run dockerApp', () => {
   afterEach(() => {

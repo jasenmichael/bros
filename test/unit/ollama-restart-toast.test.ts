@@ -3,7 +3,7 @@ import {
   isOllamaRestartNotice,
   ollamaRestartToast,
   shouldToastOllamaRestart,
-} from '../../src/ui/utils/ollamaRestartToast'
+} from '../../app/ui/utils/ollamaRestartToast'
 
 describe('ollama restart notice toast', () => {
   const notice = {

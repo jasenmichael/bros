@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Product uninstall. Lives in the release root next to the bros binary.
+# Product uninstall. Canonical source: scripts/uninstall.sh.
+# Packaged at release root next to bros; install puts it in $BROS_DIR.
 # Usage:
 #   $BROS_DIR/uninstall.sh
 #   $BROS_DIR/uninstall.sh --purge

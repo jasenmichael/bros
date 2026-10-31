@@ -50,7 +50,7 @@ describe('Chat page with a disabled provider', () => {
   })
 
   it('omits the disabled provider and falls back to the next enabled one', async () => {
-    const ChatPage = await import('../../src/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat' })
     const vm = wrapper.vm as unknown as { orderedProviders: Array<{ id: string }>; providerId: string }
     expect(vm.orderedProviders.map((p) => p.id)).toEqual(['ollama-host', 'openai', 'my-proxy'])

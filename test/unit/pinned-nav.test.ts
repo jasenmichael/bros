@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { packageNavItems, pinnedNavItems } from '../../src/ui/composables/usePinnedNav'
+import { packageNavItems, pinnedNavItems } from '../../app/ui/composables/usePinnedNav'
 
 function pinned(opts: {
   id: string

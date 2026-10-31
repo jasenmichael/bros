@@ -21,7 +21,7 @@ mockNuxtImport('useSeoMeta', () => () => {})
 
 describe('Settings page', () => {
   it('shows the Chat section with prepend and assistant description', async () => {
-    const SettingsPage = await import('../../src/ui/pages/settings/index.vue').then((m) => m.default)
+    const SettingsPage = await import('../../app/ui/pages/settings/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(SettingsPage)
     expect(wrapper.text()).toContain('Chat')
     expect(wrapper.text()).toContain('Prepend to every message')

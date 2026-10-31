@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = join(import.meta.dirname, '../..')
-const apiRoot = join(root, 'src/server/api')
+const apiRoot = join(root, 'app/server/api')
 const yamlPath = join(root, 'docs/api/openapi.yaml')
 
 const METHOD_EXT: Record<string, string> = {
@@ -58,7 +58,7 @@ function openApiOps(yaml: string): Set<string> {
 }
 
 describe('OpenAPI covers Nitro routes', () => {
-  it('lists every src/server/api handler', () => {
+  it('lists every app/server/api handler', () => {
     const yaml = readFileSync(yamlPath, 'utf8')
     const documented = openApiOps(yaml)
     const nitro = walk(apiRoot)

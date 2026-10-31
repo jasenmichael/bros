@@ -2,8 +2,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { proxyPublicOrigin } from '../../src/server/utils/auth'
-import { matchPublicProxyTarget, proxyRequestAuthorized, type PublicProxyTarget } from '../../src/server/utils/docker-app/dockerAppProxy'
+import { proxyPublicOrigin } from '../../app/server/utils/auth'
+import { matchPublicProxyTarget, proxyRequestAuthorized, type PublicProxyTarget } from '../../app/server/utils/docker-app/dockerAppProxy'
 
 describe('proxy key', () => {
   let dataDir = ''
@@ -25,7 +25,7 @@ describe('proxy key', () => {
   })
 
   it('creates a bearer key that is not the passkey, and rotate replaces it', async () => {
-    const auth = await import('../../src/server/utils/auth')
+    const auth = await import('../../app/server/utils/auth')
     auth.resetProxyKeyPrintForTests()
     auth.resetPasskeyPrintForTests()
     const passkey = auth.ensurePasskey()
@@ -42,7 +42,7 @@ describe('proxy key', () => {
   })
 
   it('bearer opens docker api proxies and Bros /api for the host CLI', async () => {
-    const auth = await import('../../src/server/utils/auth')
+    const auth = await import('../../app/server/utils/auth')
     auth.resetProxyKeyPrintForTests()
     const key = auth.ensureProxyKey()
     const api = { stripPrefix: true } as PublicProxyTarget
@@ -50,7 +50,7 @@ describe('proxy key', () => {
     expect(proxyRequestAuthorized({ authorization: `Bearer ${key}` }, api)).toBe(true)
     expect(proxyRequestAuthorized({ authorization: `Bearer ${key}` }, webui)).toBe(false)
     expect(matchPublicProxyTarget('/api/settings/passcode', [])).toBeNull()
-    const middleware = readFileSync(new URL('../../src/server/middleware/01-auth.ts', import.meta.url), 'utf8')
+    const middleware = readFileSync(new URL('../../app/server/middleware/01-auth.ts', import.meta.url), 'utf8')
     expect(middleware).toContain("path.startsWith('/api/') && verifyProxyAuthorization")
     const cliGate = middleware.indexOf("path.startsWith('/api/') && verifyProxyAuthorization")
     const apiProxyGate = middleware.indexOf('if (apiProxy)')

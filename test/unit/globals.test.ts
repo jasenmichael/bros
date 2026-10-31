@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseCliPackage } from '../../src/server/utils/cli/packages'
+import { parseCliPackage } from '../../app/server/utils/cli/packages'
 import {
   globalAdoptInput,
   globalAdoptRefusal,
@@ -11,7 +11,7 @@ import {
   parseNpmLs,
   parsePnpmList,
   parseUvTools,
-} from '../../src/server/utils/cli/globals'
+} from '../../app/server/utils/cli/globals'
 
 describe('global packages', () => {
   it('parses top-level names and strips versions', () => {

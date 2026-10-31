@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { setAppRunsInDockerForTests } from '../../src/server/utils/hostProbe'
+import { setAppRunsInDockerForTests } from '../../app/server/utils/hostProbe'
 import {
   isWhisperUnreachable,
   parseWhisperText,
@@ -8,7 +8,7 @@ import {
   transcribeFileError,
   waitForWhisperHealth,
   WHISPER_MAX_BYTES,
-} from '../../src/server/utils/whisperHost'
+} from '../../app/server/utils/whisperHost'
 
 describe('whisper host', () => {
   afterEach(() => {

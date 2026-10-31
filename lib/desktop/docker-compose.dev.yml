@@ -5,10 +5,10 @@ services:
     image: bros:dev
     volumes:
       - ./:/app
-      - bros-node-modules:/app/src/node_modules
-      - bros-app-modules:/app/src/ui/node_modules
-      - bros-docs-layer-modules:/app/src/layers/docs/node_modules
-      - bros-theme-modules:/app/src/layers/theme/node_modules
+      - bros-node-modules:/app/app/node_modules
+      - bros-app-modules:/app/app/ui/node_modules
+      - bros-docs-layer-modules:/app/app/layers/docs/node_modules
+      - bros-theme-modules:/app/app/layers/theme/node_modules
     environment:
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"

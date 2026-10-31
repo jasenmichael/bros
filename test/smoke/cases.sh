@@ -7,7 +7,7 @@ ASSET="$(ensure_pack)"
 [[ -f "$ASSET" ]] || { echo "smoke: pack missing: $ASSET" >&2; exit 1; }
 ensure_container
 
-INSTALL_SH="$REPO_ROOT/src/website/public/install.sh"
+INSTALL_SH="$REPO_ROOT/scripts/install.sh"
 TAR_PORT="${BROS_SMOKE_TAR_PORT:-18765}"
 TAR_PID=""
 

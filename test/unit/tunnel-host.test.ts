@@ -15,7 +15,7 @@ import {
   tailLines,
   tunnelPublicPayload,
   writeTunnelCommand,
-} from '../../src/server/utils/tunnel'
+} from '../../app/server/utils/tunnel'
 
 describe('cloudflared install/login detection', () => {
   it('treats a non-empty path as installed', () => {

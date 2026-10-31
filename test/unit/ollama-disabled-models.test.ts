@@ -4,7 +4,7 @@ import {
   isOllamaModelChatEnabled,
   nextDisabledOllamaModels,
   parseDisabledOllamaModels,
-} from '../../src/ui/utils/providers/ollamaDisabledModels'
+} from '../../app/ui/utils/providers/ollamaDisabledModels'
 
 describe('ollama disabledModels helpers', () => {
   it('defaults every name on when config is missing or invalid', () => {

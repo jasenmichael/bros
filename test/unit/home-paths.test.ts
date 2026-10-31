@@ -2,8 +2,8 @@ import { mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { appUpdateKind, appsComposeBody, readCatalog } from '../../src/server/utils/cli/packages'
-import { duplicateHomePath, ensureHomeDirs, parseHomePaths, resolveWorkspaceHost } from '../../src/server/utils/homePaths'
+import { appUpdateKind, appsComposeBody, readCatalog } from '../../app/server/utils/cli/packages'
+import { duplicateHomePath, ensureHomeDirs, parseHomePaths, resolveWorkspaceHost } from '../../app/server/utils/homePaths'
 
 describe('desktop home', () => {
   it('rejects a path that escapes the home', () => {

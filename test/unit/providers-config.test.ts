@@ -10,9 +10,9 @@ describe('upsertProvider config merge', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-test-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
-    const { resetOllamaHostCache, setDockerPublishedPortsForTests, setHostListenPortsForTests, setOllamaManualPortForTests } = await import('../../src/server/utils/providers/ollamaHost')
+    const { resetOllamaHostCache, setDockerPublishedPortsForTests, setHostListenPortsForTests, setOllamaManualPortForTests } = await import('../../app/server/utils/providers/ollamaHost')
     resetOllamaHostCache()
     setOllamaManualPortForTests(null)
     setHostListenPortsForTests([])
@@ -20,15 +20,15 @@ describe('upsertProvider config merge', () => {
   })
 
   afterEach(async () => {
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
-    const { resetOllamaHostCache } = await import('../../src/server/utils/providers/ollamaHost')
+    const { resetOllamaHostCache } = await import('../../app/server/utils/providers/ollamaHost')
     resetOllamaHostCache()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('keeps useGpu when a later upsert only patches mode', async () => {
-    const { upsertProvider, getProvider } = await import('../../src/server/utils/providers')
+    const { upsertProvider, getProvider } = await import('../../app/server/utils/providers')
 
     upsertProvider({
       id: 'ollama',
@@ -51,14 +51,14 @@ describe('upsertProvider config merge', () => {
   })
 
   it('persists useGpu true once when GPU is present and preference is unset', async () => {
-    const { ensureDefaultUseGpu, getProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultUseGpu, getProvider } = await import('../../app/server/utils/providers')
 
     expect(ensureDefaultUseGpu(true)).toBe(true)
     expect(getProvider('ollama')?.config).toMatchObject({ useGpu: true })
   })
 
   it('keeps explicit useGpu false when GPU is present', async () => {
-    const { ensureDefaultUseGpu, getProvider, upsertProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultUseGpu, getProvider, upsertProvider } = await import('../../app/server/utils/providers')
 
     upsertProvider({
       id: 'ollama',
@@ -73,14 +73,14 @@ describe('upsertProvider config merge', () => {
   })
 
   it('does not write useGpu when no GPU and preference is unset', async () => {
-    const { ensureDefaultUseGpu, getProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultUseGpu, getProvider } = await import('../../app/server/utils/providers')
 
     expect(ensureDefaultUseGpu(false)).toBe(false)
     expect(getProvider('ollama')?.config.useGpu).toBeUndefined()
   })
 
   it('leaves saved useGpu true in config when GPU is offline', async () => {
-    const { ensureDefaultUseGpu, getProvider, upsertProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultUseGpu, getProvider, upsertProvider } = await import('../../app/server/utils/providers')
 
     upsertProvider({
       id: 'ollama',
@@ -95,7 +95,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('persists custom Ollama names in config.customModels and dedups', async () => {
-    const { rememberCustomOllamaModel, listCustomOllamaModels, upsertProvider, getProvider } = await import('../../src/server/utils/providers')
+    const { rememberCustomOllamaModel, listCustomOllamaModels, upsertProvider, getProvider } = await import('../../app/server/utils/providers')
 
     upsertProvider({
       id: 'ollama',
@@ -122,7 +122,7 @@ describe('upsertProvider config merge', () => {
       getProvider,
       deleteProvider,
       isSystemProvider,
-    } = await import('../../src/server/utils/providers')
+    } = await import('../../app/server/utils/providers')
 
     ensureDefaultProviders()
     expect(getProvider('ollama')?.name).toBe('Ollama (core)')
@@ -135,7 +135,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('migrates stored Ollama dockerApp/host names without embedding a port', async () => {
-    const { upsertProvider, ensureDefaultProviders, getProvider } = await import('../../src/server/utils/providers')
+    const { upsertProvider, ensureDefaultProviders, getProvider } = await import('../../app/server/utils/providers')
     upsertProvider({
       id: 'ollama',
       name: 'Ollama dockerApp',
@@ -154,7 +154,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('stores custom pull names on the host provider when providerId is ollama-host', async () => {
-    const { ensureDefaultProviders, rememberCustomOllamaModel, listCustomOllamaModels, getProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, rememberCustomOllamaModel, listCustomOllamaModels, getProvider } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     expect(rememberCustomOllamaModel('llama3.2', 'ollama-host')).toEqual(['llama3.2'])
     expect(listCustomOllamaModels('ollama-host')).toEqual(['llama3.2'])
@@ -168,8 +168,8 @@ describe('upsertProvider config merge', () => {
       getProvider,
       deleteProvider,
       upsertProvider,
-    } = await import('../../src/server/utils/providers')
-    const { PROVIDER_PRESETS, isPopularProvider } = await import('../../src/server/utils/providers/presets')
+    } = await import('../../app/server/utils/providers')
+    const { PROVIDER_PRESETS, isPopularProvider } = await import('../../app/server/utils/providers/presets')
 
     ensureDefaultProviders()
     expect(PROVIDER_PRESETS).toHaveLength(12)
@@ -185,7 +185,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('does not clobber a saved popular key or models on re-seed', async () => {
-    const { ensureDefaultProviders, getProvider, upsertProvider, getProviderSecret } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, upsertProvider, getProviderSecret } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openai',
@@ -201,8 +201,8 @@ describe('upsertProvider config merge', () => {
   })
 
   it('treats popular slugs as reserved so custom cannot reuse openai', async () => {
-    const { ensureDefaultProviders, isReservedProviderId } = await import('../../src/server/utils/providers')
-    const { isPopularProvider } = await import('../../src/server/utils/providers/presets')
+    const { ensureDefaultProviders, isReservedProviderId } = await import('../../app/server/utils/providers')
+    const { isPopularProvider } = await import('../../app/server/utils/providers/presets')
     ensureDefaultProviders()
     expect(isReservedProviderId('openai')).toBe(true)
     expect(isReservedProviderId('gemini')).toBe(true)
@@ -211,7 +211,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('defaults Ollama Chat on and keyed providers Chat off', async () => {
-    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider, filterChatProviders, isChatSelectionEnabled } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider, filterChatProviders, isChatSelectionEnabled } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     expect(getProvider('ollama')?.enabled).toBe(true)
     expect(getProvider('ollama-host')?.enabled).toBe(true)
@@ -240,7 +240,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('setProviderEnabled only flips that provider', async () => {
-    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     const dockerAppBefore = getProvider('ollama')
     await setProviderEnabled('openai', false)
@@ -253,7 +253,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('new custom providers default Chat off', async () => {
-    const { upsertProvider, getProvider } = await import('../../src/server/utils/providers')
+    const { upsertProvider, getProvider } = await import('../../app/server/utils/providers')
     upsertProvider({
       id: 'my-proxy',
       name: 'My proxy',
@@ -264,7 +264,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('refuses to enable a keyed provider with no API key', async () => {
-    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     await expect(setProviderEnabled('openai', true)).rejects.toMatchObject({
       statusCode: 400,
@@ -275,7 +275,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('keeps Chat off when the key probe fails', async () => {
-    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openai',
@@ -299,7 +299,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('enables Chat after a successful key probe', async () => {
-    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openai',
@@ -324,7 +324,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('auto-enables Chat when a saved key probes healthy', async () => {
-    const { ensureDefaultProviders, getProvider, persistProviderAndSyncChat } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, persistProviderAndSyncChat } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     const originalFetch = globalThis.fetch
     globalThis.fetch = (async () => {
@@ -347,7 +347,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('disables leftover Chat-on keyed rows that have no key, and leaves Ollama on', async () => {
-    const { ensureDefaultProviders, getProvider, upsertProvider, disableUnhealthyKeyedChat } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, upsertProvider, disableUnhealthyKeyedChat } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     upsertProvider({
       id: 'openrouter',
@@ -363,7 +363,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('does not persist Chat-off when a keyed Ready row later fails a list probe', async () => {
-    const { ensureDefaultProviders, getProvider, upsertProvider, disableUnhealthyKeyedChat } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, upsertProvider, disableUnhealthyKeyedChat } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     upsertProvider({
       id: 'groq',
@@ -389,7 +389,7 @@ describe('upsertProvider config merge', () => {
   })
 
   it('refuses Ollama Chat-on when the endpoint probe fails', async () => {
-    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     await setProviderEnabled('ollama-host', false)
     const originalFetch = globalThis.fetch
@@ -409,10 +409,10 @@ describe('upsertProvider config merge', () => {
   })
 
   it('turning Chat off does not call dockerApp stop', async () => {
-    const docker = await import('../../src/server/utils/docker')
+    const docker = await import('../../app/server/utils/docker')
     const stop = vi.spyOn(docker, 'stopDockerApp')
     const start = vi.spyOn(docker, 'startDockerApp')
-    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
     await setProviderEnabled('ollama', false)
     expect(getProvider('ollama')?.enabled).toBe(false)
@@ -429,7 +429,7 @@ describe('upsertProvider config merge', () => {
       setOllamaModelChatEnabled,
       listDisabledOllamaModels,
       upsertProvider,
-    } = await import('../../src/server/utils/providers')
+    } = await import('../../app/server/utils/providers')
 
     ensureDefaultProviders()
     upsertProvider({
@@ -458,7 +458,7 @@ describe('upsertProvider config merge', () => {
       getProvider,
       setOllamaModelChatEnabled,
       listDisabledOllamaModels,
-    } = await import('../../src/server/utils/providers')
+    } = await import('../../app/server/utils/providers')
 
     ensureDefaultProviders()
     expect(listDisabledOllamaModels('groq')).toEqual([])
@@ -474,8 +474,8 @@ describe('upsertProvider config merge', () => {
   })
 
   it('skips remote GET /models when no API key is saved', async () => {
-    const { ensureDefaultProviders, listOpenAIModelIds } = await import('../../src/server/utils/providers')
-    const { getProviderPreset } = await import('../../src/server/utils/providers/presets')
+    const { ensureDefaultProviders, listOpenAIModelIds } = await import('../../app/server/utils/providers')
+    const { getProviderPreset } = await import('../../app/server/utils/providers/presets')
     ensureDefaultProviders()
     const originalFetch = globalThis.fetch
     const fetchMock = vi.fn()

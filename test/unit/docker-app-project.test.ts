@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { parse as parseYaml } from 'yaml'
-import { composeImageIsLocal, composeUsesDesktopNetns, dockerConfigDir, isMissingHostDataBind, shouldAttachProjectNetwork, shouldBuildDockerAppImage } from '../../src/server/utils/docker'
-import { isReservedDockerAppId, parseDockerAppMeta, projectName, RESERVED_SLUGS } from '../../src/server/utils/docker-app/dockerApps'
+import { composeImageIsLocal, composeUsesDesktopNetns, dockerConfigDir, isMissingHostDataBind, shouldAttachProjectNetwork, shouldBuildDockerAppImage } from '../../app/server/utils/docker'
+import { isReservedDockerAppId, parseDockerAppMeta, projectName, RESERVED_SLUGS } from '../../app/server/utils/docker-app/dockerApps'
 
 describe('dockerApp project naming', () => {
   it('prefixes compose projects with bros-', () => {
@@ -199,7 +199,7 @@ describe('dockerApp data binds', () => {
       expect(yml).not.toMatch(/OLLAMA_NOPRUNE:\s*"true"/)
     }
     expect(readFileSync(join(root, 'lib/apps/core/ollama/config.yml'), 'utf8')).toContain('kind: docker')
-    expect(readFileSync(join(root, 'src/server/utils/docker.ts'), 'utf8')).toContain("OLLAMA_NOPRUNE: '1'")
+    expect(readFileSync(join(root, 'app/server/utils/docker.ts'), 'utf8')).toContain("OLLAMA_NOPRUNE: '1'")
   })
 
   it('firecrawl-ui compose publishes 3081 not 8080', () => {

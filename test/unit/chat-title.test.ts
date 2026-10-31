@@ -8,7 +8,7 @@ import {
   labelRequestContent,
   sanitizeGeneratedTitle,
   shouldAutoTitle,
-} from '../../src/server/utils/chat/chatTitle'
+} from '../../app/server/utils/chat/chatTitle'
 
 describe('chat title helpers', () => {
   it('falls back to New chat when the prompt is empty', () => {
@@ -73,19 +73,19 @@ describe('conversation title persist', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'bros-chat-title-'))
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
   })
 
   afterEach(async () => {
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
     vi.unstubAllGlobals()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('persists a rename and does not change modelId', async () => {
-    const { createConversation, getConversation, updateConversationTitle } = await import('../../src/server/utils/chat/chat')
+    const { createConversation, getConversation, updateConversationTitle } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     updateConversationTitle(convo!.id, 'Docker volumes')
     const next = getConversation(convo!.id)
@@ -94,7 +94,7 @@ describe('conversation title persist', () => {
   })
 
   it('deletes a conversation and its messages', async () => {
-    const { addMessage, createConversation, deleteConversation, getConversation, listConversations } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, deleteConversation, getConversation, listConversations } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'hello')
     deleteConversation(convo!.id)
@@ -103,11 +103,11 @@ describe('conversation title persist', () => {
   })
 
   it('titles from dockerApp bros with Label: after the first assistant reply', async () => {
-    const { addMessage, createConversation, generateChatTitle, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, generateChatTitle, getConversation, maybeAutoTitle } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
     addMessage(convo!.id, 'assistant', 'Volumes persist data.')
-    const { dockerAppOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
+    const { dockerAppOllamaUrl } = await import('../../app/server/utils/providers/ollamaHost')
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       expect(String(url)).toBe(`${dockerAppOllamaUrl()}/api/chat`)
       const body = JSON.parse(String(init?.body || '{}')) as { model?: string; stream?: boolean; messages?: Array<{ content?: string }> }
@@ -127,9 +127,9 @@ describe('conversation title persist', () => {
   })
 
   it('still titles via dockerApp bros when ollama is disabled for chat', async () => {
-    const { addMessage, createConversation, generateChatTitle, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
-    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../src/server/utils/providers')
-    const { dockerAppOllamaUrl } = await import('../../src/server/utils/providers/ollamaHost')
+    const { addMessage, createConversation, generateChatTitle, maybeAutoTitle } = await import('../../app/server/utils/chat/chat')
+    const { ensureDefaultProviders, getProvider, setProviderEnabled } = await import('../../app/server/utils/providers')
+    const { dockerAppOllamaUrl } = await import('../../app/server/utils/providers/ollamaHost')
     ensureDefaultProviders()
     await setProviderEnabled('ollama', false)
     expect(getProvider('ollama')?.enabled).toBe(false)
@@ -151,7 +151,7 @@ describe('conversation title persist', () => {
   })
 
   it('persists I Can\'t Sleep instead of the raw first prompt', async () => {
-    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../app/server/utils/chat/chat')
     const prompt = 'I can not sleep, what can help?'
     const convo = createConversation('ollama/gemma3:12b')
     addMessage(convo!.id, 'user', prompt)
@@ -162,7 +162,7 @@ describe('conversation title persist', () => {
   })
 
   it('keeps first-line fallback when generate returns SYSTEM regurgitation', async () => {
-    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'how are you?')
     addMessage(convo!.id, 'assistant', 'Fine.')
@@ -172,7 +172,7 @@ describe('conversation title persist', () => {
   })
 
   it('keeps first-line fallback when summarize fails', async () => {
-    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, maybeAutoTitle } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'Explain Docker volumes')
     addMessage(convo!.id, 'assistant', 'Volumes persist data.')
@@ -187,7 +187,7 @@ describe('conversation title persist', () => {
   })
 
   it('does not retitle later messages or a renamed chat', async () => {
-    const { addMessage, createConversation, getConversation, maybeAutoTitle, updateConversationTitle } = await import('../../src/server/utils/chat/chat')
+    const { addMessage, createConversation, getConversation, maybeAutoTitle, updateConversationTitle } = await import('../../app/server/utils/chat/chat')
     const convo = createConversation('ollama/llama3.2')
     addMessage(convo!.id, 'user', 'first')
     addMessage(convo!.id, 'assistant', 'ok')

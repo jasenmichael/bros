@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/server/utils/settings', () => ({
+vi.mock('../../app/server/utils/settings', () => ({
   isWhisperEnabled: vi.fn(() => false),
 }))
 
-import { isWhisperEnabled } from '../../src/server/utils/settings'
-import { isCoreAppEnabled } from '../../src/server/utils/docker-app/coreAppEnabled'
+import { isWhisperEnabled } from '../../app/server/utils/settings'
+import { isCoreAppEnabled } from '../../app/server/utils/docker-app/coreAppEnabled'
 
 describe('isCoreAppEnabled', () => {
   afterEach(() => {

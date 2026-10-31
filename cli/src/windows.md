@@ -92,11 +92,11 @@ Linux preflight text stays.
 
 Release packing, when a Windows asset is built:
 
-- Target `x86_64-pc-windows-msvc` on a `windows-latest` runner. The runner already has the Microsoft C toolchain. Rustup adds the target. Pack with Git Bash (`bash scripts/pack-release.sh`). The UI artifact is the same prebuilt `src/ui/.output` as the other archives.
+- Target `x86_64-pc-windows-msvc` on a `windows-latest` runner. The runner already has the Microsoft C toolchain. Rustup adds the target. Pack with Git Bash (`bash scripts/pack-release.sh`). The UI artifact is the same prebuilt `app/ui/.output` as the other archives.
 - `scripts/pack-release.sh` accepts that target. Cargo writes `cli/target/<triple>/release/bros.exe`. Stage it as `bros.exe`. Other targets stay staged as `bros`.
 - Asset name `bros-windows-amd64.tar.gz` plus `.sha256`.
 
-`src/website/public/install.sh` stays bash and keeps rejecting Windows. Git Bash is not the Windows install path. See the script below.
+`scripts/install.sh` stays bash and keeps rejecting Windows. Git Bash is not the Windows install path. See the script below.
 
 Docs to update in the same change: `SPEC.md` (Windows start needs Docker Desktop with the WSL2 engine; dev and `bros service` stay Linux), `docs/install.md`, `docs/cli.md`, `docs/desktop.md` (on Windows the repo mount inside Desktop and `bros-ui` is `/bros/repo`).
 
@@ -112,7 +112,7 @@ A script is required for the same install `install.sh` does on Linux: download, 
 
 Do not extend `install.sh`. Symlinks into `~/.local/bin` need Developer Mode or an elevated process, and cmd.exe will not run a file named `bros` with no extension (`PATHEXT` is `.COM;.EXE;.BAT;.CMD`).
 
-Add `src/website/public/install.ps1`, served beside `install.sh`. One command:
+Add `scripts/install.ps1`, copied into website `public/` beside `install.sh` on docs build. One command:
 
 ```powershell
 irm https://jasenmichael.github.io/bros/install.ps1 | iex

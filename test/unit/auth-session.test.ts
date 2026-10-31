@@ -11,20 +11,20 @@ describe('auth session helpers', () => {
     process.env.BROS_DATA_DIR = dataDir
     process.env.BROS_WORKING_DIR = dataDir
     process.env.BROS_SESSION_SECRET = 'test-secret-for-unit-tests'
-    const { resetDbForTests } = await import('../../src/server/utils/db')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
     resetDbForTests()
   })
 
   afterEach(async () => {
-    const { resetDbForTests } = await import('../../src/server/utils/db')
-    const { resetPasskeyPrintForTests } = await import('../../src/server/utils/auth')
+    const { resetDbForTests } = await import('../../app/server/utils/db')
+    const { resetPasskeyPrintForTests } = await import('../../app/server/utils/auth')
     resetDbForTests()
     resetPasskeyPrintForTests()
     if (dataDir) rmSync(dataDir, { recursive: true, force: true })
   })
 
   it('creates a session that validates until destroyed', async () => {
-    const { setPasscode, createSession, isSessionValid, destroySession } = await import('../../src/server/utils/auth')
+    const { setPasscode, createSession, isSessionValid, destroySession } = await import('../../app/server/utils/auth')
     setPasscode('correct-horse')
     const token = createSession()
     expect(isSessionValid(token)).toBe(true)
@@ -41,7 +41,7 @@ describe('auth session helpers', () => {
       passkeyPath,
       hasPasscode,
       readPasskey,
-    } = await import('../../src/server/utils/auth')
+    } = await import('../../app/server/utils/auth')
 
     expect(hasPasscode()).toBe(false)
     const generated = ensurePasskey()
@@ -61,15 +61,15 @@ describe('auth session helpers', () => {
   })
 
   it('rejects missing tokens', async () => {
-    const { isSessionValid } = await import('../../src/server/utils/auth')
+    const { isSessionValid } = await import('../../app/server/utils/auth')
     expect(isSessionValid(null)).toBe(false)
     expect(isSessionValid(undefined)).toBe(false)
     expect(isSessionValid('')).toBe(false)
   })
 
   it('sets Secure session cookie when Host is public_url / CF-looking request', async () => {
-    const { requestIsHttps, sessionCookieOptions, SESSION_COOKIE } = await import('../../src/server/utils/auth')
-    const { hostnameFromPublicUrl, isViaTunnel } = await import('../../src/server/utils/viaTunnel')
+    const { requestIsHttps, sessionCookieOptions, SESSION_COOKIE } = await import('../../app/server/utils/auth')
+    const { hostnameFromPublicUrl, isViaTunnel } = await import('../../app/server/utils/viaTunnel')
     const host = hostnameFromPublicUrl('https://bros.jasenmichael.com')
     const viaTunnel = isViaTunnel({
       host,
@@ -99,7 +99,7 @@ describe('auth session helpers', () => {
   })
 
   it('keeps session cookie not Secure on local HTTP', async () => {
-    const { requestIsHttps, sessionCookieOptions, SESSION_COOKIE } = await import('../../src/server/utils/auth')
+    const { requestIsHttps, sessionCookieOptions, SESSION_COOKIE } = await import('../../app/server/utils/auth')
     const opts = sessionCookieOptions(requestIsHttps({
       protocol: 'http',
       forwardedProto: null,
@@ -112,8 +112,8 @@ describe('auth session helpers', () => {
   })
 
   it('marks HTTPS from via-tunnel even when forwarded proto is missing', async () => {
-    const { requestIsHttps, sessionCookieOptions } = await import('../../src/server/utils/auth')
-    const { isViaTunnel } = await import('../../src/server/utils/viaTunnel')
+    const { requestIsHttps, sessionCookieOptions } = await import('../../app/server/utils/auth')
+    const { isViaTunnel } = await import('../../app/server/utils/viaTunnel')
     const viaTunnel = isViaTunnel({
       host: 'lucky-river-1234.trycloudflare.com',
       headers: { 'cf-ray': '8a1b2c3d4e5f6a7b-EWR' },

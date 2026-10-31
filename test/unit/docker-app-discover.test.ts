@@ -12,7 +12,7 @@ import {
   shouldAutostartDockerApp,
   dockerAppRepoNameFromUrl,
   writeCustomDockerApp,
-} from '../../src/server/utils/docker-app/dockerApps'
+} from '../../app/server/utils/docker-app/dockerApps'
 
 function writeDockerApp(root: string, id: string, extra = '') {
   mkdirSync(join(root, id), { recursive: true })

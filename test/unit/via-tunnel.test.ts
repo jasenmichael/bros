@@ -8,7 +8,7 @@ import {
   isViaTunnel,
   TUNNEL_STOP_LOCKED_MESSAGE,
   tunnelHostname,
-} from '../../src/server/utils/viaTunnel'
+} from '../../app/server/utils/viaTunnel'
 
 describe('isViaTunnel', () => {
   const prevHost = process.env.BROS_TUNNEL_HOST

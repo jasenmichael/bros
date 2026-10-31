@@ -57,7 +57,7 @@ export default defineNuxtConfig({
   // theme + docs layers; this app overrides `/` with the dashboard
   extends: ['../layers/docs', '../layers/theme'],
   compatibilityDate: '2025-01-01',
-  // Vue app package root; Nitro lives in sibling src/server
+  // Vue app package root; Nitro lives in sibling app/server
   srcDir: '.',
   serverDir: '../server',
   devtools: false,
@@ -81,7 +81,7 @@ export default defineNuxtConfig({
       websocket: true,
     },
     externals: {
-      // Resolve from the workspace — a bare name is treated as src/ui/better-sqlite3.
+      // Resolve from the workspace — a bare name is treated as app/ui/better-sqlite3.
       traceInclude: [betterSqlite3Entry()],
       traceOptions: {
         ignore: ignoreUnbuiltCpuFeatures,

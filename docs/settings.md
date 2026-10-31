@@ -24,7 +24,7 @@ Chat and passkey fields are full width in the `max-w-xl` column.
 
 **Enable host Ollama** (off by default) stores `enable_host_ollama` in the same file. On shows the host daemon as a Chat/Providers row (`ollama-host`). Bros never starts that daemon. Off omits the row and 404s `/api/providers/ollama-host/*`. Scan and port override live on the Providers host card, not Docker apps.
 
-Those two toggles are the Settings module (`src/server/utils/settings`). Bootstrap paths stay in [Configuration](/docs/configuration).
+Those two toggles are the Settings module (`app/server/utils/settings`). Bootstrap paths stay in [Configuration](/docs/configuration).
 
 ## MCP
 

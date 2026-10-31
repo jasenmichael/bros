@@ -28,7 +28,7 @@ function appDirFromEnv(): string | null {
   return raw || null
 }
 
-/** Walk up from Nuxt cwd (`src/ui`) to the checkout that owns compose or `bros.yml`. */
+/** Walk up from Nuxt cwd (`app/ui`) to the checkout that owns compose or `bros.yml`. */
 function findCheckoutRoot(start: string): string | null {
   let dir = resolve(start)
   for (let i = 0; i < 10; i++) {

@@ -2,10 +2,10 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { appsComposeBody, catalogRoot, desktopAppsDockerfile, parseCliPackage, parseServices, readCatalog } from '../../src/server/utils/cli/packages'
-import { ensurePackages, presentBins } from '../../src/server/utils/cli/ensure'
+import { appsComposeBody, catalogRoot, desktopAppsDockerfile, parseCliPackage, parseServices, readCatalog } from '../../app/server/utils/cli/packages'
+import { ensurePackages, presentBins } from '../../app/server/utils/cli/ensure'
 import { bumpedRestartIds, commandsForRunning, runningIds, servicesFromYaml } from '../../lib/desktop/app-services/supervise.ts'
-import { listedPackageApp, listedDockerApp } from '../../src/ui/utils/gui'
+import { listedPackageApp, listedDockerApp } from '../../app/ui/utils/gui'
 
 const root = join(import.meta.dirname, '../..')
 
@@ -126,8 +126,8 @@ describe('desktop package apps', () => {
   })
 
   it('opens the app library from the Drawer and sends the Apps panel cog to /apps', () => {
-    const page = readFileSync(join(root, 'src/ui/pages/desktop.vue'), 'utf8')
-    const drawer = readFileSync(join(root, 'src/ui/components/DesktopDrawer.vue'), 'utf8')
+    const page = readFileSync(join(root, 'app/ui/pages/desktop.vue'), 'utf8')
+    const drawer = readFileSync(join(root, 'app/ui/components/DesktopDrawer.vue'), 'utf8')
     const cardAt = page.indexOf('max-h-[85vh]')
     const card = page.slice(cardAt, page.indexOf('</NuxtLink>', cardAt))
     expect(page).toContain('DesktopDrawer')
@@ -157,23 +157,23 @@ describe('desktop package apps', () => {
     expect(card).toContain('aria-label="Apps"')
     expect(card).toContain('to="/apps"')
     expect(page.slice(page.indexOf('</NuxtLink>'))).not.toContain('bottom-2 right-2')
-    const library = readFileSync(join(root, 'src/ui/components/DesktopAppLibrary.vue'), 'utf8')
+    const library = readFileSync(join(root, 'app/ui/components/DesktopAppLibrary.vue'), 'utf8')
     expect(library).toContain('max-w-xs')
     expect(library).toContain('i-lucide-search')
     expect(library).toContain('justify-center')
-    expect(existsSync(join(root, 'src/ui/pages/settings/desktop/index.vue'))).toBe(true)
-    expect(existsSync(join(root, 'src/ui/pages/settings/desktop.vue'))).toBe(false)
-    const settings = readFileSync(join(root, 'src/ui/pages/settings/desktop/index.vue'), 'utf8')
+    expect(existsSync(join(root, 'app/ui/pages/settings/desktop/index.vue'))).toBe(true)
+    expect(existsSync(join(root, 'app/ui/pages/settings/desktop.vue'))).toBe(false)
+    const settings = readFileSync(join(root, 'app/ui/pages/settings/desktop/index.vue'), 'utf8')
     expect(settings).toContain("navigateTo('/apps'")
-    const logs = readFileSync(join(root, 'src/ui/pages/settings/desktop/[id]/logs.vue'), 'utf8')
+    const logs = readFileSync(join(root, 'app/ui/pages/settings/desktop/[id]/logs.vue'), 'utf8')
     expect(logs).toContain('/apps/${route.params.id}/logs')
     expect(logs).not.toContain('role=package')
-    const docker = readFileSync(join(root, 'src/server/utils/docker.ts'), 'utf8')
+    const docker = readFileSync(join(root, 'app/server/utils/docker.ts'), 'utf8')
     const session = docker.indexOf('waitForDesktopSession()')
     expect(docker.slice(session, session + 500)).toContain('queueDesktopEnsure()')
     expect(docker.slice(session, session + 500)).not.toContain('await queueDesktopEnsure')
     expect(docker).not.toContain('await queueDesktopEnsure')
-    expect(existsSync(join(root, 'src/ui/pages/settings/apps.vue'))).toBe(false)
+    expect(existsSync(join(root, 'app/ui/pages/settings/apps.vue'))).toBe(false)
   })
 
   it('launches a services command only when its id is in the running set', () => {

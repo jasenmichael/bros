@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { docsBreadcrumbs, docsNavHrefs } from '../../src/layers/docs/app/utils/docsNav'
+import { docsBreadcrumbs, docsNavHrefs } from '../../app/layers/docs/app/utils/docsNav'
 
 const root = join(import.meta.dirname, '../..')
 const docsRoot = join(root, 'docs')

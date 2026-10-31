@@ -8,7 +8,7 @@ Implementation through **M7** complete. Release install unpacks into `BROS_DIR`,
 
 Product brand is **Bros**. Docker apps are Ollama and Whisper. The Bros container is the Selkies image plus the HTTP server. Host `cloudflared`, passkey sessions, and optional `proxy.public` are in the tree. The OpenCode package app is npm.
 
-Docs markdown lives in `docs/`. App `/` is the dashboard. Website `/` is marketing. Static site is `src/website` → https://jasenmichael.github.io/bros/
+Docs markdown lives in `docs/`. App `/` is the dashboard. Website `/` is marketing. Static site is `app/website` → https://jasenmichael.github.io/bros/
 
 ## Recent (module layout)
 
@@ -50,7 +50,7 @@ Not a milestone. Pick when needed:
 - Settings: Chat prepend + assistant description are the `rules` and `personality` skills, plus paths + passkey
 - No auto-migrate of pre-rename Docker volumes
 - Named `bros-data` / `bros-ollama-data` / docker app volumes: leftover volumes stay unused; start does not copy them into `$BROS_DIR/data`
-- Docs site: `pnpm --dir src docs:dev` → http://127.0.0.1:3056/bros/ ; generate + `pnpm --dir src --filter @bros/website preview`
+- Docs site: `pnpm --dir app docs:dev` → http://127.0.0.1:3056/bros/ ; generate + `pnpm --dir app --filter @bros/website preview`
 
 ## Data dir binds
 

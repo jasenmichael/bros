@@ -14,7 +14,7 @@ WORKDIR /app
 COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=dockercli /usr/local/libexec/docker/cli-plugins/docker-compose \
   /usr/local/libexec/docker/cli-plugins/docker-compose
-COPY src/ui/.output /app/src/ui/.output
+COPY app/ui/.output /app/app/ui/.output
 COPY scripts/docker /app/scripts/docker
 COPY docs/cli.md /app/docs/cli.md
 COPY lib /app/lib

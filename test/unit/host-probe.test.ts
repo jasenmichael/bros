@@ -7,9 +7,9 @@ import {
   hostUiUrl,
   setAppRunsInDockerForTests,
   dockerAppReachUrl,
-} from '../../src/server/utils/hostProbe'
-import { dockerAppOllamaUrl } from '../../src/server/utils/providers/ollamaHost'
-import { dockerAppWhisperUrl } from '../../src/server/utils/whisperHost'
+} from '../../app/server/utils/hostProbe'
+import { dockerAppOllamaUrl } from '../../app/server/utils/providers/ollamaHost'
+import { dockerAppWhisperUrl } from '../../app/server/utils/whisperHost'
 
 describe('dockerHostCandidates', () => {
   afterEach(() => {

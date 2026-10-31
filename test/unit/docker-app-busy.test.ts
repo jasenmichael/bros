@@ -5,7 +5,7 @@ import {
   isDockerAppRowBusy,
   removeDockerAppBusy,
   dockerAppBusyKey,
-} from '../../src/ui/utils/docker-app/dockerAppBusy'
+} from '../../app/ui/utils/docker-app/dockerAppBusy'
 
 describe('dockerAppBusy', () => {
   it('tracks concurrent actions on different dockerApps', () => {

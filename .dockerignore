@@ -17,11 +17,11 @@ graphify-out
 **/.env.*
 *.log
 sidecars
-src/website
+app/website
 host/target
 
 # ui image runs this prebuilt Nitro server, including its traced node_modules.
-!src/ui/.output
-!src/ui/.output/**
-!src/ui/.output/**/node_modules
-!src/ui/.output/**/node_modules/**
+!app/ui/.output
+!app/ui/.output/**
+!app/ui/.output/**/node_modules
+!app/ui/.output/**/node_modules/**

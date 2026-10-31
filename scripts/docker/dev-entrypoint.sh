@@ -7,7 +7,7 @@ if [ "$(id -u)" -eq 0 ]; then
   exit 1
 fi
 export PATH="/app/data/home/.local/app-bins:${PATH}"
-cd /app/src
+cd /app/app
 # Named node_modules volumes start empty. One-off node processes
 # share this path; serialize install only.
 if [ ! -e node_modules/citty ]; then

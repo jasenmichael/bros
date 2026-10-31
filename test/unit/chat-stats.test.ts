@@ -3,8 +3,8 @@ import {
   ollamaNameFromModelId,
   parseOllamaContextLength,
   usageFromOllamaObject,
-} from '../../src/server/utils/chat/chatStats'
-import { formatContextLabel, formatMetaStats, splitStreamBody } from '../../src/ui/utils/chatMeta'
+} from '../../app/server/utils/chat/chatStats'
+import { formatContextLabel, formatMetaStats, splitStreamBody } from '../../app/ui/utils/chatMeta'
 
 describe('chat stats parse', () => {
   it('reads Ollama prompt_eval_count and eval_count', () => {

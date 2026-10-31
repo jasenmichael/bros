@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { parse as parseYaml } from 'yaml'
-import { setAppRunsInDockerForTests } from '../../src/server/utils/hostProbe'
+import { setAppRunsInDockerForTests } from '../../app/server/utils/hostProbe'
 import {
   collectPublicProxyTargets,
   firstPathSegment,
@@ -17,9 +17,9 @@ import {
   dockerAppProxyUpstreamOrigin,
   stripNamedCookie,
   stripSessionCookie,
-} from '../../src/server/utils/docker-app/dockerAppProxy'
-import { parseDockerAppMeta, type DockerAppMeta } from '../../src/server/utils/docker-app/dockerApps'
-import { dockerAppOpenLinks, dockerAppWebUiLinks } from '../../src/ui/utils/docker-app/dockerAppHostLinks'
+} from '../../app/server/utils/docker-app/dockerAppProxy'
+import { parseDockerAppMeta, type DockerAppMeta } from '../../app/server/utils/docker-app/dockerApps'
+import { dockerAppOpenLinks, dockerAppWebUiLinks } from '../../app/ui/utils/docker-app/dockerAppHostLinks'
 
 const root = join(import.meta.dirname, '../..')
 

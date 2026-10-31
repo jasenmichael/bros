@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { isRetryablePullError, pullOllamaModelStream, pullOllamaModelStreamWithRetry } from '../../src/server/utils/providers'
+import { isRetryablePullError, pullOllamaModelStream, pullOllamaModelStreamWithRetry } from '../../app/server/utils/providers'
 
 function ndjsonBody(lines: object[]) {
   const text = lines.map((l) => JSON.stringify(l)).join('\n') + '\n'

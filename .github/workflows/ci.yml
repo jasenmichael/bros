@@ -18,19 +18,19 @@ jobs:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
         with:
-          package_json_file: src/package.json
+          package_json_file: app/package.json
       - uses: actions/setup-node@v5
         with:
           # Same Node as the ui image so better-sqlite3 loads.
           node-version: 26.7.0
           cache: pnpm
-          cache-dependency-path: src/pnpm-lock.yaml
+          cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-        working-directory: src
+        working-directory: app
       - run: pnpm typecheck
-        working-directory: src
+        working-directory: app
       - run: pnpm test:ci
-        working-directory: src
+        working-directory: app
 
   rust:
     runs-on: ubuntu-24.04

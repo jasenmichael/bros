@@ -4,7 +4,7 @@ packages:
   - 'layers/*'
 
 # pnpm 12 reads these here. .npmrc is auth and registry only.
-# src/server is outside @bros/ui. Public hoist lets the server resolve pathe and the rest.
+# app/server is outside @bros/ui. Public hoist lets the server resolve pathe and the rest.
 shamefullyHoist: true
 strictPeerDependencies: false
 # 0 skips the pnpm 12 registry recheck (default 1440). false: a filtered install never leaves a state file, so dev and both builds would reinstall every run.

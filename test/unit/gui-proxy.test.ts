@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { guiAppProxyId } from '../../src/ui/utils/gui'
-import { injectDesktopStreamVisibility, isDesktopStreamPath } from '../../src/server/utils/docker-app/guiProxy'
-import { needsAuthGate } from '../../src/server/utils/docker-app/dockerAppProxy'
-import { isReservedDockerAppId, parseDockerAppMeta, shouldAutostartDockerApp } from '../../src/server/utils/docker-app/dockerApps'
+import { guiAppProxyId } from '../../app/ui/utils/gui'
+import { injectDesktopStreamVisibility, isDesktopStreamPath } from '../../app/server/utils/docker-app/guiProxy'
+import { needsAuthGate } from '../../app/server/utils/docker-app/dockerAppProxy'
+import { isReservedDockerAppId, parseDockerAppMeta, shouldAutostartDockerApp } from '../../app/server/utils/docker-app/dockerApps'
 
 describe('desktop stream paths', () => {
   it('keeps bare /desktop as the page and proxies the stream prefix', () => {
