@@ -392,103 +392,8 @@ fn resolve_workspace(data: &str, env_workspace: Option<&str>, yaml_workspace: Op
     Some(format!("{data}/home/workspace"))
 }
 
-/// Rewrite install-preserved `.env` keys: `BROS_HOST_DATA_DIR` → `BROS_DATA_DIR`,
-/// `BROS_HOST_WORKSPACE` → `BROS_WORKSPACE`. Drops the old key when the new one exists.
-fn migrate_legacy_dotenv(text: &str) -> Option<String> {
-    let mut has_data = false;
-    let mut has_workspace = false;
-    for raw in text.lines() {
-        let mut line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix("export ") {
-            line = rest.trim();
-        }
-        let Some((key, _)) = line.split_once('=') else { continue };
-        match key.trim() {
-            "BROS_DATA_DIR" => has_data = true,
-            "BROS_WORKSPACE" => has_workspace = true,
-            _ => {}
-        }
-    }
-
-    let mut changed = false;
-    let mut out = Vec::with_capacity(text.lines().count());
-    for raw in text.lines() {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            let next = scrub_legacy_dotenv_names(raw);
-            if next != raw {
-                changed = true;
-            }
-            out.push(next);
-            continue;
-        }
-        let export = trimmed.strip_prefix("export ");
-        let body = export.unwrap_or(trimmed);
-        let Some((key, val)) = body.split_once('=') else {
-            out.push(scrub_legacy_dotenv_names(raw));
-            continue;
-        };
-        let key = key.trim();
-        let scrubbed = scrub_legacy_dotenv_names(val);
-        if scrubbed != val {
-            changed = true;
-        }
-        let (keep, new_key) = match key {
-            "BROS_HOST_DATA_DIR" if has_data => {
-                changed = true;
-                (false, key)
-            }
-            "BROS_HOST_DATA_DIR" => {
-                changed = true;
-                has_data = true;
-                (true, "BROS_DATA_DIR")
-            }
-            "BROS_HOST_WORKSPACE" if has_workspace => {
-                changed = true;
-                (false, key)
-            }
-            "BROS_HOST_WORKSPACE" => {
-                changed = true;
-                has_workspace = true;
-                (true, "BROS_WORKSPACE")
-            }
-            _ => (true, key),
-        };
-        if !keep {
-            continue;
-        }
-        let prefix = if export.is_some() { "export " } else { "" };
-        let indent: String = raw.chars().take_while(|c| c.is_whitespace()).collect();
-        out.push(format!("{indent}{prefix}{new_key}={scrubbed}"));
-    }
-    if !changed {
-        return None;
-    }
-    let mut next = out.join("\n");
-    if text.ends_with('\n') {
-        next.push('\n');
-    }
-    Some(next)
-}
-
-fn scrub_legacy_dotenv_names(s: &str) -> String {
-    // Bare replace also covers `$BROS_HOST_DATA_DIR` / `${…}` forms.
-    s.replace("BROS_HOST_DATA_DIR", "BROS_DATA_DIR")
-        .replace("BROS_HOST_WORKSPACE", "BROS_WORKSPACE")
-}
-
 fn load_dotenv(path: &Path) {
     let Ok(text) = fs::read_to_string(path) else { return };
-    let text = match migrate_legacy_dotenv(&text) {
-        Some(next) => {
-            let _ = fs::write(path, &next);
-            next
-        }
-        None => text,
-    };
     for raw in text.lines() {
         let mut line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -1833,31 +1738,6 @@ mod tests {
         );
         let resolved = parse_dotenv_value("$HOME/dev/bros/data # persistent binds").unwrap();
         assert!(host_path_problem("BROS_DATA_DIR", &resolved).is_none());
-    }
-
-    #[test]
-    fn migrate_legacy_dotenv_renames_host_data_dir() {
-        let next = migrate_legacy_dotenv(
-            "# $BROS_HOST_DATA_DIR note\nBROS_HOST_DATA_DIR=/home/me/dev/bros/data # binds\n# BROS_HOST_WORKSPACE=$BROS_HOST_DATA_DIR/home/workspace\n",
-        )
-        .expect("rewrites");
-        assert!(next.contains("BROS_DATA_DIR=/home/me/dev/bros/data # binds"));
-        assert!(!next.contains("BROS_HOST_DATA_DIR"));
-        assert!(next.contains("# $BROS_DATA_DIR note"));
-        assert!(next.contains("# BROS_WORKSPACE=$BROS_DATA_DIR/home/workspace"));
-        assert!(migrate_legacy_dotenv(&next).is_none());
-    }
-
-    #[test]
-    fn migrate_legacy_dotenv_drops_old_when_new_exists() {
-        let next = migrate_legacy_dotenv(
-            "BROS_DATA_DIR=/keep\nBROS_HOST_DATA_DIR=/drop\nBROS_HOST_WORKSPACE=/ws\n",
-        )
-        .expect("rewrites");
-        assert!(next.contains("BROS_DATA_DIR=/keep"));
-        assert!(!next.contains("/drop"));
-        assert!(next.contains("BROS_WORKSPACE=/ws"));
-        assert!(!next.contains("BROS_HOST_"));
     }
 
     #[test]
