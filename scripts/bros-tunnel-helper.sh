@@ -437,12 +437,9 @@ maybe_autostart() {
   start_cf || true
 }
 
-# public_url is the enable signal at helper process start (not every loop,
-# so a Dashboard stop stays off until ./bros or helper restart).
+# Autostart from enabled file only (written by bros_tunnel_startup / Dashboard).
+# A Dashboard stop stays off until ./bros or helper restart rewrites enabled.
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  if [[ -n "$(read_public_url)" ]]; then
-    printf '1\n' >"${DIR}/enabled"
-  fi
   maybe_autostart
   while true; do
     handle_command

@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig, shouldAutostartFromPublicUrl } from '../../app/server/utils/config'
+import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig } from '../../app/server/utils/config'
 
-const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_DIR', 'BROS_WORKSPACE'] as const
+const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_TUNNEL_HOST', 'BROS_DIR', 'BROS_WORKSPACE'] as const
 
 describe('loadBootstrapConfig', () => {
   const saved: Record<string, string | undefined> = {}
@@ -60,19 +60,29 @@ describe('loadBootstrapConfig', () => {
     writeFileSync(join(root, 'bros.yml'), 'public_url: "https://bros.example.com"\n')
     const cfg = loadBootstrapConfig(root)
     expect(cfg.publicUrl).toBe('https://bros.example.com')
-    expect(shouldAutostartFromPublicUrl(cfg.publicUrl)).toBe(true)
   })
 
   it('treats missing or empty public_url as unset', () => {
     writeFileSync(join(root, 'bros.yml'), 'public_url: ""\n')
     expect(loadBootstrapConfig(root).publicUrl).toBeNull()
-    expect(shouldAutostartFromPublicUrl(null)).toBe(false)
-    expect(shouldAutostartFromPublicUrl('   ')).toBe(false)
   })
 
   it('uses BROS_PUBLIC_URL over yaml', () => {
     writeFileSync(join(root, 'bros.yml'), 'public_url: "https://from-yaml.example"\n')
     process.env.BROS_PUBLIC_URL = 'https://from-env.example'
+    expect(loadBootstrapConfig(root).publicUrl).toBe('https://from-env.example')
+  })
+
+  it('uses BROS_TUNNEL_HOST when BROS_PUBLIC_URL unset', () => {
+    writeFileSync(join(root, 'bros.yml'), 'public_url: "https://from-yaml.example"\n')
+    process.env.BROS_TUNNEL_HOST = 'bros.from-host.example'
+    expect(loadBootstrapConfig(root).publicUrl).toBe('https://bros.from-host.example')
+  })
+
+  it('BROS_PUBLIC_URL wins over BROS_TUNNEL_HOST', () => {
+    writeFileSync(join(root, 'bros.yml'), 'public_url: "https://from-yaml.example"\n')
+    process.env.BROS_PUBLIC_URL = 'https://from-env.example'
+    process.env.BROS_TUNNEL_HOST = 'ignored.example'
     expect(loadBootstrapConfig(root).publicUrl).toBe('https://from-env.example')
   })
 

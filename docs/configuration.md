@@ -10,12 +10,13 @@ description: bros.yml in the data config dir, and host data binds.
 The app loads `$BROS_DIR/bros.yml` (same as `$BROS_DIR/bros.yml`). It does not read `~/.config/bros.yml`. A leftover `$BROS_DATA_DIR/config/bros.yml` is moved to `$BROS_DIR/bros.yml` on startup when the home file is missing.
 
 ```yaml
+tunnel: true
 public_url: https://bros.example.com
 enable_host_ollama: false
 enable_whisper: false
 ```
 
-`public_url` enables the host Cloudflare tunnel and is the advertised hostname. `enable_host_ollama` and `enable_whisper` default off. Chat prepend and assistant description are the `rules` and `personality` skill files. Provider API keys stay in SQLite (no `OPENAI_API_KEY` env). Passkey and session secret are files under the data dir.
+`tunnel` (or env `BROS_TUNNEL`) opts in the host Cloudflare tunnel; default off. `public_url` is the advertised hostname for a named tunnel when the tunnel is enabled (never an enable signal by itself). `enable_host_ollama` and `enable_whisper` default off. Chat prepend and assistant description are the `rules` and `personality` skill files. Provider API keys stay in SQLite (no `OPENAI_API_KEY` env). Passkey and session secret are files under the data dir.
 
 Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tunnel).
 
@@ -39,7 +40,7 @@ $BROS_DIR/lib/desktop/        # the Bros image
 
 ```text
 $BROS_DIR/
-  bros.yml                       # bootstrap YAML (public_url, whisper, host ollama, workspace)
+  bros.yml                       # bootstrap YAML (tunnel, public_url, whisper, host ollama, workspace)
   data/                          # $BROS_DATA_DIR
   passkey                        # under data/
   …
