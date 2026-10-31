@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "bros"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "ctrlc",
  "libc",

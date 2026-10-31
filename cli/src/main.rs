@@ -297,6 +297,27 @@ fn data_dir_for(home: &str, set: Option<&str>) -> String {
     }
 }
 
+/// Refuse paths that would make Docker create junk under BROS_HOME (literal `$HOME`, `#`, relative).
+fn host_path_problem(name: &str, path: &str) -> Option<String> {
+    if path.contains('$') || path.contains('#') {
+        return Some(format!(
+            "{name} is not expanded ({path}). Fix .env ($HOME/… or an absolute path; same-line # comments are stripped). A literal $ makes Docker create dirs under BROS_HOME."
+        ));
+    }
+    if !Path::new(path).is_absolute() {
+        return Some(format!(
+            "{name} must be absolute (got {path}). Relative paths resolve under BROS_HOME and can create junk dirs."
+        ));
+    }
+    None
+}
+
+fn reject_bad_host_path(name: &str, path: &str) {
+    if let Some(msg) = host_path_problem(name, path) {
+        die(&msg);
+    }
+}
+
 /// Drop an unquoted trailing ` # comment` (space + hash).
 fn strip_unquoted_inline_comment(val: &str) -> &str {
     match val.find(" #") {
@@ -460,13 +481,18 @@ fn export_host_env(repo: &Path, config_flag: Option<&str>) -> Paths {
         env::var("BROS_HOME").ok().as_deref(),
     );
     let data = data_dir_for(&home, env::var("BROS_HOST_DATA_DIR").ok().as_deref());
+    reject_bad_host_path("BROS_HOST_DATA_DIR", &data);
     env::set_var("BROS_DIR", &dir);
     env::set_var("BROS_HOME", &home);
     env::set_var("BROS_HOST_DATA_DIR", &data);
     env::set_var("BROS_HOST_REPO", env::var("BROS_HOST_REPO").unwrap_or(repo_s));
     let config = resolve_config(&data, &home, config_flag);
     let yaml_workspace = config.as_ref().and_then(|path| yaml_top(path, "workspace"));
-    if let Some(workspace) = resolve_workspace(&data, env::var("BROS_HOST_WORKSPACE").ok().as_deref(), yaml_workspace.as_deref()) {
+    let env_workspace = env::var("BROS_HOST_WORKSPACE").ok().map(|s| expand_dotenv_value(&s, Some(&home)));
+    if let Some(ref ws) = env_workspace {
+        reject_bad_host_path("BROS_HOST_WORKSPACE", ws);
+    }
+    if let Some(workspace) = resolve_workspace(&data, env_workspace.as_deref(), yaml_workspace.as_deref()) {
         env::set_var("BROS_HOST_WORKSPACE", workspace);
     }
     if let Some(path) = &config {
@@ -1640,6 +1666,17 @@ mod tests {
             parse_dotenv_value("$HOME/dev/bros/data # persistent binds").as_deref(),
             Some("/home/me/dev/bros/data")
         );
+        let resolved = parse_dotenv_value("$HOME/dev/bros/data # persistent binds").unwrap();
+        assert!(host_path_problem("BROS_HOST_DATA_DIR", &resolved).is_none());
+    }
+
+    #[test]
+    fn host_data_dir_rejects_literal_dollar_and_relative() {
+        assert!(host_path_problem("BROS_HOST_DATA_DIR", "$HOME/dev/bros/data").is_some());
+        assert!(host_path_problem("BROS_HOST_DATA_DIR", "/home/me/.bros/$HOME/x").is_some());
+        assert!(host_path_problem("BROS_HOST_DATA_DIR", "data # bad").is_some());
+        assert!(host_path_problem("BROS_HOST_DATA_DIR", "relative/data").is_some());
+        assert!(host_path_problem("BROS_HOST_DATA_DIR", "/home/me/dev/bros/data").is_none());
     }
 
     #[test]
