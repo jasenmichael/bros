@@ -142,7 +142,7 @@ describe('public_url tunnel startup', () => {
     expect(out).toContain('WANT_START')
   })
 
-  it('advertised url is the configured host, else the enabled helper url', () => {
+  it('advertised url empty when disabled; configured host or helper url when enabled', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-puburl-adv-'))
     const dir = join(root, 'data/var/tunnel')
     mkdirSync(dir, { recursive: true })
@@ -152,6 +152,7 @@ describe('public_url tunnel startup', () => {
       `set -euo pipefail
        source "${TUNNEL_SH}"
        printf '%s\n' "off=$(bros_tunnel_advertised_url)"
+       printf '%s\n' "named_off=$(BROS_TUNNEL_HOST=bros.example.com bros_tunnel_advertised_url)"
        printf '1\n' > "$(bros_tunnel_dir)/enabled"
        printf '%s\n' "quick=$(bros_tunnel_advertised_url)"
        printf '%s\n' "named=$(BROS_TUNNEL_HOST=bros.example.com bros_tunnel_advertised_url)"`,
@@ -159,6 +160,8 @@ describe('public_url tunnel startup', () => {
     )
     expect(out).toContain('off=')
     expect(out).not.toContain('off=https://')
+    expect(out).toContain('named_off=')
+    expect(out).not.toContain('named_off=https://')
     expect(out).toContain('quick=https://quick.trycloudflare.com')
     expect(out).toContain('named=https://bros.example.com')
   })

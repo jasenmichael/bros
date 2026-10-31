@@ -94,7 +94,7 @@ Opens a browser so Cloudflare can authorize this host. Success writes `~/.cloudf
 
 ## Enable (opt-in)
 
-Tunnel is **off** by default. Autostart only when `BROS_TUNNEL` is `true` / `1` / `yes` (any case), or — when that env is unset — YAML `tunnel` with the same truthy values (`$BROS_DIR/bros.yml`). Hostname (`public_url` / `BROS_TUNNEL_HOST`) never enables. The Dashboard card can start or stop for the current helper life; the next `bros` start rewrites enable from config.
+Tunnel is **off** by default. Autostart only when `BROS_TUNNEL` is `true` / `1` / `yes` (any case), or — when that env is unset — YAML `tunnel` with the same truthy values (`$BROS_DIR/bros.yml`). Hostname (`public_url` / `BROS_TUNNEL_HOST`) never enables. `bros` still starts the host helper when the tunnel is off so the Dashboard card can enable; cloudflared does not start until enabled. The CLI start banner prints the Public URL only when the tunnel is enabled. The Dashboard card can start or stop for the current helper life; the next `bros` start rewrites enable from config.
 
 ## Named vs quick
 
@@ -126,7 +126,7 @@ Turning the card off stops the process until the next `bros` / helper start. `PO
 
 ## Helper files
 
-`bros` (and `BROS_DEV=1 ./bros`) start a small helper that writes:
+`bros` (and `BROS_DEV=1 ./bros`) always start a small helper (even when the tunnel is off) that writes:
 
 ```text
 $BROS_DIR/data/var/tunnel/
