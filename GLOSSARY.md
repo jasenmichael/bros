@@ -39,6 +39,16 @@ _Avoid_: Agent page
 
 The addon that installs `agent`. Not the Agents page. Not the Cursor runtime. The runtime binary is `cursor-agent` under the Desktop home.
 
+## Agent skill
+
+A Cursor or Claude skill under repo `skills/`. Install with `npx skills@latest add jasenmichael/bros`. Not a Chat skill.
+_Avoid_: skill (alone when Chat skills are in scope)
+
+## Skill
+
+A Chat prompt pack (`rules`, `personality`) under `lib/skills/`, seeded into `$BROS_HOME/data/config/skills`. Applies on Chat turns only. Not an Agent skill.
+_Avoid_: agent skill
+
 ## Workspace
 
 The Desktop working directory. Host path `BROS_HOST_WORKSPACE`, else `bros.yml` `workspace`, else `data/home/workspace`. Inside Desktop it is `/home/bros/workspace`.
