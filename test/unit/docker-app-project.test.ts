@@ -366,6 +366,8 @@ describe('dockerApp data binds', () => {
     expect(gui).toContain('w/$n/pid')
     expect(gui).toContain('focus_one')
     expect(gui).toContain('desktop-gui.sh status')
+    expect(gui).toContain('Mapped windows only. Live PIDs without a labwc map do not count.')
+    expect(gui).not.toContain('echo "$words"')
     const win = spawnSync('python3', [join(root, 'lib/desktop/desktop-win.py'), '--self-check'], { encoding: 'utf8' })
     expect(win.status, win.stderr).toBe(0)
   })
