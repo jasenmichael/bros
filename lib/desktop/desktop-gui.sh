@@ -170,7 +170,8 @@ $(read_windows "$id")
 EOF
 }
 
-# Mapped windows. A process with no window, after one was seen, is stopped.
+# Mapped windows only. Live PIDs without a labwc map do not count.
+# A process with no window, after one was seen, is stopped.
 mapped_count() {
   id=$1
   dir="$STATE/$id"
@@ -186,13 +187,13 @@ mapped_count() {
   fi
   app=$(cat "$dir/app" 2>/dev/null || true)
   if [ -z "$app" ]; then
-    echo "$words"
+    echo 0
     return
   fi
   code=0
   out=$(py count "$app" $pids) || code=$?
   if [ "$code" -ne 0 ]; then
-    echo "$words"
+    echo 0
     return
   fi
   n=$(printf '%s\n' "$out" | awk 'NR==1 { print $1 }')
@@ -211,7 +212,7 @@ mapped_count() {
     echo 0
     return
   fi
-  echo "$words"
+  echo 0
 }
 
 status_all() {
