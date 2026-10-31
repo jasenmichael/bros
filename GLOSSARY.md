@@ -100,7 +100,7 @@ The optional Cloudflare tunnel on the host machine. Off until explicitly enabled
 
 ## Public URL
 
-The advertised hostname for a named host tunnel. Distinct from enabling the tunnel.
+The configured hostname for a named host tunnel. Distinct from enabling the tunnel. The CLI start banner prints it only when the Host tunnel is enabled.
 
 ## Install root
 

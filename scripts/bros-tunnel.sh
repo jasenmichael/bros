@@ -96,15 +96,16 @@ bros_tunnel_read_public_url() {
   bros_tunnel_trim "$(bros_yaml_scalar "$file" "public_url")"
 }
 
-# Configured URL, else the helper's advertised quick-tunnel URL when enabled.
+# When enabled: configured URL, else helper quick-tunnel URL. Empty when disabled
+# so CLI start banner does not print Public URL while Host tunnel is off.
 bros_tunnel_advertised_url() {
   local url host dir
+  bros_tunnel_enabled || return 0
   url="$(bros_tunnel_read_public_url)"
   if [[ -n "$url" ]]; then
     printf '%s' "$url"
     return 0
   fi
-  bros_tunnel_enabled || return 0
   dir="$(bros_tunnel_dir)"
   if [[ -f "$dir/public_url" ]]; then
     url="$(bros_tunnel_trim "$(head -n1 "$dir/public_url")")"
