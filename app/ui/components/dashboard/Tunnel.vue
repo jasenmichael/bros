@@ -22,9 +22,10 @@ const tunnelState = computed(() => (tunnelRunning.value ? 'running' : 'stopped')
 
 const tunnelLink = computed(() => {
   const t = props.tunnel
-  if (!t || !t.helperAlive || !t.installed || !t.loggedIn) return null
-  const host = t.publicUrl || t.hostname || props.tunnelHost
+  if (!t || !tunnelRunning.value || !t.helperAlive || !t.installed || !t.loggedIn) return null
+  const host = t.publicUrl || t.hostname
   if (!host) return null
+  if (/trycloudflare\.com/i.test(host) && !tunnelRunning.value) return null
   return /^https?:\/\//i.test(host) ? host : `https://${host}`
 })
 
@@ -83,20 +84,27 @@ async function toggleTunnel() {
   if (tunnelLocked.value || tunnelBusy.value) return
   tunnelBusy.value = true
   tunnelNote.value = ''
+  const wantOn = !tunnelRunning.value
   try {
-    if (!tunnelRunning.value) {
+    if (wantOn) {
       await $fetch('/api/tunnel/start', { method: 'POST' })
     }
     else {
       await $fetch('/api/tunnel/stop', { method: 'POST' })
     }
     emit('refresh')
+    // Helper status lags the command file by up to ~1s.
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 400))
+      emit('refresh')
+    }
   }
   catch (err: unknown) {
     const statusMessage = typeof err === 'object' && err && 'data' in err
       ? (err as { data?: { statusMessage?: string } }).data?.statusMessage
       : undefined
     tunnelNote.value = statusMessage || (err instanceof Error ? err.message : 'Tunnel action failed')
+    emit('refresh')
   }
   finally {
     tunnelBusy.value = false
@@ -124,10 +132,10 @@ onUnmounted(() => setLogPoll(false))
       </p>
       <button
         type="button"
-        class="h-9 w-9 shrink-0 rounded-full border-2 transition-colors"
+        class="h-9 w-9 shrink-0 rounded-full border-2 transition-colors disabled:opacity-50"
         :class="tunnelRunning
-          ? 'border-[var(--bros-ok)] bg-[var(--bros-ok)]'
-          : 'border-[var(--bros-muted)] bg-transparent'"
+          ? 'border-success bg-success shadow-[0_0_0_3px] shadow-success/25'
+          : 'border-error bg-error/90 shadow-[0_0_0_3px] shadow-error/20'"
         :disabled="tunnelLocked || tunnelBusy"
         :aria-pressed="tunnelRunning"
         :aria-label="tunnelToggleLabel"

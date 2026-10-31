@@ -639,6 +639,27 @@ exit 0
     expect(readFileSync(join(tunnelDir, 'error'), 'utf8')).not.toMatch(/^Failed to route /)
   })
 
+  it('write_status clears quick hostname when cloudflared is stopped', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-status-off-'))
+    const tunnelDir = join(root, 'tunnel')
+    mkdirSync(tunnelDir, { recursive: true })
+    writeFileSync(join(tunnelDir, 'hostname'), 'old-quick.trycloudflare.com\n')
+    writeFileSync(join(tunnelDir, 'logs.txt'), 'https://old-quick.trycloudflare.com\n')
+    bash(
+      `set -euo pipefail
+       source "${HELPER_SH}"
+       write_status`,
+      { BROS_TUNNEL_DIR: tunnelDir, BROS_PORT: '3055', HOME: root, PATH: '/usr/bin:/bin' },
+    )
+    const parsed = JSON.parse(readFileSync(join(tunnelDir, 'status.json'), 'utf8')) as {
+      running: boolean
+      hostname: string | null
+    }
+    expect(parsed.running).toBe(false)
+    expect(parsed.hostname).toBeNull()
+    expect(existsSync(join(tunnelDir, 'hostname'))).toBe(false)
+  })
+
   it('write_status keeps a route dns warning while the pid is alive', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-status-dns-'))
     const tunnelDir = join(root, 'tunnel')

@@ -106,14 +106,21 @@ describe('Dashboard hub', () => {
   })
 })
 
+function resetTunnelSummary(patch: Partial<typeof summary.tunnel> & { viaTunnel?: boolean; tunnelHost?: string | null } = {}) {
+  summary.viaTunnel = patch.viaTunnel ?? false
+  summary.tunnelHost = patch.tunnelHost ?? null
+  summary.tunnel.running = patch.running ?? false
+  summary.tunnel.hostname = patch.hostname ?? null
+  summary.tunnel.publicUrl = patch.publicUrl ?? null
+  summary.tunnel.error = patch.error ?? null
+  summary.tunnel.helperAlive = patch.helperAlive ?? true
+  summary.tunnel.installed = patch.installed ?? true
+  summary.tunnel.loggedIn = patch.loggedIn ?? true
+}
+
 describe('Dashboard tunnel card', () => {
   it('shows Tunnel on the hub and starts the host process when off', async () => {
-    summary.viaTunnel = false
-    summary.tunnelHost = null
-    summary.tunnel.running = false
-    summary.tunnel.hostname = null
-    summary.tunnel.error = null
-    summary.tunnel.helperAlive = true
+    resetTunnelSummary()
     fetchMock.mockClear()
 
     const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
@@ -122,19 +129,39 @@ describe('Dashboard tunnel card', () => {
     expect(wrapper.text()).toContain('stopped')
     expect(wrapper.text()).toContain('Logs')
     expect(wrapper.text()).not.toContain('cloudflared dockerApp missing')
+    expect(wrapper.text()).not.toContain('trycloudflare.com')
 
     const toggle = wrapper.get('[aria-label="Turn Cloudflare tunnel on"]')
+    expect(toggle.classes().join(' ')).toMatch(/border-error/)
+    expect(toggle.classes().join(' ')).not.toMatch(/border-success/)
     await toggle.trigger('click')
     expect(fetchMock).toHaveBeenCalledWith('/api/tunnel/start', { method: 'POST' })
   })
 
+  it('hides a stale quick-tunnel URL while stopped', async () => {
+    resetTunnelSummary({
+      tunnelHost: 'knives-invision-luck-biodiversity.trycloudflare.com',
+      hostname: 'knives-invision-luck-biodiversity.trycloudflare.com',
+      publicUrl: 'https://knives-invision-luck-biodiversity.trycloudflare.com',
+    })
+
+    const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(Dashboard)
+    expect(wrapper.text()).toContain('stopped')
+    expect(wrapper.text()).not.toContain('trycloudflare.com')
+    expect(wrapper.find('a[href*="trycloudflare.com"]').exists()).toBe(false)
+    const toggle = wrapper.get('[aria-label="Turn Cloudflare tunnel on"]')
+    expect(toggle.classes().join(' ')).toMatch(/border-error/)
+  })
+
   it('disables stop when the session is via tunnel', async () => {
-    summary.viaTunnel = true
-    summary.tunnelHost = 'bros.example.com'
-    summary.tunnel.running = true
-    summary.tunnel.hostname = 'bros.example.com'
-    summary.tunnel.error = null
-    summary.tunnel.helperAlive = true
+    resetTunnelSummary({
+      viaTunnel: true,
+      tunnelHost: 'bros.example.com',
+      running: true,
+      hostname: 'bros.example.com',
+      publicUrl: 'https://bros.example.com',
+    })
     fetchMock.mockClear()
 
     const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
@@ -147,20 +174,19 @@ describe('Dashboard tunnel card', () => {
 
     const toggle = wrapper.get('[aria-label="Cannot turn tunnel off while connected through it"]')
     expect((toggle.element as HTMLButtonElement).disabled).toBe(true)
+    expect(toggle.classes().join(' ')).toMatch(/border-success/)
     await toggle.trigger('click')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('shows runtime error while the host process is still running', async () => {
-    summary.viaTunnel = false
-    summary.tunnelHost = 'bros.example.com'
-    summary.tunnel.running = true
-    summary.tunnel.hostname = 'bros.example.com'
-    summary.tunnel.publicUrl = 'https://bros.example.com'
-    summary.tunnel.error = 'failed to accept QUIC stream: timeout: no recent network activity'
-    summary.tunnel.helperAlive = true
-    summary.tunnel.installed = true
-    summary.tunnel.loggedIn = true
+    resetTunnelSummary({
+      tunnelHost: 'bros.example.com',
+      running: true,
+      hostname: 'bros.example.com',
+      publicUrl: 'https://bros.example.com',
+      error: 'failed to accept QUIC stream: timeout: no recent network activity',
+    })
 
     const Dashboard = await import('../../app/ui/pages/index.vue').then((m) => m.default)
     const wrapper = await mountSuspended(Dashboard)
