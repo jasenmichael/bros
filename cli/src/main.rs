@@ -292,9 +292,63 @@ fn fill_roots(repo: &str, dir: Option<&str>, home: Option<&str>) -> (String, Str
 
 fn data_dir_for(home: &str, set: Option<&str>) -> String {
     match set.map(str::trim).filter(|s| !s.is_empty()) {
-        Some(dir) => dir.to_string(),
+        Some(dir) => expand_dotenv_value(dir, Some(home)),
         None => format!("{home}/data"),
     }
+}
+
+/// Drop an unquoted trailing ` # comment` (space + hash).
+fn strip_unquoted_inline_comment(val: &str) -> &str {
+    match val.find(" #") {
+        Some(i) => &val[..i],
+        None => val,
+    }
+}
+
+/// Expand `~`, `$HOME` / `${HOME}`, and `$BROS_HOME` / `${BROS_HOME}` in a .env value.
+fn expand_dotenv_value(val: &str, bros_home: Option<&str>) -> String {
+    let home = env::var("HOME").unwrap_or_default();
+    let mut out = val.to_string();
+    if out == "~" {
+        return home;
+    }
+    if let Some(rest) = out.strip_prefix("~/") {
+        out = format!("{home}/{rest}");
+    }
+    if !home.is_empty() {
+        out = out.replace("${HOME}", &home);
+        out = out.replace("$HOME/", &format!("{home}/"));
+        if out == "$HOME" {
+            out = home;
+        }
+    }
+    if let Some(bh) = bros_home.filter(|s| !s.is_empty()) {
+        out = out.replace("${BROS_HOME}", bh);
+        out = out.replace("$BROS_HOME/", &format!("{bh}/"));
+        if out == "$BROS_HOME" {
+            out = bh.to_string();
+        }
+    }
+    out
+}
+
+fn parse_dotenv_value(raw: &str) -> Option<String> {
+    let val = raw.trim();
+    if val.is_empty() {
+        return None;
+    }
+    let bytes = val.as_bytes();
+    let quoted = val.len() >= 2
+        && ((bytes[0] == b'"' && bytes[val.len() - 1] == b'"') || (bytes[0] == b'\'' && bytes[val.len() - 1] == b'\''));
+    let owned = if quoted {
+        val[1..val.len() - 1].to_string()
+    } else {
+        strip_unquoted_inline_comment(val).trim().to_string()
+    };
+    if owned.is_empty() {
+        return None;
+    }
+    Some(expand_dotenv_value(&owned, env::var("BROS_HOME").ok().as_deref()))
 }
 
 fn container_data_dir(data: &str) -> bool {
@@ -337,18 +391,20 @@ fn load_dotenv(path: &Path) {
         if env::var_os(key).is_some() {
             continue;
         }
-        let mut val = val.trim();
-        if val.len() >= 2 {
-            let bytes = val.as_bytes();
-            if (bytes[0] == b'"' && bytes[val.len() - 1] == b'"') || (bytes[0] == b'\'' && bytes[val.len() - 1] == b'\'') {
-                val = &val[1..val.len() - 1];
-            }
-        }
-        if val.is_empty() {
-            continue;
-        }
+        let Some(val) = parse_dotenv_value(val) else { continue };
         env::set_var(key, val);
     }
+}
+
+fn api_unauthorized_hint(paths: &Paths, code: u16) -> String {
+    if code != 401 {
+        return format!("HTTP {code}");
+    }
+    let key = paths.data.join("proxy-key");
+    format!(
+        "HTTP 401 Unauthorized (Bearer proxy-key under {})",
+        key.display()
+    )
 }
 
 fn yaml_top(path: &Path, key: &str) -> Option<String> {
@@ -612,9 +668,13 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bo
     if ready {
         let (code, body) = http_code(&paths, "POST", "/api/apps/compose");
         if !(200..300).contains(&code) {
-            let detail = body.trim().replace('\n', " ");
-            let detail = if detail.len() > 160 { &detail[..160] } else { detail.as_str() };
-            say(&format!("warning: write-apps-compose failed (HTTP {code}) {detail}"));
+            if code == 401 {
+                say(&format!("warning: write-apps-compose failed ({})", api_unauthorized_hint(paths, code)));
+            } else {
+                let detail = body.trim().replace('\n', " ");
+                let detail = if detail.len() > 160 { &detail[..160] } else { detail.as_str() };
+                say(&format!("warning: write-apps-compose failed (HTTP {code}) {detail}"));
+            }
         }
     } else if HITS.load(Ordering::SeqCst) > 0 {
         finish_stop();
@@ -1089,7 +1149,10 @@ fn install_packaged_model(repo: &Path, paths: &Paths, dev: bool, use_runner: boo
     }
     let (code, _) = http_code_wait(paths, "GET", "/api/providers", 200);
     if !(200..300).contains(&code) {
-        say(&format!("Ollama model create was not confirmed ({code})"));
+        say(&format!(
+            "warning: GET /api/providers failed ({}) — check BROS_HOST_DATA_DIR and proxy-key",
+            api_unauthorized_hint(paths, code)
+        ));
     }
 }
 
@@ -1552,6 +1615,31 @@ mod tests {
     fn data_defaults_under_home() {
         assert_eq!(data_dir_for("/home", None), "/home/data");
         assert_eq!(data_dir_for("/home", Some("/var/bros")), "/var/bros");
+        assert_eq!(data_dir_for("/home", Some("$BROS_HOME/data")), "/home/data");
+    }
+
+    #[test]
+    fn dotenv_strips_inline_comment() {
+        assert_eq!(strip_unquoted_inline_comment("$HOME/dev/bros/data # persistent binds"), "$HOME/dev/bros/data");
+        assert_eq!(strip_unquoted_inline_comment("plain"), "plain");
+    }
+
+    #[test]
+    fn dotenv_expands_home_and_bros_home() {
+        env::set_var("HOME", "/home/me");
+        assert_eq!(expand_dotenv_value("$HOME/dev/bros/data", None), "/home/me/dev/bros/data");
+        assert_eq!(expand_dotenv_value("${HOME}/dev/bros/data", None), "/home/me/dev/bros/data");
+        assert_eq!(expand_dotenv_value("~/dev/bros/data", None), "/home/me/dev/bros/data");
+        assert_eq!(expand_dotenv_value("$BROS_HOME/data", Some("/opt/bros")), "/opt/bros/data");
+    }
+
+    #[test]
+    fn dotenv_parse_strips_comment_then_expands_home() {
+        env::set_var("HOME", "/home/me");
+        assert_eq!(
+            parse_dotenv_value("$HOME/dev/bros/data # persistent binds").as_deref(),
+            Some("/home/me/dev/bros/data")
+        );
     }
 
     #[test]

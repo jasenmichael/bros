@@ -5,7 +5,7 @@ description: Vars a user can set in .env, with defaults.
 
 # Environment
 
-No `.env` is needed for defaults. `./bros` and Compose apply the defaults below when a var is unset. Repo-root `example.env` lists each one commented, default after `=`, short note after that. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. To override, uncomment the line in `.env` and delete the trailing comment. `./bros` keeps that comment as part of the value. A var already set in the shell wins. Empty values are skipped. A local `.env` is gitignored. `bros update` refreshes `example.env` and does not replace an existing `.env`.
+No `.env` is needed for defaults. `./bros` and Compose apply the defaults below when a var is unset. Repo-root `example.env` lists each one commented, default after `=`, short note after that. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. To override, uncomment the line in `.env`. A same-line ` # comment` is ignored. `$HOME`, `${HOME}`, and a leading `~` expand from the process environment. `$BROS_HOME` / `${BROS_HOME}` expand when resolving `BROS_HOST_DATA_DIR`. A var already set in the shell wins. Empty values are skipped. A local `.env` is gitignored. `bros update` refreshes `example.env` and does not replace an existing `.env`.
 
 Server settings live in `$BROS_HOME/bros.yml`. Chat prepend and assistant description are the `rules` and `personality` skill files. Provider keys and chat history live in SQLite. There is no Providers key bootstrap. Paste those keys on Providers. Pi and OpenJEV can read the empty key names below when set.
 
