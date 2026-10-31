@@ -89,7 +89,7 @@ unpack_release() {
   if [[ -d "$BROS_DIR/.git" ]]; then
     die "$BROS_DIR is a source checkout. Re-run with --from-src."
   fi
-  local tmp url
+  local tmp url tree name dest trash
   url="$(release_url)"
   tmp="$(mktemp -d)"
   info "Downloading $url"
@@ -98,8 +98,37 @@ unpack_release() {
     die "release not found: $url
 Install from source: install.sh --from-src"
   fi
-  mkdir -p "$BROS_DIR"
-  tar -xzf "$tmp/bros.tar.gz" -C "$BROS_DIR"
+  tree="$tmp/tree"
+  mkdir -p "$tree" "$BROS_DIR"
+  if ! tar -xzf "$tmp/bros.tar.gz" -C "$tree"; then
+    rm -rf "$tmp"
+    die "could not unpack release"
+  fi
+  # Release files replace existing paths (keep data/).
+  local path
+  for path in "$tree"/*; do
+    [[ -e "$path" ]] || continue
+    name="$(basename "$path")"
+    [[ "$name" == data ]] && continue
+    trash=""
+    if [[ -e "$BROS_DIR/$name" || -L "$BROS_DIR/$name" ]]; then
+      if ! rm -rf "$BROS_DIR/$name" 2>/dev/null; then
+        trash="$BROS_DIR/.${name}.stale-$$"
+        rm -rf "$trash" 2>/dev/null || true
+        mv "$BROS_DIR/$name" "$trash" || {
+          rm -rf "$tmp"
+          die "cannot replace $BROS_DIR/$name (fix ownership: sudo chown -R \"\$USER\" \"$BROS_DIR\")"
+        }
+      fi
+    fi
+    mv "$path" "$BROS_DIR/$name" || {
+      rm -rf "$tmp"
+      die "cannot install $name into $BROS_DIR"
+    }
+    if [[ -n "$trash" && -e "$trash" ]]; then
+      rm -rf "$trash" 2>/dev/null || info "warning: left $trash (sudo rm -rf it)"
+    fi
+  done
   rm -rf "$tmp"
 }
 
