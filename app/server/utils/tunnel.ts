@@ -138,22 +138,30 @@ export function readTunnelStatus(dataDir: string, now = Date.now()): TunnelStatu
       : null
     const updatedAt = typeof raw.updatedAt === 'number' ? raw.updatedAt : null
     const fileError = typeof raw.error === 'string' && raw.error.trim() ? raw.error : null
-    const running = Boolean(raw.running)
+    const helperAlive = isTunnelHelperAlive(updatedAt, now)
+    // Frozen status.json after helper death must not keep the card "running".
+    const running = Boolean(raw.running) && helperAlive
     const logsFile = join(tunnelDir(dataDir), 'logs.txt')
     const runtimeError = running && existsSync(logsFile)
       ? parseTunnelRuntimeError(readFileSync(logsFile, 'utf8'))
       : null
+    const liveHostname = running
+      ? hostname
+      : (hostname && !hostname.toLowerCase().endsWith('.trycloudflare.com') ? hostname : null)
+    const livePublicUrl = running
+      ? publicUrl
+      : (publicUrl && !/trycloudflare\.com/i.test(publicUrl) ? publicUrl : null)
     return {
       running,
-      pid: typeof raw.pid === 'number' ? raw.pid : null,
-      hostname,
-      publicUrl,
+      pid: running && typeof raw.pid === 'number' ? raw.pid : null,
+      hostname: liveHostname,
+      publicUrl: livePublicUrl,
       error: runtimeError || fileError,
       installed: Boolean(raw.installed),
       loggedIn: Boolean(raw.loggedIn),
       helper: Boolean(raw.helper),
       updatedAt,
-      helperAlive: isTunnelHelperAlive(updatedAt, now),
+      helperAlive,
     }
   } catch {
     return emptyStatus()
@@ -202,10 +210,18 @@ export async function waitForTunnelState(
 }
 
 export function tunnelPublicPayload(status: TunnelStatus, publicUrl?: string | null) {
-  const advertised = (publicUrl ?? status.publicUrl ?? '').trim() || null
+  const configured = (publicUrl ?? '').trim() || null
+  const fromStatus = (status.publicUrl ?? '').trim() || null
+  // While down, only advertise a configured named host — never a stale quick URL.
+  const advertised = status.running
+    ? (configured || fromStatus || null)
+    : (configured || (fromStatus && !/trycloudflare\.com/i.test(fromStatus) ? fromStatus : null))
+  const hostname = status.running
+    ? (status.hostname || advertised)
+    : (advertised || null)
   return {
     running: status.running,
-    hostname: status.hostname || advertised,
+    hostname,
     publicUrl: advertised,
     installed: status.installed,
     loggedIn: status.loggedIn,

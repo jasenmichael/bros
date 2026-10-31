@@ -138,6 +138,47 @@ describe('tunnel control files', () => {
     expect(readFileSync(join(root, 'var', 'tunnel', 'command'), 'utf8').trim()).toBe('start')
   })
 
+  it('treats frozen status as not running when the helper is stale', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-tunnel-stale-'))
+    mkdirSync(join(root, 'var', 'tunnel'), { recursive: true })
+    writeFileSync(join(root, 'var', 'tunnel', 'status.json'), JSON.stringify({
+      running: true,
+      pid: 42,
+      hostname: 'lucky-river-1234.trycloudflare.com',
+      publicUrl: 'https://lucky-river-1234.trycloudflare.com',
+      error: null,
+      installed: true,
+      loggedIn: true,
+      helper: true,
+      updatedAt: Date.now() - 60_000,
+    }))
+    const status = readTunnelStatus(root)
+    expect(status.helperAlive).toBe(false)
+    expect(status.running).toBe(false)
+    expect(status.hostname).toBeNull()
+    expect(status.publicUrl).toBeNull()
+  })
+
+  it('omits stale quick URL from the public payload while stopped', () => {
+    root = mkdtempSync(join(tmpdir(), 'bros-tunnel-quick-off-'))
+    mkdirSync(join(root, 'var', 'tunnel'), { recursive: true })
+    writeFileSync(join(root, 'var', 'tunnel', 'status.json'), JSON.stringify({
+      running: false,
+      pid: null,
+      hostname: 'lucky-river-1234.trycloudflare.com',
+      publicUrl: 'https://lucky-river-1234.trycloudflare.com',
+      error: null,
+      installed: true,
+      loggedIn: true,
+      helper: true,
+      updatedAt: Date.now(),
+    }))
+    const status = readTunnelStatus(root)
+    expect(status.hostname).toBeNull()
+    expect(tunnelPublicPayload(status, null).hostname).toBeNull()
+    expect(tunnelPublicPayload(status, null).publicUrl).toBeNull()
+  })
+
   it('surfaces public_url and start error in the public payload', () => {
     root = mkdtempSync(join(tmpdir(), 'bros-tunnel-err-'))
     mkdirSync(join(root, 'var', 'tunnel'), { recursive: true })

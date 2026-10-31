@@ -325,7 +325,7 @@ write_status() {
     if [[ -n "$hostname" ]]; then
       printf '%s\n' "$hostname" >"${DIR}/hostname"
     fi
-  else
+  elif [[ "$running" == true ]]; then
     if [[ -f "${DIR}/hostname" ]]; then
       hostname="$(tr -d '[:space:]' <"${DIR}/hostname")"
     fi
@@ -335,6 +335,10 @@ write_status() {
       hostname="${parsed#https://}"
       printf '%s\n' "$hostname" >"${DIR}/hostname"
     fi
+  else
+    # Stopped quick tunnel: drop stale trycloudflare hostname from prior runs.
+    hostname=""
+    rm -f "${DIR}/hostname"
   fi
   if [[ -f "${DIR}/error" ]]; then
     err="$(head -c 800 "${DIR}/error")"
@@ -405,6 +409,10 @@ stop_cf() {
   fi
   rm -f "${DIR}/cloudflared.pid"
   rm -f "${DIR}/error"
+  # Quick-tunnel hostname is only valid while running.
+  if [[ -z "$(read_public_url)" ]]; then
+    rm -f "${DIR}/hostname"
+  fi
 }
 
 handle_command() {
