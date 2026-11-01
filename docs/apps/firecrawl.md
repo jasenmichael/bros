@@ -52,8 +52,10 @@ A success body has `"success": true` and `data.markdown`.
 ## Binds
 
 - `$BROS_DATA_DIR/apps/firecrawl/redis` → Redis `/data`
-- `$BROS_DATA_DIR/apps/firecrawl/rabbitmq` → RabbitMQ `/var/lib/rabbitmq`
+- `$BROS_DATA_DIR/apps/firecrawl/rabbitmq` → RabbitMQ `/var/lib/rabbitmq` (fixed hostname `firecrawl-rabbit`)
 - `$BROS_DATA_DIR/apps/firecrawl/postgres` → Postgres `/var/lib/postgresql/data`
+
+If RabbitMQ healthcheck sticks after a recreate, wipe `$BROS_DATA_DIR/apps/firecrawl/rabbitmq` and Start again.
 
 Postgres password: `BROS_FIRECRAWL_POSTGRES_PASSWORD` (default is a long local-only string). The database is not published to the host.
 

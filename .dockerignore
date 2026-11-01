@@ -16,7 +16,6 @@ graphify-out
 **/.env
 **/.env.*
 *.log
-sidecars
 app/website
 host/target
 
