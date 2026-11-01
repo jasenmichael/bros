@@ -22,7 +22,7 @@ npm, pnpm, bun, deno, uv, and cargo stay package-manager kinds for a later app. 
 
 ## Docker cores
 
-- **Ollama** — `lib/apps/core/ollama/`. Always on. See [Ollama](/docs/apps/ollama).
-- **Whisper** — `lib/apps/core/whisper/`. Settings **Enable Whisper**. See [Whisper](/docs/apps/whisper).
+- **Ollama** — `lib/apps/core/ollama/`. Always on. See [Ollama](/docs/apps/ollama.md).
+- **Whisper** — `lib/apps/core/whisper/`. Settings **Enable Whisper**. See [Whisper](/docs/apps/whisper.md).
 
-Hub: [Apps](/docs/apps). Docker packs: [Docker apps](/docs/apps).
+Hub: [Apps](/docs/apps.md). Docker packs: [Docker apps](/docs/apps.md).

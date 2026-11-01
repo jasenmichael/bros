@@ -18,4 +18,4 @@ Never publish host ports **3000** or **8080**. No `proxy.public` — Open/Pin st
 
 - `$BROS_DATA_DIR/apps/openwebui/data` → `/app/backend/data` (also `WEBUI_SECRET_KEY_FILE`)
 
-Hub: [Docker apps](/docs/apps).
+Hub: [Docker apps](/docs/apps.md).

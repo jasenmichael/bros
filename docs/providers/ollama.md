@@ -26,10 +26,10 @@ Docker app compose sets **`OLLAMA_NOPRUNE=1`** so incomplete pulls are not prune
 
 Docker app pull keeps a **5 GB** disk margin on the Bros data volume. Models land in `$BROS_DIR/data/home/.ollama`. Host pull and chat use the host Ollama disk.
 
-Pull HTTP (`:id` is `ollama` or `ollama-host`) lives in [API](/docs/api): `POST /api/providers/:id/models/pull`, `GET` the same path, `POST …/pull/stop`, `DELETE /api/providers/:id/models`.
+Pull HTTP (`:id` is `ollama` or `ollama-host`) lives in [API](/docs/api.md): `POST /api/providers/:id/models/pull`, `GET` the same path, `POST …/pull/stop`, `DELETE /api/providers/:id/models`.
 
 ## GPU
 
 If an NVIDIA GPU is present, open the **docker app** card and enable **Use GPU** under the installed-model list. Host Ollama cannot configure GPU from Bros (`POST /api/providers/ollama/gpu` only — other ids 400).
 
-Internal specialist `bros` is not listed. See [Ollama docker app](/docs/apps/ollama).
+Internal specialist `bros` is not listed. See [Ollama docker app](/docs/apps/ollama.md).

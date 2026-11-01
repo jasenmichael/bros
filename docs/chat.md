@@ -24,7 +24,7 @@ Context size shows on the tools row **only for Ollama** when the runtime reports
 
 While a reply is in flight, Send stays the arrow and is disabled until the stream ends. The composer stays editable (type the next prompt; cannot send yet). Centered **thinking…** shows elapsed time plus **Stop**, until the first assistant token. After tokens start, **Stop** sits on the live assistant meta line. **Stop** aborts the stream.
 
-A round **Voice to text** mic sits left of Send. Click starts recording; click again stops and uploads to `POST /api/chat/transcribe`. Transcribed text appends to the composer and does not auto-send. Recording is allowed while a reply streams (next prompt). Microphone needs a secure context (localhost HTTP or HTTPS). The Whisper docker app is STT only — not a Chat provider. It stays stopped until Settings **Enable Whisper**. While that switch is off, transcribe returns an error and does not pull images. See [Whisper docker app](/docs/apps/whisper).
+A round **Voice to text** mic sits left of Send. Click starts recording; click again stops and uploads to `POST /api/chat/transcribe`. Transcribed text appends to the composer and does not auto-send. Recording is allowed while a reply streams (next prompt). Microphone needs a secure context (localhost HTTP or HTTPS). The Whisper docker app is STT only — not a Chat provider. It stays stopped until Settings **Enable Whisper**. While that switch is off, transcribe returns an error and does not pull images. See [Whisper docker app](/docs/apps/whisper.md).
 
 Assistant and user bodies render as markdown with the same theme prose as Docs (`.bros-prose` + `ProsePre`). Each assistant message stores the `modelId` used for that request. The UI shows `ASSISTANT · <modelId>` **under** the assistant body, plus duration and token counts on the right when the provider sent them. A copy icon next to that meta copies the stored raw markdown of the whole reply (fences included). Fenced snippets still have their own `ProsePre` copy.
 
@@ -38,4 +38,4 @@ Personality and rules skills load on each user send as one system message. The r
 
 After the first successful assistant reply, docker app specialist **bros** writes a short title from the first user prompt (`Label:`). Later messages do not retitle. If generate fails, keep `New chat` or the first line of the prompt.
 
-The `bros` model is packaged GGUF installed into the Ollama docker app on first start. It is **not listed** in Chat or Providers. You never pick it. See [Ollama docker app](/docs/apps/ollama).
+The `bros` model is packaged GGUF installed into the Ollama docker app on first start. It is **not listed** in Chat or Providers. You never pick it. See [Ollama docker app](/docs/apps/ollama.md).

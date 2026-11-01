@@ -14,4 +14,4 @@ Interfaces:
 
 Ensure installs `paperclipai` with npm into `/home/bros/.local`. Start runs `paperclipai run` in `/home/bros`, so `~/workspace` is `/home/bros/workspace`. Host publish for **3100** is written into `config/apps-compose.yml` under Compose service **`bros`** (same path as every other package webui). Stop, run onboard in the Terminal, then Start, then Open. The first visit claims the instance. An offline page titled **Paperclip is offline** is Paperclip’s own service-worker fallback — not a Bros wrapper. It can mean the service is down, not claimed yet, host publish missing, or Paperclip auth/origin config does not match `http://127.0.0.1:3100/` (fix inside Paperclip, not Bros). Stop keeps it stopped across a Desktop restart. The log file stays.
 
-Hub: [Apps](/docs/apps).
+Hub: [Apps](/docs/apps.md).

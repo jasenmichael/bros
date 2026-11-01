@@ -30,9 +30,9 @@ Bros never merges. **Delete branch after merge** (default on) deletes the job br
 
 One runtime for every project. Default Cursor.
 
-Cursor runs `cursor-agent acp` from the Desktop home (`~/.local/bin/cursor-agent`). When that file is missing, Bros installs it as the desktop user before the first job. The Agents page does not enable the Agent app. See [Agent](/docs/apps/agent).
+Cursor runs `cursor-agent acp` from the Desktop home (`~/.local/bin/cursor-agent`). When that file is missing, Bros installs it as the desktop user before the first job. The Agents page does not enable the Agent app. See [Agent](/docs/apps/agent.md).
 
-Claude runs the Claude addon. `kind: run` installs on a Desktop rebuild. The page says so and links to `/apps`. See [Claude](/docs/apps/claude).
+Claude runs the Claude addon. `kind: run` installs on a Desktop rebuild. The page says so and links to `/apps`. See [Claude](/docs/apps/claude.md).
 
 ## GitHub token
 
@@ -44,4 +44,4 @@ The same token is a mode `0600` git credential for `https://github.com` under th
 
 Under Add project, **Runtime** starts closed. Open it for the runtime, optional Cursor API key, GitHub token, preflight model (models already on the Bros Ollama docker app), Auto preflight, Auto-approve implement, Auto-approve PR, and Delete branch after merge.
 
-HTTP: [API](/docs/api).
+HTTP: [API](/docs/api.md).

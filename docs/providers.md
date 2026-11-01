@@ -7,11 +7,11 @@ description: Ollama, Popular services, and Custom providers.
 
 `/settings/providers` has three sections, in order (`/providers` redirects here):
 
-1. **Ollama** — docker app + host, pull/GPU. See [Ollama](/docs/providers/ollama).
+1. **Ollama** — docker app + host, pull/GPU. See [Ollama](/docs/providers/ollama.md).
 2. **Popular services** — 14 built-in cloud cards. Always listed, even with no key.
-3. **Custom providers** — Add custom + your rows. See [Custom](/docs/providers/custom).
+3. **Custom providers** — Add custom + your rows. See [Custom](/docs/providers/custom.md).
 
-Keys live in SQLite. There is no `OPENAI_API_KEY` env bootstrap. HTTP for this page is documented in [API](/docs/api). Models are rows on a provider. There is no `/models` page.
+Keys live in SQLite. There is no `OPENAI_API_KEY` env bootstrap. HTTP for this page is documented in [API](/docs/api.md). Models are rows on a provider. There is no `/models` page.
 
 ## Status, Chat switch, and dropdown
 
@@ -25,25 +25,25 @@ Chat provider order: docker app, host, popular (catalog order), then custom — 
 
 Fourteen majors, always listed. Most use OpenAI-compatible Chat Completions; Anthropic uses the Messages API. None of the 14 APIs are unlimited free — Ollama (already in Bros) is the unlimited local path. Free-tier notes on each cloud page are Sep 2026; they change often. Bros does not hard-code quotas in the UI.
 
-- [Google Gemini](/docs/providers/gemini)
-- [Groq](/docs/providers/groq)
-- [OpenRouter](/docs/providers/openrouter)
-- [Mistral AI](/docs/providers/mistral)
-- [Cohere](/docs/providers/cohere)
-- [OpenAI](/docs/providers/openai)
-- [Anthropic](/docs/providers/anthropic)
-- [DeepSeek](/docs/providers/deepseek)
-- [xAI](/docs/providers/xai)
-- [Together AI](/docs/providers/together)
-- [Fireworks AI](/docs/providers/fireworks)
-- [Perplexity](/docs/providers/perplexity)
-- [Cerebras](/docs/providers/cerebras)
-- [Moonshot](/docs/providers/moonshot)
+- [Google Gemini](/docs/providers/gemini.md)
+- [Groq](/docs/providers/groq.md)
+- [OpenRouter](/docs/providers/openrouter.md)
+- [Mistral AI](/docs/providers/mistral.md)
+- [Cohere](/docs/providers/cohere.md)
+- [OpenAI](/docs/providers/openai.md)
+- [Anthropic](/docs/providers/anthropic.md)
+- [DeepSeek](/docs/providers/deepseek.md)
+- [xAI](/docs/providers/xai.md)
+- [Together AI](/docs/providers/together.md)
+- [Fireworks AI](/docs/providers/fireworks.md)
+- [Perplexity](/docs/providers/perplexity.md)
+- [Cerebras](/docs/providers/cerebras.md)
+- [Moonshot](/docs/providers/moonshot.md)
 
-Not in this section: Ollama `/v1` (duplicate of built-in Ollama), native Gemini/Cohere SDKs. Custom paste-ins (Cloudflare, Hugging Face, NVIDIA) belong under [Custom providers](/docs/providers/custom).
+Not in this section: Ollama `/v1` (duplicate of built-in Ollama), native Gemini/Cohere SDKs. Custom paste-ins (Cloudflare, Hugging Face, NVIDIA) belong under [Custom providers](/docs/providers/custom.md).
 
 ## Related
 
-- [Chat](/docs/chat)
-- [Ollama docker app](/docs/apps/ollama)
-- [API](/docs/api)
+- [Chat](/docs/chat.md)
+- [Ollama docker app](/docs/apps/ollama.md)
+- [API](/docs/api.md)

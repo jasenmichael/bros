@@ -11,7 +11,7 @@ A custom docker app is everything that is not Ollama, Whisper, or a shipped app.
 
 `/apps` → **Add app**. Bros writes `data/config/apps/<id>/` with `config.yml` (`kind: docker`) plus `docker-compose.yml`. That tree is gitignored with the rest of `data/`. Edit those files in the UI. Saving prompts a restart confirm so compose changes take effect. Volume binds belong in that compose file only.
 
-Package apps are not docker apps. Add them on `/apps`. See [Apps](/docs/apps). A custom package app uses the same directory with a package-manager `kind`.
+Package apps are not docker apps. Add them on `/apps`. See [Apps](/docs/apps.md). A custom package app uses the same directory with a package-manager `kind`.
 
 Compose project name is `bros-<id>` on network `bros`.
 
@@ -31,4 +31,4 @@ Compose project name is `bros-<id>` on network `bros`.
 
 A custom app can later move into `lib/apps/addon/<id>/` or `lib/apps/core/<id>/`. An addon can later move to core. Until that move, the directory stays in `data/config/apps` and stays out of git.
 
-Hub: [Docker apps](/docs/apps).
+Hub: [Docker apps](/docs/apps.md).

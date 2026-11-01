@@ -22,4 +22,4 @@ Never publish host ports **3000** or **8080**. Open/Pin: `http://127.0.0.1:3081/
 
 No data bind. Config stays in the browser.
 
-Hub: [Docker apps](/docs/apps).
+Hub: [Docker apps](/docs/apps.md).

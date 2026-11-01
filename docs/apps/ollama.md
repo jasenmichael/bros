@@ -46,4 +46,4 @@ Pull and chat on the host provider use the **host Ollama disk**. Docker app pull
 
 On a source checkout, first docker app up copies the packaged GGUF tree from `vendor/bros-model` onto `$BROS_DATA_DIR/apps/ollama/bros-model` and runs `bash /bros-model/scripts/install-ollama.sh` inside `bros-ollama` (`ollama create bros`). A release tarball does not ship `vendor/`. Install and `bros update` read `lib/apps/core/ollama/BROS_MODEL_VERSION` (`1.0.0` with product version `0.0.1`) and download that release into the same data directory when the local stamp is missing or older. A newer local stamp stays. `bros` start does not download. The create still runs inside `bros-ollama`. Desktop and `bros-ui` do not run `ollama create`. Missing GGUF skips quietly and does not create the model. A model already stored under `data/` survives `bros update`. Used for Chat auto-title. **Not listed** in Chat or Providers. Pull/delete of the reserved name returns 400. Source: [jasenmichael/bros-model](https://github.com/jasenmichael/bros-model).
 
-See [Providers — Ollama](/docs/providers/ollama).
+See [Providers — Ollama](/docs/providers/ollama.md).

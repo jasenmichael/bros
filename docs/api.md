@@ -160,6 +160,6 @@ Store list is `GET /api/apps`. Compose start, stop, restart, settings, and files
 
 ## Related
 
-- [Providers](/docs/providers)
-- [Chat](/docs/chat)
-- [Docker apps](/docs/apps)
+- [Providers](/docs/providers.md)
+- [Chat](/docs/chat.md)
+- [Docker apps](/docs/apps.md)
