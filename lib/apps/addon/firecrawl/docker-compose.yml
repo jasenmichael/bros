@@ -35,6 +35,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3
+    hostname: firecrawl-rabbit
     user: "0:0"
     command: rabbitmq-server
     healthcheck:

@@ -227,6 +227,7 @@ describe('dockerApp data binds', () => {
     expect(yml).toContain('ALLOW_LOCAL_WEBHOOKS: "true"')
     expect(yml).toContain('TEST_SUITE_SELF_HOSTED: "true"')
     expect(yml).toContain('OLLAMA_BASE_URL: http://ollama:11434')
+    expect(yml).toContain('hostname: firecrawl-rabbit')
   })
 
   it('pi compose is CLI only on the Bros node base', () => {

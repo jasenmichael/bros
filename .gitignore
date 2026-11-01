@@ -6,7 +6,6 @@ dist
 data
 data-
 cli/target
-lib/sidecars/core/cli/build-apps/*.yml
 .pnpm-store
 *.sqlite
 *.sqlite-journal
@@ -28,11 +27,6 @@ coverage
 graphify-out
 .ui
 .npmrc
-
-# User sidecar packs (Add sidecar / From a repo).
-# Only the how-to README is tracked. Pack files stay on disk.
-/lib/sidecars/custom/*
-!/lib/sidecars/custom/README.md
 
 # Node compile cache (often root-owned from Docker)
 **/node-compile-cache/
