@@ -9,4 +9,4 @@ Addon app `lib/apps/addon/jq/config.yml`. Off until Enable on `/apps`. `kind: ap
 
 There is no `bin`, `cli`, or `gui`. jq does not show under **Apps** on `/terminal` and does not show in the Drawer. After Enable it is the `jq` binary inside Desktop.
 
-Hub: [Apps](/docs/apps).
+Hub: [Apps](/docs/apps.md).

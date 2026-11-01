@@ -77,8 +77,8 @@ bros
 
 Interactive start. Ctrl+C stops the full stack: the UI, docker apps, then container `bros`. Install and `bros update` download the packaged model for `lib/apps/core/ollama/BROS_MODEL_VERSION` when the local stamp is missing or older, then the Ollama core app creates model `bros`. A newer stamp stays. `bros` start does not download. UI autostart brings up the Ollama docker app. Missing GGUF skips create. The CLI does not run `ollama create` itself.
 
-Commands and flags: [bros](/docs/cli).
+Commands and flags: [bros](/docs/cli.md).
 
 Open [http://127.0.0.1:3055](http://127.0.0.1:3055) (`BROS_HOST`:`BROS_PORT`). The passkey is printed in `$BROS_DATA_DIR/var/logs/bros.log` (`[bros] passkey:`).
 
-Contributor hot-reload is `BROS_DEV=1 ./bros` or `./bros --dev` (host `pnpm` and `cargo`). See [Development](/docs/development).
+Contributor hot-reload is `BROS_DEV=1 ./bros` or `./bros --dev` (host `pnpm` and `cargo`). See [Development](/docs/development.md).

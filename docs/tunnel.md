@@ -15,7 +15,7 @@ The same hostname proxies every `api` and `openai` interface. Bros strips `/<id>
 
 ## Docker app UIs
 
-Do **not** add extra Cloudflare hostnames or tunnels for docker apps. Web UI path proxy exists only for native-base UIs that set `proxy.public` in `config.yml`. No shipped pack does that until OpenCode honors a base path. OpenCode stays LAN. API proxies above do not require `proxy.public`. See [Docker apps](/docs/apps).
+Do **not** add extra Cloudflare hostnames or tunnels for docker apps. Web UI path proxy exists only for native-base UIs that set `proxy.public` in `config.yml`. No shipped pack does that until OpenCode honors a base path. OpenCode stays LAN. API proxies above do not require `proxy.public`. See [Docker apps](/docs/apps.md).
 
 ## Prerequisites
 
@@ -155,7 +155,7 @@ Enable: `BROS_TUNNEL` when set, else YAML `tunnel`. Hostname: `BROS_PUBLIC_URL`,
 | `BROS_TUNNEL_DIR` | `$BROS_DIR/data/var/tunnel` | Helper files |
 | `BROS_TUNNEL_ROUTE_TIMEOUT` | `20` | Seconds for `cloudflared tunnel route dns` |
 
-Full `BROS_*` list: [Environment](/docs/environment).
+Full `BROS_*` list: [Environment](/docs/environment.md).
 
 ## Via-tunnel lock
 

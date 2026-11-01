@@ -62,7 +62,7 @@ cargo test --manifest-path cli/Cargo.toml
 
 Login passkey is printed in `$BROS_DATA_DIR/var/logs/bros.log` (`[bros] passkey:`) and stored in `$BROS_DATA_DIR/passkey`.
 
-Website/docs site: [Docs site](/docs/website). Images build `@bros/ui` only; Pages builds `@bros/website`.
+Website/docs site: [Docs site](/docs/website.md). Images build `@bros/ui` only; Pages builds `@bros/website`.
 
 ## Workspace (pnpm)
 
@@ -105,8 +105,8 @@ app/ui/utils/
   docker-app/            host links, busy, source label
 ```
 
-The CLI is the Rust binary in `cli/`. Usage: [bros](/docs/cli).
+The CLI is the Rust binary in `cli/`. Usage: [bros](/docs/cli.md).
 
 ## Release
 
-Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, pull request commit types bump the version on the branch and the merge publishes the tag. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install).
+Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, pull request commit types bump the version on the branch and the merge publishes the tag. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install.md).

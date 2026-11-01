@@ -48,4 +48,4 @@ curl --fail --silent --show-error --max-time 5 \
 - `$BROS_DATA_DIR/home/.cache/vllm` → `/home/bros/.cache/vllm`
 - `$BROS_DATA_DIR/home/.cache/flashinfer` → `/home/bros/.cache/flashinfer`
 
-Hub: [Docker apps](/docs/apps).
+Hub: [Docker apps](/docs/apps.md).

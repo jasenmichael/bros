@@ -94,4 +94,4 @@ BROS_DEV=1 ./bros
 BROS_USE_RUNNER=1 ./bros
 ```
 
-Install and first start: [Install](/docs/install). Env catalog: [Environment](/docs/environment). YAML keys: [Configuration](/docs/configuration).
+Install and first start: [Install](/docs/install.md). Env catalog: [Environment](/docs/environment.md). YAML keys: [Configuration](/docs/configuration.md).

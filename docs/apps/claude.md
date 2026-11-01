@@ -11,4 +11,4 @@ Addon app `lib/apps/addon/claude/config.yml`. Off until Enable on `/apps`. `kind
 
 `kind: run` has no Check. Update writes a force stamp and rebuilds Desktop so that curl runs again. The Agents page runs this binary after **Approve implement** when Claude is the selected runtime.
 
-Hub: [Apps](/docs/apps).
+Hub: [Apps](/docs/apps.md).

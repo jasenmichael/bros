@@ -21,4 +21,4 @@ Redis is `omniroute-redis` on network `bros`. It has no host port.
 - `$BROS_DATA_DIR/apps/omniroute/redis` → `/data`
 - `$BROS_DATA_DIR/apps/omniroute/.env` — `OMNIROUTE_JWT_SECRET` (not a volume bind; compose interpolation)
 
-Hub: [Docker apps](/docs/apps).
+Hub: [Docker apps](/docs/apps.md).

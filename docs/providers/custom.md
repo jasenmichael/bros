@@ -15,7 +15,7 @@ description: Add an OpenAI-compatible endpoint with a slug, base URL, and a key 
 
 ## Contract
 
-Bros calls `{baseUrl}/chat/completions` with `Authorization: Bearer <key>` when a key is set, and `{baseUrl}/models` to validate the key and merge live ids. Chat stays off without a successful probe. Provider CRUD: [API](/docs/api).
+Bros calls `{baseUrl}/chat/completions` with `Authorization: Bearer <key>` when a key is set, and `{baseUrl}/models` to validate the key and merge live ids. Chat stays off without a successful probe. Provider CRUD: [API](/docs/api.md).
 
 ## Paste-in examples
 

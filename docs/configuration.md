@@ -18,7 +18,7 @@ enable_whisper: false
 
 `tunnel` (or env `BROS_TUNNEL`) opts in the host Cloudflare tunnel; default off. `public_url` is the advertised hostname for a named tunnel when the tunnel is enabled (never an enable signal by itself). `enable_host_ollama` and `enable_whisper` default off. Chat prepend and assistant description are the `rules` and `personality` skill files. Provider API keys stay in SQLite (no `OPENAI_API_KEY` env). Passkey and session secret are files under the data dir.
 
-Full `BROS_*` list: [Environment](/docs/environment). Tunnel: [Tunnel](/docs/tunnel).
+Full `BROS_*` list: [Environment](/docs/environment.md). Tunnel: [Tunnel](/docs/tunnel.md).
 
 ## `BROS_DIR` and host binds
 
@@ -95,4 +95,4 @@ Passkey (login passcode) lives in `passkey` — printed at app startup. Provider
 
 On a source checkout, `$BROS_DATA_DIR/apps/ollama/bros-model` is a copy of the packaged specialist tree from submodule `vendor/bros-model` ([jasenmichael/bros-model](https://github.com/jasenmichael/bros-model)). A release does not ship that tree. An existing copy under `data/` stays across `bros update`.
 
-Do not commit `data/`, `.env` (optional overrides only; defaults need no `.env`), `.nuxt`, or `node_modules`. See [Environment](/docs/environment) and repo-root `example.env`.
+Do not commit `data/`, `.env` (optional overrides only; defaults need no `.env`), `.nuxt`, or `node_modules`. See [Environment](/docs/environment.md) and repo-root `example.env`.

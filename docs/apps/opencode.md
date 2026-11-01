@@ -14,4 +14,4 @@ Interfaces:
 
 Ensure installs `@opencode/cli` with npm into `/home/bros/.local` once `node`, `npm`, and `npx` exist. Start runs `opencode serve --hostname 0.0.0.0 --port 4096` in `/home/bros`. The server password is printed into the service log (`data/var/logs/apps/opencode.log`); open **Logs** on that Apps row after Start. Start, then Open. Stop keeps it stopped across a Desktop restart. Paperclip runs this Desktop binary.
 
-Hub: [Apps](/docs/apps).
+Hub: [Apps](/docs/apps.md).

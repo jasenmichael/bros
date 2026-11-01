@@ -13,7 +13,7 @@ description: App, Docker, disk, GPU, tunnel, and docker app health.
 - **Docker** — socket reachable
 - **Disk** — data volume path and free space
 - **GPU** — NVIDIA detection and VRAM when present
-- **Tunnel** — host `cloudflared` running/hostname, helper up/down, installed/login, and `error`. See [Tunnel](/docs/tunnel)
+- **Tunnel** — host `cloudflared` running/hostname, helper up/down, installed/login, and `error`. See [Tunnel](/docs/tunnel.md)
 - **Bros services** — every Docker container Bros manages: the app (`bros`) and each `bros-*` compose service (including stopped internals such as Firecrawl Redis). Grouped by pack; state + published host ports. Home does not list these containers.
 - **Docker apps** — each row’s docker app publish port, state, error, autostart, pin. Port is the docker app publish (Ollama **11435**), not host Ollama. Host Ollama lives on Providers. Core Ollama and Whisper have no Start/Stop/Restart here (or on Home/Docker apps). Ollama autostart stays on. Whisper autostart follows Settings **Enable Whisper** (off by default). If Ollama crashes or its version probe fails, Bros restarts that container and `/api/status` carries `ollamaRestartNotice` for a Nuxt UI toast. Whisper is not on that health restart.
 

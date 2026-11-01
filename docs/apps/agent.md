@@ -11,4 +11,4 @@ Addon app `lib/apps/addon/agent/config.yml`. Off until Enable on `/apps`. `kind:
 
 `kind: run` has no Check. Update writes a force stamp and rebuilds Desktop so that curl runs again. The Agents page does not enable this app. Cursor on that page runs `cursor-agent` from the Desktop home.
 
-Hub: [Apps](/docs/apps).
+Hub: [Apps](/docs/apps.md).

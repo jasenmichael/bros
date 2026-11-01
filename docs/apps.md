@@ -7,7 +7,7 @@ description: Package installs inside Desktop, and docker apps that keep their ow
 
 An app is a package install or a docker app. Core, addon, and custom are app tiers. `/settings/desktop/apps` is the store for both. `/apps` redirects there. Package detail and docker pack detail both live here.
 
-Add and edit package apps on `/settings/desktop/apps`. The container is [Desktop](/docs/desktop). The stream is [Desktop](/docs/desktop-gui).
+Add and edit package apps on `/settings/desktop/apps`. The container is [Desktop](/docs/desktop.md). The stream is [Desktop](/docs/desktop-gui.md).
 
 ## Package app and docker app
 
@@ -35,7 +35,7 @@ Compose that contains `container:bros` shares Desktop's network namespace. That 
 
 ## Tiers
 
-**Core** — `lib/apps/core/`. Package cores always enabled. Docker cores (Ollama, Whisper) enabled by default; Whisper may be off in Settings. See [Core apps](/docs/apps/core).
+**Core** — `lib/apps/core/`. Package cores always enabled. Docker cores (Ollama, Whisper) enabled by default; Whisper may be off in Settings. See [Core apps](/docs/apps/core.md).
 
 **Addon** — `lib/apps/addon/<id>/config.yml`. Shipped, listed, and off until Enable. Enable records the id in `data/config/enabled-apps` and does not write a config.
 
@@ -43,17 +43,17 @@ Compose that contains `container:bros` shares Desktop's network namespace. That 
 
 ## Kinds
 
-node, cargo, pnpm, bun, deno, and uv are the core apps. npm, pnpm, bun, deno, uv, and cargo stay the managers for a later spec of that kind. npm is a kind, not a core row. Apt, deb, nix, and run are managers too. A deno spec is `npm:name` or `jsr:name` (cache `/home/bros/.deno`). A cargo spec is `name` or `name@version` (`cargo install --locked --root /home/bros/.cargo`). There is no rustup. The core cargo app is the Nix `cargo`. Nix is a nixpkgs name (`ripgrep`) installed with `devbox global add`. A saved `nixpkgs#ripgrep` still installs. Apt is `apt-get install -y` on ensure. Base apt in `core-apt.yml` stays in the image. Deb is an https URL. A path segment `latest` is what Check compares. Run is one curl or wget command, run as written, and it is the image layer. The Nix layout is [Desktop](/docs/desktop).
+node, cargo, pnpm, bun, deno, and uv are the core apps. npm, pnpm, bun, deno, uv, and cargo stay the managers for a later spec of that kind. npm is a kind, not a core row. Apt, deb, nix, and run are managers too. A deno spec is `npm:name` or `jsr:name` (cache `/home/bros/.deno`). A cargo spec is `name` or `name@version` (`cargo install --locked --root /home/bros/.cargo`). There is no rustup. The core cargo app is the Nix `cargo`. Nix is a nixpkgs name (`ripgrep`) installed with `devbox global add`. A saved `nixpkgs#ripgrep` still installs. Apt is `apt-get install -y` on ensure. Base apt in `core-apt.yml` stays in the image. Deb is an https URL. A path segment `latest` is what Check compares. Run is one curl or wget command, run as written, and it is the image layer. The Nix layout is [Desktop](/docs/desktop.md).
 
 ## Shipped
 
-- [Core apps](/docs/apps/core) — package cores (node, cargo, …) plus docker cores Ollama and Whisper
-- [Cursor](/docs/apps/cursor) — addon, deb, CLI and window
-- [Agent](/docs/apps/agent) — addon, run, `agent` and `cursor-agent`
-- [Claude](/docs/apps/claude) — addon, run, `claude`
-- [Paperclip](/docs/apps/paperclip) — addon, npm, web UI on **3100**
-- [jq](/docs/apps/jq) — addon, apt, no CLI or window
-- [OpenCode](/docs/apps/opencode) — addon, npm, web UI on **4096**
+- [Core apps](/docs/apps/core.md) — package cores (node, cargo, …) plus docker cores Ollama and Whisper
+- [Cursor](/docs/apps/cursor.md) — addon, deb, CLI and window
+- [Agent](/docs/apps/agent.md) — addon, run, `agent` and `cursor-agent`
+- [Claude](/docs/apps/claude.md) — addon, run, `claude`
+- [Paperclip](/docs/apps/paperclip.md) — addon, npm, web UI on **3100**
+- [jq](/docs/apps/jq.md) — addon, apt, no CLI or window
+- [OpenCode](/docs/apps/opencode.md) — addon, npm, web UI on **4096**
 
 
 
@@ -70,15 +70,15 @@ Compose project name is `bros-<id>` on shared external Docker network `bros`. Th
 
 Interfaces may include `webui`, `api`, `openai`, `cli`, and `gui`. `gui` is not `webui`.
 
-A `webui` must declare `publish` in `config.yml` and map `publish:containerPort` in Compose. Open is only that published webpage. A published `api` or `openai` shows copyable host and Docker-network URLs with `basePath` (`openai` defaults to `/v1`) and has no Open button. A `cli` row shows the command (`bin`, else `command`) and no URL. CLI-only packs stay running so the network can exec them. Pi joins network `bros` when started. A fresh install does not start them. While a CLI docker app is running, Bros runs it from `data/home/.local/app-bins` on the Desktop PATH (`docker compose exec`). A `cli` or `gui` interface is available in Desktop and Terminal without a compose entry per docker app. When it is stopped and `~/.local/bin/<bin>` exists, Bros uses that host binary. The host shell always keeps a real install. Bros does not write a host PATH wrapper. Pin in nav is only for a published `webui`. A `gui` interface sets `service` and `command` and cannot set `publish`. No host port, no Pin, and no Open. Launch it from the Desktop drawer or library. That page opens and closes the window on a docker app that is already running. It does not start or stop the container. See [Desktop](/docs/desktop-gui). Optional `proxy.public: true` on a `webui` (nothing else — no mode, prefix, or baseArg) enables a Bros path proxy at `/${id}/` only when that UI natively listens under the prefix. No shipped pack sets it today (OpenCode still serves `/` and stays LAN). Every `api` and `openai` interface is proxied without `proxy.public`: `/<id><basePath>` strips `/<id>` before the upstream request (`/ollama/v1` → `http://ollama:11434/v1`). Those paths take a session or the proxy key. The allowlist is the first path segment vs a discovered docker app id, so `/opencode` does not steal `/chat` or match `/opencode-extra`. Stopped public id → 404. Dial fail → 502.
+A `webui` must declare `publish` in `config.yml` and map `publish:containerPort` in Compose. Open is only that published webpage. A published `api` or `openai` shows copyable host and Docker-network URLs with `basePath` (`openai` defaults to `/v1`) and has no Open button. A `cli` row shows the command (`bin`, else `command`) and no URL. CLI-only packs stay running so the network can exec them. Pi joins network `bros` when started. A fresh install does not start them. While a CLI docker app is running, Bros runs it from `data/home/.local/app-bins` on the Desktop PATH (`docker compose exec`). A `cli` or `gui` interface is available in Desktop and Terminal without a compose entry per docker app. When it is stopped and `~/.local/bin/<bin>` exists, Bros uses that host binary. The host shell always keeps a real install. Bros does not write a host PATH wrapper. Pin in nav is only for a published `webui`. A `gui` interface sets `service` and `command` and cannot set `publish`. No host port, no Pin, and no Open. Launch it from the Desktop drawer or library. That page opens and closes the window on a docker app that is already running. It does not start or stop the container. See [Desktop](/docs/desktop-gui.md). Optional `proxy.public: true` on a `webui` (nothing else — no mode, prefix, or baseArg) enables a Bros path proxy at `/${id}/` only when that UI natively listens under the prefix. No shipped pack sets it today (OpenCode still serves `/` and stays LAN). Every `api` and `openai` interface is proxied without `proxy.public`: `/<id><basePath>` strips `/<id>` before the upstream request (`/ollama/v1` → `http://ollama:11434/v1`). Those paths take a session or the proxy key. The allowlist is the first path segment vs a discovered docker app id, so `/opencode` does not steal `/chat` or match `/opencode-extra`. Stopped public id → 404. Dial fail → 502.
 
 Via-tunnel Open/Pin for a public-proxy webui is same-host `/${id}/` (passkey like `/chat`). LAN Open/Pin stay `http://127.0.0.1:<publish>/`, or `http://127.0.0.1:<publish>/${id}/` when that UI listens under the path. No shipped pack opts in today. The OpenCode app is npm and serves `/`. Compose-app Bros talks to docker app APIs at `http://<service>:<containerPort>` on network `bros` (Ollama `http://ollama:11434`, Whisper `http://whisper:8000`), including when the session is via-tunnel. Host Node (`pnpm --dir app ui:dev`) uses `http://127.0.0.1:<publish>`. Do not publish host ports **3000** or **8080**. Compose env overrides (`BROS_OLLAMA_PORT`, `BROS_OPENWEBUI_PORT`, `BROS_FIRECRAWL_PORT`, `BROS_FIRECRAWL_UI_PORT`, `BROS_WHISPER_PORT`, `BROS_OPENJEV_PORT`, `BROS_OMNIROUTE_PORT`) are escape hatches for host publish / host Node.
 
-Do **not** add extra Cloudflare hostnames. Web UI path proxy exists only for native-base UIs that opt in with `proxy.public`. API proxies use the same hostname. See [Tunnel](/docs/tunnel#docker app-uis).
+Do **not** add extra Cloudflare hostnames. Web UI path proxy exists only for native-base UIs that opt in with `proxy.public`. API proxies use the same hostname. See [Tunnel](/docs/tunnel.md#docker app-uis).
 
 ## Kinds
 
-**Core docker** — `lib/apps/core/ollama` and `lib/apps/core/whisper` (`config.yml` `kind: docker`). Ollama is always on. No Start, Stop, Restart, or Autostart on Apps / Status / Home. No disable env. `POST /api/apps/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast). Whisper stays stopped until Settings **Enable Whisper**. That switch pulls images, then starts the app. Off stops it and skips boot. The same pages hide Start, Stop, Restart, and Autostart. `POST /api/apps/whisper/start`, `…/stop`, and `…/restart` return 400. Desktop is not a docker app. It is the Bros container. See [Desktop](/docs/desktop).
+**Core docker** — `lib/apps/core/ollama` and `lib/apps/core/whisper` (`config.yml` `kind: docker`). Ollama is always on. No Start, Stop, Restart, or Autostart on Apps / Status / Home. No disable env. `POST /api/apps/ollama/start`, `…/stop`, and `…/restart` return 400. Health restart stays internal (toast). Whisper stays stopped until Settings **Enable Whisper**. That switch pulls images, then starts the app. Off stops it and skips boot. The same pages hide Start, Stop, Restart, and Autostart. `POST /api/apps/whisper/start`, `…/stop`, and `…/restart` return 400. Desktop is not a docker app. It is the Bros container. See [Desktop](/docs/desktop.md).
 
 **Addon docker** — kind `docker` under `lib/apps/addon/<id>/` (Open WebUI, Firecrawl, Firecrawl UI, OpenJEV, Pi, OmniRoute). The directory holds `config.yml` and `docker-compose.yml`. Optional. A fresh install does not start them. Autostart is SQLite and defaults off; boot honors that flag. Press Start to run one without Autostart. Env-disabled apps stay listed, do not autostart, and Start still runs them. The id stays reserved. `/desktop` opens and closes the window and does not start or stop the container. Mark disabled with `BROS_APP_OPENWEBUI=0`, `BROS_APP_FIRECRAWL=0`, `BROS_APP_FIRECRAWL_UI=0`, `BROS_APP_OPENJEV=0`, `BROS_APP_PI=0`, `BROS_APP_OMNIROUTE=0`, or `BROS_APPS_ENABLED=openwebui,firecrawl,firecrawl-ui,openjev,pi,omniroute`. Env disable does not apply to Ollama or Whisper. The OpenCode package app is npm, not this list.
 
@@ -118,20 +118,20 @@ On `/settings/desktop/apps`:
 
 `bros stop` and interactive Ctrl+C stop all `bros-*` projects, then container `bros`.
 
-Cloudflare tunnel is **not** a docker app. See [Tunnel](/docs/tunnel).
+Cloudflare tunnel is **not** a docker app. See [Tunnel](/docs/tunnel.md).
 
 ## Packages
 
-- [Ollama](/docs/apps/ollama) — core docker, always on, publish **11435**, container 11434
-- [Open WebUI](/docs/apps/openwebui) — addon docker, publish **3080** → container 8080
-- [Firecrawl](/docs/apps/firecrawl) — addon docker, publish **3002** (Playwright internal)
-- [Firecrawl UI](/docs/apps/firecrawl-ui) — addon docker, publish **3081** → container 8080
-- [OpenJEV](/docs/apps/openjev) — addon docker, publish **8092** → container 8080, Open `/docs` (NVIDIA GPU; util 0.80 + CPU encoders by default)
-- [Pi](/docs/apps/pi) — addon docker, CLI only, no host port
-- [OmniRoute](/docs/apps/omniroute) — addon docker, publish **20128**, OpenAI-compatible `/v1`. Providers and combos are set in OmniRoute
-- [Whisper](/docs/apps/whisper) — core docker, Settings enable (off by default), publish **8090** → container 8000 (Chat STT)
-- [Desktop](/docs/desktop) — the Bros container. Stream has no host port. Terminal at `/terminal`.
-- [Desktop](/docs/desktop-gui) — one Selkies stream and the Drawer, no host port
-- [Custom](/docs/apps/custom) — `data/config/apps`. Not in the repo
-- [Apps](/docs/apps) — package installs and the `/settings/desktop/apps` store. OpenCode is the npm app
+- [Ollama](/docs/apps/ollama.md) — core docker, always on, publish **11435**, container 11434
+- [Open WebUI](/docs/apps/openwebui.md) — addon docker, publish **3080** → container 8080
+- [Firecrawl](/docs/apps/firecrawl.md) — addon docker, publish **3002** (Playwright internal)
+- [Firecrawl UI](/docs/apps/firecrawl-ui.md) — addon docker, publish **3081** → container 8080
+- [OpenJEV](/docs/apps/openjev.md) — addon docker, publish **8092** → container 8080, Open `/docs` (NVIDIA GPU; util 0.80 + CPU encoders by default)
+- [Pi](/docs/apps/pi.md) — addon docker, CLI only, no host port
+- [OmniRoute](/docs/apps/omniroute.md) — addon docker, publish **20128**, OpenAI-compatible `/v1`. Providers and combos are set in OmniRoute
+- [Whisper](/docs/apps/whisper.md) — core docker, Settings enable (off by default), publish **8090** → container 8000 (Chat STT)
+- [Desktop](/docs/desktop.md) — the Bros container. Stream has no host port. Terminal at `/terminal`.
+- [Desktop](/docs/desktop-gui.md) — one Selkies stream and the Drawer, no host port
+- [Custom](/docs/apps/custom.md) — `data/config/apps`. Not in the repo
+- [Apps](/docs/apps.md) — package installs and the `/settings/desktop/apps` store. OpenCode is the npm app
 

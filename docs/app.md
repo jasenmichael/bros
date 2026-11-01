@@ -10,13 +10,13 @@ Bros UI is at `BROS_HOST`:`BROS_PORT` (default [http://127.0.0.1:3055](http://12
 ## Surfaces
 
 - **Dashboard** (`/`) — hub for recent chats, providers on for Chat, docker app phase (Open on a running web UI), and the tunnel toggle. An attention row shows only when Docker, a docker app, Ollama, disk, or chat readiness needs a fix. The page renders before `GET /api/dashboard/summary` finishes and shows **Loading…** until it returns. No widget catalog. No full Status table. **Bros services** stays on `/status`.
-- **New chat** (`/chat`, `/chat/:id`) — optional provider and model, streaming replies, Voice to text mic (Whisper docker app). One completion. See [Chat](/docs/chat).
-- **Providers** (`/settings/providers`) — Ollama, Popular services, Custom providers. Models are rows on a provider. There is no `/models` page. See [Providers](/docs/providers).
-- **Desktop apps** (`/settings/desktop/apps`) — one list of Ollama, Whisper, and docker apps. Add and From a repo sit above one filter line: All / Running / Stopped, interface type, and Core / Addon / Custom. Docker apps stay stopped until Start. Ollama and Whisper have no Start, Stop, or Restart. Shipped docker apps are Open WebUI, Firecrawl, Firecrawl UI, OpenJEV, Pi, and OmniRoute. Custom apps are `data/config/apps` and are not in the repo. Moving that directory to `lib/apps/addon` or `lib/apps/core` ships it. Card headings: **(core)**, **(addon)**, **(custom)**, **(repo)**. See [Docker apps](/docs/apps).
-- **Terminal** (`/terminal`) — shell in the Bros container and a compact comma-separated CLI list. Package apps are configured under Settings → Desktop apps. See [Desktop](/docs/desktop) and [Apps](/docs/apps).
-- **Desktop** (`/desktop`) — one Selkies stream. The Drawer starts and stops GUI apps on that display. See [Desktop](/docs/desktop-gui) and [Apps](/docs/apps).
-- **Status** (`/status`) — detail health. See [Status](/docs/status).
-- **Settings** (`/settings`) — personality and rules skills, Whisper and host Ollama toggles, MCP servers, read-only paths, Repair data dir, proxy key, and passkey. `/settings/desktop/apps` adds and removes package apps. `/settings/desktop` sets the desktop background (color + image URL). See [Settings](/docs/settings) and [Apps](/docs/apps).
+- **New chat** (`/chat`, `/chat/:id`) — optional provider and model, streaming replies, Voice to text mic (Whisper docker app). One completion. See [Chat](/docs/chat.md).
+- **Providers** (`/settings/providers`) — Ollama, Popular services, Custom providers. Models are rows on a provider. There is no `/models` page. See [Providers](/docs/providers.md).
+- **Desktop apps** (`/settings/desktop/apps`) — one list of Ollama, Whisper, and docker apps. Add and From a repo sit above one filter line: All / Running / Stopped, interface type, and Core / Addon / Custom. Docker apps stay stopped until Start. Ollama and Whisper have no Start, Stop, or Restart. Shipped docker apps are Open WebUI, Firecrawl, Firecrawl UI, OpenJEV, Pi, and OmniRoute. Custom apps are `data/config/apps` and are not in the repo. Moving that directory to `lib/apps/addon` or `lib/apps/core` ships it. Card headings: **(core)**, **(addon)**, **(custom)**, **(repo)**. See [Docker apps](/docs/apps.md).
+- **Terminal** (`/terminal`) — shell in the Bros container and a compact comma-separated CLI list. Package apps are configured under Settings → Desktop apps. See [Desktop](/docs/desktop.md) and [Apps](/docs/apps.md).
+- **Desktop** (`/desktop`) — one Selkies stream. The Drawer starts and stops GUI apps on that display. See [Desktop](/docs/desktop-gui.md) and [Apps](/docs/apps.md).
+- **Status** (`/status`) — detail health. See [Status](/docs/status.md).
+- **Settings** (`/settings`) — personality and rules skills, Whisper and host Ollama toggles, MCP servers, read-only paths, Repair data dir, proxy key, and passkey. `/settings/desktop/apps` adds and removes package apps. `/settings/desktop` sets the desktop background (color + image URL). See [Settings](/docs/settings.md) and [Apps](/docs/apps.md).
 - **Docs** (`/docs`) — this documentation (same markdown as the Pages site).
 
 ## Login

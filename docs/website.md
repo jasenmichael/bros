@@ -23,4 +23,8 @@ GitHub Pages: https://jasenmichael.github.io/bros/
 
 `docs/adr/` is gitignored local notes, not a docs page. New markdown goes in `docs/` and must be added to `DOCS_NAV_TREE` in `app/layers/docs/app/utils/docsNav.ts` so the dock, website nav, docs index, and breadcrumbs all list it. Do not put pages under `app/ui`. Theme owns `layouts/default.vue` and `ProsePre`. Docs render through the docs-layer `ContentRenderer` + `.bros-prose`. Docs pages show breadcrumbs above the title.
 
-Website nav: Home, then the docs directory tree (Start, App, Docker apps, Apps, Popular services, Contribute). Marketing `/` matches the repo README pitch. Install and Development are first-class CTAs on that home; detail lives in [Install](/docs/install) and [Development](/docs/development).
+Website nav: Home, then the docs directory tree (Start, App, Docker apps, Apps, Popular services, Contribute). Marketing `/` matches the repo README pitch. Install and Development are first-class CTAs on that home; detail lives in [Install](/docs/install.md) and [Development](/docs/development.md).
+
+## Markdown links
+
+Write in-repo docs links as `/docs/<page>.md` (keep `#hash` after `.md`). That makes GitHub blob URLs resolve. The docs-layer `ProseA` strips `.md` at render so Nuxt Content routes stay extensionless.
