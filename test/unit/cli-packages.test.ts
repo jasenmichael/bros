@@ -267,4 +267,18 @@ describe('cli packages', () => {
     expect(cliApplyAction(true, true)).toBe('recreate')
     expect(cliApplyAction(true, false, true)).toBe('recreate')
   })
+
+  it('awaits ensure on skip and after recreate/start so Save surfaces failure', () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
+    const body = readFileSync(join(root, 'app/server/utils/cli/packages.ts'), 'utf8')
+    const apply = body.slice(body.indexOf('export async function applyCliPackages'), body.indexOf('export type AppUpdateKind'))
+    expect(apply).toContain('await awaitDesktopEnsure()')
+    expect(apply).not.toContain('queueDesktopEnsure()')
+    expect(apply).toContain('waitForDesktopSession()')
+    const skip = apply.slice(apply.indexOf("action === 'skip'"), apply.indexOf("if (!opts?.claimed)"))
+    expect(skip).toContain('await awaitDesktopEnsure()')
+    expect(skip.indexOf('await awaitDesktopEnsure()')).toBeLessThan(skip.indexOf('return { code: ensure.code'))
+    expect(apply.indexOf('started.code !== 0')).toBeLessThan(apply.indexOf('waitForDesktopSession()'))
+    expect(apply.indexOf('waitForDesktopSession()')).toBeLessThan(apply.lastIndexOf('await awaitDesktopEnsure()'))
+  })
 })

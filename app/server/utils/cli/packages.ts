@@ -915,13 +915,16 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
     const rebuild = !!opts?.rebuild
     const action = cliApplyAction(running, changed, rebuild)
     if (action === 'skip') {
-      const { queueDesktopEnsure } = await import('./ensure')
-      queueDesktopEnsure()
-      return { code: 0, stderr: '', rebuild: false }
+      const { awaitDesktopEnsure } = await import('./ensure')
+      const ensure = await awaitDesktopEnsure()
+      return { code: ensure.code, stderr: ensure.stderr, rebuild: false }
     }
     if (!opts?.claimed) release = claim(true)
     const started = await (await docker()).rebuildBrosContainer({ build: rebuild || list.changed, forceRecreate: changed })
-    if (started.code === 0 && changed) {
+    if (started.code !== 0) {
+      return { code: started.code, stderr: started.stderr || '', rebuild: action === 'recreate' }
+    }
+    if (changed) {
       const hosts = changedVolumeHosts(before, readAppsComposeText())
       const dataDir = process.env.BROS_DATA_DIR || loadBootstrapConfig().dataDir
       const apps = discoverDockerApps().dockerApps.map((app) => {
@@ -932,7 +935,14 @@ export async function applyCliPackages(opts?: { rebuild?: boolean; claimed?: boo
         await (await docker()).startDockerApp(id, { forceRecreate: true })
       }
     }
-    return { code: started.code, stderr: started.stderr || '', rebuild: action === 'recreate' }
+    const { waitForDesktopSession } = await import('../desktopReady')
+    const gaps = await waitForDesktopSession()
+    if (gaps) {
+      return { code: 1, stderr: `Desktop session not ready: ${gaps}`, rebuild: action === 'recreate' }
+    }
+    const { awaitDesktopEnsure } = await import('./ensure')
+    const ensure = await awaitDesktopEnsure()
+    return { code: ensure.code, stderr: ensure.stderr, rebuild: action === 'recreate' }
   } catch (err) {
     if ((err as { statusCode?: number }).statusCode === 409) throw err
     const message = err instanceof Error ? err.message : 'Rebuild failed'

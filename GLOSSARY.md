@@ -166,7 +166,7 @@ A shipped app under `lib/apps/core/<id>/`. Package cores (node, cargo, …) or d
 
 ## package app
 
-A package install inside Desktop. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. Kinds are node, npm, pnpm, bun, deno, uv, cargo, apt, deb, nix, and run. A `kind: run` app is a Desktop image layer. Other kinds install into the Desktop home after the session is up. Runs inside container `bros`.
+A package install inside Desktop. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. Kinds are node, npm, pnpm, bun, deno, uv, cargo, apt, deb, nix, and run. A `kind: run` app is a Desktop image layer. User-scoped kinds (npm, pnpm, bun, deno, uv, cargo, nix) install under the Desktop home after the session is up. Apt and deb install into Desktop container system paths and re-ensure after a recreate. Runs inside container `bros`.
 
 ## docker app
 
@@ -186,7 +186,7 @@ The Docker build context for `kind: run` apps. Bros writes it to `$BROS_DIR/data
 
 ## package manager
 
-npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. node, cargo, pnpm, bun, deno, and uv are core apps. npm is a kind. `docker` is not a package manager. Their settings, cache, and packages live in the Desktop home. A later manager follows the same install, remove, and present rules.
+npm, pnpm, bun, deno, uv, cargo, nix (Devbox global), apt, deb, or run. node, cargo, pnpm, bun, deno, and uv are core apps. npm is a kind. `docker` is not a package manager. User-scoped managers keep settings, cache, and packages under the Desktop home. Apt and deb use host-bound apt/deb caches and install into container system paths. A later manager follows the same install, remove, and present rules.
 
 ## global package
 
