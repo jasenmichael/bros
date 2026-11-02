@@ -90,27 +90,44 @@ function writeList(packages: CliPackage[]) {
 
 let chain: Promise<void> = Promise.resolve()
 
-export function enqueueDesktop(task: () => Promise<void>): Promise<void> {
+export function enqueueDesktop<T>(task: () => Promise<T>): Promise<T> {
   const run = chain.then(task, task)
   chain = run.then(() => undefined, () => undefined)
   return run
 }
 
-async function runEnsure() {
+export type EnsureResult = { code: number; stderr: string }
+
+/** Map ensure.sh exit + failure list to the Save response shape. */
+export function ensureResultFrom(res: { code: number; stderr?: string; stdout?: string }, failures: string[]): EnsureResult {
+  if (res.code !== 0) return { code: res.code, stderr: res.stderr || res.stdout || 'ensure failed' }
+  if (failures.length) return { code: 1, stderr: `ensure failed: ${failures.join(', ')}` }
+  return { code: 0, stderr: '' }
+}
+
+async function runEnsure(): Promise<EnsureResult> {
   const packages = ensurePackages(enabledCliPackages())
   writeList(packages)
   try {
     const { execInBros } = await import('../docker')
     const res = await execInBros(['bash', '/app/lib/desktop/ensure.sh'], 1_800_000)
-    if (res.code !== 0) console.error('desktop ensure', res.stderr || res.stdout)
+    const result = ensureResultFrom(res, readEnsureStatus().failures)
+    if (result.code !== 0) console.error('desktop ensure', result.stderr)
+    return result
   } catch (err) {
     console.error('desktop ensure', err)
     const status = readEnsureStatus()
     mkdirSync(join(statusFile(), '..'), { recursive: true })
     writeFileSync(statusFile(), `${JSON.stringify({ ...status, running: false })}\n`)
+    return { code: 1, stderr: err instanceof Error ? err.message : 'ensure failed' }
   }
 }
 
 export function queueDesktopEnsure() {
   void enqueueDesktop(runEnsure)
+}
+
+/** Await the next ensure pass and return its code/stderr for Save. */
+export function awaitDesktopEnsure(): Promise<EnsureResult> {
+  return enqueueDesktop(runEnsure)
 }

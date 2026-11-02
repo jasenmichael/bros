@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { appsComposeBody, catalogRoot, desktopAppsDockerfile, parseCliPackage, parseServices, readCatalog } from '../../app/server/utils/cli/packages'
-import { ensurePackages, presentBins } from '../../app/server/utils/cli/ensure'
+import { ensurePackages, ensureResultFrom, presentBins } from '../../app/server/utils/cli/ensure'
 import { bumpedRestartIds, commandsForRunning, runningIds, servicesFromYaml } from '../../lib/desktop/app-services/supervise.ts'
 import { listedPackageApp, listedDockerApp } from '../../app/ui/utils/gui'
 
@@ -174,6 +174,13 @@ describe('desktop package apps', () => {
     expect(docker.slice(session, session + 500)).not.toContain('await queueDesktopEnsure')
     expect(docker).not.toContain('await queueDesktopEnsure')
     expect(existsSync(join(root, 'app/ui/pages/settings/apps.vue'))).toBe(false)
+  })
+
+  it('maps ensure exit and failure list for Save', () => {
+    expect(ensureResultFrom({ code: 0 }, [])).toEqual({ code: 0, stderr: '' })
+    expect(ensureResultFrom({ code: 0 }, ['jq'])).toEqual({ code: 1, stderr: 'ensure failed: jq' })
+    expect(ensureResultFrom({ code: 2, stderr: 'boom' }, [])).toEqual({ code: 2, stderr: 'boom' })
+    expect(ensureResultFrom({ code: 1, stdout: 'out' }, ['a'])).toEqual({ code: 1, stderr: 'out' })
   })
 
   it('launches a services command only when its id is in the running set', () => {
