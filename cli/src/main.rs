@@ -688,6 +688,13 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bo
     let url = listen_url();
     let ready = wait_health(&url, if daemon { 60 } else { 120 });
     if ready {
+        say(&url);
+        for extra in lan_urls() {
+            say(&extra);
+        }
+        if let Some(tunnel_url) = tunnel_url(repo) {
+            say(&tunnel_url);
+        }
         let (code, body) = http_code(&paths, "POST", "/api/apps/compose");
         if !(200..300).contains(&code) {
             if code == 401 {
@@ -713,15 +720,6 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bo
     }
     if code != 0 {
         die("desktop compose up failed");
-    }
-    if announce && ready {
-        say(&url);
-        for extra in lan_urls() {
-            say(&extra);
-        }
-        if let Some(tunnel_url) = tunnel_url(repo) {
-            say(&tunnel_url);
-        }
     }
     if daemon {
         return;

@@ -25,7 +25,7 @@ Repo root is the directory of `bros`, symlink-resolved. `BROS_DIR` is shell env,
 
 | Command | What it does |
 | --- | --- |
-| `start` | Same as `bros` with no command. Starts the UI, waits for `/api/health`, writes `apps-compose.yml` through the API, then desktop `compose up -d --no-deps bros` (prod adds `--build`). Prints the listen URL, LAN URLs, and the tunnel URL when one is set. UI autostart brings up Ollama and stamps the internal `bros` model. |
+| `start` | Same as `bros` with no command. Starts the UI, waits for `/api/health`, then prints the listen URL, LAN URLs, and the tunnel URL when one is set. That print happens before desktop compose returns, including when install or update starts the UI. Then it writes `apps-compose.yml` through the API and runs desktop `compose up -d --no-deps bros` (prod adds `--build`). UI autostart brings up Ollama and stamps the internal `bros` model. |
 | `stop` | Stop the UI host, every `bros-*` container, then container `bros`. Prints `Bros exited.` and exits 0. Does not create data dirs. Does not need pnpm or cargo. |
 | `status` | Compose ps, `/api/health`, and an Ollama probe. No Node. |
 | `restart` | Stop, then start. |
