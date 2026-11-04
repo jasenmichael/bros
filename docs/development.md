@@ -151,7 +151,7 @@ Cut a feature branch from `main`. Open the pull request against `development`. T
 
 One pull request from `development` into `main` stays open. Merge that yourself. That merge is the release. A push to `development` does not publish. After the merge, automation fast-forwards `development` to `main`. If it cannot, it stops and does not force-push.
 
-The version bump runs on a pull request into `main` only. A pull request into `development` does not bump `VERSION`. Source `bros update` fast-forwards when the checkout branch is `main`, `master`, or `development`. Any other branch skips the pull and still rebuilds. There is no `--branch` flag.
+The version bump runs on a pull request into `main` only. A pull request into `development` does not bump `VERSION`. Source `bros update` fast-forwards when the checkout branch is `main` or `development`. Any other branch skips the pull and still rebuilds. There is no `--branch` flag.
 
 ## Release
 
