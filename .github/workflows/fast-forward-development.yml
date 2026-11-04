@@ -1,0 +1,41 @@
+name: Fast-forward development
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fast-forward:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'development'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fast-forward development to main
+        run: |
+          set -euo pipefail
+          git fetch origin main development
+          git checkout -B main origin/main
+          if ! git merge-base --is-ancestor origin/development origin/main; then
+            echo "stop: development cannot fast-forward to main"
+            exit 0
+          fi
+          set +e
+          git push origin main:development >push.err 2>&1
+          code=$?
+          set -e
+          if [[ "$code" -ne 0 ]]; then
+            cat push.err
+            if grep -q 'non-fast-forward' push.err; then
+              echo "stop: development cannot fast-forward to main"
+              exit 0
+            fi
+            exit "$code"
+          fi
+          echo "fast-forwarded development to main"

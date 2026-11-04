@@ -107,6 +107,14 @@ app/ui/utils/
 
 The CLI is the Rust binary in `cli/`. Usage: [bros](/docs/cli.md).
 
+## Branches
+
+Cut a feature branch from `main`. Open the pull request against `development`. That pull request runs the JS and Rust tests. It does not build release binaries. When those checks pass, automation merges the pull request into `development` and deletes the feature branch. It does not merge a pull request into `main`.
+
+One pull request from `development` into `main` stays open. Merge that yourself. That merge is the release. A push to `development` does not publish. After the merge, automation fast-forwards `development` to `main`. If it cannot, it stops and does not force-push.
+
+The version bump runs on a pull request into `main` only. A pull request into `development` does not bump `VERSION`. Source `bros update` fast-forwards when the checkout branch is `main`, `master`, or `development`. Any other branch skips the pull and still rebuilds. There is no `--branch` flag.
+
 ## Release
 
-Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, pull request commit types bump the version on the branch and the merge publishes the tag. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install.md).
+Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, commit types on a pull request into `main` bump the version on that branch and the merge publishes the tag. A pull request into `development` does not bump. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install.md).
