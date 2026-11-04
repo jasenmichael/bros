@@ -8,6 +8,7 @@ import { hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig } fro
 import { ensureHomeDirs } from './homePaths'
 import { getDb, dockerAppSettings } from './db'
 import { firstPublishPort, probeHostPort } from './hostProbe'
+import { chooseHostPort, composeHostPortEnv, fixedHostPublish } from './hostPublish'
 import { cliHostDirs, cliPacks, describeCli, syncCliBridges } from './docker-app/cliBridge'
 import { seedDockerAppData } from './docker-app/dockerAppData'
 import { ensureOmnirouteJwtSecret } from './docker-app/omnirouteSecret'
@@ -134,9 +135,15 @@ function composeEnv(): NodeJS.ProcessEnv {
   }
 }
 
-function run(cmd: string, args: string[], cwd: string, timeoutMs = 120_000): Promise<{ code: number; stdout: string; stderr: string }> {
+function run(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  timeoutMs = 120_000,
+  extra?: NodeJS.ProcessEnv,
+): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { cwd, env: composeEnv() })
+    const child = spawn(cmd, args, { cwd, env: { ...composeEnv(), ...extra } })
     let stdout = ''
     let stderr = ''
     let settled = false
@@ -402,7 +409,10 @@ export function dockerAppPortWarning(input: {
   portOccupied: boolean
   ours: boolean
   hostPort?: number | null
+  /** Ollama and Whisper keep a fixed host port. Other apps bump. */
+  fixedPublish?: boolean
 }): string | undefined {
+  if (!input.fixedPublish) return undefined
   if (!input.running && !input.autostart) return undefined
   if (input.portOccupied && !input.ours && input.hostPort) {
     return `Port ${input.hostPort} is already in use. Bros docker app cannot start until it is free.`
@@ -410,11 +420,29 @@ export function dockerAppPortWarning(input: {
   return undefined
 }
 
+async function projectHostPort(id: string): Promise<number | undefined> {
+  const project = projectName(id)
+  try {
+    const ports = await listPublishedHostPorts()
+    return ports.find((row) => row.project === project)?.port
+  } catch {
+    return undefined
+  }
+}
+
 async function readPublishedPort(dockerApp: DockerAppMeta, running: boolean) {
-  const hostPort = firstPublishPort(dockerApp.interfaces)
-  let portOccupied = false
+  const configured = firstPublishPort(dockerApp.interfaces)
+  let hostPort = configured
   let ours = running
-  if (typeof hostPort === 'number') {
+  if (running) {
+    const live = await projectHostPort(dockerApp.id)
+    if (typeof live === 'number') {
+      hostPort = live
+      ours = true
+    }
+  }
+  let portOccupied = false
+  if (typeof hostPort === 'number' && !(running && ours)) {
     portOccupied = await probeHostPort(hostPort)
     try {
       const owner = await publishedPortOwner(hostPort)
@@ -424,6 +452,16 @@ async function readPublishedPort(dockerApp: DockerAppMeta, running: boolean) {
     }
   }
   return { hostPort, portOccupied, ours }
+}
+
+async function hostPortTakenByOther(port: number, project: string): Promise<boolean> {
+  if (!(await probeHostPort(port))) return false
+  try {
+    const owner = await publishedPortOwner(port)
+    return owner?.project !== project
+  } catch {
+    return true
+  }
 }
 
 export async function dockerAppRuntime(dockerApp: DockerAppMeta) {
@@ -442,6 +480,7 @@ export async function dockerAppRuntime(dockerApp: DockerAppMeta) {
     portOccupied,
     ours,
     hostPort,
+    fixedPublish: fixedHostPublish(dockerApp.id),
   })
   let hostOllama: { port: number; version: string } | null = null
   let hostOllamaError: string | null = null
@@ -656,11 +695,34 @@ async function runStartDockerApp(id: string, opts?: { forceRecreate?: boolean; r
   const startPort = !probed.status.running && !probed.settings.autostart
     ? await readPublishedPort(dockerApp, false)
     : probed
+  let publishEnv: NodeJS.ProcessEnv | undefined
   if (startPort.portOccupied && !startPort.ours && startPort.hostPort) {
-    throw createError({
-      statusCode: 409,
-      statusMessage: `Port ${startPort.hostPort} is already in use.`,
-    })
+    if (fixedHostPublish(id)) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: `Port ${startPort.hostPort} is already in use.`,
+      })
+    }
+    const composePath = join(dockerApp.dir, 'docker-compose.yml')
+    const composeYml = existsSync(composePath) ? readFileSync(composePath, 'utf8') : ''
+    const envKey = composeHostPortEnv(composeYml, startPort.hostPort)
+    if (!envKey) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: `Port ${startPort.hostPort} is already in use. Compose has no host port variable to bump.`,
+      })
+    }
+    const picked = await chooseHostPort(
+      startPort.hostPort,
+      (port) => hostPortTakenByOther(port, projectName(id)),
+    )
+    if (!picked) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: `Port ${startPort.hostPort} is already in use. No free host port within 100 tries.`,
+      })
+    }
+    if (picked !== startPort.hostPort) publishEnv = { [envKey]: String(picked) }
   }
   await ensureNetwork()
   await ensureX11Volume()
@@ -717,19 +779,20 @@ async function runStartDockerApp(id: string, opts?: { forceRecreate?: boolean; r
     upArgs,
     dockerApp.dir,
     600_000,
+    publishEnv,
   )
   const conflict = up.code !== 0 ? containerNameConflict(`${up.stderr || ''}\n${up.stdout || ''}`) : null
   if (conflict) {
     await run('docker', ['rm', '-f', conflict], dockerApp.dir, 60_000)
-    up = await run('docker', upArgs, dockerApp.dir, 600_000)
+    up = await run('docker', upArgs, dockerApp.dir, 600_000, publishEnv)
   }
   let buildFailed = false
   if (up.code !== 0 && build && imageReady && /timeout|DeadlineExceeded|failed to resolve|failed to do request/i.test(`${up.stderr || ''}\n${up.stdout || ''}`)) {
     buildFailed = true
-    up = await run('docker', upArgs.filter((arg) => arg !== '--build'), dockerApp.dir, 600_000)
+    up = await run('docker', upArgs.filter((arg) => arg !== '--build'), dockerApp.dir, 600_000, publishEnv)
   }
   if (up.code !== 0) {
-    const taken = startPort.portOccupied && !startPort.ours && startPort.hostPort
+    const taken = !publishEnv && startPort.portOccupied && !startPort.ours && startPort.hostPort
       ? ` Port ${startPort.hostPort} is already in use.`
       : ''
     throw createError(dockerCommandError(

@@ -46,11 +46,13 @@ export function diskNeedsAttention(freeBytes: number | null, totalBytes: number 
 export function webuiOpenUrl(
   interfaces: Array<{ type: string; publish?: number; basePath?: string }>,
   viaTunnel: boolean,
+  liveHostPort?: number | null,
 ): string | null {
   if (viaTunnel) return null
   const webui = interfaces.find((iface) => iface.type === 'webui' && typeof iface.publish === 'number')
   if (!webui?.publish) return null
-  const origin = `http://127.0.0.1:${webui.publish}/`
+  const port = liveHostPort || webui.publish
+  const origin = `http://127.0.0.1:${port}/`
   const basePath = webui.basePath?.trim()
   if (!basePath) return origin
   const path = basePath.startsWith('/') ? basePath : `/${basePath}`
@@ -151,17 +153,21 @@ export function buildAttention(input: {
   return items
 }
 
-async function dockerAppState(dockerApp: DockerAppMeta): Promise<{ phase: DashboardPhase; error: string | null }> {
+async function dockerAppState(dockerApp: DockerAppMeta): Promise<{ phase: DashboardPhase; error: string | null; hostPort: number | null }> {
   try {
     const runtime = await dockerAppRuntime(dockerApp)
     const problem = dockerApp.error
       || (runtime.status.running ? null : (runtime.warning || autostartFailure(dockerApp.id) || null))
     const phase = dockerAppPhase(dockerApp.id, runtime.status.running, problem || undefined)
-    return { phase, error: phase === 'error' ? (problem || 'error') : null }
+    return {
+      phase,
+      error: phase === 'error' ? (problem || 'error') : null,
+      hostPort: runtime.status.running ? runtime.hostPort ?? null : null,
+    }
   }
   catch (err) {
     const message = err instanceof Error ? err.message : 'status failed'
-    return { phase: dockerAppPhase(dockerApp.id, false, message), error: message }
+    return { phase: dockerAppPhase(dockerApp.id, false, message), error: message, hostPort: null }
   }
 }
 
@@ -177,7 +183,7 @@ export async function getDashboardSummary(event: H3Event) {
   const disk = getDiskSpace()
   const { dockerApps } = discoverDockerApps()
   const visible = dockerApps.filter((dockerApp) => !dockerApp.disabled)
-  const states = new Map<string, { phase: DashboardPhase; error: string | null }>()
+  const states = new Map<string, { phase: DashboardPhase; error: string | null; hostPort: number | null }>()
   await Promise.all(visible.map(async (dockerApp) => {
     states.set(dockerApp.id, await dockerAppState(dockerApp))
   }))
@@ -224,7 +230,7 @@ export async function getDashboardSummary(event: H3Event) {
         kind: dockerApp.kind,
         phase: state.phase,
         error: state.error,
-        openUrl: webuiOpenUrl(dockerApp.interfaces, viaTunnel),
+        openUrl: webuiOpenUrl(dockerApp.interfaces, viaTunnel, state.hostPort),
       }
     })
     .sort((a, b) => dockerAppRank(a) - dockerAppRank(b) || a.name.localeCompare(b.name))
