@@ -33,6 +33,7 @@ export type AppDockerRow = {
   settings: { autostart: boolean; navPinned: boolean; hostMode?: string; exposeHost?: boolean; hostProbePort?: number | null }
   cli?: Array<{ bin: string; hostInstalled: boolean; source: 'host' | 'docker' | 'none' }>
   status: { running: boolean; services: Array<{ name: string; state: string }> }
+  hostPort?: number
   warning?: string
   error?: string
 }

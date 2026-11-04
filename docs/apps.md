@@ -97,7 +97,7 @@ Shipped ids win. Custom cannot reuse `ollama`, `whisper`, an addon id or slug, a
 
 ## Ports
 
-`containerPort` is the process listen port inside Docker. `publish` is the host port. Bros always starts the docker app stack on that **publish** port. Start fails if the port is already taken.
+`containerPort` is the process listen port inside Docker. `publish` is the host port. Bros starts the docker app on that **publish** port. If the host port is taken, Bros uses the next free host port and does not change `config.yml` or the container port. Ports 3000 and 8080 are skipped. After 100 probes the start fails. Open and copy use the live host port while the app is running. Ollama **11435** and Whisper **8090** stay fixed and fail the start when taken.
 
 Additional web UIs must set `publish` **and** stay on network `bros`.
 

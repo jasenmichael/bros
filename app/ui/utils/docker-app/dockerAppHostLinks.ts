@@ -14,6 +14,8 @@ export type DockerAppHostRow = {
   id?: string
   name: string
   packageSlug?: string
+  hostPort?: number
+  status?: { running?: boolean }
   interfaces: DockerAppHostIface[]
 }
 
@@ -33,7 +35,9 @@ export type DockerAppHostLinkOpts = {
   viaTunnel?: boolean
 }
 
-function hostPort(iface: DockerAppHostIface): number | undefined {
+function ifaceHostPort(s: DockerAppHostRow, iface: DockerAppHostIface): number | undefined {
+  // ponytail: one live host port per app. A pack with two publish ports needs a map.
+  if (s.status?.running && typeof s.hostPort === 'number' && s.hostPort > 0 && iface.publish) return s.hostPort
   return iface.publish || iface.hostPort
 }
 
@@ -65,7 +69,7 @@ function dockerAppLinksOfType(s: DockerAppHostRow, types: Set<string>, opts?: Do
   const seen = new Set<string>()
   for (const iface of s.interfaces || []) {
     if (!types.has(iface.type)) continue
-    const port = hostPort(iface)
+    const port = ifaceHostPort(s, iface)
     if (!port) continue
     const to = webUiHref(s, iface, port, opts?.viaTunnel)
     if (seen.has(to)) continue
@@ -133,8 +137,8 @@ function pushCopyUrl(out: DockerAppCopyUrl[], seen: Set<string>, url: string, ne
 }
 
 function siblingWebuiPort(s: DockerAppHostRow, iface: DockerAppHostIface): number | undefined {
-  const sibling = (s.interfaces || []).find((row) => row.type === 'webui' && row.service === iface.service && hostPort(row))
-  return sibling ? hostPort(sibling) : undefined
+  const sibling = (s.interfaces || []).find((row) => row.type === 'webui' && row.service === iface.service && ifaceHostPort(s, row))
+  return sibling ? ifaceHostPort(s, sibling) : undefined
 }
 
 /** Copyable api or openai URLs. Path only. openai defaults basePath to /v1. */
@@ -144,7 +148,7 @@ export function dockerAppEndpointCopyUrls(s: DockerAppHostRow, type: 'api' | 'op
   for (const iface of s.interfaces || []) {
     if (iface.type !== type) continue
     const basePath = iface.basePath || (type === 'openai' ? '/v1' : undefined)
-    const port = hostPort(iface) || (type === 'openai' ? siblingWebuiPort(s, iface) : undefined)
+    const port = ifaceHostPort(s, iface) || (type === 'openai' ? siblingWebuiPort(s, iface) : undefined)
     if (port) pushCopyUrl(out, seen, withBasePath(`http://127.0.0.1:${port}/`, basePath), 'host')
     const service = iface.service?.trim()
     const containerPort = iface.containerPort || port

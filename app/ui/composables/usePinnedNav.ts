@@ -21,6 +21,7 @@ type DockerAppNavRow = {
   }>
   settings: { navPinned: boolean }
   status?: { running: boolean }
+  hostPort?: number
 }
 
 /**

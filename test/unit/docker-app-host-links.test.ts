@@ -33,6 +33,15 @@ describe('dockerApp host links', () => {
       { label: 'OpenCode', to: 'http://127.0.0.1:4097/', external: true, hostPort: 4097 },
     ])
     expect(dockerAppOpenLinks(ui)).toEqual(dockerAppWebUiLinks(ui))
+    expect(dockerAppApiCopyUrls({
+      ...ui,
+      status: { running: true },
+      hostPort: 4781,
+      interfaces: [{ type: 'api', service: 'pi-durable', containerPort: 4780, publish: 4780 }],
+    })).toEqual([
+      { url: 'http://127.0.0.1:4781/', network: 'host' },
+      { url: 'http://pi-durable:4780/', network: 'bros' },
+    ])
   })
 
   it('opens openjev FastAPI docs via webui basePath', () => {

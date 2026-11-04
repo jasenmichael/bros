@@ -30,6 +30,7 @@ describe('dockerAppPortWarning', () => {
       portOccupied: true,
       ours: false,
       hostPort: 3100,
+      fixedPublish: true,
     })).toBeUndefined()
     expect(dockerAppPortWarning({
       running: false,
@@ -37,7 +38,15 @@ describe('dockerAppPortWarning', () => {
       portOccupied: true,
       ours: false,
       hostPort: 3100,
+      fixedPublish: true,
     })).toBe('Port 3100 is already in use. Bros docker app cannot start until it is free.')
+    expect(dockerAppPortWarning({
+      running: false,
+      autostart: true,
+      portOccupied: true,
+      ours: false,
+      hostPort: 4780,
+    })).toBeUndefined()
   })
 })
 
