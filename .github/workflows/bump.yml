@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   bump:
@@ -21,6 +22,7 @@ jobs:
       - name: Bump on the pull request branch
         env:
           HEAD_REF: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch origin main
@@ -52,4 +54,19 @@ jobs:
           fi
           echo "bump: ${want} from ${cur}"
           scripts/bump.sh "$want"
+          if [[ "$HEAD_REF" == "main" ]]; then
+            echo "refuse: will not push a bump to main"
+            exit 1
+          fi
+          if [[ "$HEAD_REF" == "development" ]]; then
+            sha="$(git rev-parse HEAD)"
+            git push origin "HEAD:bump/${sha}"
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base development \
+              --head "bump/${sha}" \
+              --title "$(git log -1 --format=%s)" \
+              --body "Version bump onto development. A direct push to development is refused until js and rust pass on the commit."
+            exit 0
+          fi
           git push origin "HEAD:${HEAD_REF}"
