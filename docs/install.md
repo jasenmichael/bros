@@ -19,13 +19,32 @@ scripts/pack-release.sh --target x86_64-unknown-linux-gnu
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 ```
 
-A source install needs git and cargo once. After that, runtime is Docker. Dev still needs host `pnpm`.
+A source install needs git and cargo once. After that, runtime is Docker. Host `pnpm` is for the UI on a checkout.
+
+## Install from source on the development branch
+
+This checkout is the install. `--from-src` clones https://github.com/jasenmichael/bros.git at branch `development` into `BROS_DIR` (default `~/.bros`), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. The clone is shallow (`git clone --depth 1`). `--from-src` is the optional build path. The release tarball install above never builds. It is a different command and does not use `BROS_REF`.
+
+`BROS_REF` defaults to `main`. There is no `--branch` flag. Set `BROS_REF` on the shell that runs the script. A pipe does not pass `curl`'s environment to `bash`. The curl runs `scripts/install.sh` from branch `development` and clones that same ref:
 
 ```bash
-curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
+curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
 ```
 
-That clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. `--from-src` is the optional build path; the default release install never builds. Source `bros update` fast-forwards when the checkout branch is `main`, `master`, or `development`, then rebuilds the CLI and the image through the API. Any other branch skips the pull and still rebuilds. There is no `--branch` flag. `BROS_REF` stays the `--from-src` ref (default `main`). A release install still updates from the tarball. Prod (release or source) uses host Node/pnpm for the UI when available; a release runs the prebuilt `app/ui/.output` with host `node`. Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` serves the UI. Dev always uses host `pnpm` and errors with either runner switch.
+`bros update` on `development` fast-forwards that branch, then rebuilds the CLI and the image through the API. The same fast-forward runs on `main`. Any other branch skips the pull and still rebuilds. A release install still updates from the tarball.
+
+From the install root:
+
+```bash
+cd "${BROS_DIR:-$HOME/.bros}"
+pnpm --dir app install
+pnpm --dir app --filter @bros/ui dev
+cargo run --manifest-path cli/Cargo.toml
+```
+
+Prod (release or source) uses host Node/pnpm for the UI when available; a release runs the prebuilt `app/ui/.output` with host `node`. Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` serves the UI. Dev always uses host `pnpm` and errors with either runner switch.
+
+Changing the app uses a separate git clone, not this install root. `main` is the release branch. Check out `development` in that clone. See [Development](/docs/development.md).
 
 Optional systemd user service (Linux):
 
@@ -40,7 +59,7 @@ Overrides:
 - `BROS_DIR` — install directory (default `~/.bros`). The `bros` binary lands here.
 - `BROS_RELEASE_URL` — exact release tarball URL. Unset uses `https://github.com/jasenmichael/bros/releases/latest/download/bros-<os>-<arch>.tar.gz`
 - `BROS_REPO` — git clone URL for `--from-src`
-- `BROS_REF` — git ref for `--from-src` (default `main`)
+- `BROS_REF` — git ref for `--from-src` (default `main`). Set it on the shell that runs the script.
 - `BROS_CONFIG` — bootstrap YAML (default `$BROS_DIR/bros.yml`)
 - `BROS_BIN` — PATH symlink (default `~/.local/bin/bros`)
 

@@ -60,9 +60,15 @@ curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 bros
 ```
 
+Install from source on the development branch. This checkout is the install (`BROS_DIR`, default `~/.bros`). `BROS_REF` defaults to `main`. There is no `--branch` flag. Set `BROS_REF` on the shell that runs the script. A pipe does not pass `curl`'s environment to `bash`. The release command above does not use `BROS_REF`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
+```
+
 Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Full install (source, systemd, overrides): [docs/install.md](docs/install.md). Getting started: [docs/getting-started.md](docs/getting-started.md).
 
-Checkout / hot-reload contributors: [docs/development.md](docs/development.md).
+Change the app in a separate clone, not `BROS_DIR`: [docs/development.md](docs/development.md).
 
 ## Agent skills
 
