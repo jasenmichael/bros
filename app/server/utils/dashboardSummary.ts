@@ -223,7 +223,7 @@ export async function getDashboardSummary(event: H3Event) {
 
   const dockerAppItems = visible
     .map((dockerApp) => {
-      const state = states.get(dockerApp.id) ?? { phase: 'stopped' as const, error: null }
+      const state = states.get(dockerApp.id) ?? { phase: 'stopped' as const, error: null, hostPort: null }
       return {
         id: dockerApp.id,
         name: dockerApp.name,
