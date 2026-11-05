@@ -29,7 +29,7 @@ jobs:
           git fetch origin main
           cur="$(tr -d '[:space:]' < VERSION)"
           if [[ "$HEAD_REF" == "development" ]]; then
-            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --title "Release: ${cur}"
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --title "Release: development into main"
           fi
           if ! git ls-remote --tags origin "refs/tags/v${cur}" | grep -q .; then
             echo "bump: tag v${cur} missing; leave VERSION for first release"
@@ -65,12 +65,6 @@ jobs:
           if [[ "$HEAD_REF" == "development" ]]; then
             sha="$(git rev-parse HEAD)"
             git push origin "HEAD:refs/heads/bump/${sha}"
-            gh pr create \
-              --repo "$GITHUB_REPOSITORY" \
-              --base development \
-              --head "bump/${sha}" \
-              --title "$(git log -1 --format=%s)" \
-              --body "Version bump onto development. A direct push to development is refused until js and rust pass on the commit."
             exit 0
           fi
           git push origin "HEAD:${HEAD_REF}"
