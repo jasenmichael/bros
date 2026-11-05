@@ -82,7 +82,7 @@ Feature branches are cut from `main`. Pull requests target `development`. `.gith
 
 `.github/workflows/merge-development.yml` runs after CI succeeds. When the pull request base is `development` and the head is not `development` or `main`, it merges with a merge commit and deletes the head branch. It refuses to merge when the base is `main`. GitHub reads this workflow from `main`, so it starts once the file is on `main`.
 
-`.github/workflows/ensure-development-pr.yml` runs on a push to `development`. If `development` is ahead of `main` and no open pull request from `development` into `main` exists, it opens one titled `Release: development into main`. It does not request auto-merge. The merge workflow calls the same job after it merges a feature pull request, because a token merge does not start a new push workflow.
+A push to `development` does not open a pull request into `main`. Open that pull request when you want a release. Automation does not merge it.
 
 `.github/workflows/fast-forward-development.yml` runs after the `development` pull request merges into `main`. It runs `git push origin main:development` with no force. If that is not a fast-forward, it logs and stops.
 
