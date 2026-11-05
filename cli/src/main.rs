@@ -600,14 +600,7 @@ fn ensure_dirs(repo: &Path, data: &Path) {
     ] {
         let _ = fs::create_dir_all(data.join(rel));
     }
-    let generated = data.join("build/desktop/Dockerfile");
-    let use_generated = fs::read_to_string(&generated).map(|t| t.contains("AS production")).unwrap_or(false);
-    if use_generated {
-        env::set_var("BROS_DESKTOP_DOCKERFILE", &generated);
-    } else {
-        let _ = fs::remove_file(&generated);
-        env::set_var("BROS_DESKTOP_DOCKERFILE", repo.join("lib/desktop/Dockerfile"));
-    }
+    select_desktop_dockerfile(repo, data);
     // Canonical bootstrap YAML is $BROS_DIR/bros.yml (repo root for an install).
     let home = env::var("BROS_DIR").map(PathBuf::from).unwrap_or_else(|_| repo.to_path_buf());
     let dest = home.join("bros.yml");
@@ -625,6 +618,31 @@ fn ensure_dirs(repo: &Path, data: &Path) {
         );
     }
     env::set_var("BROS_CONFIG_HOST", &dest);
+}
+
+fn apps_context_missing(data: &Path, dockerfile: &str) -> bool {
+    let root = data.join("build/desktop");
+    for line in dockerfile.lines() {
+        let Some(rest) = line.trim().strip_prefix("COPY --from=apps ") else { continue };
+        let id = rest.split_whitespace().next().unwrap_or("");
+        if id.is_empty() || id.contains('/') || id.contains("..") || !root.join(id).is_dir() {
+            return true;
+        }
+    }
+    false
+}
+
+fn select_desktop_dockerfile(repo: &Path, data: &Path) {
+    let generated = data.join("build/desktop/Dockerfile");
+    let text = fs::read_to_string(&generated).unwrap_or_default();
+    if text.contains("AS production") && !apps_context_missing(data, &text) {
+        env::set_var("BROS_DESKTOP_DOCKERFILE", &generated);
+        return;
+    }
+    if generated.is_file() && !text.contains("AS production") {
+        let _ = fs::remove_file(&generated);
+    }
+    env::set_var("BROS_DESKTOP_DOCKERFILE", repo.join("lib/desktop/Dockerfile"));
 }
 
 fn compose_args(repo: &Path, dev: bool, data: &Path) -> Vec<String> {
@@ -710,6 +728,7 @@ fn cmd_start(repo: &Path, paths: &Paths, dev: bool, use_runner: bool, daemon: bo
     } else {
         say(&format!("UI not ready yet: {url}"));
     }
+    select_desktop_dockerfile(repo, &paths.data);
     let mut up = compose_args(repo, dev, &paths.data);
     up.extend(desktop_up_args(dev).into_iter().map(str::to_string));
     let mut cmd = Command::new("docker");
@@ -1755,6 +1774,22 @@ fn drain(reader: impl Read, log: &Path, verbose: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stale_desktop_dockerfile_is_not_ready() {
+        let root = std::env::temp_dir().join(format!("bros-desktop-df-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let data = root.join("data");
+        fs::create_dir_all(data.join("build/desktop/herdr")).unwrap();
+        fs::write(
+            data.join("build/desktop/Dockerfile"),
+            "FROM runtime AS production\nCOPY --from=apps claude /opt/bros/enabled-apps/claude\nCOPY --from=apps herdr /opt/bros/enabled-apps/herdr\n",
+        ).unwrap();
+        assert!(apps_context_missing(&data, &fs::read_to_string(data.join("build/desktop/Dockerfile")).unwrap()));
+        fs::create_dir_all(data.join("build/desktop/claude")).unwrap();
+        assert!(!apps_context_missing(&data, &fs::read_to_string(data.join("build/desktop/Dockerfile")).unwrap()));
+        let _ = fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn bros_dir_defaults_to_repo() {

@@ -723,6 +723,20 @@ export function appLayerOrder<T extends { id: string; tier?: string }>(packages:
   return [...packages].sort((a, b) => (a.tier === 'core' ? 0 : 1) - (b.tier === 'core' ? 0 : 1) || a.id.localeCompare(b.id))
 }
 
+/** Generated Desktop Dockerfile is usable only when every COPY --from=apps dir exists. */
+export function generatedDesktopDockerfile(dataDir: string): string | null {
+  const file = join(dataDir, 'build', 'desktop', 'Dockerfile')
+  if (!existsSync(file)) return null
+  const text = readFileSync(file, 'utf8')
+  if (!text.includes('AS production')) return null
+  const root = join(dataDir, 'build', 'desktop')
+  for (const line of text.split('\n')) {
+    const id = line.trim().match(/^COPY --from=apps\s+(\S+)/)?.[1]
+    if (id && !existsSync(join(root, id))) return null
+  }
+  return file
+}
+
 export function desktopAppsDockerfile(base: string, packages: { id: string; tier?: string; kind?: string }[]): string {
   const layers = appLayerOrder(packages).filter((pkg) => pkg.kind === 'run').map((pkg) => {
     if (!APP_ID.test(pkg.id)) throw new Error(`bad app id ${pkg.id}`)
