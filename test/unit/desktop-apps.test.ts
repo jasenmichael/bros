@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { appsComposeBody, catalogRoot, desktopAppsDockerfile, parseCliPackage, parseServices, readCatalog } from '../../app/server/utils/cli/packages'
+import { appsComposeBody, catalogRoot, desktopAppsDockerfile, generatedDesktopDockerfile, parseCliPackage, parseServices, readCatalog } from '../../app/server/utils/cli/packages'
 import { ensurePackages, ensureResultFrom, presentBins } from '../../app/server/utils/cli/ensure'
 import { bumpedRestartIds, commandsForRunning, runningIds, servicesFromYaml } from '../../lib/desktop/app-services/supervise.ts'
 import { listedPackageApp, listedDockerApp } from '../../app/ui/utils/gui'
@@ -70,6 +70,18 @@ describe('desktop package apps', () => {
     expect(compose).not.toContain('dockerApps:')
     expect(compose).not.toContain('brosnode:')
     expect(dockerfile).toContain('node:26.7.0-bookworm-slim@sha256:4db36457f406501e6f608802e5da617e5fbd0e80b75901b6a09de1ae5a667d32')
+  })
+
+  it('rejects a generated Desktop Dockerfile when a copied app dir is missing', () => {
+    const staged = mkdtempSync(join(tmpdir(), 'bros-desktop-df-'))
+    const dir = join(staged, 'build', 'desktop')
+    mkdirSync(join(dir, 'herdr'), { recursive: true })
+    const file = join(dir, 'Dockerfile')
+    writeFileSync(file, 'FROM runtime AS production\nCOPY --from=apps claude /opt/bros/enabled-apps/claude\nCOPY --from=apps herdr /opt/bros/enabled-apps/herdr\n')
+    expect(generatedDesktopDockerfile(staged)).toBeNull()
+    mkdirSync(join(dir, 'claude'))
+    expect(generatedDesktopDockerfile(staged)).toBe(file)
+    rmSync(staged, { recursive: true, force: true })
   })
 
   it('reads shipped apps from config.yml', () => {
