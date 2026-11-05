@@ -13,8 +13,6 @@ jobs:
   merge:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-24.04
-    outputs:
-      merged: ${{ steps.merge.outputs.merged }}
     steps:
       - id: merge
         env:
@@ -23,7 +21,6 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
-          echo "merged=false" >> "$GITHUB_OUTPUT"
           if [[ "$HEAD_BRANCH" == "main" || "$HEAD_BRANCH" == "development" ]]; then
             echo "skip: head is ${HEAD_BRANCH}"
             exit 0
@@ -55,15 +52,7 @@ jobs:
             gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --merge --delete-branch --match-head-commit "$HEAD_SHA"
             merged=1
           done < <(jq -c '.[]' <<<"$prs")
-          if [[ "$merged" == "1" ]]; then
-            echo "merged=true" >> "$GITHUB_OUTPUT"
-          fi
           if [[ "$merged" == "0" && "$refused_main" == "1" ]]; then
             echo "refuse: will not merge into main"
             exit 1
           fi
-
-  ensure:
-    needs: merge
-    if: needs.merge.result == 'success' && needs.merge.outputs.merged == 'true'
-    uses: ./.github/workflows/ensure-development-pr.yml
