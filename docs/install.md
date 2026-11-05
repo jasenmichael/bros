@@ -7,7 +7,7 @@ description: install.sh, BROS_DIR, first start, and the bros command.
 
 A release needs Docker. It unpacks `bros-<os>-<arch>.tar.gz` (`bros-linux-amd64`, `bros-linux-arm64`, `bros-darwin-amd64`, or `bros-darwin-arm64`) into `~/.bros` and symlinks `~/.local/bin/bros` (`BROS_BIN`) to `$BROS_DIR/bros`. It does not build. The binary is in the tarball. The tarball includes the prebuilt UI at `app/ui/.output`, that `bros` binary, and `example.env`. It omits `vendor/` and the `app/` sources. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. `bros update` downloads the next tarball for this machine (`BROS_RELEASE_URL` overrides the exact URL), keeps `data/` and an existing `.env`, and refreshes `example.env`.
 
-The product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`, so this install downloads [bros-model `v1.0.0`](https://github.com/jasenmichael/bros-model/releases/download/v1.0.0/bros-model.tar.gz) when that stamp is missing or older. The next merge to `main` publishes tag `v0.0.1`. It does not bump the number. After `v0.0.1` and bros-model `v1.0.0` exist, a pull request's commit type chooses the next number (`feat` minor, `fix` and `perf` patch, `feat!` or a `BREAKING CHANGE` footer major). The merge tags that number and uploads the tarballs. A later bros-model release whose version changed opens a Bros pull request with that model release and a minor bump. A local pack does not bump `VERSION`:
+The product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`, so this install downloads [bros-model `v1.0.0`](https://github.com/jasenmichael/bros-model/releases/download/v1.0.0/bros-model.tar.gz) when that stamp is missing or older. The next merge to `main` publishes tag `v0.0.1`. It does not bump the number. After `v0.0.1` and bros-model `v1.0.0` exist, the commit type on a pull request into `main` chooses the next number (`feat` minor, `fix` and `perf` patch, `feat!` or a `BREAKING CHANGE` footer major). The merge tags that number and uploads the tarballs. A later bros-model release whose version changed opens a Bros pull request with that model release and a minor bump. A local pack does not bump `VERSION`:
 
 ```bash
 pnpm --dir app --filter @bros/ui build
@@ -19,13 +19,32 @@ scripts/pack-release.sh --target x86_64-unknown-linux-gnu
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 ```
 
-A source install needs git and cargo once. After that, runtime is Docker. Dev still needs host `pnpm`.
+A source install needs git and cargo once. After that, runtime is Docker. Host `pnpm` is for the UI on a checkout.
+
+## Install from source on the development branch
+
+This checkout is the install. `--from-src` clones https://github.com/jasenmichael/bros.git at branch `development` into `BROS_DIR` (default `~/.bros`), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. The clone is shallow (`git clone --depth 1`). `--from-src` is the optional build path. The release tarball install above never builds. It is a different command and does not use `BROS_REF`.
+
+`BROS_REF` defaults to `main`. There is no `--branch` flag. Set `BROS_REF` on the shell that runs the script. A pipe does not pass `curl`'s environment to `bash`. The curl runs `scripts/install.sh` from branch `development` and clones that same ref:
 
 ```bash
-curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
+curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
 ```
 
-That clones https://github.com/jasenmichael/bros.git into `~/.bros` (`BROS_DIR`), runs `cargo build --release` for `cli/`, points `$BROS_DIR/bros` at `cli/target/release/bros`, then symlinks `BROS_BIN` the same way as a release install. `--from-src` is the optional build path; the default release install never builds. Source `bros update` pulls, rebuilds the CLI, then rebuilds the image through the API. Prod (release or source) uses host Node/pnpm for the UI when available; a release runs the prebuilt `app/ui/.output` with host `node`. Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` serves the UI. Dev always uses host `pnpm` and errors with either runner switch.
+`bros update` on `development` fast-forwards that branch, then rebuilds the CLI and the image through the API. The same fast-forward runs on `main`. Any other branch skips the pull and still rebuilds. A release install still updates from the tarball.
+
+From the install root:
+
+```bash
+cd "${BROS_DIR:-$HOME/.bros}"
+pnpm --dir app install
+pnpm --dir app --filter @bros/ui dev
+cargo run --manifest-path cli/Cargo.toml
+```
+
+Prod (release or source) uses host Node/pnpm for the UI when available; a release runs the prebuilt `app/ui/.output` with host `node`. Without host Node/pnpm, or with `--use-runner` / `BROS_USE_RUNNER=1`, container `bros-ui` serves the UI. Dev always uses host `pnpm` and errors with either runner switch.
+
+Changing the app uses a separate git clone, not this install root. `main` is the release branch. Check out `development` in that clone. See [Development](/docs/development.md).
 
 Optional systemd user service (Linux):
 
@@ -40,7 +59,7 @@ Overrides:
 - `BROS_DIR` — install directory (default `~/.bros`). The `bros` binary lands here.
 - `BROS_RELEASE_URL` — exact release tarball URL. Unset uses `https://github.com/jasenmichael/bros/releases/latest/download/bros-<os>-<arch>.tar.gz`
 - `BROS_REPO` — git clone URL for `--from-src`
-- `BROS_REF` — git ref for `--from-src` (default `main`)
+- `BROS_REF` — git ref for `--from-src` (default `main`). Set it on the shell that runs the script.
 - `BROS_CONFIG` — bootstrap YAML (default `$BROS_DIR/bros.yml`)
 - `BROS_BIN` — PATH symlink (default `~/.local/bin/bros`)
 

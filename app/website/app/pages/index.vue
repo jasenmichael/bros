@@ -68,6 +68,15 @@ const features = [
         </p>
         <pre class="overflow-x-auto rounded-lg border border-[var(--bros-border)] bg-[#121820] p-4 text-sm text-[#e8eef5]"><code>curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 bros</code></pre>
+        <p class="max-w-2xl text-sm text-[var(--bros-muted)]">
+          Install from source on the development branch. This checkout is the install (<code>BROS_DIR</code>, default <code>~/.bros</code>).
+          <code>BROS_REF</code> defaults to <code>main</code>. There is no <code>--branch</code> flag.
+          Set <code>BROS_REF</code> on the shell that runs the script. A pipe does not pass <code>curl</code>'s environment to <code>bash</code>.
+          The release command above does not use <code>BROS_REF</code>.
+          Changing the app uses a separate clone:
+          <NuxtLink to="/docs/development" class="text-[var(--bros-accent)] hover:underline">Development</NuxtLink>.
+        </p>
+        <pre class="overflow-x-auto rounded-lg border border-[var(--bros-border)] bg-[#121820] p-4 text-sm text-[#e8eef5]"><code>curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src</code></pre>
         <p class="text-sm text-[var(--bros-muted)]">
           App:
           <a class="text-[var(--bros-accent)] hover:underline" href="http://127.0.0.1:3055">http://127.0.0.1:3055</a>

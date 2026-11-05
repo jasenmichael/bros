@@ -4,7 +4,7 @@
 #
 # Usage:
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
-#   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
+#   curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
 #   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 #
 # Default (release): unpack tarball into BROS_DIR, symlink BROS_BIN. No cargo.
@@ -259,7 +259,7 @@ Bros install
 
 Usage:
   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
-  curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --from-src
+  curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
   curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
 
 Options:
