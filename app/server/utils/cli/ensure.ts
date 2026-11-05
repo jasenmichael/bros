@@ -36,7 +36,7 @@ function ensureDir() {
 }
 
 function statusFile() {
-  return join(loadBootstrapConfig().dataDir, 'var', 'logs', 'ensure.json')
+  return join(loadBootstrapConfig().dataDir, 'var', 'ensure.json')
 }
 
 export function readEnsureStatus(): EnsureStatus {

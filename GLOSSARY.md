@@ -173,6 +173,16 @@ A shipped app under `lib/apps/core/<id>/`. Package cores (node, cargo, …) or d
 
 A package install inside Desktop. `lib/apps/<tier>/<id>/config.yml` or `data/config/apps/<id>/config.yml`. Kinds are node, npm, pnpm, bun, deno, uv, cargo, apt, deb, nix, and run. A `kind: run` app is a Desktop image layer. User-scoped kinds (npm, pnpm, bun, deno, uv, cargo, nix) install under the Desktop home after the session is up. Apt and deb install into Desktop container system paths and re-ensure after a recreate. Runs inside container `bros`.
 
+## service
+
+A background process of a package app inside Desktop.
+_Avoid_: container
+
+## container
+
+A Docker container Bros manages. Core containers belong to Desktop. A docker app has its own containers.
+_Avoid_: service
+
 ## docker app
 
 An app whose `docker-compose.yml` is its own project. Kind is `docker`. Not a package manager. Interfaces are `cli`, `gui`, `api`, `webui`, and `openapi`. Shipped cores live in `lib/apps/core/<id>/`. Shipped addons live in `lib/apps/addon/<id>/`. Custom lives in `data/config/apps/<id>/`. Listed on `/apps`. Volume binds live in compose only.

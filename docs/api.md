@@ -133,6 +133,7 @@ Store list is `GET /api/apps`. Compose start, stop, restart, settings, and files
 | POST | `/api/apps/{id}/enable` | Enable an addon app and queue ensure. Adds the id to `data/config/enabled-apps`. Does not write `data/config/apps/<id>/config.yml`. `kind: run` does not rebuild; `/apps` shows Rebuild when the run set differs from the last stamp |
 | POST | `/api/apps/{id}/disable` | Addon only. Removes the id from `data/config/enabled-apps` and queues removal of the command. Does not write a config. Caches stay. Core returns 404 |
 | GET | `/api/apps/{id}/logs` | Docker compose logs when the id is a docker app. Otherwise the tail of `data/var/logs/apps/<id>.log` for a package that has a service. The file stays after Stop |
+| GET | `/api/containers/{service}/logs` | `docker logs` for one container in compose project `bros`. 404 when that service is not a Bros-managed container in that project |
 | POST | `/api/apps/{id}/service` | `{ action: start \| stop \| restart }` for an enabled package app that has `services`. Writes `data/config/apps/running.json`. Restart bumps that id's count. 404 when the app is missing, off, or has no services. 400 when `action` is anything else |
 | POST | `/api/apps/rebuild` | Rebuild the Desktop image for the current `kind: run` set and swap the container. 409 while a rebuild is in progress |
 | POST | `/api/apps/{id}/ui` | `{ forwardHost?, navPinned? }` for a package web UI. `forwardHost` publishes `publish:containerPort` and proxies `/${id}/`. Default forward is on |

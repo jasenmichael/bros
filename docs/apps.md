@@ -114,7 +114,7 @@ On `/settings/desktop/apps`:
 
 ## Status
 
-`/status` lists each docker app’s publish port, state, error, autostart, and pin. On `/settings/desktop/apps`, a refresh icon on each card re-fetches `/api/apps` so running/stopped updates without a full reload. The Dashboard **Apps** panel lists each pack’s phase (`starting`, `running`, `stopped`, `error`) and Open on a running web UI. Host Ollama is not a docker app. `/status` keeps the grouped **Bros services** list.
+`/status` lists each docker app’s publish port, state, error, autostart, and pin. On `/settings/desktop/apps`, a refresh icon on each card re-fetches `/api/apps` so running/stopped updates without a full reload. The Dashboard **Apps** panel lists each pack’s phase (`starting`, `running`, `stopped`, `error`) and Open on a running web UI. Host Ollama is not a docker app. `/status` keeps the grouped **Containers** list.
 
 `bros stop` and interactive Ctrl+C stop all `bros-*` projects, then container `bros`.
 

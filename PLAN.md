@@ -95,7 +95,7 @@ Persistent docker app + app state is `$BROS_DIR/data` on the host (`./data` in a
 ## Recent (Docker apps UI)
 
 - `/docker apps` is one list. Add docker app and From a repo sit above the filters. Filters share one line: All / Running / Stopped, interface type, and Core / Addon / Custom, each a segmented control. Addon and custom stay stopped on a fresh install until SQLite Autostart is on (then restart) or you press Start. Core always runs and has no Restart. Card headings: **(core)**, **(addon)**, **(custom)**, **(repo)**. Start/Stop/Restart, Open, and Logs sit on the left of the action row. The chevron stays on the right edge of that row. Autostart and Pin sit on the next line. The chevron opens URLs and the rest.
-- Dashboard is a fixed hub: recent chats, providers on for Chat, docker app phase with Open on a running web UI, and the host tunnel. Attention shows only for Docker, docker app errors, stopped Ollama, low disk, or nothing ready for chat. The page renders before `GET /api/dashboard/summary`. **Bros services** stays on `/status`.
+- Dashboard is a fixed hub: recent chats, providers on for Chat, docker app phase with Open on a running web UI, and the host tunnel. Attention shows only for Docker, docker app errors, stopped Ollama, low disk, or nothing ready for chat. The page renders before `GET /api/dashboard/summary`. **Containers** stays on `/status`.
 
 ## Recent (Providers)
 

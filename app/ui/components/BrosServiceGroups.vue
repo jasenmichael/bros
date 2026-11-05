@@ -22,8 +22,8 @@ function portLabel(ports: number[]) {
 
 <template>
   <section>
-    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--bros-muted)]">Bros services</h2>
-    <p class="mb-3 text-xs text-[var(--bros-muted)]">Docker containers Bros manages — app plus every docker app service.</p>
+    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--bros-muted)]">Containers</h2>
+    <p class="mb-3 text-xs text-[var(--bros-muted)]">Docker containers Bros manages — the core project plus every docker app.</p>
     <p v-if="!groups.length" class="text-sm text-[var(--bros-muted)]">No Bros-managed containers.</p>
     <div v-else class="grid gap-3 sm:grid-cols-2">
       <article
@@ -47,6 +47,13 @@ function portLabel(ports: number[]) {
             <span class="flex flex-wrap items-center gap-2">
               <span v-if="row.ports.length" class="font-mono text-xs text-[var(--bros-muted)]">{{ portLabel(row.ports) }}</span>
               <UBadge :color="stateColor(row.state)" variant="subtle">{{ row.state }}</UBadge>
+              <UButton
+                v-if="!group.dockerAppId"
+                :to="`/settings/desktop/containers/${row.service}/logs`"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+              >Logs</UButton>
             </span>
           </li>
         </ul>
