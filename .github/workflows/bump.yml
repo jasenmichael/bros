@@ -60,7 +60,7 @@ jobs:
           fi
           if [[ "$HEAD_REF" == "development" ]]; then
             sha="$(git rev-parse HEAD)"
-            git push origin "HEAD:bump/${sha}"
+            git push origin "HEAD:refs/heads/bump/${sha}"
             gh pr create \
               --repo "$GITHUB_REPOSITORY" \
               --base development \
