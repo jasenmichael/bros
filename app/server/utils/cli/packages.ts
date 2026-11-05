@@ -731,8 +731,8 @@ export function generatedDesktopDockerfile(dataDir: string): string | null {
   if (!text.includes('AS production')) return null
   const root = join(dataDir, 'build', 'desktop')
   for (const line of text.split('\n')) {
-    const match = line.trim().match(/^COPY --from=apps\s+(\S+)/)
-    if (match && !existsSync(join(root, match[1]))) return null
+    const id = line.trim().match(/^COPY --from=apps\s+(\S+)/)?.[1]
+    if (id && !existsSync(join(root, id))) return null
   }
   return file
 }
