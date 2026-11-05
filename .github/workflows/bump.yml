@@ -22,11 +22,15 @@ jobs:
       - name: Bump on the pull request branch
         env:
           HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch origin main
           cur="$(tr -d '[:space:]' < VERSION)"
+          if [[ "$HEAD_REF" == "development" ]]; then
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --title "Release: ${cur}"
+          fi
           if ! git ls-remote --tags origin "refs/tags/v${cur}" | grep -q .; then
             echo "bump: tag v${cur} missing; leave VERSION for first release"
             exit 0
