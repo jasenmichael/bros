@@ -11,12 +11,12 @@ export XDG_CONFIG_HOME="$HOME_DIR/.config"
 export PATH="/home/bros/.local/app-bins:$PATH"
 LIST=/opt/bros/apps/ensure.list
 REMOVE=/opt/bros/apps/ensure.remove
-STATUS=/var/log/bros/ensure.json
+STATUS=/app/data/var/ensure.json
 INSTALL=/opt/bros/install.ts
 if [ -f /app/lib/desktop/install.ts ]; then
   INSTALL=/app/lib/desktop/install.ts
 fi
-mkdir -p /var/log/bros /etc/nix "$HOME_DIR/.local/bin" "$XDG_DATA_HOME/devbox" "$XDG_STATE_HOME/nix"
+mkdir -p /var/log/bros /app/data/var /etc/nix "$HOME_DIR/.local/bin" "$XDG_DATA_HOME/devbox" "$XDG_STATE_HOME/nix"
 if [ ! -f /etc/nix/nix.conf ]; then
   printf '%s\n' 'sandbox = false' 'experimental-features = nix-command flakes' 'build-users-group =' 'use-xdg-base-directories = true' > /etc/nix/nix.conf
 fi
