@@ -149,7 +149,7 @@ The CLI is the Rust binary in `cli/`. Usage: [bros](/docs/cli.md).
 
 Cut a feature branch from `main`. Open the pull request against `development`. That pull request runs the JS and Rust tests. It does not build release binaries. When those checks pass, automation merges the pull request into `development` and deletes the feature branch. It does not merge a pull request into `main`.
 
-Open the pull request from `development` into `main` when you want a release. Bump renames it to `Release: development into main`. Actions shows that title on the run. Merge that yourself. A push to `development` does not open that pull request and does not publish. After the merge, automation fast-forwards `development` to `main`. If it cannot, it stops and does not force-push.
+Open the pull request from `development` into `main` when you want a release. Bump does not rename the pull request. Actions shows the title you set on the run. Merge that yourself. A push to `development` does not open that pull request and does not publish. After the merge, automation fast-forwards `development` to `main`. If it cannot, it stops and does not force-push.
 
 The version bump runs on a pull request into `main` only. A pull request into `development` does not bump `VERSION`. Source `bros update` fast-forwards when the checkout branch is `main` or `development`. Any other branch skips the pull and still rebuilds. There is no `--branch` flag.
 
