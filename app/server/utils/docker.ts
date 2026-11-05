@@ -857,6 +857,36 @@ async function runStartDockerApp(id: string, opts?: { forceRecreate?: boolean; r
   }
 }
 
+export function coreProjectContainers<T extends { project: string; service: string }>(
+  containers: T[],
+  service: string,
+): T[] {
+  return containers.filter((row) => row.project === CORE_COMPOSE_PROJECT && row.service === service)
+}
+
+export async function coreContainerLogs(service: string, tail = 200) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(service)) {
+    throw createError({ statusCode: 400, statusMessage: 'service required' })
+  }
+  const capped = Math.min(Math.max(tail, 1), 2000)
+  const containers = coreProjectContainers(await listBrosManagedContainers(), service)
+  if (!containers.length) throw createError({ statusCode: 404, statusMessage: 'Container not found' })
+  const parts: string[] = []
+  let error: string | undefined
+  for (const container of containers) {
+    const res = await run(
+      'docker',
+      ['logs', '--tail', String(capped), container.id],
+      loadBootstrapConfig().workingDir,
+      30_000,
+    )
+    const text = [res.stdout, res.stderr].filter((chunk) => chunk.trim()).join('\n').trim()
+    if (text) parts.push(containers.length > 1 ? `# ${container.name}\n${text}` : text)
+    if (res.code !== 0) error = (res.stderr || res.stdout || 'Failed to read logs').trim()
+  }
+  return { service, project: CORE_COMPOSE_PROJECT, logs: parts.join('\n\n'), error }
+}
+
 export async function dockerAppLogs(id: string, tail = 200) {
   const dockerApp = getDockerApp(id)
   if (!dockerApp) throw createError({ statusCode: 404, statusMessage: 'DockerApp not found' })

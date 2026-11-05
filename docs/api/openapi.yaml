@@ -826,6 +826,19 @@ paths:
         '200': { description: Log text }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/containers/{service}/logs:
+    get:
+      tags: [DockerApps]
+      summary: docker logs for one container in compose project bros
+      parameters:
+        - name: service
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Log text }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/apps/versions:
     get:
       tags: [DockerApps]

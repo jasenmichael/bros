@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   containerNameConflict,
+  coreProjectContainers,
   isBrosManagedContainer,
   toBrosManagedContainer,
   type BrosContainerListItem,
@@ -87,5 +88,16 @@ describe('Bros-managed Docker inventory', () => {
     })
     expect(isBrosManagedContainer(row)).toBe(true)
     expect(toBrosManagedContainer(row).kind).toBe('app')
+  })
+
+  it('reads logs only for a container in project bros', () => {
+    const rows = [
+      { project: 'bros', service: 'bros-ui' },
+      { project: 'bros-ollama', service: 'ollama' },
+      { project: 'bros', service: 'bros' },
+    ]
+    expect(coreProjectContainers(rows, 'bros-ui').map((row) => row.service)).toEqual(['bros-ui'])
+    expect(coreProjectContainers(rows, 'ollama')).toEqual([])
+    expect(coreProjectContainers(rows, 'missing')).toEqual([])
   })
 })
