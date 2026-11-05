@@ -155,4 +155,4 @@ The version bump runs on a pull request into `main` only. A pull request into `d
 
 ## Release
 
-Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, commit types on a pull request into `main` bump the version on that branch and the merge publishes the tag. A pull request into `development` does not bump. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install.md).
+Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, commit types on a pull request into `main` bump the version on that branch and the merge publishes the tag. A pull request into `development` does not bump. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root.

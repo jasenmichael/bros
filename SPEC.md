@@ -58,7 +58,7 @@ Shared markdown lives in repo `docs/`. Routes `/docs` and `/docs/*` are the same
 
 Docs index, dock, and website nav share one tree (Start, App, Docker apps, Apps, Contribute, API). The tree lists every `docs/` page, including Providers → Ollama + Custom providers and all fourteen Popular service pages. App dock **Docs** expands that tree (collapsible; hidden scrollbar). Dashboard…Status stay un-scrolled. Previous chats and Docs each scroll. Website nav is Home plus the same tree. Docs pages show breadcrumbs above the title (Docs / App / Providers / Custom providers).
 
-The website owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). Website nav: Home plus the docs directory tree. Landing CTAs: Get started, Install, Development. Landing cards: Chat, Providers, Apps, Desktop, Agents, Development. The Bros app owns dashboard `/` plus Chat, Providers, Apps, Status, and Settings. Product pitch mirrors the repo README; install and development detail stay in `docs/install` and `docs/development`.
+The website owns marketing `/` and publishes to GitHub Pages (`baseURL` `/bros/`). Website nav: Home plus the docs directory tree. Landing CTAs: Get started, Install, Development. Landing cards: Chat, Providers, Apps, Desktop, Agents, Development. The Bros app owns dashboard `/` plus Chat, Providers, Apps, Status, and Settings. Product pitch mirrors the repo README; install detail stays in `docs/install`, uninstall in `docs/uninstall`, and development detail in `docs/development`.
 
 ## Bootstrap
 

@@ -10,13 +10,9 @@ description: >-
 
 **Bros** = Boxed Runtime Orchestration System. Docker control plane for local AI apps (Chat, Providers, Apps) plus a browser Desktop (Selkies). CLI is `bros` (default action: start). UI: `http://127.0.0.1:3055`.
 
-Release install: `curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash` → `$BROS_DIR` (usually `~/.bros`), symlink `~/.local/bin/bros`. That command does not use `BROS_REF`.
+Release install: `curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash` → `$BROS_DIR` (usually `~/.bros`), symlink `~/.local/bin/bros`.
 
-Install from source on the development branch. This checkout is the install. `BROS_REF` defaults to `main`. There is no `--branch` flag. Set `BROS_REF` on the shell that runs the script. A pipe does not pass `curl`'s environment to `bash`. `bros update` on `development` fast-forwards that branch.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
-```
+Source, a branch, and the service: [docs/install.md](https://github.com/jasenmichael/bros/blob/development/docs/install.md). Uninstall: [docs/uninstall.md](https://github.com/jasenmichael/bros/blob/development/docs/uninstall.md).
 
 Changing the app is a separate clone: `bros-dev` and [docs/development.md](https://github.com/jasenmichael/bros/blob/development/docs/development.md).
 

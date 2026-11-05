@@ -34,7 +34,7 @@ Repo root is the directory of `bros`, symlink-resolved. `BROS_DIR` is shell env,
 | `service install` | Linux systemd --user unit. `ExecStart` is `bros -D`. |
 | `service uninstall` | Disable and remove that unit. |
 | `service status` | `systemctl --user status bros`. |
-| `uninstall` | Release install only. Stop stack, remove `BROS_BIN` and shipped tree; keep `data/`, `.env`, `bros.yml`. `--purge` deletes all of `BROS_DIR`. Also `$BROS_DIR/uninstall.sh`. |
+| `uninstall` | Release install only. Stop stack, remove `BROS_BIN` and shipped tree; keep `data/`, `.env`, `bros.yml`. `--purge` deletes all of `BROS_DIR`. Also `$BROS_DIR/uninstall.sh`. Steps: [Uninstall](/docs/uninstall.md). |
 | `run <command>` | `docker exec` in container `bros` (workdir `/home/bros/workspace`). Example: `bros run agent`. |
 | `shell` | `docker exec` `bash` in container `bros`. Same shell as `/terminal`. |
 | `app check <id>` | `GET /api/apps/<id>/update` after `/api/health`. |
@@ -94,4 +94,4 @@ BROS_DEV=1 ./bros
 BROS_USE_RUNNER=1 ./bros
 ```
 
-Install and first start: [Install](/docs/install.md). Env catalog: [Environment](/docs/environment.md). YAML keys: [Configuration](/docs/configuration.md).
+Install: [Install](/docs/install.md). Uninstall: [Uninstall](/docs/uninstall.md). Env catalog: [Environment](/docs/environment.md). YAML keys: [Configuration](/docs/configuration.md).
