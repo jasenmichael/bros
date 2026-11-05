@@ -10,7 +10,11 @@ description: >-
 
 **Bros** = Boxed Runtime Orchestration System. Docker control plane for local AI apps (Chat, Providers, Apps) plus a browser Desktop (Selkies). CLI is `bros` (default action: start). UI: `http://127.0.0.1:3055`.
 
-Install: `curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash` → `$BROS_DIR` / `$BROS_DIR` (usually `~/.bros`), symlink `~/.local/bin/bros`.
+Release install: `curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash` → `$BROS_DIR` (usually `~/.bros`), symlink `~/.local/bin/bros`.
+
+Source, a branch, and the service: [docs/install.md](https://github.com/jasenmichael/bros/blob/development/docs/install.md). Uninstall: [docs/uninstall.md](https://github.com/jasenmichael/bros/blob/development/docs/uninstall.md).
+
+Changing the app is a separate clone: `bros-dev` and [docs/development.md](https://github.com/jasenmichael/bros/blob/development/docs/development.md).
 
 ## Doc resolution
 

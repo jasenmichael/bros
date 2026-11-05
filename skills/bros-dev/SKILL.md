@@ -22,6 +22,21 @@ Before editing, read the file that owns the change. Update it when behavior move
 
 Words: [GLOSSARY.md](https://github.com/jasenmichael/bros/blob/main/GLOSSARY.md). Product word is **app**.
 
+## Clone and develop
+
+A separate git clone, not the install root (`BROS_DIR`, default `~/.bros`). This is how you change the app. `main` is the release branch. Check out `development` in the clone.
+
+```bash
+git clone https://github.com/jasenmichael/bros.git
+cd bros
+git checkout development
+pnpm --dir app install
+pnpm --dir app --filter @bros/ui dev
+cargo run --manifest-path cli/Cargo.toml
+```
+
+Source and branch install: [docs/install.md](https://github.com/jasenmichael/bros/blob/development/docs/install.md). That checkout is `BROS_DIR`. `bros update` on `development` fast-forwards that branch.
+
 ## Build / run
 
 ```bash

@@ -1031,7 +1031,7 @@ fn git_update(repo: &Path) {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "unknown".into());
-    if branch == "main" || branch == "master" {
+    if branch == "main" || branch == "development" {
         let code = Command::new("git")
             .args(["-C", &repo.to_string_lossy(), "pull", "--ff-only"])
             .status()
@@ -1043,7 +1043,7 @@ fn git_update(repo: &Path) {
     } else {
         eprintln!();
         eprintln!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        eprintln!("SKIP git pull: branch is '{branch}' (not main/master).");
+        eprintln!("SKIP git pull: branch is '{branch}' (not main or development).");
         eprintln!("Rebuild continues without syncing remote.");
         eprintln!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         eprintln!();

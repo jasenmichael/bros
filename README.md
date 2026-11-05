@@ -60,9 +60,9 @@ curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 bros
 ```
 
-Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Full install (source, systemd, overrides): [docs/install.md](docs/install.md). Getting started: [docs/getting-started.md](docs/getting-started.md).
+Open [http://127.0.0.1:3055](http://127.0.0.1:3055). Source, a branch, or the service: [docs/install.md](docs/install.md). Uninstall: [docs/uninstall.md](docs/uninstall.md). Getting started: [docs/getting-started.md](docs/getting-started.md).
 
-Checkout / hot-reload contributors: [docs/development.md](docs/development.md).
+Change the app in a separate clone, not `BROS_DIR`: [docs/development.md](docs/development.md).
 
 ## Agent skills
 
@@ -74,7 +74,7 @@ Coding-agent skills in [`skills/`](skills/). Not Chat `rules` / `personality` un
 
 ## Docs
 
-- [Getting started](docs/getting-started.md) · [Install](docs/install.md) · [Development](docs/development.md)
+- [Getting started](docs/getting-started.md) · [Install](docs/install.md) · [Uninstall](docs/uninstall.md) · [Development](docs/development.md)
 - [Apps](docs/apps.md) · [CLI](docs/cli.md) · [API](docs/api.md) · [Configuration](docs/configuration.md)
 - Site: [https://jasenmichael.github.io/bros/](https://jasenmichael.github.io/bros/)
 

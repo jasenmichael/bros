@@ -10,7 +10,7 @@ Before editing, read the file that owns the change. Update that file when the ch
 - [STACK.md](STACK.md) wins on tools and layout
 - [DESIGN.md](DESIGN.md) wins on visual UI
 - [PLAN.md](PLAN.md) is the current engineering plan
-- [README.md](README.md) is the product home. Install: [docs/install.md](docs/install.md). Development: [docs/development.md](docs/development.md)
+- [README.md](README.md) is the product home. Install: [docs/install.md](docs/install.md). Uninstall: [docs/uninstall.md](docs/uninstall.md). Development: [docs/development.md](docs/development.md)
 
 ## Setup
 

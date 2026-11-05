@@ -30,11 +30,11 @@ Repo root is the directory of `bros`, symlink-resolved. `BROS_DIR` is shell env,
 | `status` | Compose ps, `/api/health`, and an Ollama probe. No Node. |
 | `restart` | Stop, then start. |
 | `check` | `POST /api/apps/check` after `/api/health`. |
-| `update` | Release: download `bros-<os>-<arch>.tar.gz` for this machine (`BROS_RELEASE_URL` is the exact tar URL when set), replace the install except `data/` and an existing `.env`, refresh `example.env`, copy `example.env` to `.env` when `.env` is absent, re-exec. Source: on `main`/`master`, `git pull --ff-only` (fails if that pull fails). On any other branch: loud skip. Then `git submodule update --init`, `cargo build --release`, re-exec, then `POST /api/apps/rebuild`. When `lib/apps/core/ollama/BROS_MODEL_VERSION` is set, download that model release if the local stamp is missing or older, start the UI if it is down, and let the Ollama core app create model `bros`. A running `bros` container is replaced with `--no-deps`. Docker apps are not updated. Alias: `upgrade`. |
+| `update` | Release: download `bros-<os>-<arch>.tar.gz` for this machine (`BROS_RELEASE_URL` is the exact tar URL when set), replace the install except `data/` and an existing `.env`, refresh `example.env`, copy `example.env` to `.env` when `.env` is absent, re-exec. Source: on `main` or `development`, `git pull --ff-only` (fails if that pull fails). On any other branch: loud skip. No `--branch` flag. Then `git submodule update --init`, `cargo build --release`, re-exec, then `POST /api/apps/rebuild`. When `lib/apps/core/ollama/BROS_MODEL_VERSION` is set, download that model release if the local stamp is missing or older, start the UI if it is down, and let the Ollama core app create model `bros`. A running `bros` container is replaced with `--no-deps`. Docker apps are not updated. Alias: `upgrade`. |
 | `service install` | Linux systemd --user unit. `ExecStart` is `bros -D`. |
 | `service uninstall` | Disable and remove that unit. |
 | `service status` | `systemctl --user status bros`. |
-| `uninstall` | Release install only. Stop stack, remove `BROS_BIN` and shipped tree; keep `data/`, `.env`, `bros.yml`. `--purge` deletes all of `BROS_DIR`. Also `$BROS_DIR/uninstall.sh`. |
+| `uninstall` | Release install only. Stop stack, remove `BROS_BIN` and shipped tree; keep `data/`, `.env`, `bros.yml`. `--purge` deletes all of `BROS_DIR`. Also `$BROS_DIR/uninstall.sh`. Steps: [Uninstall](/docs/uninstall.md). |
 | `run <command>` | `docker exec` in container `bros` (workdir `/home/bros/workspace`). Example: `bros run agent`. |
 | `shell` | `docker exec` `bash` in container `bros`. Same shell as `/terminal`. |
 | `app check <id>` | `GET /api/apps/<id>/update` after `/api/health`. |
@@ -94,4 +94,4 @@ BROS_DEV=1 ./bros
 BROS_USE_RUNNER=1 ./bros
 ```
 
-Install and first start: [Install](/docs/install.md). Env catalog: [Environment](/docs/environment.md). YAML keys: [Configuration](/docs/configuration.md).
+Install: [Install](/docs/install.md). Uninstall: [Uninstall](/docs/uninstall.md). Env catalog: [Environment](/docs/environment.md). YAML keys: [Configuration](/docs/configuration.md).

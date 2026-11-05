@@ -15,13 +15,7 @@ The `bros` CLI defaults to **start** when no command is passed.
 curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
 ```
 
-Optional systemd user service (Linux):
-
-```bash
-curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash -s -- --service
-```
-
-Full install details: [Install](/docs/install.md).
+Source, a branch, or the service: [Install](/docs/install.md). Remove Bros: [Uninstall](/docs/uninstall.md).
 
 ## Run
 
@@ -37,8 +31,9 @@ Ctrl+C on an interactive start stops the **full stack**. First start brings up t
 
 ## Next
 
-- [Install](/docs/install.md) — release, source, systemd, overrides
-- [Development](/docs/development.md) — checkout build and `BROS_DEV=1` hot-reload
+- [Install](/docs/install.md) — release, source, branch, service
+- [Uninstall](/docs/uninstall.md) — remove a release install
+- [Development](/docs/development.md) — separate clone on branch `development`, or the same commands from the install root
 - [App](/docs/app.md) — Dashboard, Chat, Providers, Docker apps, Status, Settings, Docs
 - [Providers](/docs/providers.md) — Ollama, Popular services, Custom providers
 - [Docker apps](/docs/apps.md) — Core Ollama and Whisper, then addon, custom, and repo packs

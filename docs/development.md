@@ -7,9 +7,47 @@ description: Build and run a checkout with scripts/build.sh, or hot-reload with 
 
 Contributors need Docker, host `pnpm`, and `cargo`. The CLI is `cli/`. The pnpm workspace root is `app/`. Publishing a release is CI only (`scripts/pack-release.sh` + GitHub Actions). There is no local release command.
 
+## Install from source on the development branch
+
+This checkout is the install: branch `development` in `BROS_DIR` (default `~/.bros`). It can be the starting point. `bros update` on `development` fast-forwards that branch. The release tarball install is a different command and does not use `BROS_REF`:
+
+```bash
+curl -fsSL https://jasenmichael.github.io/bros/install.sh | bash
+```
+
+`BROS_REF` defaults to `main`. There is no `--branch` flag. Set `BROS_REF` on the shell that runs the script. A pipe does not pass `curl`'s environment to `bash`. This curl runs `scripts/install.sh` from branch `development` and clones that same ref:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jasenmichael/bros/development/scripts/install.sh | BROS_REF=development bash -s -- --from-src
+```
+
+From the install root:
+
+```bash
+cd "${BROS_DIR:-$HOME/.bros}"
+pnpm --dir app install
+pnpm --dir app --filter @bros/ui dev
+cargo run --manifest-path cli/Cargo.toml
+```
+
+Full install notes: [Install](/docs/install.md).
+
+## Clone and develop
+
+A separate git clone, not the install root. This is how you change the app. `main` is the release branch. Check out `development` in the clone.
+
+```bash
+git clone https://github.com/jasenmichael/bros.git
+cd bros
+git checkout development
+pnpm --dir app install
+pnpm --dir app --filter @bros/ui dev
+cargo run --manifest-path cli/Cargo.toml
+```
+
 ## Build and run (production mode)
 
-Builds the host CLI and UI, then starts the stack with the prebuilt UI (not Vite). Does not build container images for other OS/arch. Does not create `~/.local/bin/bros` (install-only).
+Run this in the install root or in that clone. It builds the host CLI and UI, then starts the stack with the prebuilt UI (not Vite). Does not build container images for other OS/arch. Does not create `~/.local/bin/bros` (install-only).
 
 ```bash
 pnpm --dir app install
@@ -107,6 +145,14 @@ app/ui/utils/
 
 The CLI is the Rust binary in `cli/`. Usage: [bros](/docs/cli.md).
 
+## Branches
+
+Cut a feature branch from `main`. Open the pull request against `development`. That pull request runs the JS and Rust tests. It does not build release binaries. When those checks pass, automation merges the pull request into `development` and deletes the feature branch. It does not merge a pull request into `main`.
+
+Open the pull request from `development` into `main` when you want a release. Merge that yourself. A push to `development` does not open that pull request and does not publish. After the merge, automation fast-forwards `development` to `main`. If it cannot, it stops and does not force-push.
+
+The version bump runs on a pull request into `main` only. A pull request into `development` does not bump `VERSION`. Source `bros update` fast-forwards when the checkout branch is `main` or `development`. Any other branch skips the pull and still rebuilds. There is no `--branch` flag.
+
 ## Release
 
-Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, pull request commit types bump the version on the branch and the merge publishes the tag. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root, and [Install](/docs/install.md).
+Product version is `0.0.1`. `lib/apps/core/ollama/BROS_MODEL_VERSION` is `1.0.0`. The next merge to `main` publishes `v0.0.1` without bumping. After `v0.0.1` and bros-model `v1.0.0` exist, commit types on a pull request into `main` bump the version on that branch and the merge publishes the tag. A pull request into `development` does not bump. Details: [STACK.md](https://github.com/jasenmichael/bros/blob/main/STACK.md) in the repo root.

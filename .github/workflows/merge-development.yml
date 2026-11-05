@@ -1,0 +1,58 @@
+name: Merge into development
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          if [[ "$HEAD_BRANCH" == "main" || "$HEAD_BRANCH" == "development" ]]; then
+            echo "skip: head is ${HEAD_BRANCH}"
+            exit 0
+          fi
+          prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "${GITHUB_REPOSITORY_OWNER}:${HEAD_BRANCH}" --state open --json number,baseRefName,headRefOid,isDraft)"
+          merged=0
+          refused_main=0
+          while IFS= read -r pr; do
+            [[ -z "$pr" ]] && continue
+            number="$(jq -r '.number' <<<"$pr")"
+            base="$(jq -r '.baseRefName' <<<"$pr")"
+            oid="$(jq -r '.headRefOid' <<<"$pr")"
+            draft="$(jq -r '.isDraft' <<<"$pr")"
+            if [[ "$oid" != "$HEAD_SHA" ]]; then
+              echo "skip PR #${number}: head is ${oid}"
+              continue
+            fi
+            if [[ "$draft" == "true" ]]; then
+              echo "skip PR #${number}: draft"
+              continue
+            fi
+            if [[ "$base" != "development" ]]; then
+              echo "refuse: PR #${number} base is ${base}"
+              if [[ "$base" == "main" ]]; then
+                refused_main=1
+              fi
+              continue
+            fi
+            gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --merge --delete-branch --match-head-commit "$HEAD_SHA"
+            merged=1
+          done < <(jq -c '.[]' <<<"$prs")
+          if [[ "$merged" == "0" && "$refused_main" == "1" ]]; then
+            echo "refuse: will not merge into main"
+            exit 1
+          fi

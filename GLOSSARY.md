@@ -82,6 +82,11 @@ The job branch `{kind}/{slug}`. It is the pull request head.
 
 Per repo, `staging` or `main`. The issue branch's pull request targets that branch. Default `staging`.
 
+## development branch
+
+The git branch that holds changes before a release. Not the Docker image target `development`. Not the Agents PR base.
+_Avoid_: dev branch
+
 ## Settings
 
 The `/settings` page and the YAML toggles `enable_host_ollama` and `enable_whisper`.
