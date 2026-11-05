@@ -13,6 +13,7 @@ export default defineNuxtConfig({
         '/docs',
         '/docs/getting-started',
         '/docs/install',
+        '/docs/uninstall',
         '/docs/environment',
         '/docs/configuration',
         '/docs/app',

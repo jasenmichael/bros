@@ -31,7 +31,8 @@ export const DOCS_NAV_TREE: DocsNavNode[] = [
     icon: 'i-lucide-rocket',
     children: [
       { label: 'Getting started', to: '/docs/getting-started', body: 'bros, port 3055, BROS_DIR.' },
-      { label: 'Install', to: '/docs/install', body: 'install.sh, clone, first start, bros.' },
+      { label: 'Install', to: '/docs/install', body: 'Release, source, branch, service.' },
+      { label: 'Uninstall', to: '/docs/uninstall', body: 'Remove a release. Optional purge.' },
       { label: 'Environment', to: '/docs/environment', body: 'Full BROS_* catalog.' },
       { label: 'Configuration', to: '/docs/configuration', body: 'Bootstrap YAML and SQLite.' },
     ],

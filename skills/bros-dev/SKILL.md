@@ -35,7 +35,7 @@ pnpm --dir app --filter @bros/ui dev
 cargo run --manifest-path cli/Cargo.toml
 ```
 
-Install from source on the development branch puts that checkout in `BROS_DIR`. That checkout is the install. `bros update` on `development` fast-forwards that branch. Curl and `BROS_REF`: [docs/install.md](https://github.com/jasenmichael/bros/blob/development/docs/install.md).
+Source and branch install: [docs/install.md](https://github.com/jasenmichael/bros/blob/development/docs/install.md). That checkout is `BROS_DIR`. `bros update` on `development` fast-forwards that branch.
 
 ## Build / run
 
