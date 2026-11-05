@@ -512,10 +512,10 @@ export async function rebuildBrosContainer(opts?: { build?: boolean; forceRecrea
   const boot = loadBootstrapConfig()
   const repo = process.env.BROS_HOST_REPO?.trim() || boot.workingDir
   // Regenerate port/volume overlay so a stale `desktop:` key cannot stick after rename to `bros`.
-  const { readCliPackages, writeAppsCompose } = await import('./cli/packages')
+  const { generatedDesktopDockerfile, readCliPackages, writeAppsCompose } = await import('./cli/packages')
   writeAppsCompose(readCliPackages())
-  const generated = join(boot.dataDir, 'build', 'desktop', 'Dockerfile')
-  if (existsSync(generated)) process.env.BROS_DESKTOP_DOCKERFILE = generated
+  const generated = generatedDesktopDockerfile(boot.dataDir)
+  if (generated) process.env.BROS_DESKTOP_DOCKERFILE = generated
   const desktop = join(repo, 'lib/desktop')
   const files = ['--project-directory', repo, '-f', join(desktop, 'docker-compose.yml')]
   files.push('-f', join(desktop, process.env.BROS_DEV === '1' ? 'docker-compose.dev.yml' : 'docker-compose.prod.yml'))
