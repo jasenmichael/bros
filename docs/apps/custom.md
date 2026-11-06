@@ -22,11 +22,12 @@ Compose project name is `bros-<id>` on network `bros`.
 ## Rules
 
 - Directory name must match `id` in `config.yml`
-- A `webui` interface must set `publish` and map `publish:containerPort` in Compose. Open is only that published webpage. A published `api` or `openai` shows copyable URLs and has no Open button. Pin in nav is only for a published `webui`. A hand-written `gui` interface cannot set `publish`.
+- A `webui` `publish` equals `containerPort`. Compose may write `"${VAR:-thatPort}:thatPort"` so start can bump. The `:-` default is that same port. Bros sets the variable only when the host port is taken. A `webui` interface must set `publish` and map `publish:containerPort` in Compose. Open is only that published webpage. A published `api` or `openai` shows copyable URLs and has no Open button. Pin in nav is only for a published `webui`. A hand-written `gui` interface cannot set `publish`.
 - Open/Pin open `http://127.0.0.1:<publish>/` on LAN. `proxy.public: true` on a `webui` also enables same-host `/${id}/` via-tunnel (the UI must listen under that path). Default is no public proxy.
-- Compose-app Bros talks to docker app APIs at `http://<service>:<containerPort>` on network `bros`
+- Compose-app Bros talks to docker app APIs at `http://<id>:<containerPort>` on network `bros`
 - Stay on Docker network `bros`
 - Do not publish host ports **3000** or **8080**
+- Durable Pi web UI publish is **4781**, the same as its container port. Pin in nav uses that host port. Its API listens on container **4780** and is not published. The web UI proxies browser calls to that API.
 - Reserved ids include core slugs and addon slugs (`ollama`, `opencode`, `openwebui`, `firecrawl`, `firecrawl-ui`, `openjev`, `pi`, `omniroute`, `cursor`, `whisper`, `cli`), app routes (`api`, `chat`, `models`, `docker apps`, `settings`, `docs`, `login`, `setup`, `status`, `gui`), and Popular services slugs (`openai`, `gemini`, …). A disabled shipped addon still reserves its id and slug. Cannot create a custom `ollama` or `gui`.
 
 A custom app can later move into `lib/apps/addon/<id>/` or `lib/apps/core/<id>/`. An addon can later move to core. Until that move, the directory stays in `data/config/apps` and stays out of git.

@@ -341,22 +341,47 @@ export function setOllamaModelChatEnabled(providerId: string, name: string, enab
   return next
 }
 
-/** Append a typed/community pull name to an Ollama provider config.customModels. */
-export function rememberCustomOllamaModel(name: string, providerId = OLLAMA_DOCKER_APP_ID): string[] {
-  ensureDefaultProviders()
-  const trimmed = name.trim()
-  const existing = listCustomOllamaModels(providerId)
-  if (!isValidOllamaPullName(trimmed) || isInternalBrosModel(trimmed) || existing.includes(trimmed)) return existing
-  const next = [...existing, trimmed]
+function patchOllamaProviderConfig(providerId: string, config: Record<string, unknown>) {
   const p = getProvider(providerId)
+  if (!p) return
   upsertProvider({
-    id: providerId,
-    name: p?.name || (providerId === OLLAMA_HOST_ID ? 'Ollama (host)' : 'Ollama (core)'),
-    kind: 'ollama',
-    baseUrl: p?.baseUrl,
-    config: { customModels: next },
+    id: p.id,
+    name: p.name,
+    kind: p.kind,
+    baseUrl: p.baseUrl,
+    config,
   })
-  return next
+}
+
+/** Drop stored pull-menu names. Installed models come from the live tag list. */
+export function clearCustomOllamaModels(providerId: string) {
+  const raw = getProvider(providerId)?.config?.customModels
+  if (!Array.isArray(raw) || raw.length === 0) return
+  patchOllamaProviderConfig(providerId, { customModels: [] })
+}
+
+/** Ban-delete: a removed model has no Chat-off flag and no pull-menu name to keep. */
+export function forgetOllamaModelName(providerId: string, name: string) {
+  const trimmed = name.trim()
+  if (!trimmed) return
+  const prevCustom = listCustomOllamaModels(providerId)
+  const prevDisabled = listDisabledOllamaModels(providerId)
+  const custom = prevCustom.filter((n) => n !== trimmed)
+  const disabled = prevDisabled.filter((n) => n !== trimmed)
+  const config: Record<string, unknown> = {}
+  if (custom.length !== prevCustom.length) config.customModels = custom
+  if (disabled.length !== prevDisabled.length) config.disabledModels = disabled
+  if (!Object.keys(config).length) return
+  patchOllamaProviderConfig(providerId, config)
+}
+
+/** After a successful tag list, drop Chat-off names that are not installed. */
+export function pruneDisabledOllamaModels(providerId: string, installedNames: readonly string[]) {
+  const installed = new Set(installedNames)
+  const prev = listDisabledOllamaModels(providerId)
+  const next = prev.filter((n) => installed.has(n))
+  if (next.length === prev.length) return
+  patchOllamaProviderConfig(providerId, { disabledModels: next })
 }
 
 export function listConfiguredOpenAIModels(providerId: string): string[] {

@@ -5,6 +5,7 @@ import { assertHostOllamaVisible, isHostOllamaEnabled } from '../settings'
 import { findHostOllama, readOllamaManualPort, dockerAppOllamaUrl, OLLAMA_DOCKER_APP_DNS, OLLAMA_DOCKER_APP_PUBLISH } from './ollamaHost'
 import { getProviderPreset, isPopularProvider, POPULAR_PROVIDER_IDS } from './presets'
 import {
+  clearCustomOllamaModels,
   disableUnhealthyKeyedChat,
   ensureDefaultProviders,
   getProvider,
@@ -13,6 +14,7 @@ import {
   listOpenAIModelIds,
   listProviders,
   ollamaBaseUrlFor,
+  pruneDisabledOllamaModels,
   probeOllamaRunning,
   OLLAMA_HOST_ID,
   OLLAMA_DOCKER_APP_ID,
@@ -40,12 +42,16 @@ export async function listProviderModels(id: string) {
   if (p.kind === 'ollama') {
     try {
       const listed = await listOllamaModels(await ollamaBaseUrlFor(p.id), p.id)
-      clearDonePullsForInstalled(p.id, listed.map((m) => m.name))
+      const installed = listed.map((m) => m.name)
+      clearDonePullsForInstalled(p.id, installed)
+      clearCustomOllamaModels(p.id)
+      pruneDisabledOllamaModels(p.id, installed)
+      const disabledNow = parseDisabledOllamaModels(getProvider(p.id)?.config)
       models = listed.map((m) => ({
         id: m.id,
         name: m.name,
         size: m.size,
-        enabled: isOllamaModelChatEnabled(m.name, disabled),
+        enabled: isOllamaModelChatEnabled(m.name, disabledNow),
       }))
     }
     catch (err) {

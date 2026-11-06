@@ -36,7 +36,6 @@ function fixtureDockerApp(id: string, publicProxy = true): DockerAppMeta {
     editable: false,
     interfaces: [{
       type: 'webui',
-      service: id,
       containerPort: 4096,
       publish: 4097,
       proxy: publicProxy ? { public: true } : undefined,

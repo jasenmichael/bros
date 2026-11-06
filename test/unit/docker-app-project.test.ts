@@ -26,24 +26,23 @@ describe('dockerApp project naming', () => {
     expect(() => parseDockerAppMeta({
       id: 'demo',
       name: 'Demo',
-      interfaces: [{ type: 'webui', service: 'demo', containerPort: 80 }],
+      interfaces: [{ type: 'webui', containerPort: 80 }],
     })).toThrow(/publish/)
     expect(() => parseDockerAppMeta({
       id: 'demo',
       name: 'Demo',
-      interfaces: [{ type: 'webui', service: 'demo', containerPort: 80, publish: 3000 }],
+      interfaces: [{ type: 'webui', containerPort: 80, publish: 3000 }],
     })).toThrow(/3000 or 8080/)
     expect(parseDockerAppMeta({
       id: 'demo',
       name: 'Demo',
-      interfaces: [{ type: 'webui', service: 'demo', containerPort: 80, publish: 3090 }],
+      interfaces: [{ type: 'webui', containerPort: 80, publish: 3090 }],
     }).interfaces[0].publish).toBe(3090)
     expect(parseDockerAppMeta({
       id: 'demo',
       name: 'Demo',
       interfaces: [{
         type: 'webui',
-        service: 'demo',
         containerPort: 80,
         publish: 3090,
         proxy: { public: true },
@@ -57,7 +56,6 @@ describe('dockerApp project naming', () => {
     expect(meta.id).toBe('firecrawl-ui')
     expect(meta.interfaces[0]).toMatchObject({
       type: 'webui',
-      service: 'firecrawl-ui',
       containerPort: 8080,
       publish: 3081,
     })
@@ -69,7 +67,6 @@ describe('dockerApp project naming', () => {
     expect(meta.id).toBe('firecrawl')
     expect(meta.interfaces[0]).toMatchObject({
       type: 'api',
-      service: 'firecrawl',
       containerPort: 3002,
       publish: 3002,
       basePath: '/v2',
@@ -82,21 +79,18 @@ describe('dockerApp project naming', () => {
     expect(meta.id).toBe('openjev')
     expect(meta.interfaces[0]).toMatchObject({
       type: 'webui',
-      service: 'openjev',
       containerPort: 8080,
       publish: 8092,
       basePath: '/docs',
     })
     expect(meta.interfaces[1]).toMatchObject({
       type: 'api',
-      service: 'openjev',
       containerPort: 8080,
       publish: 8092,
       basePath: '/v1',
     })
     expect(meta.interfaces[2]).toMatchObject({
       type: 'openai',
-      service: 'openjev',
       containerPort: 8080,
       publish: 8092,
       basePath: '/v1',
@@ -109,7 +103,6 @@ describe('dockerApp project naming', () => {
     expect(meta.id).toBe('whisper')
     expect(meta.interfaces[0]).toMatchObject({
       type: 'api',
-      service: 'whisper',
       containerPort: 8000,
       publish: 8090,
       basePath: '/v1',
@@ -120,7 +113,7 @@ describe('dockerApp project naming', () => {
     const meta = parseDockerAppMeta({
       id: 'ollama',
       name: 'Ollama',
-      interfaces: [{ type: 'api', service: 'ollama', containerPort: 11434, publish: 11435 }],
+      interfaces: [{ type: 'api', containerPort: 11434, publish: 11435 }],
     })
     expect(meta.interfaces[0].publish).toBe(11435)
     expect(meta.interfaces[0].containerPort).toBe(11434)

@@ -136,10 +136,10 @@ function pushProxyTarget(
   iface: DockerAppInterface,
   stripPrefix: boolean,
 ) {
-  if (!iface.service || !iface.containerPort || !iface.publish) return
+  if (!iface.containerPort || !iface.publish) return
   out.push({
     id: dockerApp.id,
-    service: iface.service,
+    service: dockerApp.id,
     containerPort: iface.containerPort,
     publish: iface.publish,
     dockerApp,
@@ -187,7 +187,6 @@ function packageWebuiTargets(): PublicProxyTarget[] {
     if (!face?.containerPort || !face.publish) continue
     const iface: DockerAppInterface = {
       type: 'webui',
-      service: 'bros',
       containerPort: face.containerPort,
       publish: face.publish,
       ...(face.basePath ? { basePath: face.basePath } : {}),

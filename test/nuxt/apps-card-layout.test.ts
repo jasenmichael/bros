@@ -7,7 +7,7 @@ function dockerApp(partial: {
   name: string
   kind: 'core' | 'addon' | 'custom'
   source?: string
-  interfaces?: Array<{ type: string; bin?: string; command?: string; service?: string }>
+  interfaces?: Array<{ type: string; bin?: string; command?: string }>
   cli?: Array<{ bin: string; hostInstalled: boolean; source: 'host' | 'docker' | 'none' }>
   settings?: { autostart: boolean; navPinned: boolean; hostMode?: string; exposeHost?: boolean }
 }) {
@@ -15,7 +15,7 @@ function dockerApp(partial: {
     description: partial.name,
     source: partial.source ?? 'shipped',
     packageSlug: partial.id,
-    interfaces: [] as Array<{ type: string; service: string }>,
+    interfaces: [] as Array<{ type: string }>,
     settings: { autostart: true, navPinned: false, hostMode: 'auto' as const },
     status: { running: true, services: [] as Array<{ name: string; state: string }> },
     hasContainer: true,
@@ -94,7 +94,7 @@ describe('DockerApp card layout', () => {
         id: 'cursor',
         name: 'Cursor',
         kind: 'addon',
-        interfaces: [{ type: 'cli', service: 'cursor', bin: 'agent', command: '/home/bros/.local/bin/agent' }],
+        interfaces: [{ type: 'cli', bin: 'agent', command: '/home/bros/.local/bin/agent' }],
         cli: [{ bin: 'agent', hostInstalled: false, source: 'docker' }],
         settings: { autostart: true, navPinned: false, exposeHost: true },
       }),
@@ -109,7 +109,7 @@ describe('DockerApp card layout', () => {
         id: 'cursor',
         name: 'Cursor',
         kind: 'addon',
-        interfaces: [{ type: 'cli', service: 'cursor', bin: 'agent', command: '/home/bros/.local/bin/agent' }],
+        interfaces: [{ type: 'cli', bin: 'agent', command: '/home/bros/.local/bin/agent' }],
         cli: [{ bin: 'agent', hostInstalled: true, source: 'host' }],
         settings: { autostart: true, navPinned: false, exposeHost: true },
       }),
@@ -128,11 +128,11 @@ describe('DockerApp card layout', () => {
         name: 'Cursor',
         kind: 'addon',
         interfaces: [
-          { type: 'cli', service: 'cursor', bin: 'agent', command: '/home/bros/.local/bin/agent' },
-          { type: 'cli', service: 'cursor', bin: 'cursor-agent', command: '/home/bros/.local/bin/agent' },
-          { type: 'cli', service: 'cursor', bin: 'cursor', command: '/usr/bin/cursor' },
-          { type: 'cli', service: 'cursor', bin: 'cursor-tunnel', command: '/usr/share/cursor/bin/cursor-tunnel' },
-          { type: 'gui', service: 'cursor', command: 'cursor' },
+          { type: 'cli', bin: 'agent', command: '/home/bros/.local/bin/agent' },
+          { type: 'cli', bin: 'cursor-agent', command: '/home/bros/.local/bin/agent' },
+          { type: 'cli', bin: 'cursor', command: '/usr/bin/cursor' },
+          { type: 'cli', bin: 'cursor-tunnel', command: '/usr/share/cursor/bin/cursor-tunnel' },
+          { type: 'gui', command: 'cursor' },
         ],
       }),
       dockerApp({
