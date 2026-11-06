@@ -22,7 +22,6 @@ export type AppDockerRow = {
   interfaces: Array<{
     type: string
     slug?: string
-    service?: string
     containerPort?: number
     publish?: number
     basePath?: string

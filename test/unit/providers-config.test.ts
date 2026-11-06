@@ -94,25 +94,40 @@ describe('upsertProvider config merge', () => {
     expect(getProvider('ollama')?.config.useGpu).toBe(true)
   })
 
-  it('persists custom Ollama names in config.customModels and dedups', async () => {
-    const { rememberCustomOllamaModel, listCustomOllamaModels, upsertProvider, getProvider } = await import('../../app/server/utils/providers')
+  it('clears stored pull names and forgets a deleted model', async () => {
+    const {
+      upsertProvider,
+      getProvider,
+      clearCustomOllamaModels,
+      forgetOllamaModelName,
+      listCustomOllamaModels,
+      listDisabledOllamaModels,
+    } = await import('../../app/server/utils/providers')
 
     upsertProvider({
       id: 'ollama',
       name: 'Ollama',
       kind: 'ollama',
       baseUrl: 'http://ollama:11434',
-      config: { mode: 'docker', useGpu: true },
+      config: {
+        mode: 'docker',
+        useGpu: true,
+        customModels: ['mannix/llama3-8b-lexi', 'freehuntx/qwen3-coder:14b'],
+        disabledModels: ['qwen3:14b', 'gone:latest'],
+      },
     })
 
-    expect(rememberCustomOllamaModel('freehuntx/qwen3-coder:14b')).toEqual(['freehuntx/qwen3-coder:14b'])
-    expect(rememberCustomOllamaModel('freehuntx/qwen3-coder:14b')).toEqual(['freehuntx/qwen3-coder:14b'])
-    expect(rememberCustomOllamaModel('not a name')).toEqual(['freehuntx/qwen3-coder:14b'])
+    forgetOllamaModelName('ollama', 'mannix/llama3-8b-lexi')
     expect(listCustomOllamaModels()).toEqual(['freehuntx/qwen3-coder:14b'])
+    forgetOllamaModelName('ollama', 'gone:latest')
+    expect(listDisabledOllamaModels('ollama')).toEqual(['qwen3:14b'])
+    clearCustomOllamaModels('ollama')
+    expect(listCustomOllamaModels()).toEqual([])
     expect(getProvider('ollama')?.config).toMatchObject({
       mode: 'docker',
       useGpu: true,
-      customModels: ['freehuntx/qwen3-coder:14b'],
+      customModels: [],
+      disabledModels: ['qwen3:14b'],
     })
   })
 
@@ -153,13 +168,43 @@ describe('upsertProvider config merge', () => {
     expect(getProvider('ollama-host')?.name).toBe('Ollama (host)')
   })
 
-  it('stores custom pull names on the host provider when providerId is ollama-host', async () => {
-    const { ensureDefaultProviders, rememberCustomOllamaModel, listCustomOllamaModels, getProvider } = await import('../../app/server/utils/providers')
+  it('prunes missing Chat-off names on one provider and leaves the other', async () => {
+    const {
+      ensureDefaultProviders,
+      upsertProvider,
+      pruneDisabledOllamaModels,
+      forgetOllamaModelName,
+      clearCustomOllamaModels,
+      listCustomOllamaModels,
+      listDisabledOllamaModels,
+    } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
-    expect(rememberCustomOllamaModel('llama3.2', 'ollama-host')).toEqual(['llama3.2'])
-    expect(listCustomOllamaModels('ollama-host')).toEqual(['llama3.2'])
+    upsertProvider({
+      id: 'ollama',
+      name: 'Ollama (core)',
+      kind: 'ollama',
+      baseUrl: 'http://ollama:11434',
+      config: { customModels: ['mannix/llama3-8b-lexi'] },
+    })
+    upsertProvider({
+      id: 'ollama-host',
+      name: 'Ollama (host)',
+      kind: 'ollama',
+      baseUrl: 'http://127.0.0.1:11434',
+      config: {
+        customModels: ['llama3.2'],
+        disabledModels: ['qwen3-opencode:latest', 'qwen3:14b'],
+      },
+    })
+    pruneDisabledOllamaModels('ollama-host', ['qwen3:14b'])
+    expect(listDisabledOllamaModels('ollama-host')).toEqual(['qwen3:14b'])
+    expect(listCustomOllamaModels('ollama')).toEqual(['mannix/llama3-8b-lexi'])
+    forgetOllamaModelName('ollama-host', 'llama3.2')
+    expect(listCustomOllamaModels('ollama-host')).toEqual([])
+    expect(listCustomOllamaModels('ollama')).toEqual(['mannix/llama3-8b-lexi'])
+    clearCustomOllamaModels('ollama')
     expect(listCustomOllamaModels('ollama')).toEqual([])
-    expect(getProvider('ollama-host')?.config).toMatchObject({ customModels: ['llama3.2'] })
+    expect(listDisabledOllamaModels('ollama-host')).toEqual(['qwen3:14b'])
   })
 
   it('seeds 14 popular rows and refuses to delete them', async () => {

@@ -1,5 +1,5 @@
-import { customCatalogFromNames, getModelCatalog } from '../../../../utils/providers/ollamaLibrary'
-import { ensureDefaultUseGpu, getProvider, listCustomOllamaModels, OLLAMA_DOCKER_APP_ID } from '../../../../utils/providers'
+import { getModelCatalog } from '../../../../utils/providers/ollamaLibrary'
+import { clearCustomOllamaModels, ensureDefaultUseGpu, getProvider, OLLAMA_DOCKER_APP_ID } from '../../../../utils/providers'
 import { requireOllamaProvider } from '../../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const useGpu = ensureDefaultUseGpu(gpu.available)
   const ollama = getProvider(OLLAMA_DOCKER_APP_ID)
   const useGpuPreference = Boolean(ollama?.config?.useGpu)
-  const custom = customCatalogFromNames(listCustomOllamaModels(id), sections)
+  clearCustomOllamaModels(id)
   return {
     gpu,
     disk: {
@@ -20,6 +20,6 @@ export default defineEventHandler(async (event) => {
     },
     useGpu,
     useGpuPreference,
-    sections: { ...sections, custom },
+    sections: { ...sections, custom: [] },
   }
 })

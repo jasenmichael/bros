@@ -1,6 +1,5 @@
 export type DockerAppHostIface = {
   type: string
-  service?: string
   containerPort?: number
   publish?: number
   hostPort?: number
@@ -136,8 +135,8 @@ function pushCopyUrl(out: DockerAppCopyUrl[], seen: Set<string>, url: string, ne
   out.push({ url, network })
 }
 
-function siblingWebuiPort(s: DockerAppHostRow, iface: DockerAppHostIface): number | undefined {
-  const sibling = (s.interfaces || []).find((row) => row.type === 'webui' && row.service === iface.service && ifaceHostPort(s, row))
+function siblingWebuiPort(s: DockerAppHostRow): number | undefined {
+  const sibling = (s.interfaces || []).find((row) => row.type === 'webui' && ifaceHostPort(s, row))
   return sibling ? ifaceHostPort(s, sibling) : undefined
 }
 
@@ -148,12 +147,12 @@ export function dockerAppEndpointCopyUrls(s: DockerAppHostRow, type: 'api' | 'op
   for (const iface of s.interfaces || []) {
     if (iface.type !== type) continue
     const basePath = iface.basePath || (type === 'openai' ? '/v1' : undefined)
-    const port = ifaceHostPort(s, iface) || (type === 'openai' ? siblingWebuiPort(s, iface) : undefined)
+    const port = ifaceHostPort(s, iface) || (type === 'openai' ? siblingWebuiPort(s) : undefined)
     if (port) pushCopyUrl(out, seen, withBasePath(`http://127.0.0.1:${port}/`, basePath), 'host')
-    const service = iface.service?.trim()
+    const id = dockerAppId(s)
     const containerPort = iface.containerPort || port
-    if (service && containerPort) {
-      pushCopyUrl(out, seen, withBasePath(`http://${service}:${containerPort}/`, basePath), 'bros')
+    if (id && containerPort) {
+      pushCopyUrl(out, seen, withBasePath(`http://${id}:${containerPort}/`, basePath), 'bros')
     }
   }
   return out

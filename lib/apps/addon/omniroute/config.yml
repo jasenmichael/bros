@@ -6,12 +6,10 @@ description: OpenAI-compatible gateway (diegosouzapw/omniroute). Bros publishes 
 
 interfaces:
   - type: webui
-    service: omniroute
     containerPort: 20128
     publish: 20128
     slug: omniroute
   - type: openai
-    service: omniroute
     containerPort: 20128
     publish: 20128
     basePath: /v1

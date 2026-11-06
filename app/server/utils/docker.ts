@@ -537,10 +537,9 @@ export async function execInDockerApp(
   const dockerApp = getDockerApp(id)
   if (!dockerApp) throw createError({ statusCode: 404, statusMessage: 'DockerApp not found' })
   const name = projectName(id)
-  const service = dockerApp.interfaces.find((iface) => iface.service)?.service || dockerApp.id
   return run(
     'docker',
-    ['compose', '-p', name, '-f', join(dockerApp.dir, 'docker-compose.yml'), 'exec', '-T', service, ...args],
+    ['compose', '-p', name, '-f', join(dockerApp.dir, 'docker-compose.yml'), 'exec', '-T', dockerApp.id, ...args],
     dockerApp.dir,
     timeoutMs,
   )
@@ -628,13 +627,12 @@ export async function ensureAppsRunning() {
 async function runningContainerName(id: string): Promise<string> {
   const dockerApp = getDockerApp(id)
   if (!dockerApp) throw createError({ statusCode: 404, statusMessage: 'DockerApp not found' })
-  const service = dockerApp.interfaces.find((iface) => iface.service)?.service || dockerApp.id
   const list = await getDocker().listContainers({
     all: true,
     filters: {
       label: [
         `com.docker.compose.project=${projectName(id)}`,
-        `com.docker.compose.service=${service}`,
+        `com.docker.compose.service=${dockerApp.id}`,
       ],
     },
   })

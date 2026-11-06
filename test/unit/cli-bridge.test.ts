@@ -11,7 +11,7 @@ import {
 const pack = {
   id: 'cursor',
   dir: '/packs/cursor',
-  interfaces: [{ type: 'cli' as const, service: 'cursor', command: '/home/bros/.local/bin/agent', bin: 'agent' }],
+  interfaces: [{ type: 'cli' as const, command: '/home/bros/.local/bin/agent', bin: 'agent' }],
 }
 
 describe('cli source', () => {
@@ -106,7 +106,7 @@ describe('cli bridge files', () => {
     sync(hostBinDir, brosBinDir, new Set(['cli']), [{
       id: 'cli',
       dir: '/packs/cli',
-      interfaces: [{ type: 'cli' as const, service: 'cli', command: '/bin/bash', bin: 'bash' }],
+      interfaces: [{ type: 'cli' as const, command: '/bin/bash', bin: 'bash' }],
     }])
     expect(() => readFileSync(join(hostBinDir, 'bash'), 'utf8')).toThrow()
     expect(() => readFileSync(join(brosBinDir, 'bash'), 'utf8')).toThrow()
@@ -117,7 +117,7 @@ describe('cli bridge files', () => {
     sync(hostBinDir, brosBinDir, new Set(['desktop']), [{
       id: 'desktop',
       dir: '/packs/desktop',
-      interfaces: [{ type: 'cli' as const, service: 'desktop', command: '/bin/bash', bin: 'bash' }],
+      interfaces: [{ type: 'cli' as const, command: '/bin/bash', bin: 'bash' }],
     }])
     expect(() => readFileSync(join(hostBinDir, 'pnpm'), 'utf8')).toThrow()
     expect(() => readFileSync(join(hostBinDir, 'pnpx'), 'utf8')).toThrow()

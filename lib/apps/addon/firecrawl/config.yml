@@ -6,7 +6,6 @@ description: Self-hosted scrape/crawl API (firecrawl/firecrawl). Bros publishes 
 
 interfaces:
   - type: api
-    service: firecrawl
     containerPort: 3002
     publish: 3002
     basePath: /v2
