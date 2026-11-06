@@ -1,6 +1,6 @@
 import { refuseInternalBrosModel } from '../../../utils/internalBrosModel'
 import { getPullJob, removePullJob, stopPullJob } from '../../../utils/providers/ollamaPullJobs'
-import { deleteOllamaModel, ollamaBaseUrlFor } from '../../../utils/providers'
+import { deleteOllamaModel, forgetOllamaModelName, ollamaBaseUrlFor } from '../../../utils/providers'
 import { requireOllamaProvider } from '../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
@@ -16,11 +16,13 @@ export default defineEventHandler(async (event) => {
   try {
     const result = await deleteOllamaModel(await ollamaBaseUrlFor(id), name)
     removePullJob(id, name)
+    forgetOllamaModelName(id, name)
     return result
   }
   catch (err) {
     if (job && job.phase !== 'done') {
       removePullJob(id, name)
+      forgetOllamaModelName(id, name)
       return {
         ok: true,
         deleted: false,
