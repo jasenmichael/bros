@@ -38,17 +38,17 @@ describe('desktop stream paths', () => {
     expect(() => parseDockerAppMeta({
       id: 'gimp',
       name: 'Gimp',
-      interfaces: [{ type: 'gui', service: 'gimp', containerPort: 14500, publish: 14500 }],
+      interfaces: [{ type: 'gui', containerPort: 14500, publish: 14500 }],
     })).toThrow(/publish/)
     expect(parseDockerAppMeta({
       id: 'gimp',
       name: 'Gimp',
-      interfaces: [{ type: 'gui', service: 'gimp', command: 'gimp' }],
+      interfaces: [{ type: 'gui', command: 'gimp' }],
     }).interfaces[0].command).toBe('gimp')
     expect(() => parseDockerAppMeta({
       id: 'gimp',
       name: 'Gimp',
-      interfaces: [{ type: 'gui', service: 'gimp' }],
+      interfaces: [{ type: 'gui' }],
     })).toThrow(/command/)
     expect(isReservedDockerAppId('gui')).toBe(true)
     expect(isReservedDockerAppId('terminal')).toBe(true)

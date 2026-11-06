@@ -43,7 +43,7 @@ export function cliLinks(dockerApp: { id: string; interfaces: DockerAppInterface
     const command = (iface.command || iface.bin || '').trim()
     const bin = (iface.bin || iface.command || '').trim()
     if (!bin || !command || isShellBin(bin)) continue
-    out.push({ bin, command, service: iface.service || dockerApp.id })
+    out.push({ bin, command, service: dockerApp.id })
   }
   return out
 }

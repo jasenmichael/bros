@@ -6,7 +6,6 @@ description: Web UI for the Firecrawl scrape API (obeone/firecrawl-ui). Bros pub
 
 interfaces:
   - type: webui
-    service: firecrawl-ui
     containerPort: 8080
     publish: 3081
     slug: firecrawl-ui

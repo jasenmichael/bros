@@ -14,10 +14,11 @@ import {
 describe('dockerApp host links', () => {
   it('opens published webui only and pins the same links', () => {
     const ollama = {
+      id: 'ollama',
       name: 'Ollama',
       interfaces: [
-        { type: 'api', service: 'ollama', containerPort: 11434, publish: 11435, basePath: '/api' },
-        { type: 'openai', service: 'ollama', containerPort: 11434, publish: 11435, basePath: '/v1' },
+        { type: 'api', containerPort: 11434, publish: 11435, basePath: '/api' },
+        { type: 'openai', containerPort: 11434, publish: 11435, basePath: '/v1' },
       ],
     }
     expect(dockerAppOpenLinks(ollama)).toEqual([])
@@ -26,7 +27,7 @@ describe('dockerApp host links', () => {
     const ui = {
       name: 'OpenCode',
       interfaces: [
-        { type: 'webui', service: 'opencode', containerPort: 4096, publish: 4097 },
+        { type: 'webui', containerPort: 4096, publish: 4097 },
       ],
     }
     expect(dockerAppWebUiLinks(ui)).toEqual([
@@ -35,9 +36,10 @@ describe('dockerApp host links', () => {
     expect(dockerAppOpenLinks(ui)).toEqual(dockerAppWebUiLinks(ui))
     expect(dockerAppApiCopyUrls({
       ...ui,
+      id: 'pi-durable',
       status: { running: true },
       hostPort: 4781,
-      interfaces: [{ type: 'api', service: 'pi-durable', containerPort: 4780, publish: 4780 }],
+      interfaces: [{ type: 'api', containerPort: 4780, publish: 4780 }],
     })).toEqual([
       { url: 'http://127.0.0.1:4781/', network: 'host' },
       { url: 'http://pi-durable:4780/', network: 'bros' },
@@ -49,8 +51,8 @@ describe('dockerApp host links', () => {
       name: 'OpenJEV',
       id: 'openjev',
       interfaces: [
-        { type: 'webui', service: 'openjev', containerPort: 8080, publish: 8092, basePath: '/docs' },
-        { type: 'api', service: 'openjev', containerPort: 8080, publish: 8092, basePath: '/v1' },
+        { type: 'webui', containerPort: 8080, publish: 8092, basePath: '/docs' },
+        { type: 'api', containerPort: 8080, publish: 8092, basePath: '/v1' },
       ],
     }
     expect(dockerAppOpenLinks(openjev)).toEqual([
@@ -61,10 +63,11 @@ describe('dockerApp host links', () => {
 
   it('copies path URLs only, including the OpenAI Docker-network URL', () => {
     const ollama = {
+      id: 'ollama',
       name: 'Ollama',
       interfaces: [
-        { type: 'api', service: 'ollama', containerPort: 11434, publish: 11435, basePath: '/api' },
-        { type: 'openai', service: 'ollama', containerPort: 11434, publish: 11435, basePath: '/v1' },
+        { type: 'api', containerPort: 11434, publish: 11435, basePath: '/api' },
+        { type: 'openai', containerPort: 11434, publish: 11435, basePath: '/v1' },
       ],
     }
     expect(dockerAppApiCopyUrls(ollama)).toEqual([
@@ -80,12 +83,13 @@ describe('dockerApp host links', () => {
 
   it('defaults a missing openai basePath to /v1 and lists cli names once per interface', () => {
     const pack = {
+      id: 'ollama',
       name: 'OpenCode',
       interfaces: [
         { type: 'cli', command: 'opencode' },
         { type: 'cli', bin: 'agent', command: 'cursor' },
-        { type: 'openai', service: 'ollama', containerPort: 11434, publish: 11435 },
-        { type: 'webui', service: 'opencode', containerPort: 4096, publish: 4097 },
+        { type: 'openai', containerPort: 11434, publish: 11435 },
+        { type: 'webui', containerPort: 4096, publish: 4097 },
       ],
     }
     expect(dockerAppEndpointCopyUrls(pack, 'openai')).toEqual([
@@ -104,7 +108,7 @@ describe('dockerApp host links', () => {
         { type: 'cli', bin: 'cursor-agent', command: '/home/bros/.local/bin/agent' },
         { type: 'cli', bin: 'cursor', command: '/usr/bin/cursor' },
         { type: 'cli', bin: 'cursor-tunnel', command: '/usr/share/cursor/bin/cursor-tunnel' },
-        { type: 'gui', service: 'cursor', command: 'cursor' },
+        { type: 'gui', command: 'cursor' },
       ],
     }
     expect(dockerAppCliCommands(cursor)).toEqual(['agent', 'cursor-agent', 'cursor', 'cursor-tunnel'])

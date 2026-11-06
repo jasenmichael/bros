@@ -6,17 +6,14 @@ description: Alternate chat UI (separate from Bros Chat). Bros publishes host po
 
 interfaces:
   - type: webui
-    service: openwebui
     containerPort: 8080
     publish: 3080
     slug: openwebui
   - type: api
-    service: openwebui
     containerPort: 8080
     publish: 3080
     basePath: /api
   - type: openai
-    service: openwebui
     containerPort: 8080
     publish: 3080
     basePath: /openai/v1

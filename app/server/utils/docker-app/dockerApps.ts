@@ -16,7 +16,6 @@ export type DockerAppSourceLabel = 'shipped' | 'custom' | string
 
 const interfaceSchema = z.object({
   type: z.enum(['webui', 'api', 'openai', 'cli', 'gui']),
-  service: z.string().min(1).optional(),
   /** Process listen port inside the container. */
   containerPort: z.number().int().positive().optional(),
   /** Host publish port (Open/Pin / curl 127.0.0.1). */
@@ -30,9 +29,6 @@ const interfaceSchema = z.object({
   /** Same-host path proxy at `/${dockerApp.id}/`. Off unless `public: true`. */
   proxy: z.object({ public: z.boolean() }).optional(),
 }).superRefine((val, ctx) => {
-  if (val.type !== 'cli' && !val.service) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'service required', path: ['service'] })
-  }
   if ((val.type === 'webui' || val.type === 'api' || val.type === 'openai') && !val.containerPort) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'containerPort required', path: ['containerPort'] })
   }

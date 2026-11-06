@@ -15,7 +15,7 @@ const { payload } = vi.hoisted(() => ({
         source: 'shipped' as const,
         kind: 'core' as const,
         packageSlug: 'ollama',
-        interfaces: [] as Array<{ type: string; service: string }>,
+        interfaces: [] as Array<{ type: string }>,
         settings: { autostart: true, navPinned: false, hostMode: 'auto' as const },
         status: { running: true, services: [] },
         hasContainer: true,
@@ -123,7 +123,7 @@ describe('DockerApps addon section', () => {
   })
 
   it('uses the same segmented control for run state, interface type, and kind', async () => {
-    payload.docker[1]!.interfaces = [{ type: 'webui', service: 'opencode' }]
+    payload.docker[1]!.interfaces = [{ type: 'webui' }]
     const AppsPage = await import('../../app/ui/components/SettingsDesktopApps.vue').then((m) => m.default)
     const wrapper = await mountSuspended(AppsPage)
 

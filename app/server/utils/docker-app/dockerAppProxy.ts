@@ -136,10 +136,10 @@ function pushProxyTarget(
   iface: DockerAppInterface,
   stripPrefix: boolean,
 ) {
-  if (!iface.service || !iface.containerPort || !iface.publish) return
+  if (!iface.containerPort || !iface.publish) return
   out.push({
     id: dockerApp.id,
-    service: iface.service,
+    service: dockerApp.id,
     containerPort: iface.containerPort,
     publish: iface.publish,
     dockerApp,

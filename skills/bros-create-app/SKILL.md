@@ -51,7 +51,7 @@ Rules:
 
 - Compose project `bros-<id>` on network `bros`
 - `webui`: `publish` in config + `publish:containerPort` in compose; Pin/Open only for published webui
-- `gui`: `service` + `command`; no `publish`; launch from Desktop after container is running
+- `gui`: `command`; no `publish`; launch from Desktop after container is running
 - `api` / `openai`: proxied at `/<id><basePath>` (openai default `/v1`); no Open button
 - Do not publish host ports **3000** or **8080**
 - Directory name must match `id` in `config.yml`

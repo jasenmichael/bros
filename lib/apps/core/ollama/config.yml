@@ -10,12 +10,10 @@ home:
 
 interfaces:
   - type: api
-    service: ollama
     containerPort: 11434
     publish: 11435
     basePath: /api
   - type: openai
-    service: ollama
     containerPort: 11434
     publish: 11435
     basePath: /v1

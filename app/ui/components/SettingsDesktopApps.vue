@@ -26,7 +26,6 @@ type DockerAppRow = {
   interfaces: Array<{
     type: string
     slug?: string
-    service?: string
     containerPort?: number
     publish?: number
     basePath?: string
@@ -205,7 +204,6 @@ function fillAddTemplate() {
       'description: Additional app',
       'interfaces:',
       '  - type: webui',
-      `    service: ${id}`,
       '    containerPort: 80',
       '    publish: 3090',
       '',
