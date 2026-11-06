@@ -187,7 +187,6 @@ function packageWebuiTargets(): PublicProxyTarget[] {
     if (!face?.containerPort || !face.publish) continue
     const iface: DockerAppInterface = {
       type: 'webui',
-      service: 'bros',
       containerPort: face.containerPort,
       publish: face.publish,
       ...(face.basePath ? { basePath: face.basePath } : {}),
