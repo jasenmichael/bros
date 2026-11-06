@@ -9,7 +9,7 @@ import {
 import { getDiskSpace } from '../../../../utils/disk'
 import { refuseInternalBrosModel } from '../../../../utils/internalBrosModel'
 import { createOrReusePullJob, startPullRunner } from '../../../../utils/providers/ollamaPullJobs'
-import { rememberCustomOllamaModel, OLLAMA_HOST_ID } from '../../../../utils/providers'
+import { OLLAMA_HOST_ID } from '../../../../utils/providers'
 import { requireOllamaProvider } from '../../../../utils/providers/view'
 
 export default defineEventHandler(async (event) => {
@@ -24,7 +24,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: `Invalid Ollama name: ${name}` })
   }
   refuseInternalBrosModel(name)
-  rememberCustomOllamaModel(name, id)
 
   if (id !== OLLAMA_HOST_ID) {
     await getModelCatalog()
