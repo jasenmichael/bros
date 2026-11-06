@@ -56,9 +56,4 @@ jobs:
             echo "refuse: will not push a bump to main"
             exit 1
           fi
-          if [[ "$HEAD_REF" == "development" ]]; then
-            sha="$(git rev-parse HEAD)"
-            git push origin "HEAD:refs/heads/bump/${sha}"
-            exit 0
-          fi
           git push origin "HEAD:${HEAD_REF}"
