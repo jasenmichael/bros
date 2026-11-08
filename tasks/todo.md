@@ -1,24 +1,12 @@
-# Todo: Custom provider Save success UX
+# Todo: Custom providers + Chat model list
 
-## Task 1: Save toast, close modal, upsert custom
+## Task 1: Probe 404 → Ready — DONE (`1321c88`)
 
-**Description:** On successful custom provider Save, toast and close the add/edit modal. Allow Add to upsert an existing custom id. Keep blocking popular/system ids. Show Save errors inside the modal.
+## Task 2: Custom expand like Popular — DONE
 
-**Acceptance criteria:**
-- [x] Successful Add closes modal and shows a toast that the provider was added
-- [x] Successful edit closes modal and shows a saved toast
-- [x] Add with an existing custom id upserts (does not silent-fail)
-- [x] Add with a popular/system id shows an error inside the dialog
-- [x] API Save failure message appears inside the dialog
+## Task 3: Chat stale model list — DONE
 
-**Verification:**
-- [x] `pnpm --dir app --filter @bros/ui exec vitest run ../../test/nuxt/providers-page.test.ts`
-- [ ] Manual: Add custom `smart-gateway` → toast + modal closes
+## Task 4: Docs + suite — DONE
 
-**Dependencies:** None
-
-**Files likely touched:**
-- `app/ui/components/SettingsProviders.vue`
-- `test/nuxt/providers-page.test.ts`
-
-**Estimated scope:** S
+### Checkpoint
+- [x] providers-page + chat-page + providers-config tests (58)

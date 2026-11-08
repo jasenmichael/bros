@@ -406,6 +406,20 @@ describe('Providers page', () => {
     expect(addDialog?.textContent).not.toContain('Use GPU')
   })
 
+  it('expands a custom provider to show models like Popular services', async () => {
+    const ProvidersPage = await import('../../app/ui/components/SettingsProviders.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
+    expect(wrapper.find('button[aria-label="Settings for smart-gateway"]').exists()).toBe(false)
+    const expand = wrapper.find('button[aria-label="Expand smart-gateway"]')
+    expect(expand.exists()).toBe(true)
+    await expand.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button[aria-label="Collapse smart-gateway"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('No models yet — add names below or save a key to list them.')
+    expect(wrapper.find('input[placeholder="Base URL (OpenAI-compatible)"]').exists()).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Delete')).toBe(true)
+  })
+
   it('shows reserved-id error inside the Add dialog and does not POST', async () => {
     fetchMock.mockClear()
     toastAdd.mockClear()

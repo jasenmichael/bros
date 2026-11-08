@@ -5,7 +5,7 @@ description: Add an OpenAI-compatible endpoint with a slug, base URL, and a key 
 
 # Custom providers
 
-**Add custom** lives under Custom providers on Providers. Custom rows are OpenAI-compatible: base URL + key + model names. Kind stays `openai`. Chat starts **off** until a key passes the live probe (`GET /models` 200, or 404 when the key is accepted but the gateway has no model catalog). Same Chat stream path as Popular services (`POST /chat/completions`).
+**Add custom** lives under Custom providers on Providers. Custom rows are OpenAI-compatible: base URL + key + model names. Kind stays `openai`. Cards expand like Popular services (model list, per-model Chat, inline Save/Delete). Chat starts **off** until a key passes the live probe (`GET /models` 200, or 404 when the key is accepted but the gateway has no model catalog). Same Chat stream path as Popular services (`POST /chat/completions`). The Chat model picker lists only that provider’s models (configured + live merge) — never the previous provider’s names.
 
 ## Slug rules
 

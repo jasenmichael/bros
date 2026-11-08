@@ -174,18 +174,10 @@ const settingsOpen = computed({
   },
 })
 
-const settingsProvider = computed(() => {
-  const id = settingsTarget.value
-  if (!id || id === ADD_ID) return null
-  return listedProviders.value.find((p) => p.id === id) || null
-})
-
 const isAdd = computed(() => settingsTarget.value === ADD_ID)
-const isCustomSettings = computed(() => Boolean(settingsProvider.value) && settingsProvider.value?.kind !== 'ollama' && !settingsProvider.value?.popular)
-const settingsTitle = computed(() => {
-  if (isAdd.value) return 'Add custom provider'
-  return settingsProvider.value?.name || 'Provider settings'
-})
+const settingsTitle = computed(() => (
+  isAdd.value ? 'Add custom provider' : 'Provider settings'
+))
 
 const isHost = computed(() => selected.value?.id === 'ollama-host')
 const ollamaReady = computed(() => selected.value?.status === 'ready')
@@ -1140,61 +1132,100 @@ async function scanHost() {
         <li
           v-for="p in customProviders"
           :key="p.id"
-          class="flex w-full items-center justify-between gap-3 px-4 py-3"
+          class="w-full"
+          :class="popularOpenId === p.id ? 'bg-[var(--bros-bg)]/70' : ''"
+          @click="selectPopular(p.id)"
         >
-          <div>
-            <div class="flex items-center text-white">
-              <span>{{ p.name }}</span>
-              <span v-if="endpointLabel(p)" class="ml-3 inline-flex items-center gap-1.5">
-                <span class="font-mono text-xs text-[var(--bros-muted)]">{{ endpointLabel(p) }}</span>
-                <UButton
-                  :icon="copiedUrl === endpointUrl(p) ? 'i-lucide-check' : 'i-lucide-copy'"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  :aria-label="copiedUrl === endpointUrl(p) ? 'Copied' : `Copy ${endpointUrl(p)}`"
-                  @click.stop="copyUrl(endpointUrl(p)!)"
-                />
-                <UButton
-                  icon="i-lucide-external-link"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  :href="endpointUrl(p) || undefined"
-                  target="_blank"
-                  rel="noreferrer"
-                  :aria-label="`Open ${endpointUrl(p)}`"
-                  @click.stop
-                />
-              </span>
+          <div class="flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <div class="flex items-center text-white">
+                <span>{{ p.name }}</span>
+                <span v-if="endpointLabel(p)" class="ml-3 inline-flex items-center gap-1.5">
+                  <span class="font-mono text-xs text-[var(--bros-muted)]">{{ endpointLabel(p) }}</span>
+                  <UButton
+                    :icon="copiedUrl === endpointUrl(p) ? 'i-lucide-check' : 'i-lucide-copy'"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    :aria-label="copiedUrl === endpointUrl(p) ? 'Copied' : `Copy ${endpointUrl(p)}`"
+                    @click.stop="copyUrl(endpointUrl(p)!)"
+                  />
+                  <UButton
+                    icon="i-lucide-external-link"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    :href="endpointUrl(p) || undefined"
+                    target="_blank"
+                    rel="noreferrer"
+                    :aria-label="`Open ${endpointUrl(p)}`"
+                    @click.stop
+                  />
+                </span>
+              </div>
+              <div class="text-xs text-[var(--bros-muted)]">{{ p.kind }}</div>
             </div>
-            <div class="text-xs text-[var(--bros-muted)]">{{ p.kind }}</div>
-          </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <UBadge :color="statusColor(p)" variant="subtle" size="xs">
-              {{ statusLabel(p) }}
-            </UBadge>
-            <label
-              class="flex flex-col items-center gap-0.5 text-[10px] leading-none text-[var(--bros-muted)]"
-              :title="chatSwitchTitle(p)"
-              @click.stop
-            >
-              <span>Chat</span>
-              <USwitch
-                :model-value="p.enabled"
-                :disabled="chatSwitchDisabled(p)"
-                :aria-label="`Enable ${providerTitle(p)} for chat`"
-                @update:model-value="(v: boolean) => setChatEnabled(p, v)"
+            <div class="flex shrink-0 items-center gap-2">
+              <UBadge :color="statusColor(p)" variant="subtle" size="xs">
+                {{ statusLabel(p) }}
+              </UBadge>
+              <label
+                class="flex flex-col items-center gap-0.5 text-[10px] leading-none text-[var(--bros-muted)]"
+                :title="chatSwitchTitle(p)"
+                @click.stop
+              >
+                <span>Chat</span>
+                <USwitch
+                  :model-value="p.enabled"
+                  :disabled="chatSwitchDisabled(p)"
+                  :aria-label="`Enable ${providerTitle(p)} for chat`"
+                  @update:model-value="(v: boolean) => setChatEnabled(p, v)"
+                />
+              </label>
+              <UButton
+                :icon="popularOpenId === p.id ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :aria-label="popularOpenId === p.id ? `Collapse ${p.name}` : `Expand ${p.name}`"
+                :aria-expanded="popularOpenId === p.id"
+                @click.stop="selectPopular(p.id)"
               />
-            </label>
-            <UButton
-              icon="i-lucide-settings"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="`Settings for ${p.name}`"
-              @click.stop="openSettings(p.id)"
-            />
+            </div>
+          </div>
+          <div
+            v-if="popularOpenId === p.id"
+            class="w-full min-w-0 space-y-4 border-t border-[var(--bros-border)] px-4 py-3"
+            @click.stop
+          >
+            <ul class="w-full divide-y divide-[var(--bros-border)] rounded-xl border border-[var(--bros-border)]">
+              <li v-for="name in openaiModelNames(p)" :key="name" class="flex items-center justify-between gap-3 px-4 py-3">
+                <div class="min-w-0">
+                  <div class="truncate font-mono text-sm text-white">{{ name }}</div>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <USwitch
+                    :model-value="isModelChatEnabled(p, name)"
+                    :disabled="busy"
+                    :aria-label="`Enable ${name} for chat`"
+                    @update:model-value="(v: boolean) => setModelEnabled(p, name, v)"
+                  />
+                </div>
+              </li>
+              <li v-if="!openaiModelNames(p).length" class="px-4 py-3 text-sm text-[var(--bros-muted)]">
+                No models yet — add names below or save a key to list them.
+              </li>
+            </ul>
+            <div class="grid gap-2">
+              <UInput v-model="customForm.name" placeholder="Display name" />
+              <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" />
+              <UInput v-model="customForm.apiKey" type="password" :placeholder="p.hasApiKey ? 'API key (leave blank to keep)' : 'API key'" />
+              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
+              <div class="flex flex-wrap gap-2">
+                <UButton :loading="busy" :disabled="!customForm.name" @click="saveCustom">Save</UButton>
+                <UButton color="error" variant="ghost" :loading="busy" @click="removeProvider(p.id)">Delete</UButton>
+              </div>
+            </div>
           </div>
         </li>
         <li v-if="!customProviders.length" class="px-4 py-3 text-sm text-[var(--bros-muted)]">
@@ -1228,15 +1259,6 @@ async function scanHost() {
               <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
             </div>
           </template>
-          <template v-else-if="isCustomSettings && settingsProvider">
-            <div class="grid gap-2">
-              <UInput :model-value="customForm.id" disabled />
-              <UInput v-model="customForm.name" placeholder="Display name" />
-              <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" />
-              <UInput v-model="customForm.apiKey" type="password" :placeholder="settingsProvider.hasApiKey ? 'API key (leave blank to keep)' : 'API key'" />
-              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
-            </div>
-          </template>
         </div>
       </template>
 
@@ -1244,10 +1266,6 @@ async function scanHost() {
         <UButton :loading="busy" :disabled="!customForm.id || !customForm.name" @click="saveCustom">
           Save provider
         </UButton>
-      </template>
-      <template v-else-if="isCustomSettings && settingsProvider" #footer>
-        <UButton :loading="busy" :disabled="!customForm.name" @click="saveCustom">Save</UButton>
-        <UButton color="error" variant="ghost" :loading="busy" @click="removeProvider(settingsProvider.id)">Delete</UButton>
       </template>
     </UModal>
   </BrosPageShell>
