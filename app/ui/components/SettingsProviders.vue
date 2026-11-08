@@ -674,10 +674,13 @@ function parseModelNames(raw: string) {
 async function saveCustom() {
   if (!customForm.id || !customForm.name) return
   const id = customForm.id.trim()
-  if (isAdd.value && (listedProviders.value.some((p) => p.id === id) || id === 'ollama' || id === 'ollama-host')) {
-    err.value = 'id is reserved'
+  const existing = listedProviders.value.find((p) => p.id === id)
+  // Popular / built-in ids stay blocked. Existing custom ids upsert via POST.
+  if (isAdd.value && (id === 'ollama' || id === 'ollama-host' || existing?.popular || existing?.kind === 'ollama')) {
+    err.value = 'Provider id already exists'
     return
   }
+  const adding = isAdd.value
   busy.value = true
   err.value = ''
   try {
@@ -693,6 +696,10 @@ async function saveCustom() {
     customForm.apiKey = ''
     if (settingsTarget.value) closeSettings()
     await refresh()
+    useToast().add({
+      title: adding ? 'Provider added' : 'Provider saved',
+      color: 'success',
+    })
     if (popularOpenId.value) {
       const p = listedProviders.value.find((row) => row.id === popularOpenId.value)
       if (p) fillCustomForm(p)
@@ -703,6 +710,8 @@ async function saveCustom() {
     busy.value = false
   }
 }
+
+defineExpose({ customForm, saveCustom, settingsTarget, err })
 
 async function removeProvider(id: string) {
   busy.value = true
@@ -1209,6 +1218,7 @@ async function scanHost() {
     <UModal v-model:open="settingsOpen" :title="settingsTitle" description="Provider settings">
       <template #body>
         <div class="space-y-3">
+          <p v-if="err" class="text-sm text-red-400">{{ err }}</p>
           <template v-if="isAdd">
             <div class="grid gap-2">
               <UInput v-model="customForm.id" placeholder="id slug (e.g. my-proxy)" />
