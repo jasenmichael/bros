@@ -459,6 +459,11 @@ function classifyHttpHealth(status: number, body: string): ProviderHealth {
   if (status === 401 || status === 403) {
     return { ok: false, kind: 'invalid_key', message: 'Invalid key' }
   }
+  // Auth-gated gateways often 404 on GET /models while Chat still works.
+  // 401/403 already caught above — 404 means the key was accepted.
+  if (status === 404) {
+    return { ok: true, kind: 'ready', message: 'Ready' }
+  }
   const detail = body.replace(/\s+/g, ' ').trim().slice(0, 160)
   return {
     ok: false,

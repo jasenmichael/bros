@@ -389,6 +389,32 @@ describe('upsertProvider config merge', () => {
     }
   })
 
+  it('treats GET /models 404 as Ready so Chat can enable without a model catalog', async () => {
+    const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider, probeProviderHealth } = await import('../../app/server/utils/providers')
+    ensureDefaultProviders()
+    upsertProvider({
+      id: 'smart-gateway',
+      name: 'smart-gateway',
+      kind: 'openai',
+      baseUrl: 'http://127.0.0.1:3020/v1',
+      apiKey: 'sk_test_local',
+      config: { models: ['gpt-4o-mini'] },
+    })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('http://127.0.0.1:3020/v1/models')
+      return new Response(JSON.stringify({ message: 'Route GET:/v1/models not found' }), { status: 404 })
+    }) as typeof fetch
+    try {
+      await expect(probeProviderHealth('smart-gateway')).resolves.toMatchObject({ ok: true, kind: 'ready' })
+      await setProviderEnabled('smart-gateway', true)
+      expect(getProvider('smart-gateway')?.enabled).toBe(true)
+    }
+    finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('probes Anthropic with x-api-key headers', async () => {
     const { ensureDefaultProviders, getProvider, setProviderEnabled, upsertProvider } = await import('../../app/server/utils/providers')
     ensureDefaultProviders()
