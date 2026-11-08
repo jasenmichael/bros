@@ -54,6 +54,7 @@ mockNuxtImport('useFetch', () => {
             { name: 'qwen2.5', enabled: true },
             { name: 'secret-model', enabled: false },
           ] },
+          { id: 'empty-proxy', name: 'Empty proxy', kind: 'openai', models: [] },
         ],
       }),
       refresh: async () => {},
@@ -161,6 +162,28 @@ describe('Chat page', () => {
     expect(vm.modelName).toBe('qwen2.5')
   })
 
+  it('does not keep the prior provider model when the new provider has no models', async () => {
+    localStorage.setItem(CHAT_MODEL_MEMORY_KEY, JSON.stringify({
+      lastProviderId: 'openai',
+      models: { openai: 'gpt-4o-mini' },
+    }))
+    const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
+    const vm = wrapper.vm as unknown as {
+      providerId: string
+      modelName: string
+      modelItems: string[]
+      modelsForProvider: (id: string) => string[]
+    }
+    expect(vm.providerId).toBe('openai')
+    expect(vm.modelName).toBe('gpt-4o-mini')
+    vm.providerId = 'empty-proxy'
+    await wrapper.vm.$nextTick()
+    expect(vm.modelsForProvider('empty-proxy')).toEqual([])
+    expect(vm.modelItems).toEqual([])
+    expect(vm.modelName).toBe('')
+  })
+
   it('falls back to the first enabled model when the remembered one is missing', async () => {
     localStorage.setItem(CHAT_MODEL_MEMORY_KEY, JSON.stringify({
       lastProviderId: 'openai',
@@ -177,7 +200,7 @@ describe('Chat page', () => {
     const ChatPage = await import('../../app/ui/pages/chat/[[id]].vue').then((m) => m.default)
     const wrapper = await mountSuspended(ChatPage, { route: '/chat', ...chatMount })
     const vm = wrapper.vm as unknown as { orderedProviders: Array<{ id: string }> }
-    expect(vm.orderedProviders.map((p) => p.id)).toEqual(['ollama', 'ollama-host', 'openai', 'my-proxy'])
+    expect(vm.orderedProviders.map((p) => p.id)).toEqual(['ollama', 'ollama-host', 'openai', 'my-proxy', 'empty-proxy'])
   })
 
   it('shows thinking and Stop while busy, no send spinner', async () => {

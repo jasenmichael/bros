@@ -96,11 +96,7 @@ function modelsForProvider(pid: string): string[] {
   return (p.models || []).filter((m) => m.enabled !== false).map((m) => m.name)
 }
 
-const modelItems = computed(() => {
-  const names = modelsForProvider(providerId.value)
-  if (names.length) return names
-  return modelName.value ? [modelName.value] : []
-})
+const modelItems = computed(() => modelsForProvider(providerId.value))
 
 const pickerMenuUi = {
   itemWrapper: 'min-w-max',
@@ -194,7 +190,7 @@ async function persistOpenModel(next = modelId.value) {
 watch(providerId, (pid) => {
   if (!pid) return
   const names = modelsForProvider(pid)
-  if (names.length) assignModel(preferredModel(pid, names), false)
+  assignModel(names.length ? preferredModel(pid, names) : '', false)
   if (!applyingThread) rememberChatProvider(pid)
 }, { flush: 'sync' })
 
@@ -522,6 +518,9 @@ defineExpose({
   streamAbort,
   orderedProviders,
   providerId,
+  modelName,
+  modelItems,
+  modelsForProvider,
   messages,
   resendFrom,
   scrollThread,

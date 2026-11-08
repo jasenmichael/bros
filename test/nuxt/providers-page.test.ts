@@ -1,9 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { PROVIDER_PRESETS } from '../../app/server/utils/providers/presets'
 
 const siteUrlById = Object.fromEntries(PROVIDER_PRESETS.map((p) => [p.id, p.siteUrl]))
+const { fetchMock, toastAdd } = vi.hoisted(() => ({
+  fetchMock: vi.fn(async () => ({})),
+  toastAdd: vi.fn(),
+}))
+
+mockNuxtImport('$fetch', () => fetchMock)
+mockNuxtImport('useToast', () => () => ({ add: toastAdd }))
 
 mockNuxtImport('useFetch', () => {
   return (url?: string) => {
@@ -77,6 +84,7 @@ mockNuxtImport('useFetch', () => {
           { id: 'fireworks', name: 'Fireworks AI', kind: 'openai', baseUrl: 'https://api.fireworks.ai/inference/v1', enabled: false, hasApiKey: false, config: {}, status: 'needs_key', statusLabel: 'Need an API key', popular: true, siteUrl: siteUrlById.fireworks },
           { id: 'perplexity', name: 'Perplexity', kind: 'openai', baseUrl: 'https://api.perplexity.ai', enabled: false, hasApiKey: false, config: {}, status: 'needs_key', statusLabel: 'Need an API key', popular: true, siteUrl: siteUrlById.perplexity },
           { id: 'cohere', name: 'Cohere', kind: 'openai', baseUrl: 'https://api.cohere.ai/compatibility/v1', enabled: false, hasApiKey: false, config: {}, status: 'needs_key', statusLabel: 'Need an API key', popular: true, siteUrl: siteUrlById.cohere },
+          { id: 'smart-gateway', name: 'smart-gateway', kind: 'openai', baseUrl: 'http://127.0.0.1:3000/v1', enabled: false, hasApiKey: true, config: { models: [] }, status: 'unreachable', statusLabel: 'Unreachable', popular: false },
         ],
         activePulls: {},
         ollamaError: null,
@@ -132,7 +140,8 @@ describe('Providers page', () => {
     expect(wrapper.text()).not.toContain('(ollama-host)')
     expect(wrapper.text()).not.toContain('running :11435')
     expect(wrapper.text()).toContain('Add custom')
-    expect(wrapper.text()).toContain('No custom providers yet.')
+    expect(wrapper.text()).toContain('smart-gateway')
+    expect(wrapper.text()).not.toContain('No custom providers yet.')
     expect(wrapper.text()).not.toContain('DockerApp DNS')
     expect(wrapper.text()).not.toContain('Paid providers')
     expect(wrapper.text()).not.toContain('External URL')
@@ -179,7 +188,7 @@ describe('Providers page', () => {
     expect(visibleText(wrapper)).not.toContain('Use GPU')
     expect(visibleText(wrapper)).not.toContain('GPU detected')
     const ollamaList = wrapper.findAll('ul').find((ul) => ul.text().includes('Ollama (core)'))
-    const customList = wrapper.findAll('ul').find((ul) => ul.text().includes('No custom providers yet.'))
+    const customList = wrapper.findAll('ul').find((ul) => ul.text().includes('smart-gateway'))
     expect(ollamaList?.classes()).toContain('w-full')
     expect(customList?.classes()).toContain('w-full')
   })
@@ -395,5 +404,69 @@ describe('Providers page', () => {
     expect(addDialog?.textContent).toContain('Save provider')
     expect(addDialog?.textContent).not.toContain('Anthropic')
     expect(addDialog?.textContent).not.toContain('Use GPU')
+  })
+
+  it('expands a custom provider to show models like Popular services', async () => {
+    const ProvidersPage = await import('../../app/ui/components/SettingsProviders.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
+    expect(wrapper.find('button[aria-label="Settings for smart-gateway"]').exists()).toBe(false)
+    const expand = wrapper.find('button[aria-label="Expand smart-gateway"]')
+    expect(expand.exists()).toBe(true)
+    await expand.trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('button[aria-label="Collapse smart-gateway"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('No models yet — add names below or save a key to list them.')
+    expect(wrapper.find('input[placeholder="Base URL (OpenAI-compatible)"]').exists()).toBe(true)
+    expect(wrapper.findAll('button').some((b) => b.text() === 'Delete')).toBe(true)
+  })
+
+  it('shows reserved-id error inside the Add dialog and does not POST', async () => {
+    fetchMock.mockClear()
+    toastAdd.mockClear()
+    const ProvidersPage = await import('../../app/ui/components/SettingsProviders.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
+    await wrapper.findAll('button').find((b) => b.text().includes('Add custom'))!.trigger('click')
+    await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as unknown as {
+      customForm: { id: string, name: string }
+      saveCustom: () => Promise<void>
+      err: string
+    }
+    vm.customForm.id = 'openai'
+    vm.customForm.name = 'OpenAI dupe'
+    await vm.saveCustom()
+    await wrapper.vm.$nextTick()
+    expect(vm.err).toBe('Provider id already exists')
+    expect(visibleText(wrapper)).toContain('Provider id already exists')
+    const openDialog = [...document.querySelectorAll('[role="dialog"]')]
+      .find((el) => el.textContent?.includes('Save provider'))
+    expect(openDialog).toBeTruthy()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(toastAdd).not.toHaveBeenCalled()
+  })
+
+  it('upserts an existing custom id, toasts Provider added, and closes the modal', async () => {
+    fetchMock.mockClear()
+    toastAdd.mockClear()
+    fetchMock.mockResolvedValueOnce({})
+    const ProvidersPage = await import('../../app/ui/components/SettingsProviders.vue').then((m) => m.default)
+    const wrapper = await mountSuspended(ProvidersPage)
+    await wrapper.findAll('button').find((b) => b.text().includes('Add custom'))!.trigger('click')
+    await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as unknown as {
+      customForm: { id: string, name: string, baseUrl: string, apiKey: string, models: string }
+      saveCustom: () => Promise<void>
+      settingsTarget: string | null
+    }
+    vm.customForm.id = 'smart-gateway'
+    vm.customForm.name = 'smart-gateway'
+    vm.customForm.baseUrl = 'http://127.0.0.1:3000/v1'
+    vm.customForm.apiKey = 'sk_test_local'
+    vm.customForm.models = ''
+    await vm.saveCustom()
+    await wrapper.vm.$nextTick()
+    expect(fetchMock).toHaveBeenCalledWith('/api/providers', expect.objectContaining({ method: 'POST' }))
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Provider added' }))
+    expect(vm.settingsTarget).toBeNull()
   })
 })
