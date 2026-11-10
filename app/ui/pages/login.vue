@@ -54,6 +54,7 @@ async function submit() {
         placeholder="Passkey"
         size="lg"
         autocomplete="current-password"
+        autofocus
       />
       <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
       <UButton type="submit" block :loading="pending">Unlock</UButton>
