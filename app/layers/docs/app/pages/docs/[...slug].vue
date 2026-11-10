@@ -1,9 +1,20 @@
 <script setup lang="ts">
+import { docsLinkHref } from '../../utils/docsLinkHref'
+
 const route = useRoute()
+
+if (route.path.endsWith('.md')) {
+  await navigateTo(docsLinkHref(route.fullPath), { redirectCode: 301 })
+}
 
 const { data: page } = await useAsyncData(route.path, () =>
   queryCollection('content').path(route.path).first(),
 )
+
+useSeoMeta({
+  title: () => page.value?.title || 'Docs',
+  description: () => page.value?.description || undefined,
+})
 </script>
 
 <template>
