@@ -507,9 +507,6 @@ async function sweep() {
   }
   for (const job of listJobs()) {
     if (resumeOrphanedPlanning(job.state, running.has(job.id))) {
-      // #region agent log
-      fetch('http://127.0.0.1:7605/ingest/96b79570-9183-497e-8dac-73f419b1ff97',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db6d6f'},body:JSON.stringify({sessionId:'db6d6f',runId:'post-fix',hypothesisId:'B',location:'loop.ts:sweep',message:'requeue orphaned planning',data:{id:job.id,issue:job.issueNumber},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       patchJob(job.id, { state: 'queued' })
       job.state = 'queued'
     }
@@ -538,9 +535,6 @@ export async function pump() {
     await sweep()
   }
   catch (error) {
-    // #region agent log
-    fetch('http://127.0.0.1:7605/ingest/96b79570-9183-497e-8dac-73f419b1ff97',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db6d6f'},body:JSON.stringify({sessionId:'db6d6f',runId:'post-fix',hypothesisId:'C',location:'loop.ts:pump',message:'sweep threw',data:{line:error instanceof Error?error.message.split('\n')[0]:String(error)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     console.error('[bros] agents', error instanceof Error ? error.message.split('\n')[0] : error)
   }
   finally {
