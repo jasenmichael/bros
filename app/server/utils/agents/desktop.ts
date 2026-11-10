@@ -1,11 +1,15 @@
 import { spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { loadBootstrapConfig } from '../config'
+import { hostHomeForBinds, loadBootstrapConfig } from '../config'
 import { readSettings } from './store'
 
 export function desktopHome(): string {
-  return join(loadBootstrapConfig().dataDir, 'home')
+  try {
+    return hostHomeForBinds()
+  } catch {
+    return join(loadBootstrapConfig().dataDir, 'home')
+  }
 }
 
 export function syncGitCredentials(token: string, home = desktopHome()) {

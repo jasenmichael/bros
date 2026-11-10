@@ -267,7 +267,7 @@ describe('dockerApp data binds', () => {
     expect(yml).toContain('ipc: host')
     expect(yml).toContain('http://127.0.0.1:8080/health')
     expect(yml).toContain('HOME: /home/bros')
-    expect(yml).toContain('home/.cache/huggingface:/home/bros/.cache/huggingface')
+    expect(yml).toContain('${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.cache/huggingface:/home/bros/.cache/huggingface')
     expect(yml).not.toMatch(/-\s+["']?8080:/)
     expect(yml).not.toMatch(/-\s+["']?3000:/)
   })
@@ -299,7 +299,8 @@ describe('dockerApp data binds', () => {
     expect(desktop).toContain('PGID: "${BROS_HOST_GID:-1000}"')
     expect(desktop).not.toContain('dockerApps/cursor/state')
     expect(desktop).not.toContain('dockerApps/opencode/config')
-    expect(desktop).toContain('${BROS_DATA_DIR:?unset}/home:/home/bros')
+    expect(desktop).toContain('${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}:/home/bros')
+    expect(desktop).toContain('${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/nix:/nix')
     expect(desktop).not.toContain('.nix-profile/bin:')
     expect(readFileSync(join(root, 'lib/desktop/root/etc/profile.d/bros-path.sh'), 'utf8')).toContain('export PATH="/home/bros/.local/app-bins:${PATH}"')
     expect(desktop).toContain('"${BROS_DOCKER_GID:-0}"')
@@ -383,8 +384,8 @@ describe('dockerApp data binds', () => {
 
   it('mounts ollama models under the desktop home', () => {
     const yml = readFileSync(join(import.meta.dirname, '../..', 'lib/apps/core/ollama/docker-compose.yml'), 'utf8')
-    expect(yml).toContain('${BROS_DATA_DIR:?unset}/home/.ollama:/home/bros/.ollama')
-    expect(yml).toContain('${BROS_DATA_DIR:?unset}/home/.config/ollama:/home/bros/.config/ollama')
+    expect(yml).toContain('${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.ollama:/home/bros/.ollama')
+    expect(yml).toContain('${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.config/ollama:/home/bros/.config/ollama')
     expect(yml).toContain('${BROS_DATA_DIR:?unset}/apps/ollama/bros-model:/bros-model:ro')
     expect(yml).not.toContain(':/root/.ollama')
     expect(yml).not.toContain('dockerApps/ollama/data')
@@ -409,6 +410,22 @@ describe('dockerApp data binds', () => {
       if (rel.endsWith('openwebui/docker-compose.yml')) {
         expect(yml).toContain('WEBUI_SECRET_KEY_FILE: /app/backend/data/.webui_secret_key')
       }
+    }
+  })
+
+  it('binds Desktop home paths through BROS_HOME with data/home fallback', () => {
+    const root = join(import.meta.dirname, '../..')
+    const homePrefix = '${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}'
+    for (const rel of [
+      'lib/desktop/docker-compose.yml',
+      'lib/apps/core/ollama/docker-compose.yml',
+      'lib/apps/core/whisper/docker-compose.yml',
+      'lib/apps/addon/pi/docker-compose.yml',
+      'lib/apps/addon/openjev/docker-compose.yml',
+    ]) {
+      const yml = readFileSync(join(root, rel), 'utf8')
+      expect(yml).toContain(homePrefix)
+      expect(yml).not.toMatch(/\$\{BROS_DATA_DIR:\?unset\}\/home(?!})/)
     }
   })
 })

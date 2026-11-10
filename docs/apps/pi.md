@@ -15,8 +15,8 @@ Run it in the workspace bind:
 docker compose -p bros-pi -f lib/apps/addon/pi/docker-compose.yml exec pi pi
 ```
 
-`/login` stores credentials in `$BROS_DATA_DIR/home/.pi` (mounted at `/home/bros/.pi`). `/home/bros` is an empty tmpfs except the declared binds. Optional env passthrough: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`.
+`/login` stores credentials in `$BROS_HOME/.pi` (mounted at `/home/bros/.pi`). `/home/bros` is an empty tmpfs except the declared binds. Optional env passthrough: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`.
 
 ## Binds
 
-- `$BROS_DATA_DIR/home/.pi` → `/home/bros/.pi` (auth, settings, sessions)
+- `$BROS_HOME/.pi` → `/home/bros/.pi` (auth, settings, sessions)

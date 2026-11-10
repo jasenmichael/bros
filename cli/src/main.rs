@@ -295,6 +295,22 @@ fn data_dir_for(bros_dir: &str, set: Option<&str>) -> String {
     }
 }
 
+/// Desktop home host path. Default `$BROS_DATA_DIR/home`. Explicit `BROS_HOME` wins.
+fn home_dir_for(data: &str, set: Option<&str>, bros_dir: &str) -> String {
+    match set.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(dir) => {
+            let mut out = expand_dotenv_value(dir, Some(bros_dir));
+            out = out.replace("${BROS_DATA_DIR}", data);
+            out = out.replace("$BROS_DATA_DIR/", &format!("{data}/"));
+            if out == "$BROS_DATA_DIR" {
+                out = data.to_string();
+            }
+            out
+        }
+        None => format!("{data}/home"),
+    }
+}
+
 /// Refuse paths that would make Docker create junk under BROS_DIR (literal `$HOME`, `#`, relative).
 fn host_path_problem(name: &str, path: &str) -> Option<String> {
     if path.contains('$') || path.contains('#') {
@@ -379,7 +395,7 @@ fn host_path(path: &str) -> bool {
     !path.is_empty() && path != "/app/data" && !path.starts_with("/app/data/")
 }
 
-fn resolve_workspace(data: &str, env_workspace: Option<&str>, yaml_workspace: Option<&str>) -> Option<String> {
+fn resolve_workspace(data: &str, home: &str, env_workspace: Option<&str>, yaml_workspace: Option<&str>) -> Option<String> {
     if let Some(set) = env_workspace.map(str::trim).filter(|s| !s.is_empty()) {
         return Some(set.to_string());
     }
@@ -389,7 +405,7 @@ fn resolve_workspace(data: &str, env_workspace: Option<&str>, yaml_workspace: Op
     if let Some(yaml) = yaml_workspace.map(str::trim).filter(|s| host_path(s)) {
         return Some(yaml.to_string());
     }
-    Some(format!("{data}/home/workspace"))
+    Some(format!("{home}/workspace"))
 }
 
 fn load_dotenv(path: &Path) {
@@ -481,6 +497,11 @@ fn export_host_env(repo: &Path, config_flag: Option<&str>) -> Paths {
     if !container_data_dir(&data) {
         env::set_var("BROS_DATA_DIR", &data);
     }
+    let home = home_dir_for(&data, env::var("BROS_HOME").ok().as_deref(), &dir);
+    if !container_data_dir(&data) {
+        reject_bad_host_path("BROS_HOME", &home);
+        env::set_var("BROS_HOME", &home);
+    }
     env::set_var("BROS_HOST_REPO", env::var("BROS_HOST_REPO").unwrap_or(repo_s));
     let config = resolve_config(&data, &dir, config_flag);
     let yaml_workspace = config.as_ref().and_then(|path| yaml_top(path, "workspace"));
@@ -488,7 +509,7 @@ fn export_host_env(repo: &Path, config_flag: Option<&str>) -> Paths {
     if let Some(ref ws) = env_workspace {
         reject_bad_host_path("BROS_WORKSPACE", ws);
     }
-    if let Some(workspace) = resolve_workspace(&data, env_workspace.as_deref(), yaml_workspace.as_deref()) {
+    if let Some(workspace) = resolve_workspace(&data, &home, env_workspace.as_deref(), yaml_workspace.as_deref()) {
         env::set_var("BROS_WORKSPACE", workspace);
     }
     if let Some(path) = &config {
@@ -1806,6 +1827,16 @@ mod tests {
     }
 
     #[test]
+    fn home_defaults_under_data_dir_and_honors_override() {
+        assert_eq!(home_dir_for("/opt/bros/data", None, "/opt/bros"), "/opt/bros/data/home");
+        assert_eq!(home_dir_for("/opt/bros/data", Some("/mnt/desktop-home"), "/opt/bros"), "/mnt/desktop-home");
+        assert_eq!(
+            home_dir_for("/opt/bros/data", Some("$BROS_DATA_DIR/home"), "/opt/bros"),
+            "/opt/bros/data/home"
+        );
+    }
+
+    #[test]
     fn replace_packaged_model_parts_overwrites_existing() {
         let root = std::env::temp_dir().join(format!("bros-replace-model-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
@@ -1861,13 +1892,14 @@ mod tests {
 
     #[test]
     fn workspace_keeps_env_and_skips_container_data() {
-        assert_eq!(resolve_workspace("/app/data", Some("/keep"), Some("/yaml")).as_deref(), Some("/keep"));
-        assert_eq!(resolve_workspace("/app/data", None, Some("/yaml")), None);
-        assert_eq!(resolve_workspace("/data", None, None), None);
-        assert_eq!(resolve_workspace("", None, None), None);
-        assert_eq!(resolve_workspace("/h/data", None, Some("/work")).as_deref(), Some("/work"));
-        assert_eq!(resolve_workspace("/h/data", None, Some("/app/data/home/workspace")).as_deref(), Some("/h/data/home/workspace"));
-        assert_eq!(resolve_workspace("/h/data", None, None).as_deref(), Some("/h/data/home/workspace"));
+        assert_eq!(resolve_workspace("/app/data", "/app/data/home", Some("/keep"), Some("/yaml")).as_deref(), Some("/keep"));
+        assert_eq!(resolve_workspace("/app/data", "/app/data/home", None, Some("/yaml")), None);
+        assert_eq!(resolve_workspace("/data", "/data/home", None, None), None);
+        assert_eq!(resolve_workspace("", "/home", None, None), None);
+        assert_eq!(resolve_workspace("/h/data", "/h/data/home", None, Some("/work")).as_deref(), Some("/work"));
+        assert_eq!(resolve_workspace("/h/data", "/h/data/home", None, Some("/app/data/home/workspace")).as_deref(), Some("/h/data/home/workspace"));
+        assert_eq!(resolve_workspace("/h/data", "/h/data/home", None, None).as_deref(), Some("/h/data/home/workspace"));
+        assert_eq!(resolve_workspace("/h/data", "/mnt/elsewhere", None, None).as_deref(), Some("/mnt/elsewhere/workspace"));
     }
 
     #[test]

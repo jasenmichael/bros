@@ -174,7 +174,7 @@ describe('Bros image context', () => {
     expect(ensureScript).toContain('HOME="$HOME_DIR"')
     expect(ensureScript).toContain('XDG_DATA_HOME="$HOME_DIR/.local/share"')
     expect(ensureScript).not.toContain('HOME=/home/bros/.nix')
-    expect(compose).toContain('${BROS_DATA_DIR:?unset}/home/nix:/nix')
+    expect(compose).toContain('${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/nix:/nix')
     expect(compose).toContain('XDG_DATA_HOME: /home/bros/.local/share')
     expect(compose).toContain('XDG_STATE_HOME: /home/bros/.local/state')
     expect(compose).toContain('${BROS_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives')

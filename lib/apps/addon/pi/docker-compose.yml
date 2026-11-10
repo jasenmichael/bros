@@ -17,7 +17,7 @@ services:
     tmpfs:
       - /home/bros:mode=1777
     volumes:
-      - ${BROS_DATA_DIR:?unset}/home/.pi:/home/bros/.pi
+      - ${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.pi:/home/bros/.pi
     restart: unless-stopped
     networks:
       - bros

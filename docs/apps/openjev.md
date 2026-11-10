@@ -44,8 +44,8 @@ curl --fail --silent --show-error --max-time 5 \
 
 `/home/bros` is tmpfs scratch (`mode=1777`). OpenJEV, Laya, and Verdict share the binds. The process runs as the host uid. Model weights live in the huggingface cache, and in the vllm and flashinfer caches when those directories are present.
 
-- `$BROS_DATA_DIR/home/.cache/huggingface` → `/home/bros/.cache/huggingface`
-- `$BROS_DATA_DIR/home/.cache/vllm` → `/home/bros/.cache/vllm`
-- `$BROS_DATA_DIR/home/.cache/flashinfer` → `/home/bros/.cache/flashinfer`
+- `$BROS_HOME/.cache/huggingface` → `/home/bros/.cache/huggingface`
+- `$BROS_HOME/.cache/vllm` → `/home/bros/.cache/vllm`
+- `$BROS_HOME/.cache/flashinfer` → `/home/bros/.cache/flashinfer`
 
 Hub: [Docker apps](/docs/apps.md).

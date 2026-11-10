@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig } from '../../app/server/utils/config'
+import { dataDirFor, ensureDataLayout, hostDataDirForBinds, hostHomeForBinds, hostWorkspaceForCompose, loadBootstrapConfig } from '../../app/server/utils/config'
 
-const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_PUBLIC_URL', 'BROS_TUNNEL_HOST', 'BROS_DIR', 'BROS_WORKSPACE'] as const
+const ENV_KEYS = ['BROS_CONFIG', 'BROS_WORKING_DIR', 'BROS_DATA_DIR', 'BROS_HOME', 'BROS_PUBLIC_URL', 'BROS_TUNNEL_HOST', 'BROS_DIR', 'BROS_WORKSPACE'] as const
 
 describe('loadBootstrapConfig', () => {
   const saved: Record<string, string | undefined> = {}
@@ -150,6 +150,16 @@ describe('hostDataDirForBinds', () => {
       if (prev === undefined) delete process.env.BROS_WORKSPACE
       else process.env.BROS_WORKSPACE = prev
     }
+  })
+
+  it('uses BROS_HOME for Desktop home binds when set', () => {
+    process.env.BROS_DATA_DIR = join(root, 'host-data')
+    process.env.BROS_DIR = root
+    expect(hostHomeForBinds()).toBe(resolve(root, 'host-data', 'home'))
+    process.env.BROS_HOME = join(root, 'elsewhere')
+    expect(hostHomeForBinds()).toBe(resolve(root, 'elsewhere'))
+    delete process.env.BROS_WORKSPACE
+    expect(hostWorkspaceForCompose()).toBe(resolve(root, 'elsewhere', 'workspace'))
   })
 })
 

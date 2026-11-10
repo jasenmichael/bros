@@ -161,14 +161,24 @@ function isContainerDataPath(path: string): boolean {
 }
 
 /**
+ * Host path for Desktop home (`/home/bros` bind).
+ * Explicit `BROS_HOME` wins; else `$BROS_DATA_DIR/home`.
+ */
+export function hostHomeForBinds(): string {
+  const explicit = process.env.BROS_HOME?.trim()
+  if (explicit) return resolve(explicit)
+  return join(hostDataDirForBinds(), 'home')
+}
+
+/**
  * Host path for Desktop `${BROS_WORKSPACE:?unset}`.
- * Env wins, then `bros.yml` `workspace`, then `$hostData/home/workspace`.
+ * Env wins, then `bros.yml` `workspace`, then `$BROS_HOME/workspace`.
  * Never the in-container `/app/data` tree unless that path is the host data dir.
  */
 export function hostWorkspaceForCompose(): string {
   const env = process.env.BROS_WORKSPACE?.trim()
   if (env) return resolve(env)
-  const hostDefault = join(hostDataDirForBinds(), 'home', 'workspace')
+  const hostDefault = join(hostHomeForBinds(), 'workspace')
   const configured = loadBootstrapConfig().workspaceHost.trim()
   if (!configured || isContainerDataPath(configured)) return hostDefault
   return configured

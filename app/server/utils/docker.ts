@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import Docker from 'dockerode'
 import { eq } from 'drizzle-orm'
-import { hostDataDirForBinds, hostWorkspaceForCompose, loadBootstrapConfig } from './config'
+import { hostDataDirForBinds, hostHomeForBinds, hostWorkspaceForCompose, loadBootstrapConfig } from './config'
 import { ensureHomeDirs } from './homePaths'
 import { getDb, dockerAppSettings } from './db'
 import { firstPublishPort, probeHostPort } from './hostProbe'
@@ -127,6 +127,7 @@ function composeEnv(): NodeJS.ProcessEnv {
     ...process.env,
     DOCKER_CONFIG: dockerConfigDir(),
     BROS_DATA_DIR: hostDataDirForBinds(),
+    BROS_HOME: hostHomeForBinds(),
     BROS_WORKSPACE: hostWorkspaceForCompose(),
     BROS_HOST_HOME_BIND: process.env.BROS_HOST_HOME_BIND?.trim() || process.env.HOME || '',
     BROS_HOST_UID: process.env.BROS_HOST_UID?.trim() || String(process.getuid?.() ?? 1000),

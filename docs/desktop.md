@@ -28,8 +28,8 @@ A `kind: run` install is its own image layer in `$BROS_DIR/data/build/desktop/Do
 ## Binds
 
 - `$BROS_DATA_DIR/config/apps` → `/opt/bros/apps`
-- `$BROS_DATA_DIR/home` → `/home/bros`
-- `$BROS_DATA_DIR/home/nix` → `/nix`
+- `$BROS_HOME` (default `$BROS_DATA_DIR/home`) → `/home/bros`
+- `$BROS_HOME/nix` → `/nix`
 - `$BROS_DATA_DIR/cache/apt/archives` → `/var/cache/apt/archives`
 - `$BROS_DATA_DIR/cache/apt/lists` → `/var/lib/apt/lists`
 - `$BROS_DATA_DIR/cache/deb` → `/var/cache/bros/debs`
