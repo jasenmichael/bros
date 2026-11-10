@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { appsComposeBody, catalogRoot, desktopAppsDockerfile, generatedDesktopDockerfile, parseCliPackage, parseServices, readCatalog } from '../../app/server/utils/cli/packages'
 import { ensurePackages, ensureResultFrom, presentBins } from '../../app/server/utils/cli/ensure'
-import { bumpedRestartIds, commandsForRunning, runningIds, servicesFromYaml } from '../../lib/desktop/app-services/supervise.ts'
+import { bumpedRestartIds, commandsForRunning, isFatalServiceExit, runningIds, servicesFromYaml, withoutRunningId } from '../../lib/desktop/app-services/supervise.ts'
 import { listedPackageApp, listedDockerApp } from '../../app/ui/utils/gui'
 
 const root = join(import.meta.dirname, '../..')
@@ -206,5 +206,16 @@ describe('desktop package apps', () => {
     expect(commandsForRunning([{ text: 'id: paperclip\nservices:\n  - command: paperclipai run\n    cwd: /home/bros\n', dir: '/app/lib/apps/addon/paperclip' }], ['paperclip'])).toEqual([{ id: 'paperclip', command: 'paperclipai run', cwd: '/home/bros' }])
     expect(commandsForRunning(files, [])).toEqual([])
     expect(commandsForRunning([{ text: 'id: paperclip\nenabled: false\nservices:\n  - paperclipai run\n' }], ['paperclip'])).toEqual([])
+  })
+
+  it('treats missing or not-executable commands as fatal and drops desired running', () => {
+    expect(isFatalServiceExit(126)).toBe(true)
+    expect(isFatalServiceExit(127)).toBe(true)
+    expect(isFatalServiceExit(1)).toBe(false)
+    expect(isFatalServiceExit(0)).toBe(false)
+    expect(isFatalServiceExit(null)).toBe(false)
+    expect(withoutRunningId('{"ids":["paperclip","unsloth"],"restarts":{"unsloth":1,"paperclip":2}}', 'unsloth'))
+      .toBe('{"ids":["paperclip"],"restarts":{"paperclip":2}}\n')
+    expect(withoutRunningId('', 'x')).toBe('{"ids":[],"restarts":{}}\n')
   })
 })

@@ -1,44 +1,52 @@
-# Implementation Plan: Custom providers like Popular (+ Chat model list)
+# Implementation Plan: Package fatal-clear + Unsloth docker custom
 
 ## Overview
 
-1. Providers: Custom rows need Popular-style expand (model list + per-model Chat + inline Save).
-2. Chat: Switching to a custom provider with no `p.models` keeps the previous `modelName` and `modelItems` falls back to that stale name — looks like “last provider’s models,” nothing real to pick.
-
-## Root cause
-
-- Custom UI is flat (gear only); Popular uses expand + `openaiModelNames`.
-- Chat `modelItems`: if `modelsForProvider(pid)` is empty, return `[modelName]` — leak from prior provider. `watch(providerId)` only assigns when `names.length`.
+Two tracks. (1) Repo — clear package-service desired-on on fatal spawn (126/127). (2) Local — replace custom deb unsloth with docker app `unsloth/unsloth` for Studio webui on 8888.
 
 ## Architecture Decisions
 
-- Custom expand matches Popular (chevron, model Chat switches, inline form + Delete). Add modal stays.
-- Chat: empty provider models → empty picker (no stale fallback). On provider switch with empty list, clear `modelName`.
-- Probe 404→Ready WIP stays in this branch (already in tree).
-- Bros-only. No other repos. Do not change smart-gateway port.
+- **Desired-on stays.** `serviceRunning` = id in `running.json`. Fatal exit clears it. Independent of Unsloth.
+- **Unsloth = Studio webui via Docker**, not Desktop deb/gui. Custom pack under `data/config/apps/unsloth/` (gitignored).
+- **Ports:** webui Open on **8888**. Also publish **8000** and **2222** (upstream docker run) without extra Open buttons.
+- **Password:** `JUPYTER_PASSWORD` from `UNSLOTH_JUPYTER_PASSWORD` (default `changeme`). Set real value in local `.env` only — never `example.env`.
+- **GPU:** `gpus: all` like openjev.
 
 ## Assumptions
 
-1. Live `GET /models` merge into configured names stays (e.g. `gpt-4o-mini` + `openai/gpt-4o-mini`).
-2. “Like other providers” = Popular OpenAI-compat cards, not Ollama pull.
+1. Replace in place: DELETE package `unsloth`, then POST docker custom with same id.
+2. Leave Desktop deb bits in container if already installed; optional cleanup later.
+3. Do not ship `lib/apps/addon/unsloth` in this change.
+→ Correct me if wrong.
 
 ## Task List
 
-### Phase 0
-- [ ] Task 1: Commit GET `/models` 404 → Ready (+ tests/SPEC/docs)
+### Phase 1: Local Unsloth docker
+- [ ] Task 1: Clear `unsloth` from `running.json`; DELETE `/api/cli/packages/unsloth`
+- [ ] Task 2: POST `/api/apps` docker pack (webui 8888, GPU, work volume)
+- [ ] Task 3: Ensure `UNSLOTH_JUPYTER_PASSWORD` in local `.env` if missing; Start app
 
-### Phase 1
-- [ ] Task 2: Custom expand UI like Popular
-- [ ] Task 3: Chat — no stale modelItems when provider has no models; clear model on switch
+### Checkpoint: Unsloth
+- [ ] `GET /api/apps` lists unsloth as custom docker with webui 8888
+- [ ] No package `services` / deb config for that id
 
-### Phase 2
-- [ ] Task 4: Nuxt/unit tests + docs line for custom expand + Chat empty list
+### Phase 2: Repo fatal-clear
+- [ ] Task 4: supervise fatal-clear helpers + exit path
+- [ ] Task 5: unit tests
+- [ ] Task 6: docs/desktop.md (+ apps.md if needed)
 
-### Checkpoint
-- [ ] Custom expands with model rows
-- [ ] Switch to empty-model custom → Chat model menu empty (not prior provider names)
-- [ ] Tests green
+### Checkpoint: Complete
+- [ ] Unit tests pass
+- [ ] `data/` not staged for commit
 
-## Out of scope
+## Risks
 
-- Other repos, Ollama pull on custom, port edits
+| Risk | Mitigation |
+|------|------------|
+| DELETE package triggers desktop ensure/rebuild | Accept; id removed before docker write |
+| Port 8888 already bound | Bros may bump via `BROS_UNSLOTH_PORT` |
+| Weak default jupyter password | Document; user sets `.env` |
+
+## Open Questions
+
+None — interview filled from user docker snippet + Studio-vs-Desktop docs.
