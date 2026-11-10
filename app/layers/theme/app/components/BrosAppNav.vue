@@ -178,8 +178,9 @@ function onSectionDragStart(kind: SectionDrag['kind'], ev: PointerEvent) {
           :to="brandTo"
           class="bros-nav-panel__brand"
           :title="brand"
+          :aria-label="brand"
         >
-          <span v-if="showIconChrome">B</span>
+          <span v-if="showIconChrome" aria-hidden="true">B</span>
           <span v-else>{{ brand }}</span>
         </NuxtLink>
         <div class="bros-nav-panel__head-actions">
@@ -250,8 +251,9 @@ function onSectionDragStart(kind: SectionDrag['kind'], ev: PointerEvent) {
             rel="noopener"
             class="bros-nav-panel__link"
             :title="item.label"
+            :aria-label="item.label"
           >
-            <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" />
+            <UIcon :name="item.icon || 'i-lucide-pin'" class="size-4 shrink-0" aria-hidden="true" />
             <span v-if="!showIconChrome" class="bros-nav-label">{{ item.label }}</span>
           </a>
           <p v-if="!props.pinnedItems.length && !showIconChrome" class="bros-nav-panel__hint">
@@ -280,8 +282,9 @@ function onSectionDragStart(kind: SectionDrag['kind'], ev: PointerEvent) {
             rel="noopener"
             class="bros-nav-panel__link"
             title="GitHub"
+            aria-label="GitHub"
           >
-            <UIcon name="i-lucide-github" class="size-4 shrink-0" />
+            <UIcon name="i-lucide-github" class="size-4 shrink-0" aria-hidden="true" />
             <span v-if="!showIconChrome" class="bros-nav-label">GitHub</span>
           </a>
         </div>

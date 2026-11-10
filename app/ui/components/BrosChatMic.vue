@@ -135,8 +135,10 @@ onUnmounted(() => {
   border-radius: 999px;
 }
 
-.bros-chat-mic--recording {
-  animation: bros-mic-pulse 1.1s ease-in-out infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .bros-chat-mic--recording {
+    animation: bros-mic-pulse 1.1s ease-in-out infinite;
+  }
 }
 
 @keyframes bros-mic-pulse {

@@ -112,13 +112,13 @@ async function saveWhisper(value: boolean) {
 async function changePasscode() {
   msg.value = ''
   if (passcode.value.length < 4 || passcode.value !== confirm.value) {
-    msg.value = 'Passcodes must match and be at least 4 characters'
+    msg.value = 'Passkeys must match and be at least 4 characters'
     return
   }
   pending.value = true
   try {
     await $fetch('/api/settings/passcode', { method: 'POST', body: { passcode: passcode.value } })
-    msg.value = 'Passcode updated.'
+    msg.value = 'Passkey updated.'
     passcode.value = ''
     confirm.value = ''
   } catch (e: unknown) {
@@ -307,9 +307,15 @@ async function logout() {
       <form class="space-y-3" @submit.prevent="changePasscode">
         <h2 class="text-lg font-medium text-white">Passkey</h2>
         <p class="text-sm text-[var(--bros-muted)]">Updates <span class="font-mono">data/passkey</span> (source of truth for login).</p>
-        <UInput v-model="passcode" class="w-full" type="password" placeholder="New passkey" />
-        <UInput v-model="confirm" class="w-full" type="password" placeholder="Confirm" />
-        <p v-if="msg" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
+        <label class="block text-sm text-[var(--bros-muted)]">
+          New passkey
+          <UInput v-model="passcode" class="mt-1 w-full" type="password" placeholder="New passkey" />
+        </label>
+        <label class="block text-sm text-[var(--bros-muted)]">
+          Confirm passkey
+          <UInput v-model="confirm" class="mt-1 w-full" type="password" placeholder="Confirm passkey" />
+        </label>
+        <p v-if="msg" role="status" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
         <UButton type="submit" :loading="pending">Update passkey</UButton>
       </form>
 

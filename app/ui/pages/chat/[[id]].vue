@@ -616,6 +616,7 @@ defineExpose({
           v-model="input"
           class="bros-chat__input"
           placeholder="Message…"
+          aria-label="Message"
           :rows="1"
           :maxrows="8"
           autoresize

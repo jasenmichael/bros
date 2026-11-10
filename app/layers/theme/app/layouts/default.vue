@@ -19,7 +19,9 @@ const { pinnedItems } = useBrosPinnedNav()
     </BrosAppNav>
     <div class="bros-app-frame__main">
       <BrosNavBar :brand="bros.brand" :brand-to="bros.brandTo" />
-      <slot />
+      <main class="bros-app-frame__page">
+        <slot />
+      </main>
     </div>
     <BrosBootOverlay v-if="bros.bootOverlay" />
   </div>
@@ -42,5 +44,13 @@ const { pinnedItems } = useBrosPinnedNav()
   overflow-x: hidden;
   overflow-y: auto;
   background: #0f1419;
+}
+
+.bros-app-frame__page {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 </style>
