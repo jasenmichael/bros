@@ -309,14 +309,14 @@ async function logout() {
         </ul>
         <p v-else class="text-sm text-[var(--bros-muted)]">No api or openai docker app is proxied yet.</p>
         <p v-if="proxyMsg" :role="proxyMsg.includes('rotated') ? 'status' : 'alert'" class="text-sm text-[var(--bros-muted)]">{{ proxyMsg }}</p>
-        <UButton type="button" :loading="proxyPending" @click="proxyRotateOpen = true">Rotate proxy key</UButton>
+        <UButton type="button" :loading="proxyPending" @click="() => { proxyRotateOpen = true }">Rotate proxy key</UButton>
         <UModal
           v-model:open="proxyRotateOpen"
           title="Rotate proxy key?"
           description="Creates a new key. Clients still sending the old key will fail until you update them."
         >
           <template #footer>
-            <UButton color="neutral" variant="ghost" @click="proxyRotateOpen = false">Cancel</UButton>
+            <UButton color="neutral" variant="ghost" @click="() => { proxyRotateOpen = false }">Cancel</UButton>
             <UButton color="error" :loading="proxyPending" @click="rotateProxyKey">Rotate</UButton>
           </template>
         </UModal>

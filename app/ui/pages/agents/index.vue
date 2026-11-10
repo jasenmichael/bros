@@ -445,7 +445,7 @@ function clearToken(which: 'github' | 'cursor') {
                   <div class="flex flex-wrap gap-2 md:col-span-2">
                     <UButton type="submit" size="sm" :disabled="busy">Save</UButton>
                     <UButton type="button" size="sm" color="neutral" variant="outline" @click="() => { editName = ''; removeOpen = false }">Cancel</UButton>
-                    <UButton type="button" size="sm" color="error" variant="outline" :disabled="busy" @click="removeOpen = true">Remove</UButton>
+                    <UButton type="button" size="sm" color="error" variant="outline" :disabled="busy" @click="() => { removeOpen = true }">Remove</UButton>
                   </div>
                 </form>
               </td>
@@ -459,7 +459,7 @@ function clearToken(which: 'github' | 'cursor') {
         :description="`Remove ${removeLabel} from Agents? This does not delete the GitHub repo.`"
       >
         <template #footer>
-          <UButton color="neutral" variant="ghost" @click="removeOpen = false">Cancel</UButton>
+          <UButton color="neutral" variant="ghost" @click="() => { removeOpen = false }">Cancel</UButton>
           <UButton color="error" :loading="busy" @click="removeProject">Remove</UButton>
         </template>
       </UModal>

@@ -259,7 +259,7 @@ function dropInterface(index: number) {
       <UButton type="button" :loading="busy" :disabled="!canSave" @click="onSave">
         {{ editing ? 'Save' : 'Add' }}
       </UButton>
-      <UButton v-if="editing" color="error" variant="ghost" :disabled="busy" @click="removeOpen = true">Remove</UButton>
+      <UButton v-if="editing" color="error" variant="ghost" :disabled="busy" @click="() => { removeOpen = true }">Remove</UButton>
     </template>
   </UModal>
   <UModal
@@ -268,7 +268,7 @@ function dropInterface(index: number) {
     :description="`Remove ${initial?.spec || 'this app'} from Desktop? This uninstalls the package.`"
   >
     <template #footer>
-      <UButton color="neutral" variant="ghost" @click="removeOpen = false">Cancel</UButton>
+      <UButton color="neutral" variant="ghost" @click="() => { removeOpen = false }">Cancel</UButton>
       <UButton
         color="error"
         :disabled="busy"

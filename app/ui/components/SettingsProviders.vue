@@ -1288,7 +1288,7 @@ async function scanHost() {
       description="Removes this custom provider from Bros. Chat will stop using it."
     >
       <template #footer>
-        <UButton color="neutral" variant="ghost" @click="removeProviderOpen = false">Cancel</UButton>
+        <UButton color="neutral" variant="ghost" @click="() => { removeProviderOpen = false }">Cancel</UButton>
         <UButton color="error" :loading="busy" @click="confirmRemoveProvider">Delete</UButton>
       </template>
     </UModal>
