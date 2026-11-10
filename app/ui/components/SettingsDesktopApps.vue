@@ -1034,7 +1034,7 @@ async function confirmAdopt() {
           </div>
         </div>
 
-      <p v-if="!sections.length" class="text-sm text-[var(--bros-muted)]">None.</p>
+      <p v-if="!sections.length" class="text-sm text-[var(--bros-muted)]">No apps match these filters.</p>
 
       <template v-for="section in sections" :key="section.id">
         <h2

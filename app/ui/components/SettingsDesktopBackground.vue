@@ -45,7 +45,7 @@ async function save() {
         <span class="text-sm text-white">Color</span>
         <div class="flex items-center gap-3">
           <input v-model="color" type="color" class="h-10 w-14 cursor-pointer rounded border border-[var(--bros-border)] bg-transparent" aria-label="Background color">
-          <UInput v-model="color" class="flex-1 font-mono" placeholder="#141a22" />
+          <UInput v-model="color" class="flex-1 font-mono" placeholder="#141a22" aria-label="Background color hex" />
         </div>
       </label>
       <label class="block space-y-1">
@@ -53,7 +53,7 @@ async function save() {
         <p class="text-sm text-[var(--bros-muted)]">Optional. Empty uses the solid color only.</p>
         <UInput v-model="imageUrl" class="w-full" type="url" placeholder="https://…" />
       </label>
-      <p v-if="msg" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
+      <p v-if="msg" :role="msg === 'Saved.' ? 'status' : 'alert'" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
       <UButton type="submit" :loading="pending">Save</UButton>
     </form>
   </BrosPageShell>
