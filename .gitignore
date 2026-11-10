@@ -23,16 +23,19 @@ app/website/public/install.sh
 **/.DS_Store
 *.log
 .turbo
-coverage
-graphify-out
 .ui
+coverage
 .npmrc
+
+# skill generated data
+graphify-out
+.ua/
+.afk
 
 # Node compile cache (often root-owned from Docker)
 **/node-compile-cache/
 .cursor/
 bros.yml
-.ua/
 
 # Built CLI. Source checkout symlinks this at bros.
 /bros

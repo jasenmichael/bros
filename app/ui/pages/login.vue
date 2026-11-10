@@ -48,14 +48,21 @@ async function submit() {
       Enter the shared passkey (printed in app logs at startup; also in <span class="font-mono">data/passkey</span>).
     </p>
     <form class="mt-6 space-y-3" @submit.prevent="submit">
-      <UInput
-        v-model="passcode"
-        type="password"
-        placeholder="Passkey"
-        size="lg"
-        autocomplete="current-password"
-      />
-      <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
+      <label class="block text-sm text-[var(--bros-muted)]">
+        Passkey
+        <UInput
+          v-model="passcode"
+          type="password"
+          placeholder="Passkey"
+          size="lg"
+          class="mt-1 w-full"
+          autocomplete="current-password"
+          autofocus
+          :aria-invalid="error ? 'true' : undefined"
+          :aria-describedby="error ? 'login-error' : undefined"
+        />
+      </label>
+      <p v-if="error" id="login-error" role="alert" class="text-sm text-red-400">{{ error }}</p>
       <UButton type="submit" block :loading="pending">Unlock</UButton>
     </form>
   </div>

@@ -133,9 +133,6 @@ export async function runOllamaHealthCheck(
     catch (err) {
       // Failed start must arm the same debounce. Otherwise a bad docker CLI retries every tick and dumps `docker --help`.
       lastRestartMs = now
-      // #region agent log
-      fetch('http://127.0.0.1:7605/ingest/96b79570-9183-497e-8dac-73f419b1ff97',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'db6d6f'},body:JSON.stringify({sessionId:'db6d6f',runId:'post-fix',hypothesisId:'A',location:'ollamaMustRun.ts:health',message:'ollama health start failed',data:{action:decision.action,line:err instanceof Error?err.message.split('\n')[0]:String(err)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       throw err
     }
     lastRestartMs = now

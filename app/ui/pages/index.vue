@@ -47,7 +47,7 @@ type Summary = {
   }
 }
 
-const { data: summary, refresh } = await useFetch<Summary>('/api/dashboard/summary', {
+const { data: summary, refresh, pending, error } = await useFetch<Summary>('/api/dashboard/summary', {
   key: 'bros-dashboard-summary',
   lazy: true,
   server: false,
@@ -56,6 +56,8 @@ if (import.meta.client) {
   const timer = setInterval(() => { void refresh() }, 5000)
   onUnmounted(() => clearInterval(timer))
 }
+
+const cardsLoading = computed(() => pending.value && !summary.value)
 </script>
 
 <template>
@@ -75,19 +77,23 @@ if (import.meta.client) {
         class="block rounded-lg border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-sm text-amber-100"
       >{{ item.text }}</NuxtLink>
     </section>
+    <p v-if="error && !summary" role="alert" class="mb-4 text-sm text-red-400">
+      Could not load dashboard.
+      <button type="button" class="underline" @click="() => refresh()">Retry</button>
+    </p>
     <div class="grid items-start gap-4 lg:grid-cols-3">
       <DashboardChats
         class="lg:col-span-2"
-        :loading="!summary"
+        :loading="cardsLoading"
         :chats="summary?.chats"
       />
       <DashboardProviders
-        :loading="!summary"
+        :loading="cardsLoading"
         :providers="summary?.providers"
       />
       <DashboardDockerApps
         class="lg:col-span-2"
-        :loading="!summary"
+        :loading="cardsLoading"
         :dockerApps="summary?.dockerApps"
       />
       <article class="rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">
@@ -99,7 +105,7 @@ if (import.meta.client) {
           >Status</NuxtLink>
         </div>
         <DashboardTunnel
-          :loading="!summary"
+          :loading="cardsLoading"
           :via-tunnel="summary?.viaTunnel"
           :tunnel-host="summary?.tunnelHost"
           :tunnel="summary?.tunnel"

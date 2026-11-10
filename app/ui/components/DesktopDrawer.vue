@@ -92,12 +92,35 @@ async function unpin(app: App) {
   }
 }
 
+function placeMenu(app: App, x: number, y: number) {
+  menu.value = {
+    x: Math.min(x, window.innerWidth - 160),
+    y: Math.min(y, window.innerHeight - 132),
+    key: rowKey(app),
+  }
+  nextTick(() => {
+    const first = document.querySelector<HTMLButtonElement>('[data-bros-drawer-menu] button')
+    first?.focus()
+  })
+}
+
 function openMenu(app: App, event: { clientX: number, clientY: number, preventDefault: () => void }) {
   event.preventDefault()
-  menu.value = {
-    x: Math.min(event.clientX, window.innerWidth - 160),
-    y: Math.min(event.clientY, window.innerHeight - 132),
-    key: rowKey(app),
+  placeMenu(app, event.clientX, event.clientY)
+}
+
+function openMenuFromKey(app: App, event: KeyboardEvent) {
+  if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return
+  event.preventDefault()
+  const el = event.currentTarget as HTMLElement
+  const box = el.getBoundingClientRect()
+  placeMenu(app, box.left, box.bottom + 4)
+}
+
+function onMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    menu.value = null
   }
 }
 
@@ -182,7 +205,7 @@ defineEmits<{ library: [] }>()
     @pointerleave="hide"
   >
     <div
-      class="absolute inset-x-0 bottom-0 flex justify-center px-3 pb-8 transition-transform duration-200"
+      class="bros-drawer-sheet absolute inset-x-0 bottom-0 flex justify-center px-3 pb-8 transition-transform duration-200"
       :class="open ? 'translate-y-0' : 'pointer-events-none translate-y-full'"
       :aria-hidden="open ? undefined : 'true'"
     >
@@ -195,6 +218,7 @@ defineEmits<{ library: [] }>()
             :aria-label="row.windows > 0 ? row.name : `Launch ${row.name}`"
             :disabled="!!busy"
             @contextmenu="openMenu(row, $event)"
+            @keydown="openMenuFromKey(row, $event)"
             @pointerdown="pressStart(row, $event)"
             @pointerup="pressEnd"
             @pointercancel="pressCancel"
@@ -225,14 +249,25 @@ defineEmits<{ library: [] }>()
     <Teleport to="body">
       <div
         v-if="menu && menuRow"
+        data-bros-drawer-menu
+        role="menu"
         class="fixed z-[80] min-w-36 overflow-hidden rounded-lg border border-[var(--bros-border)] bg-[#141a22] py-1 shadow-lg"
         :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
         @pointerdown.stop
+        @keydown="onMenuKeydown"
       >
-        <button v-if="menuRow.pinId" type="button" class="block w-full px-3 py-1.5 text-left text-sm text-white hover:bg-white/10" @click="unpin(menuRow)">Unpin</button>
-        <button type="button" class="block w-full px-3 py-1.5 text-left text-sm text-white hover:bg-white/10" @click="run(menuRow, 'open')">New window</button>
-        <button v-if="menuRow.windows > 0" type="button" class="block w-full px-3 py-1.5 text-left text-sm text-white hover:bg-white/10" @click="run(menuRow, 'close')">Close window</button>
+        <button v-if="menuRow.pinId" type="button" role="menuitem" class="block w-full px-3 py-1.5 text-left text-sm text-white hover:bg-white/10" @click="unpin(menuRow)">Unpin</button>
+        <button type="button" role="menuitem" class="block w-full px-3 py-1.5 text-left text-sm text-white hover:bg-white/10" @click="run(menuRow, 'open')">New window</button>
+        <button v-if="menuRow.windows > 0" type="button" role="menuitem" class="block w-full px-3 py-1.5 text-left text-sm text-white hover:bg-white/10" @click="run(menuRow, 'close')">Close window</button>
       </div>
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+@media (prefers-reduced-motion: reduce) {
+  .bros-drawer-sheet {
+    transition: none;
+  }
+}
+</style>

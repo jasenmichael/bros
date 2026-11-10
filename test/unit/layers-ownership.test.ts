@@ -103,6 +103,16 @@ describe('layer ownership', () => {
     }
   })
 
+  it('names icon-mode nav links for assistive tech', () => {
+    const tree = read('app/layers/theme/app/components/BrosNavTree.vue')
+    const nav = read('app/layers/theme/app/components/BrosAppNav.vue')
+    expect(tree).toContain(':aria-label="item.label"')
+    expect(nav).toContain(':aria-label="item.label"')
+    expect(nav).toContain(':aria-label="brand"')
+    expect(nav).toContain('aria-label="GitHub"')
+    expect(read('app/layers/theme/app/layouts/default.vue')).toContain('<main class="bros-app-frame__page">')
+  })
+
   it('has both apps extend docs then theme', () => {
     const app = read('app/ui/nuxt.config.ts')
     const website = read('app/website/nuxt.config.ts')

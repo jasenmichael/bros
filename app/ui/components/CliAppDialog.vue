@@ -49,8 +49,9 @@ const addTypes = [
   { label: 'gui', value: 'gui' },
   { label: 'webui', value: 'webui' },
   { label: 'api', value: 'api' },
-  { label: 'openapi', value: 'openai' },
+  { label: 'openai', value: 'openai' },
 ]
+const removeOpen = ref(false)
 const suggestions = ref<string[]>([])
 let suggestTimer: ReturnType<typeof setTimeout> | undefined
 let suggestSeq = 0
@@ -92,6 +93,7 @@ function blankRow(type: CliAppExpose['type']): CliAppExpose {
 watch(() => props.open, (open) => {
   suggestions.value = []
   pickedSpec = ''
+  removeOpen.value = false
   if (!open) return
   kind.value = props.initial?.kind || 'npm'
   spec.value = props.initial?.spec || ''
@@ -217,31 +219,63 @@ function dropInterface(index: number) {
           </div>
           <div v-for="(row, index) in interfaces" :key="index" class="grid gap-2 rounded-md border border-[var(--bros-border)] p-2">
             <span v-if="row.type === 'cli'" class="text-sm text-white">cli</span>
-            <USelect v-else v-model="row.type" :items="addTypes" />
+            <USelect v-else v-model="row.type" :items="addTypes" aria-label="Interface type" />
             <UInput
               v-if="row.type === 'cli'"
               :model-value="row.command"
               placeholder="command, other"
+              aria-label="CLI command"
               @update:model-value="onCliInput"
             />
-            <UInput v-else-if="row.type === 'gui'" v-model="row.command" placeholder="command" />
-            <UInput v-if="row.type === 'gui'" v-model="row.args" placeholder="launch args" />
-            <UInput v-if="row.type === 'webui' || row.type === 'api' || row.type === 'openai'" v-model="row.containerPort" placeholder="container port" />
-            <UInput v-if="row.type === 'webui' || row.type === 'api' || row.type === 'openai'" v-model="row.publish" placeholder="publish port" />
-            <UInput v-if="row.type === 'api' || row.type === 'openai' || row.type === 'webui'" v-model="row.basePath" placeholder="base path" />
+            <UInput v-else-if="row.type === 'gui'" v-model="row.command" placeholder="command" aria-label="GUI command" />
+            <UInput v-if="row.type === 'gui'" v-model="row.args" placeholder="launch args" aria-label="GUI launch args" />
+            <UInput
+              v-if="row.type === 'webui' || row.type === 'api' || row.type === 'openai'"
+              v-model="row.containerPort"
+              placeholder="container port"
+              aria-label="Container port"
+            />
+            <UInput
+              v-if="row.type === 'webui' || row.type === 'api' || row.type === 'openai'"
+              v-model="row.publish"
+              placeholder="publish port"
+              aria-label="Publish port"
+            />
+            <UInput
+              v-if="row.type === 'api' || row.type === 'openai' || row.type === 'webui'"
+              v-model="row.basePath"
+              placeholder="base path"
+              aria-label="Base path"
+            />
             <UButton v-if="row.type !== 'cli'" type="button" size="xs" color="error" variant="ghost" @click="dropInterface(index)">Remove</UButton>
           </div>
         </div>
         <p v-if="kind === 'run'" class="text-xs text-[var(--bros-muted)]">Command runs as written, one line.</p>
         <p v-if="kind === 'deb'" class="text-xs text-[var(--bros-muted)]">https URL. apt installs the file. A /latest path tag can be checked for updates.</p>
-        <p v-if="error" class="text-sm text-amber-300">{{ error }}</p>
+        <p v-if="error" role="alert" class="text-sm text-amber-300">{{ error }}</p>
       </form>
     </template>
     <template #footer>
       <UButton type="button" :loading="busy" :disabled="!canSave" @click="onSave">
         {{ editing ? 'Save' : 'Add' }}
       </UButton>
-      <UButton v-if="editing" color="error" variant="ghost" :disabled="busy" @click="emit('remove')">Remove</UButton>
+      <UButton v-if="editing" color="error" variant="ghost" :disabled="busy" @click="() => { removeOpen = true }">Remove</UButton>
+    </template>
+  </UModal>
+  <UModal
+    v-model:open="removeOpen"
+    title="Remove package app?"
+    :description="`Remove ${initial?.spec || 'this app'} from Desktop? This uninstalls the package.`"
+  >
+    <template #footer>
+      <UButton color="neutral" variant="ghost" @click="() => { removeOpen = false }">Cancel</UButton>
+      <UButton
+        color="error"
+        :disabled="busy"
+        @click="() => { removeOpen = false; emit('remove') }"
+      >
+        Remove
+      </UButton>
     </template>
   </UModal>
 </template>

@@ -705,7 +705,27 @@ async function saveCustom() {
 
 defineExpose({ customForm, saveCustom, settingsTarget, err })
 
-async function removeProvider(id: string) {
+const removeProviderId = ref<string | null>(null)
+const removeProviderOpen = computed({
+  get: () => removeProviderId.value != null,
+  set: (open: boolean) => {
+    if (!open) removeProviderId.value = null
+  },
+})
+const removeProviderLabel = computed(() => {
+  const id = removeProviderId.value
+  if (!id) return ''
+  return listedProviders.value.find((p) => p.id === id)?.name || id
+})
+
+function askRemoveProvider(id: string) {
+  removeProviderId.value = id
+}
+
+async function confirmRemoveProvider() {
+  const id = removeProviderId.value
+  if (!id) return
+  removeProviderId.value = null
   busy.value = true
   err.value = ''
   try {
@@ -782,7 +802,7 @@ async function scanHost() {
     :title="embedded ? undefined : 'Providers'"
     :description="embedded ? undefined : 'Ollama docker app, host Ollama, popular services, and custom OpenAI-compatible providers.'"
   >
-    <p v-if="err" class="mb-4 text-sm text-red-400">{{ err }}</p>
+    <p v-if="err" role="alert" class="mb-4 text-sm text-red-400">{{ err }}</p>
     <div v-if="pending" class="text-[var(--bros-muted)]">Loading…</div>
 
     <section class="mb-8 w-full space-y-3">
@@ -869,6 +889,7 @@ async function scanHost() {
                 open-on-click
                 :filter-fields="['label', 'value']"
                 placeholder="Search Recommended / Ollama / Hugging Face"
+                aria-label="Search models to pull"
                 class="min-w-0 w-full flex-1"
                 :ui="{
                   root: 'w-full',
@@ -1008,7 +1029,12 @@ async function scanHost() {
                 <p v-else class="text-xs text-[var(--bros-muted)]">Host Ollama not found.</p>
               </div>
               <div class="flex w-full min-w-0 gap-2">
-                <UInput v-model="hostPortDraft" placeholder="Host port override (optional)" class="min-w-0 flex-1" />
+                <UInput
+                  v-model="hostPortDraft"
+                  placeholder="Host port override (optional)"
+                  aria-label="Host port override"
+                  class="min-w-0 flex-1"
+                />
                 <UButton :loading="busy" variant="outline" @click="saveHostPort">Save port</UButton>
               </div>
             </template>
@@ -1111,9 +1137,14 @@ async function scanHost() {
               </li>
             </ul>
             <div class="grid gap-2">
-              <UInput v-model="customForm.name" placeholder="Display name" />
-              <UInput v-model="customForm.apiKey" type="password" :placeholder="p.hasApiKey ? 'API key (leave blank to keep)' : 'API key'" />
-              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
+              <UInput v-model="customForm.name" placeholder="Display name" aria-label="Display name" />
+              <UInput
+                v-model="customForm.apiKey"
+                type="password"
+                :placeholder="p.hasApiKey ? 'API key (leave blank to keep)' : 'API key'"
+                aria-label="API key"
+              />
+              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" aria-label="Model names" :rows="3" />
               <div>
                 <UButton :loading="busy" :disabled="!customForm.name" @click="saveCustom">Save</UButton>
               </div>
@@ -1217,13 +1248,18 @@ async function scanHost() {
               </li>
             </ul>
             <div class="grid gap-2">
-              <UInput v-model="customForm.name" placeholder="Display name" />
-              <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" />
-              <UInput v-model="customForm.apiKey" type="password" :placeholder="p.hasApiKey ? 'API key (leave blank to keep)' : 'API key'" />
-              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
+              <UInput v-model="customForm.name" placeholder="Display name" aria-label="Display name" />
+              <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" aria-label="Base URL" />
+              <UInput
+                v-model="customForm.apiKey"
+                type="password"
+                :placeholder="p.hasApiKey ? 'API key (leave blank to keep)' : 'API key'"
+                aria-label="API key"
+              />
+              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" aria-label="Model names" :rows="3" />
               <div class="flex flex-wrap gap-2">
                 <UButton :loading="busy" :disabled="!customForm.name" @click="saveCustom">Save</UButton>
-                <UButton color="error" variant="ghost" :loading="busy" @click="removeProvider(p.id)">Delete</UButton>
+                <UButton color="error" variant="ghost" :loading="busy" @click="askRemoveProvider(p.id)">Delete</UButton>
               </div>
             </div>
           </div>
@@ -1246,17 +1282,28 @@ async function scanHost() {
       </template>
     </UModal>
 
+    <UModal
+      v-model:open="removeProviderOpen"
+      :title="`Delete ${removeProviderLabel}?`"
+      description="Removes this custom provider from Bros. Chat will stop using it."
+    >
+      <template #footer>
+        <UButton color="neutral" variant="ghost" @click="() => { removeProviderOpen = false }">Cancel</UButton>
+        <UButton color="error" :loading="busy" @click="confirmRemoveProvider">Delete</UButton>
+      </template>
+    </UModal>
+
     <UModal v-model:open="settingsOpen" :title="settingsTitle" description="Provider settings">
       <template #body>
         <div class="space-y-3">
-          <p v-if="err" class="text-sm text-red-400">{{ err }}</p>
+          <p v-if="err" role="alert" class="text-sm text-red-400">{{ err }}</p>
           <template v-if="isAdd">
             <div class="grid gap-2">
-              <UInput v-model="customForm.id" placeholder="id slug (e.g. my-proxy)" />
-              <UInput v-model="customForm.name" placeholder="Display name" />
-              <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" />
-              <UInput v-model="customForm.apiKey" type="password" placeholder="API key (required for Chat)" />
-              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" :rows="3" />
+              <UInput v-model="customForm.id" placeholder="id slug (e.g. my-proxy)" aria-label="Provider id" />
+              <UInput v-model="customForm.name" placeholder="Display name" aria-label="Display name" />
+              <UInput v-model="customForm.baseUrl" placeholder="Base URL (OpenAI-compatible)" aria-label="Base URL" />
+              <UInput v-model="customForm.apiKey" type="password" placeholder="API key (required for Chat)" aria-label="API key" />
+              <UTextarea v-model="customForm.models" placeholder="Model names, one per line" aria-label="Model names" :rows="3" />
             </div>
           </template>
         </div>

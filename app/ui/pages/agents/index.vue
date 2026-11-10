@@ -84,11 +84,17 @@ const addFullName = ref('')
 const addBranch = ref('main')
 const addPath = ref('')
 const editName = ref('')
+const removeOpen = ref(false)
 const editDraft = reactive({
   defaultBranch: 'main',
   path: '',
   enabled: true,
   prBase: 'staging' as 'staging' | 'main',
+})
+
+const removeLabel = computed(() => {
+  const row = data.value?.projects.find((p) => p.name === editName.value)
+  return row?.fullName || row?.name || editName.value
 })
 
 watch(data, (row) => {
@@ -246,6 +252,7 @@ function removeProject() {
   return act(async () => {
     await api(`/api/agents/projects/${editName.value}`, { method: 'DELETE' })
     editName.value = ''
+    removeOpen.value = false
   })
 }
 
@@ -333,7 +340,17 @@ function clearToken(which: 'github' | 'cursor') {
         <ul v-else class="space-y-3">
           <li v-for="job in queue" :key="job.id">
             <p class="text-sm text-white">{{ job.project }} #{{ job.issueNumber }} · {{ job.state }}</p>
-            <UButton class="mt-2" size="sm" color="neutral" variant="outline" @click="look(job)">Look in</UButton>
+            <div class="mt-2 flex gap-2">
+              <UButton size="sm" color="neutral" variant="outline" @click="look(job)">Look in</UButton>
+              <UButton
+                v-if="job.state === 'creating_pr' || job.state === 'queued' || job.state === 'planning'"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                :disabled="busy"
+                @click="cancel(job)"
+              >Cancel</UButton>
+            </div>
             <pre v-if="openId === job.id" class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-[var(--bros-muted)]">{{ events.map((row) => `${row.kind}: ${row.message}`).join('\n') }}</pre>
           </li>
         </ul>
@@ -427,8 +444,8 @@ function clearToken(which: 'github' | 'cursor') {
                   </label>
                   <div class="flex flex-wrap gap-2 md:col-span-2">
                     <UButton type="submit" size="sm" :disabled="busy">Save</UButton>
-                    <UButton type="button" size="sm" color="neutral" variant="outline" @click="() => { editName = '' }">Cancel</UButton>
-                    <UButton type="button" size="sm" color="neutral" variant="outline" :disabled="busy" @click="removeProject">Remove</UButton>
+                    <UButton type="button" size="sm" color="neutral" variant="outline" @click="() => { editName = ''; removeOpen = false }">Cancel</UButton>
+                    <UButton type="button" size="sm" color="error" variant="outline" :disabled="busy" @click="() => { removeOpen = true }">Remove</UButton>
                   </div>
                 </form>
               </td>
@@ -436,6 +453,16 @@ function clearToken(which: 'github' | 'cursor') {
           </template>
         </tbody>
       </table>
+      <UModal
+        v-model:open="removeOpen"
+        title="Remove project?"
+        :description="`Remove ${removeLabel} from Agents? This does not delete the GitHub repo.`"
+      >
+        <template #footer>
+          <UButton color="neutral" variant="ghost" @click="() => { removeOpen = false }">Cancel</UButton>
+          <UButton color="error" :loading="busy" @click="removeProject">Remove</UButton>
+        </template>
+      </UModal>
     </section>
 
     <section class="mt-6 rounded-xl border border-[var(--bros-border)] bg-[var(--bros-surface)]/70 p-5">

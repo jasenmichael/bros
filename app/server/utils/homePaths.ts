@@ -34,17 +34,19 @@ export function duplicateHomePath(rows: { id: string; home?: string[] }[]): stri
 }
 
 export function ensureHomeDirs(dataDir: string, paths: string[]) {
+  const homeRoot = process.env.BROS_HOME?.trim() || join(dataDir, 'home')
   for (const path of paths) {
     if (!validHomePath(path)) throw new Error(`home path is invalid: ${path}`)
-    mkdirSync(join(dataDir, 'home', path), { recursive: true })
+    mkdirSync(join(homeRoot, path), { recursive: true })
   }
 }
 
-/** `BROS_WORKSPACE` wins, then `bros.yml` `workspace`, then `data/home/workspace`. */
+/** `BROS_WORKSPACE` wins, then `bros.yml` `workspace`, then `$BROS_HOME/workspace`. */
 export function resolveWorkspaceHost(input: { dataDir: string; appDir: string; yaml?: string }): string {
   const env = process.env.BROS_WORKSPACE?.trim()
   if (env) return resolve(env)
   const yaml = input.yaml?.trim()
   if (yaml) return resolve(yaml.startsWith('/') ? yaml : join(input.appDir, yaml))
-  return join(input.dataDir, 'home', 'workspace')
+  const homeRoot = process.env.BROS_HOME?.trim() || join(input.dataDir, 'home')
+  return join(homeRoot, 'workspace')
 }

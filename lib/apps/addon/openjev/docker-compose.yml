@@ -31,9 +31,9 @@ services:
     tmpfs: &openjev-home
       - /home/bros:mode=1777
     volumes: &hf
-      - ${BROS_DATA_DIR:?unset}/home/.cache/huggingface:/home/bros/.cache/huggingface
-      - ${BROS_DATA_DIR:?unset}/home/.cache/vllm:/home/bros/.cache/vllm
-      - ${BROS_DATA_DIR:?unset}/home/.cache/flashinfer:/home/bros/.cache/flashinfer
+      - ${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.cache/huggingface:/home/bros/.cache/huggingface
+      - ${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.cache/vllm:/home/bros/.cache/vllm
+      - ${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/.cache/flashinfer:/home/bros/.cache/flashinfer
     ports:
       - "${BROS_OPENJEV_PORT:-8092}:8080"
     ipc: host

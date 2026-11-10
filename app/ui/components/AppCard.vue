@@ -433,18 +433,12 @@ function locked(action: string) {
             <div class="min-w-0 flex-1">
               <p v-if="row.command" class="truncate font-mono text-sm text-white">{{ row.command }}</p>
               <template v-else-if="row.url">
-                <a
-                  v-if="row.network !== 'bros'"
-                  :href="row.url"
-                  class="block truncate font-mono text-sm text-[var(--bros-accent)] hover:underline"
-                  :title="row.url"
-                  @click.prevent="emit('copy', row.url)"
-                >{{ row.url }}</a>
                 <button
-                  v-else
                   type="button"
-                  class="block w-full truncate text-left font-mono text-sm text-white"
+                  class="block w-full truncate text-left font-mono text-sm hover:underline"
+                  :class="row.network !== 'bros' ? 'text-[var(--bros-accent)]' : 'text-white'"
                   :title="row.url"
+                  :aria-label="`Copy ${row.url}`"
                   @click="emit('copy', row.url || '')"
                 >{{ row.url }}</button>
                 <p v-if="row.network" class="text-[0.65rem] text-[var(--bros-muted)]">
@@ -472,8 +466,20 @@ function locked(action: string) {
           </p>
         </div>
         <div v-if="docker && editing" class="space-y-3">
-          <UTextarea :model-value="editDockerApp" :rows="8" class="font-mono text-xs" @update:model-value="emit('update:editDockerApp', $event)" />
-          <UTextarea :model-value="editCompose" :rows="10" class="font-mono text-xs" @update:model-value="emit('update:editCompose', $event)" />
+          <UTextarea
+            :model-value="editDockerApp"
+            :rows="8"
+            class="font-mono text-xs"
+            aria-label="config.yml"
+            @update:model-value="emit('update:editDockerApp', $event)"
+          />
+          <UTextarea
+            :model-value="editCompose"
+            :rows="10"
+            class="font-mono text-xs"
+            aria-label="docker-compose.yml"
+            @update:model-value="emit('update:editCompose', $event)"
+          />
           <div class="flex gap-2">
             <UButton size="sm" color="primary" :loading="busyOn('save')" @click="emit('save')">Save</UButton>
             <UButton size="sm" color="neutral" variant="ghost" @click="emit('cancel-edit')">Cancel</UButton>

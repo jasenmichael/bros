@@ -23,6 +23,7 @@ const proxyPending = ref(false)
 const repairOpen = ref(false)
 const repairPending = ref(false)
 const repairMsg = ref('')
+const proxyRotateOpen = ref(false)
 const { data: rulesSkill } = await useFetch<{ body: string }>('/api/skills/rules')
 const { data: personalitySkill } = await useFetch<{ body: string }>('/api/skills/personality')
 const prepend = ref(rulesSkill.value?.body || '')
@@ -112,13 +113,13 @@ async function saveWhisper(value: boolean) {
 async function changePasscode() {
   msg.value = ''
   if (passcode.value.length < 4 || passcode.value !== confirm.value) {
-    msg.value = 'Passcodes must match and be at least 4 characters'
+    msg.value = 'Passkeys must match and be at least 4 characters'
     return
   }
   pending.value = true
   try {
     await $fetch('/api/settings/passcode', { method: 'POST', body: { passcode: passcode.value } })
-    msg.value = 'Passcode updated.'
+    msg.value = 'Passkey updated.'
     passcode.value = ''
     confirm.value = ''
   } catch (e: unknown) {
@@ -129,6 +130,7 @@ async function changePasscode() {
 }
 
 async function rotateProxyKey() {
+  proxyRotateOpen.value = false
   proxyPending.value = true
   proxyMsg.value = ''
   try {
@@ -191,7 +193,7 @@ async function logout() {
           <p class="text-sm text-[var(--bros-muted)]">Personality skill. How the assistant should sound.</p>
           <UTextarea v-model="assistantDescription" class="w-full" :rows="3" placeholder="Optional personality or role" />
         </label>
-        <p v-if="chatMsg" class="text-sm text-[var(--bros-muted)]">{{ chatMsg }}</p>
+        <p v-if="chatMsg" :role="chatMsg === 'Saved.' ? 'status' : 'alert'" class="text-sm text-[var(--bros-muted)]">{{ chatMsg }}</p>
         <UButton type="submit" :loading="chatPending">Save</UButton>
       </form>
 
@@ -212,7 +214,7 @@ async function logout() {
             @update:model-value="saveWhisper"
           />
         </label>
-        <p v-if="whisperMsg" class="text-sm text-[var(--bros-muted)]">{{ whisperMsg }}</p>
+        <p v-if="whisperMsg" role="alert" class="text-sm text-[var(--bros-muted)]">{{ whisperMsg }}</p>
       </div>
 
       <div class="space-y-2">
@@ -239,8 +241,14 @@ async function logout() {
           <span class="font-mono">{{ server.id }}</span>
           <USwitch :model-value="server.enabled" :aria-label="`Enable ${server.id}`" @update:model-value="(v: boolean) => toggleMcp(server.id, v)" />
         </div>
-        <UInput v-model="mcpId" class="w-full" placeholder="Server id" />
-        <UInput v-model="mcpUrl" class="w-full" placeholder="http://host:port/mcp" />
+        <label class="block text-sm text-[var(--bros-muted)]">
+          Server id
+          <UInput v-model="mcpId" class="mt-1 w-full" placeholder="Server id" />
+        </label>
+        <label class="block text-sm text-[var(--bros-muted)]">
+          MCP URL
+          <UInput v-model="mcpUrl" class="mt-1 w-full" placeholder="http://host:port/mcp" />
+        </label>
         <UButton type="submit">Add MCP server</UButton>
       </form>
 
@@ -300,16 +308,32 @@ async function logout() {
           <li v-for="url in data.proxyUrls" :key="url">{{ url }}</li>
         </ul>
         <p v-else class="text-sm text-[var(--bros-muted)]">No api or openai docker app is proxied yet.</p>
-        <p v-if="proxyMsg" class="text-sm text-[var(--bros-muted)]">{{ proxyMsg }}</p>
-        <UButton type="button" :loading="proxyPending" @click="rotateProxyKey">Rotate proxy key</UButton>
+        <p v-if="proxyMsg" :role="proxyMsg.includes('rotated') ? 'status' : 'alert'" class="text-sm text-[var(--bros-muted)]">{{ proxyMsg }}</p>
+        <UButton type="button" :loading="proxyPending" @click="() => { proxyRotateOpen = true }">Rotate proxy key</UButton>
+        <UModal
+          v-model:open="proxyRotateOpen"
+          title="Rotate proxy key?"
+          description="Creates a new key. Clients still sending the old key will fail until you update them."
+        >
+          <template #footer>
+            <UButton color="neutral" variant="ghost" @click="() => { proxyRotateOpen = false }">Cancel</UButton>
+            <UButton color="error" :loading="proxyPending" @click="rotateProxyKey">Rotate</UButton>
+          </template>
+        </UModal>
       </div>
 
       <form class="space-y-3" @submit.prevent="changePasscode">
         <h2 class="text-lg font-medium text-white">Passkey</h2>
         <p class="text-sm text-[var(--bros-muted)]">Updates <span class="font-mono">data/passkey</span> (source of truth for login).</p>
-        <UInput v-model="passcode" class="w-full" type="password" placeholder="New passkey" />
-        <UInput v-model="confirm" class="w-full" type="password" placeholder="Confirm" />
-        <p v-if="msg" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
+        <label class="block text-sm text-[var(--bros-muted)]">
+          New passkey
+          <UInput v-model="passcode" class="mt-1 w-full" type="password" placeholder="New passkey" />
+        </label>
+        <label class="block text-sm text-[var(--bros-muted)]">
+          Confirm passkey
+          <UInput v-model="confirm" class="mt-1 w-full" type="password" placeholder="Confirm passkey" />
+        </label>
+        <p v-if="msg" role="status" class="text-sm text-[var(--bros-muted)]">{{ msg }}</p>
         <UButton type="submit" :loading="pending">Update passkey</UButton>
       </form>
 

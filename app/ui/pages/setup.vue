@@ -10,11 +10,11 @@ const pending = ref(false)
 async function submit() {
   error.value = ''
   if (passcode.value.length < 4) {
-    error.value = 'Passcode must be at least 4 characters'
+    error.value = 'Passkey must be at least 4 characters'
     return
   }
   if (passcode.value !== confirm.value) {
-    error.value = 'Passcodes do not match'
+    error.value = 'Passkeys do not match'
     return
   }
   pending.value = true
@@ -31,12 +31,34 @@ async function submit() {
 
 <template>
   <div class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
-    <h1 class="text-2xl font-semibold text-white">Set passcode</h1>
-    <p class="mt-2 text-sm text-[var(--bros-muted)]">First-run shared passcode for this Bros instance.</p>
+    <h1 class="text-2xl font-semibold text-white">Set passkey</h1>
+    <p class="mt-2 text-sm text-[var(--bros-muted)]">First-run shared passkey for this Bros instance.</p>
     <form class="mt-6 space-y-3" @submit.prevent="submit">
-      <UInput v-model="passcode" type="password" placeholder="Passcode" size="lg" />
-      <UInput v-model="confirm" type="password" placeholder="Confirm" size="lg" />
-      <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
+      <label class="block text-sm text-[var(--bros-muted)]">
+        Passkey
+        <UInput
+          v-model="passcode"
+          type="password"
+          placeholder="Passkey"
+          size="lg"
+          class="mt-1 w-full"
+          :aria-invalid="error ? 'true' : undefined"
+          :aria-describedby="error ? 'setup-error' : undefined"
+        />
+      </label>
+      <label class="block text-sm text-[var(--bros-muted)]">
+        Confirm passkey
+        <UInput
+          v-model="confirm"
+          type="password"
+          placeholder="Confirm passkey"
+          size="lg"
+          class="mt-1 w-full"
+          :aria-invalid="error ? 'true' : undefined"
+          :aria-describedby="error ? 'setup-error' : undefined"
+        />
+      </label>
+      <p v-if="error" id="setup-error" role="alert" class="text-sm text-red-400">{{ error }}</p>
       <UButton type="submit" block :loading="pending">Continue</UButton>
     </form>
   </div>

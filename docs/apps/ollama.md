@@ -28,8 +28,8 @@ Host Ollama (`ollama-host`) is a separate provider. Bros does not stop or restar
 
 Compose runs Ollama as `BROS_HOST_UID`:`BROS_HOST_GID`. `$HOME` is `/home/bros`. Ollama reads `$HOME/.ollama`.
 
-- `$BROS_DATA_DIR/home/.ollama` → `/home/bros/.ollama` (downloaded models)
-- `$BROS_DATA_DIR/home/.config/ollama` → `/home/bros/.config/ollama`
+- `$BROS_HOME/.ollama` → `/home/bros/.ollama` (downloaded models)
+- `$BROS_HOME/.config/ollama` → `/home/bros/.config/ollama`
 - `$BROS_DATA_DIR/apps/ollama/bros-model` → `/bros-model` (read-only packaged tree)
 
 GPU: if an NVIDIA GPU is present, open the docker app card on Providers and enable **Use GPU** under the installed-model list to restart with the GPU compose override. Host Ollama cannot configure GPU from Bros. Installed docker app and host models each have a Chat switch and a confirm-before-delete ban icon. Off hides that model from Chat only. Compose (and the GPU override) set **`OLLAMA_NOPRUNE=1`** so incomplete pulls survive.

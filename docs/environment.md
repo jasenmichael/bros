@@ -5,7 +5,7 @@ description: Vars a user can set in .env, with defaults.
 
 # Environment
 
-No `.env` is needed for defaults. `./bros` and Compose apply the defaults below when a var is unset. Repo-root `example.env` lists each one commented. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. To override, uncomment the line in `.env`. A same-line ` # comment` is ignored. `$HOME`, `${HOME}`, and a leading `~` expand from the process environment. `$BROS_DIR` / `${BROS_DIR}` expand when resolving `BROS_DATA_DIR`. After expand, `BROS_DATA_DIR` (and a set `BROS_WORKSPACE`) must be absolute and must not contain `$` or `#` — otherwise the CLI exits before Compose can create junk under `BROS_DIR`. A var already set in the shell wins. Empty values are skipped. A local `.env` is gitignored. `bros update` refreshes `example.env` and does not replace an existing `.env`.
+No `.env` is needed for defaults. `./bros` and Compose apply the defaults below when a var is unset. Repo-root `example.env` lists each one commented. Install copies `example.env` to `.env` when `.env` is absent and leaves `example.env` in place. To override, uncomment the line in `.env`. A same-line ` # comment` is ignored. `$HOME`, `${HOME}`, and a leading `~` expand from the process environment. `$BROS_DIR` / `${BROS_DIR}` expand when resolving `BROS_DATA_DIR`. `$BROS_DATA_DIR` expands when resolving `BROS_HOME`. After expand, `BROS_DATA_DIR`, `BROS_HOME`, and a set `BROS_WORKSPACE` must be absolute and must not contain `$` or `#` — otherwise the CLI exits before Compose can create junk under `BROS_DIR`. A var already set in the shell wins. Empty values are skipped. A local `.env` is gitignored. `bros update` refreshes `example.env` and does not replace an existing `.env`.
 
 The `.env` file is read from the **real binary’s directory** (follow the `BROS_BIN` symlink). It is never read from the symlink’s directory.
 
@@ -22,7 +22,8 @@ Server settings live in `$BROS_DIR/bros.yml`. Chat prepend and assistant descrip
 | `BROS_DIR` | real binary directory | Install / app root |
 | `BROS_BIN` | `$HOME/.local/bin/bros` | Symlink to `$BROS_DIR/bros` (install only) |
 | `BROS_DATA_DIR` | `$BROS_DIR/data` | Persistent binds + UI data. On the host and in Desktop (for nested Compose) this is the **host** absolute path. In-container UI files use `/app/data`. |
-| `BROS_WORKSPACE` | `$BROS_DATA_DIR/home/workspace` | Desktop workspace bind. A set value wins over `bros.yml` `workspace`. |
+| `BROS_HOME` | `$BROS_DATA_DIR/home` | Desktop home host path (`/home/bros`). Set this to use a home tree outside `$BROS_DATA_DIR/home`. Compose volume sources use `${BROS_HOME:-$BROS_DATA_DIR/home}`. |
+| `BROS_WORKSPACE` | `$BROS_HOME/workspace` | Desktop workspace bind. A set value wins over `bros.yml` `workspace`. |
 | `BROS_PORT` | `3055` | UI host port |
 | `BROS_HOST` | `0.0.0.0` | UI listen address. `127.0.0.1` stays on this machine |
 | `BROS_APPS_ENABLED` | empty | Comma list of addon docker app ids to start on boot (union with SQLite Autostart). Ollama always starts. Whisper follows Settings. |

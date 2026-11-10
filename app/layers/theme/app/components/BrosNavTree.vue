@@ -82,8 +82,9 @@ function linkExactActiveClass(item: BrosNavItem) {
         :active-class="linkActiveClass(item)"
         :exact-active-class="linkExactActiveClass(item)"
         :title="item.label"
+        :aria-label="item.label"
       >
-        <UIcon v-if="item.icon && depth === 0" :name="item.icon" class="size-4 shrink-0" />
+        <UIcon v-if="item.icon && depth === 0" :name="item.icon" class="size-4 shrink-0" aria-hidden="true" />
         <span v-if="!iconMode" class="bros-nav-label">{{ item.label }}</span>
       </NuxtLink>
       <button

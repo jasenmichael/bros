@@ -67,15 +67,15 @@ One file, `$BROS_DIR/bros.yml`: `tunnel` (default off), `public_url`, `enable_ho
 **`BROS_DIR` (host):** when running `bros` with `BROS_DIR` unset, the real directory of the `bros` script (symlink-aware: `~/.local/bin/bros` → `$BROS_DIR/bros`). Installed clone is typically `~/.bros`. `BROS_DIR` is an alias (`BROS_DIR` alone still sets `BROS_DIR`). Override with `BROS_DIR` or `BROS_DIR`. Data defaults to `$BROS_DIR/data` (`BROS_DATA_DIR` override, host bind `BROS_DATA_DIR`):
 
 - `$BROS_DATA_DIR` → app `/app/data` (SQLite, logs, tunnel, `passkey`, `proxy-key`, `session-secret`). A docker app log is `docker compose logs` for that project. A container in project `bros` is `docker logs` for that container. A package service writes stdout and stderr to `data/var/logs/apps/<id>.log`. The CLI appends to `data/var/logs/bros.log`. Ensure status is `data/var/ensure.json`.
-- `$BROS_DATA_DIR/home` → Desktop `$HOME` (`/home/bros`). Desktop mounts this whole directory. A docker app mounts only the `home` paths its `config.yml` lists, at the same path under its own `$HOME`. Two packs that list the same path fail discovery. The Bros user is `BROS_HOST_UID`:`BROS_HOST_GID` for Desktop and every docker app.
-- `$BROS_DATA_DIR/home/workspace` → `$HOME/workspace`. `bros.yml` `workspace` or `BROS_WORKSPACE` replaces the host path. A docker app gets it only when that docker app lists `workspace`.
-- `$BROS_DATA_DIR/home/.local/app-bins` → Desktop `$HOME/.local/app-bins`, first on Desktop `PATH`. App `launch.sh` wrappers live here. Installed binaries do not.
-- `$BROS_DATA_DIR/home/.ollama` and `home/.config/ollama` → Ollama `$HOME`. Downloaded models stay under `.ollama/models`. `$BROS_DATA_DIR/apps/ollama/bros-model` stays `/bros-model` (read-only packaged tree).
-- `$BROS_DATA_DIR/home/.config/Cursor` and `home/.cursor` → Cursor app home. `$BROS_DATA_DIR/home/.config/cursor` and `home/.local/share/cursor-agent` → Agent app home. Desktop mounts all of `home`, so these are the directories those apps create.
-- `$BROS_DATA_DIR/home/.config/opencode`, `home/.local/share/opencode`, `home/.local/state/opencode` → OpenCode `$HOME`.
-- `$BROS_DATA_DIR/home/.pi` → Pi `$HOME/.pi`.
-- `$BROS_DATA_DIR/home/.cache/huggingface` → OpenJEV. Whisper mounts `home/.cache/huggingface/hub` only.
-- `$BROS_DATA_DIR/home/.cache/vllm` and `home/.cache/flashinfer` → OpenJEV.
+- `$BROS_HOME` (default `$BROS_DATA_DIR/home`) → Desktop `$HOME` (`/home/bros`). Desktop mounts this whole directory. Compose sources use `${BROS_HOME:-$BROS_DATA_DIR/home}`. A docker app mounts only the `home` paths its compose file binds, at the same path under its own `$HOME`. Two packs that list the same path fail discovery. The Bros user is `BROS_HOST_UID`:`BROS_HOST_GID` for Desktop and every docker app.
+- `$BROS_HOME/workspace` → `$HOME/workspace`. `bros.yml` `workspace` or `BROS_WORKSPACE` replaces the host path. A docker app gets it only when that docker app lists `workspace`.
+- `$BROS_HOME/.local/app-bins` → Desktop `$HOME/.local/app-bins`, first on Desktop `PATH`. App `launch.sh` wrappers live here. Installed binaries do not.
+- `$BROS_HOME/.ollama` and `$BROS_HOME/.config/ollama` → Ollama `$HOME`. Downloaded models stay under `.ollama/models`. `$BROS_DATA_DIR/apps/ollama/bros-model` stays `/bros-model` (read-only packaged tree).
+- `$BROS_HOME/.config/Cursor` and `$BROS_HOME/.cursor` → Cursor app home. `$BROS_HOME/.config/cursor` and `$BROS_HOME/.local/share/cursor-agent` → Agent app home. Desktop mounts all of `home`, so these are the directories those apps create.
+- `$BROS_HOME/.config/opencode`, `$BROS_HOME/.local/share/opencode`, `$BROS_HOME/.local/state/opencode` → OpenCode `$HOME`.
+- `$BROS_HOME/.pi` → Pi `$HOME/.pi`.
+- `$BROS_HOME/.cache/huggingface` → OpenJEV. Whisper mounts `home/.cache/huggingface/hub` only.
+- `$BROS_HOME/.cache/vllm` and `$BROS_HOME/.cache/flashinfer` → OpenJEV.
 - `$BROS_DATA_DIR/apps/openwebui/data` → Open WebUI `/app/backend/data`.
 - `$BROS_DATA_DIR/apps/firecrawl/postgres`, `redis`, `rabbitmq` stay service data, not home paths.
 - `$BROS_DATA_DIR/apps/omniroute/data` and `apps/omniroute/redis` → OmniRoute. `apps/omniroute/.env` holds `OMNIROUTE_JWT_SECRET` (not a pack-dir `.env`).

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, statSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -75,6 +75,23 @@ export function bumpedRestartIds(seen, restarts) {
   return out
 }
 
+/** bash: 126 = not executable, 127 = command not found */
+export function isFatalServiceExit(code) {
+  return code === 126 || code === 127
+}
+
+export function withoutRunningId(text, id) {
+  try {
+    const doc = JSON.parse(text || '{}')
+    const ids = Array.isArray(doc?.ids) ? doc.ids.filter((row) => typeof row === 'string' && row && row !== id) : []
+    const restarts = doc?.restarts && typeof doc.restarts === 'object' ? { ...doc.restarts } : {}
+    delete restarts[id]
+    return `${JSON.stringify({ ids: [...ids].sort(), restarts })}\n`
+  } catch {
+    return `${JSON.stringify({ ids: [], restarts: {} })}\n`
+  }
+}
+
 function idFromYaml(text) {
   return text.match(/^id:\s*['"]?([A-Za-z0-9][A-Za-z0-9._+-]*)['"]?\s*$/m)?.[1] || ''
 }
@@ -107,6 +124,12 @@ function readRunningText() {
 
 function readRunning() {
   return runningIds(readRunningText())
+}
+
+function clearRunningId(id) {
+  const next = withoutRunningId(readRunningText(), id)
+  mkdirSync(dirname(runningPath), { recursive: true })
+  writeFileSync(runningPath, next)
 }
 
 function readEnabled() {
@@ -187,6 +210,15 @@ function launch(id, command, cwd) {
     if (state.stop || code === 0) {
       if (live.get(key) === state) live.delete(key)
       if (code === 0 && !state.stop) settled.add(key)
+      return
+    }
+    if (isFatalServiceExit(code)) {
+      if (live.get(key) === state) live.delete(key)
+      clearRunningId(id)
+      for (const [other, row] of live) {
+        if (!other.startsWith(`${id}\0`)) continue
+        drop(other, row)
+      }
       return
     }
     state.child = null

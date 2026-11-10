@@ -110,19 +110,18 @@ The configured hostname for a named host tunnel. Distinct from enabling the tunn
 ## Install root
 
 `BROS_DIR`. Install default `~/.bros` (binary location). Runtime: shell, else `.env` beside the real binary, else the real binary’s directory.
-_Avoid_: BROS_HOME
 
 ## Data dir
 
-`BROS_DATA_DIR`. Default `$BROS_DIR/data`. Host absolute path for Compose binds.
-
-## Workspace
-
-`BROS_WORKSPACE`. Default `$BROS_DATA_DIR/home/workspace`. Desktop workspace bind.
+`BROS_DATA_DIR`. Default `$BROS_DIR/data`. Host absolute path for Compose binds (SQLite, logs, app data). Not the Desktop home unless `BROS_HOME` is left at the default.
 
 ## Desktop home
 
-One host directory. Desktop mounts the whole directory as its home. A docker app mounts only the home subdirectories its compose file binds.
+`BROS_HOME`. Default `$BROS_DATA_DIR/home`. Host directory Desktop mounts as `/home/bros`. A docker app mounts only the home subdirectories its compose file binds. Explicit `BROS_HOME` replaces `$BROS_DATA_DIR/home`.
+
+## Workspace
+
+`BROS_WORKSPACE`. Default `$BROS_HOME/workspace`. Desktop workspace bind.
 
 ## Desktop
 

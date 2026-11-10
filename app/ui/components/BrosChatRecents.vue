@@ -135,6 +135,9 @@ function rowItems(id: string, title: string): DropdownMenuItem[] {
 
 <template>
   <ClientOnly>
+  <template #fallback>
+    <span class="hidden" aria-hidden="true" />
+  </template>
   <div v-if="showList" class="bros-recents">
     <button
       type="button"

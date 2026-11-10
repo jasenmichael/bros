@@ -74,8 +74,8 @@ services:
     volumes:
       - ${BROS_DATA_DIR:?unset}:/app/data
       - ${BROS_DATA_DIR:?unset}/config/apps:/opt/bros/apps
-      - ${BROS_DATA_DIR:?unset}/home:/home/bros
-      - ${BROS_DATA_DIR:?unset}/home/nix:/nix
+      - ${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}:/home/bros
+      - ${BROS_HOME:-${BROS_DATA_DIR:?unset}/home}/nix:/nix
       - ${BROS_DATA_DIR:?unset}/cache/apt/archives:/var/cache/apt/archives
       - ${BROS_DATA_DIR:?unset}/cache/apt/lists:/var/lib/apt/lists
       - ${BROS_DATA_DIR:?unset}/cache/deb:/var/cache/bros/debs
