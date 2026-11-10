@@ -82,6 +82,15 @@ describe('agents board rules', () => {
     expect(existsSync(join(repo, 'keep.txt'))).toBe(true)
   })
 
+  it('cancels a stuck creating_pr job', async () => {
+    const { createJob, getJob, patchJob } = await import('../../app/server/utils/agents/store')
+    const { cancelJob } = await import('../../app/server/utils/agents/loop')
+    const job = createJob({ project: 'demo', issueNumber: 9, title: 'Open the PR', kind: 'fix' })
+    patchJob(job.id, { state: 'creating_pr' })
+    cancelJob(job.id)
+    expect(getJob(job.id)?.state).toBe('cancelled')
+  })
+
   it('clears a failed job without deleting the repo directory', async () => {
     const { createJob, getJob, patchJob } = await import('../../app/server/utils/agents/store')
     const { clearJob } = await import('../../app/server/utils/agents/loop')

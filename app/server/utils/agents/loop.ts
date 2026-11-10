@@ -323,36 +323,42 @@ export async function runApprovePr(id: string) {
   const token = readSettings().githubToken
   if (!token) throw new Error('GitHub token is not set')
   patchJob(id, { state: 'creating_pr' })
-  const spec = readTaskSpec(job)
-  const plan = pullPlan(project.prBase, job.branch)
-  const pull = await openPull({
-    token,
-    owner: project.owner,
-    repo: project.repo,
-    title: spec?.title || job.title,
-    head: plan.job.head,
-    base: plan.job.base,
-    body: `Fixes #${job.issueNumber}`,
-  })
-  if (plan.standing) {
-    const standing = await ensureStandingPull(token, project.owner, project.repo, plan.job.base)
-    if (standing?.url) setProjectPromotion(project.name, standing.url)
+  try {
+    const spec = readTaskSpec(job)
+    const plan = pullPlan(project.prBase, job.branch)
+    const pull = await openPull({
+      token,
+      owner: project.owner,
+      repo: project.repo,
+      title: spec?.title || job.title,
+      head: plan.job.head,
+      base: plan.job.base,
+      body: `Fixes #${job.issueNumber}`,
+    })
+    if (plan.standing) {
+      const standing = await ensureStandingPull(token, project.owner, project.repo, plan.job.base)
+      if (standing?.url) setProjectPromotion(project.name, standing.url)
+    }
+    patchJob(id, {
+      state: 'completed',
+      prNumber: pull.number,
+      prUrl: pull.url,
+      result: `PR #${pull.number}`,
+      completedAt: Date.now(),
+      error: null,
+    })
+    addApproval(id, 'pr', 'approved')
+    addEvent(id, 'pr', pull.url)
   }
-  patchJob(id, {
-    state: 'completed',
-    prNumber: pull.number,
-    prUrl: pull.url,
-    result: `PR #${pull.number}`,
-    completedAt: Date.now(),
-    error: null,
-  })
-  addApproval(id, 'pr', 'approved')
-  addEvent(id, 'pr', pull.url)
+  catch (error) {
+    await failJob(id, error)
+    throw error
+  }
 }
 
 export function cancelJob(id: string) {
   const job = getJob(id)
-  if (!job || !['awaiting_approval', 'awaiting_pr', 'queued', 'planning'].includes(job.state)) {
+  if (!job || !['awaiting_approval', 'awaiting_pr', 'creating_pr', 'queued', 'planning'].includes(job.state)) {
     throw new Error('job cannot be cancelled')
   }
   patchJob(id, { state: 'cancelled', completedAt: Date.now() })

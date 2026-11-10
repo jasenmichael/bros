@@ -333,7 +333,17 @@ function clearToken(which: 'github' | 'cursor') {
         <ul v-else class="space-y-3">
           <li v-for="job in queue" :key="job.id">
             <p class="text-sm text-white">{{ job.project }} #{{ job.issueNumber }} · {{ job.state }}</p>
-            <UButton class="mt-2" size="sm" color="neutral" variant="outline" @click="look(job)">Look in</UButton>
+            <div class="mt-2 flex gap-2">
+              <UButton size="sm" color="neutral" variant="outline" @click="look(job)">Look in</UButton>
+              <UButton
+                v-if="job.state === 'creating_pr' || job.state === 'queued' || job.state === 'planning'"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                :disabled="busy"
+                @click="cancel(job)"
+              >Cancel</UButton>
+            </div>
             <pre v-if="openId === job.id" class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-[var(--bros-muted)]">{{ events.map((row) => `${row.kind}: ${row.message}`).join('\n') }}</pre>
           </li>
         </ul>
